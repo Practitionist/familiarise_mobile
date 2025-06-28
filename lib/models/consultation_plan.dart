@@ -83,6 +83,6 @@ class ConsultationPlan {
     };
   }
 
-  String get formattedPrice => '\$${price}';
+  String get formattedPrice => '\$$price';
   String get formattedDuration => '${durationInHours}h';
 }

@@ -6,6 +6,7 @@ import '../models/appointment.dart';
 
 class AppStateProvider extends ChangeNotifier {
   String _selectedDomainId = '';
+  String _selectedRegion = '';
   List<Domain> _domains = [];
   List<ConsultantProfile> _consultants = [];
   List<ConsultationPlan> _consultationPlans = [];
@@ -13,6 +14,7 @@ class AppStateProvider extends ChangeNotifier {
   bool _isLoading = false;
 
   String get selectedDomainId => _selectedDomainId;
+  String get selectedRegion => _selectedRegion;
   List<Domain> get domains => _domains;
   List<ConsultantProfile> get consultants => _consultants;
   List<ConsultationPlan> get consultationPlans => _consultationPlans;
@@ -35,6 +37,11 @@ class AppStateProvider extends ChangeNotifier {
 
   void setSelectedDomain(String domainId) {
     _selectedDomainId = domainId;
+    notifyListeners();
+  }
+
+  void setSelectedRegion(String region) {
+    _selectedRegion = region;
     notifyListeners();
   }
 

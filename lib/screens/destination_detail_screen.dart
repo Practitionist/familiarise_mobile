@@ -99,7 +99,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
         child: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -112,7 +112,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
         Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             shape: BoxShape.circle,
           ),
           child: IconButton(

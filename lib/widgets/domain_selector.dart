@@ -54,7 +54,7 @@ class DomainSelector extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: isSelected ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+                              color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.grey[200],
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(

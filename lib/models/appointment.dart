@@ -112,8 +112,8 @@ class AppointmentSlot {
 }
 
 enum AppointmentType {
-  CONSULTATION,
-  SUBSCRIPTION,
-  WEBINAR,
-  CLASS,
+  consultation,
+  subscription,
+  webinar,
+  classType,
 }

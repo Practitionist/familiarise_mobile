@@ -259,7 +259,7 @@ class _TourScheduleScreenState extends State<TourScheduleScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        ...dayItinerary.map((item) => _buildTimeSlotItem(item)).toList(),
+        ...dayItinerary.map((item) => _buildTimeSlotItem(item)),
       ],
     );
   }
