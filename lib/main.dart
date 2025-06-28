@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/supabase_config.dart';
 import 'screens/home_screen.dart';
+import 'screens/explore_experts_screen.dart';
 import 'providers/app_state_provider.dart';
 import 'services/api_service.dart';
 
@@ -23,6 +24,12 @@ final GoRouter _router = GoRouter(
       path: '/',
       builder: (BuildContext context, GoRouterState state) {
         return const HomeScreen();
+      },
+    ),
+    GoRoute(
+      path: '/explore-experts',
+      builder: (BuildContext context, GoRouterState state) {
+        return const ExploreExpertsScreen();
       },
     ),
     GoRoute(

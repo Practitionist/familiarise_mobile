@@ -8,12 +8,10 @@ class ApiService {
   ApiService._internal();
 
   late final String _baseUrl;
-  late final String _supabaseUrl;
   late final String _supabaseAnonKey;
 
   void initialize() {
     _baseUrl = dotenv.env['API_BASE_URL'] ?? '';
-    _supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
     _supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   }
 

@@ -119,7 +119,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const DomainSelector(),
               const SizedBox(height: 24),
               Expanded(
-                child: _buildConsultantsList(),
+                child: Column(
+                  children: [
+                    Expanded(child: _buildConsultantsList()),
+                    const SizedBox(height: 16),
+                    _buildViewAllButton(),
+                  ],
+                ),
               ),
             ],
           ),
@@ -171,39 +177,42 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: Colors.grey),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search consultants, skills...',
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: Colors.grey[500]),
+    return GestureDetector(
+      onTap: () => context.go('/explore-experts'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, color: Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Search consultants, skills...',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 16,
+                ),
               ),
             ),
-          ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Colors.black,
-              shape: BoxShape.circle,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.tune,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            child: const Icon(
-              Icons.tune,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -245,6 +254,31 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildViewAllButton() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: OutlinedButton(
+        onPressed: () => context.go('/explore-experts'),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          side: BorderSide(color: Theme.of(context).primaryColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          'View All Experts',
+          style: TextStyle(
+            color: Theme.of(context).primaryColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+      ),
     );
   }
 
