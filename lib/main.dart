@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'config/supabase_config.dart';
 import 'screens/home_screen.dart';
-import 'screens/destination_detail_screen.dart';
-import 'screens/tour_schedule_screen.dart';
 import 'providers/app_state_provider.dart';
 
 void main() async {
@@ -24,17 +22,9 @@ final GoRouter _router = GoRouter(
       },
     ),
     GoRoute(
-      path: '/destination/:id',
+      path: '/consultant/:id',
       builder: (BuildContext context, GoRouterState state) {
-        final destinationId = state.pathParameters['id']!;
-        return DestinationDetailScreen(destinationId: destinationId);
-      },
-    ),
-    GoRoute(
-      path: '/tour-schedule/:tourId',
-      builder: (BuildContext context, GoRouterState state) {
-        final tourId = state.pathParameters['tourId']!;
-        return TourScheduleScreen(tourId: tourId);
+        return const HomeScreen(); // TODO: Create ConsultantDetailScreen
       },
     ),
   ],
