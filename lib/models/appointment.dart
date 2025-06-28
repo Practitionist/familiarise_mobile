@@ -117,3 +117,12 @@ enum AppointmentType {
   webinar,
   classType,
 }
+
+enum RequestStatus {
+  pending,
+  approved,
+  scheduled,
+  rejected,
+  cancelled,
+  expired,
+}
