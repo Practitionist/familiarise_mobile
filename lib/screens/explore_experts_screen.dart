@@ -70,17 +70,15 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
         limit: 10,
       );
       
-      if (response is Map<String, dynamic>) {
-        final data = response['data'] as List? ?? [];
-        
-        setState(() {
-          if (reset) {
-            _experts = List<Map<String, dynamic>>.from(data);
-          } else {
-            _experts.addAll(List<Map<String, dynamic>>.from(data));
-          }
-        });
-      }
+      final data = response['data'] as List? ?? [];
+      
+      setState(() {
+        if (reset) {
+          _experts = List<Map<String, dynamic>>.from(data);
+        } else {
+          _experts.addAll(List<Map<String, dynamic>>.from(data));
+        }
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

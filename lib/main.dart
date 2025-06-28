@@ -6,14 +6,12 @@ import 'config/supabase_config.dart';
 import 'screens/home_screen.dart';
 import 'screens/explore_experts_screen.dart';
 import 'providers/app_state_provider.dart';
-import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   await dotenv.load(fileName: ".env");
   await SupabaseConfig.initialize();
-  ApiService().initialize();
   
   runApp(const FamiliariseApp());
 }

@@ -1,25 +1,39 @@
-import 'api_service.dart';
+import '../config/supabase_config.dart';
 
 class UserService {
   static final UserService _instance = UserService._internal();
   factory UserService() => _instance;
   UserService._internal();
 
-  final ApiService _apiService = ApiService();
-
-  Future<dynamic> getCurrentUser() async {
-    return await _apiService.get('/api/user');
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    final response = await SupabaseConfig.client
+        .from('users')
+        .select()
+        .limit(1)
+        .single();
+    return response;
   }
 
-  Future<dynamic> updateUser(Map<String, dynamic> userData) async {
-    return await _apiService.put('/api/user', userData);
+  Future<Map<String, dynamic>> updateUser(String userId, Map<String, dynamic> userData) async {
+    final response = await SupabaseConfig.client
+        .from('users')
+        .update(userData)
+        .eq('id', userId)
+        .select()
+        .single();
+    return response;
   }
 
-  Future<dynamic> getUserById(String userId) async {
-    return await _apiService.get('/api/user/$userId');
+  Future<Map<String, dynamic>> getUserById(String userId) async {
+    final response = await SupabaseConfig.client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .single();
+    return response;
   }
 
-  Future<dynamic> getConsultants({
+  Future<Map<String, dynamic>> getConsultants({
     String? domain,
     String? subdomain,
     List<String>? tags,
@@ -29,59 +43,94 @@ class UserService {
     int page = 1,
     int limit = 10,
   }) async {
-    final queryParams = <String, String>{};
-    if (domain != null) queryParams['domain'] = domain;
-    if (subdomain != null) queryParams['subdomain'] = subdomain;
-    if (tags != null && tags.isNotEmpty) queryParams['tags'] = tags.join(',');
-    if (experience != null) queryParams['experience'] = experience.toString();
-    if (search != null) queryParams['search'] = search;
-    if (sort != null) queryParams['sort'] = sort;
-    queryParams['page'] = page.toString();
-    queryParams['limit'] = limit.toString();
+    try {
+      // First, try a simple query to get consultant profiles
+      final response = await SupabaseConfig.client
+          .from('consultant_profiles')
+          .select('*')
+          .limit(limit);
 
-    final uri = Uri.parse('/user/consultants').replace(queryParameters: queryParams);
-    return await _apiService.get(uri.toString());
+      print('Raw Supabase response: $response');
+
+      return {
+        'data': response,
+        'meta': {
+          'total': response.length,
+          'page': page,
+          'limit': limit,
+          'totalPages': 1,
+        },
+      };
+    } catch (e) {
+      print('Supabase error: $e');
+      // Return empty result on error
+      return {
+        'data': [],
+        'meta': {
+          'total': 0,
+          'page': page,
+          'limit': limit,
+          'totalPages': 0,
+        },
+      };
+    }
   }
 
-  Future<dynamic> getConsultantById(String consultantId) async {
-    return await _apiService.get('/user/consultants/$consultantId');
-  }
-
-  Future<dynamic> getConsultantMeta() async {
-    return await _apiService.get('/user/consultants/meta');
+  Future<Map<String, dynamic>> getConsultantById(String consultantId) async {
+    final response = await SupabaseConfig.client
+        .from('consultant_profiles')
+        .select('''
+          *,
+          user:users(*),
+          domain:domains(*),
+          subDomains:sub_domains(*),
+          tags:tags(*),
+          reviews:consultant_reviews(*)
+        ''')
+        .eq('id', consultantId)
+        .single();
+    return response;
   }
 
   Future<List<Map<String, dynamic>>> getConsultees({
     int? limit,
     int? offset,
   }) async {
-    final queryParams = <String, String>{};
-    if (limit != null) queryParams['limit'] = limit.toString();
-    if (offset != null) queryParams['offset'] = offset.toString();
+    final response = await SupabaseConfig.client
+        .from('consultee_profiles')
+        .select('*, user:users(*)')
+        .limit(limit ?? 10);
 
-    final uri = Uri.parse('/api/user/consultees').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<Map<String, dynamic>> getConsulteeById(String consulteeId) async {
-    return await _apiService.get('/api/user/consultees/$consulteeId');
+    final response = await SupabaseConfig.client
+        .from('consultee_profiles')
+        .select('*, user:users(*)')
+        .eq('id', consulteeId)
+        .single();
+    return response;
   }
 
   Future<List<Map<String, dynamic>>> getStaff({
     int? limit,
     int? offset,
   }) async {
-    final queryParams = <String, String>{};
-    if (limit != null) queryParams['limit'] = limit.toString();
-    if (offset != null) queryParams['offset'] = offset.toString();
+    final response = await SupabaseConfig.client
+        .from('staff_profiles')
+        .select('*, user:users(*)')
+        .limit(limit ?? 10);
 
-    final uri = Uri.parse('/api/user/staff').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<Map<String, dynamic>> getStaffById(String staffId) async {
-    return await _apiService.get('/api/user/staff/$staffId');
+    final response = await SupabaseConfig.client
+        .from('staff_profiles')
+        .select('*, user:users(*)')
+        .eq('id', staffId)
+        .single();
+    return response;
   }
 }

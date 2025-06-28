@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class ExpertCard extends StatelessWidget {
   final Map<String, dynamic> expert;
@@ -37,24 +36,14 @@ class ExpertCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: CachedNetworkImage(
-                    imageUrl: expert['user']?['image'] ?? '',
+                  child: Container(
                     width: double.infinity,
                     height: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[200],
-                      child: const Icon(
-                        Icons.person,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.person,
+                      size: 64,
+                      color: Colors.grey,
                     ),
                   ),
                 ),
@@ -123,7 +112,7 @@ class ExpertCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        expert['user']?['name'] ?? 'Unknown Expert',
+                        expert['id'] ?? 'Expert Profile',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -144,7 +133,7 @@ class ExpertCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  expert['specialization'] ?? expert['domain']?['name'] ?? 'General Consultation',
+                  expert['specialization'] ?? 'General Consultation',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -180,13 +169,13 @@ class ExpertCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     Icon(
-                      Icons.reviews_outlined,
+                      Icons.star_outline,
                       size: 16,
                       color: Colors.grey[500],
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${(expert['reviews'] as List?)?.length ?? 0} reviews',
+                      '${expert['rating']?.toStringAsFixed(1) ?? '0.0'} rating',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -202,7 +191,7 @@ class ExpertCard extends StatelessWidget {
                       // Navigate to booking screen
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Booking consultation with ${expert['user']?['name'] ?? 'Expert'}'),
+                          content: Text('Booking consultation with ${expert['id'] ?? 'Expert'}'),
                           backgroundColor: Theme.of(context).primaryColor,
                         ),
                       );

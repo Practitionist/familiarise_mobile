@@ -1,53 +1,73 @@
-import 'api_service.dart';
+import '../config/supabase_config.dart';
 
 class ContentService {
   static final ContentService _instance = ContentService._internal();
   factory ContentService() => _instance;
   ContentService._internal();
 
-  final ApiService _apiService = ApiService();
-
   Future<List<Map<String, dynamic>>> getDomains() async {
-    final result = await _apiService.get('/user/content/domains');
-    // The API returns the domains array directly, not wrapped in a data property
-    if (result is List) {
-      return List<Map<String, dynamic>>.from(result);
+    try {
+      final response = await SupabaseConfig.client
+          .from('domains')
+          .select('*');
+      
+      print('Domains response: $response');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Domains error: $e');
+      return [];
     }
-    return [];
   }
 
   Future<List<Map<String, dynamic>>> getSubdomains({String? domainId}) async {
-    final queryParams = <String, String>{};
-    if (domainId != null) queryParams['domainId'] = domainId;
+    try {
+      var query = SupabaseConfig.client
+          .from('sub_domains')
+          .select('*');
 
-    final uri = Uri.parse('/api/user/content/subdomains').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+      if (domainId != null) {
+        query = query.eq('domainId', domainId);
+      }
+
+      final response = await query;
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> getTopics({
     String? domainId,
     String? subdomainId,
   }) async {
-    final queryParams = <String, String>{};
-    if (domainId != null) queryParams['domainId'] = domainId;
-    if (subdomainId != null) queryParams['subdomainId'] = subdomainId;
+    try {
+      final response = await SupabaseConfig.client
+          .from('topics')
+          .select('*');
 
-    final uri = Uri.parse('/api/user/content/topics').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> getTags({
     String? topicId,
     String? search,
   }) async {
-    final queryParams = <String, String>{};
-    if (topicId != null) queryParams['topicId'] = topicId;
-    if (search != null) queryParams['search'] = search;
+    try {
+      var query = SupabaseConfig.client
+          .from('tags')
+          .select('*');
 
-    final uri = Uri.parse('/api/user/content/tags').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+      if (search != null) {
+        query = query.ilike('name', '%$search%');
+      }
+
+      final response = await query;
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
   }
 }

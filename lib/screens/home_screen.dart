@@ -52,10 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
         sort: 'rating',
       );
       
-      List<ConsultantProfile> consultants = [];
-      if (consultantsResponse is Map<String, dynamic>) {
-        final data = consultantsResponse['data'] as List? ?? [];
-        consultants = data.map((consultantData) => ConsultantProfile(
+      final data = consultantsResponse['data'] as List? ?? [];
+      final consultants = data.map((consultantData) => ConsultantProfile(
           id: consultantData['id'],
           description: consultantData['description'] ?? '',
           qualifications: consultantData['qualifications'] ?? '',
@@ -66,14 +64,13 @@ class _HomeScreenState extends State<HomeScreen> {
           userId: consultantData['userId'] ?? '',
           createdAt: consultantData['createdAt'] != null ? DateTime.parse(consultantData['createdAt']) : DateTime.now(),
           updatedAt: consultantData['updatedAt'] != null ? DateTime.parse(consultantData['updatedAt']) : DateTime.now(),
-          name: consultantData['user']?['name'] ?? 'Unknown',
-          image: consultantData['user']?['image'] ?? '',
-          domainName: consultantData['domain']?['name'] ?? '',
-          subDomains: (consultantData['subDomains'] as List?)?.map((s) => s['name'].toString()).toList() ?? [],
-          tags: (consultantData['tags'] as List?)?.map((t) => t['name'].toString()).toList() ?? [],
-          reviewCount: (consultantData['reviews'] as List?)?.length ?? 0,
+          name: consultantData['id'] ?? 'Unknown',
+          image: '',
+          domainName: consultantData['domainId'] ?? '',
+          subDomains: [],
+          tags: [],
+          reviewCount: 0,
         )).toList();
-      }
       
       provider.setDomains(domains);
       provider.setConsultants(consultants);
