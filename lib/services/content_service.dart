@@ -8,8 +8,12 @@ class ContentService {
   final ApiService _apiService = ApiService();
 
   Future<List<Map<String, dynamic>>> getDomains() async {
-    final result = await _apiService.get('/api/user/content/domains');
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+    final result = await _apiService.get('/user/content/domains');
+    // The API returns the domains array directly, not wrapped in a data property
+    if (result is List) {
+      return List<Map<String, dynamic>>.from(result);
+    }
+    return [];
   }
 
   Future<List<Map<String, dynamic>>> getSubdomains({String? domainId}) async {

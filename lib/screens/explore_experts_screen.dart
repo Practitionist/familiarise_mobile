@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/expert_card.dart';
 import '../widgets/filter_chips.dart';
+import '../services/user_service.dart';
+import '../services/content_service.dart';
 
 class ExploreExpertsScreen extends StatefulWidget {
   const ExploreExpertsScreen({super.key});
@@ -11,90 +13,90 @@ class ExploreExpertsScreen extends StatefulWidget {
 
 class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final UserService _userService = UserService();
+  final ContentService _contentService = ContentService();
+  
   String _selectedFilter = 'All Experts';
   bool _isLoading = false;
+  List<Map<String, dynamic>> _experts = [];
+  List<Map<String, dynamic>> _domains = [];
+  List<String> _filterOptions = ['Featured Experts', 'All Experts'];
   
-  final List<String> _filterOptions = [
-    'Featured Experts',
-    'All Experts',
-    'Technology',
-    'Business',
-    'Healthcare',
-    'Education',
-    'Finance',
-  ];
+  int _currentPage = 1;
 
-  final List<Map<String, dynamic>> _mockExperts = [
-    {
-      'id': '1',
-      'name': 'Dr. Sarah Chen',
-      'specialization': 'AI & Machine Learning',
-      'description': 'Expert in deep learning and neural networks with 10+ years of industry experience.',
-      'rating': 4.9,
-      'reviewCount': 127,
-      'hourlyRate': 85,
-      'experience': 12,
-      'imageUrl': 'https://images.unsplash.com/photo-1494790108755-2616b6c965b5?w=400',
-      'domains': ['Technology', 'AI'],
-      'isAvailable': true,
-    },
-    {
-      'id': '2',
-      'name': 'James Wilson',
-      'specialization': 'Digital Marketing Strategy',
-      'description': 'Transform your business with proven digital marketing strategies and growth hacking.',
-      'rating': 4.8,
-      'reviewCount': 89,
-      'hourlyRate': 65,
-      'experience': 8,
-      'imageUrl': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-      'domains': ['Business', 'Marketing'],
-      'isAvailable': true,
-    },
-    {
-      'id': '3',
-      'name': 'Dr. Emily Rodriguez',
-      'specialization': 'Mental Health & Wellness',
-      'description': 'Licensed therapist specializing in anxiety, depression, and stress management.',
-      'rating': 5.0,
-      'reviewCount': 203,
-      'hourlyRate': 95,
-      'experience': 15,
-      'imageUrl': 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400',
-      'domains': ['Healthcare', 'Psychology'],
-      'isAvailable': false,
-    },
-    {
-      'id': '4',
-      'name': 'Michael Zhang',
-      'specialization': 'Full-Stack Development',
-      'description': 'Senior developer with expertise in React, Node.js, and cloud architecture.',
-      'rating': 4.7,
-      'reviewCount': 156,
-      'hourlyRate': 75,
-      'experience': 10,
-      'imageUrl': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-      'domains': ['Technology', 'Development'],
-      'isAvailable': true,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _loadDomains();
+    await _loadExperts();
+  }
+
+  Future<void> _loadDomains() async {
+    try {
+      final domains = await _contentService.getDomains();
+      setState(() {
+        _domains = domains;
+        _filterOptions = ['Featured Experts', 'All Experts'];
+        _filterOptions.addAll(domains.map((d) => d['name'].toString()));
+      });
+    } catch (e) {
+      // Error loading domains - continue with defaults
+    }
+  }
+
+  Future<void> _loadExperts({bool reset = false}) async {
+    if (_isLoading) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      if (reset) {
+        _currentPage = 1;
+        _experts.clear();
+      }
+      
+      final domainId = _selectedFilter != 'All Experts' && _selectedFilter != 'Featured Experts'
+          ? _domains.firstWhere((d) => d['name'] == _selectedFilter, orElse: () => {})['id']
+          : null;
+      
+      final response = await _userService.getConsultants(
+        domain: domainId,
+        search: _searchController.text.isNotEmpty ? _searchController.text : null,
+        page: _currentPage,
+        limit: 10,
+      );
+      
+      if (response is Map<String, dynamic>) {
+        final data = response['data'] as List? ?? [];
+        
+        setState(() {
+          if (reset) {
+            _experts = List<Map<String, dynamic>>.from(data);
+          } else {
+            _experts.addAll(List<Map<String, dynamic>>.from(data));
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading experts: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   List<Map<String, dynamic>> get _filteredExperts {
-    var filtered = _mockExperts.where((expert) {
-      if (_selectedFilter == 'All Experts') return true;
-      if (_selectedFilter == 'Featured Experts') return expert['rating'] >= 4.8;
-      return (expert['domains'] as List).contains(_selectedFilter);
-    }).toList();
-
-    if (_searchController.text.isNotEmpty) {
-      final query = _searchController.text.toLowerCase();
-      filtered = filtered.where((expert) {
-        return expert['name'].toString().toLowerCase().contains(query) ||
-               expert['specialization'].toString().toLowerCase().contains(query);
-      }).toList();
+    if (_selectedFilter == 'Featured Experts') {
+      return _experts.where((expert) => (expert['rating'] ?? 0) >= 4.8).toList();
     }
-
-    return filtered;
+    return _experts;
   }
 
   void _showSortFilter() {
@@ -191,9 +193,7 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() => _isLoading = true);
-          await Future.delayed(const Duration(seconds: 1));
-          setState(() => _isLoading = false);
+          await _loadExperts(reset: true);
         },
         child: Column(
           children: [
@@ -209,7 +209,14 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
                     ),
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (value) => setState(() {}),
+                      onChanged: (value) {
+                        // Debounce search to avoid too many API calls
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          if (_searchController.text == value) {
+                            _loadExperts(reset: true);
+                          }
+                        });
+                      },
                       decoration: const InputDecoration(
                         hintText: 'Search experts',
                         prefixIcon: Icon(Icons.search, color: Colors.grey),
@@ -225,7 +232,10 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
                   FilterChips(
                     options: _filterOptions,
                     selectedOption: _selectedFilter,
-                    onSelected: (option) => setState(() => _selectedFilter = option),
+                    onSelected: (option) {
+                      setState(() => _selectedFilter = option);
+                      _loadExperts(reset: true);
+                    },
                   ),
                 ],
               ),

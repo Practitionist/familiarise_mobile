@@ -6,6 +6,8 @@ import '../widgets/domain_selector.dart';
 import '../widgets/consultant_card.dart';
 import '../models/consultant_profile.dart';
 import '../models/domain.dart';
+import '../services/content_service.dart';
+import '../services/user_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,89 +17,75 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final ContentService _contentService = ContentService();
+  final UserService _userService = UserService();
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMockData();
+      _loadRealData();
     });
   }
 
-  void _loadMockData() {
+  Future<void> _loadRealData() async {
+    if (_isLoading) return;
+    
+    setState(() => _isLoading = true);
     final provider = Provider.of<AppStateProvider>(context, listen: false);
     
-    final mockDomains = [
-      Domain(
-        id: '1',
-        name: 'Technology',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        consultantCount: 127,
-      ),
-      Domain(
-        id: '2',
-        name: 'Business',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        consultantCount: 89,
-      ),
-      Domain(
-        id: '3',
-        name: 'Health & Wellness',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        consultantCount: 64,
-      ),
-      Domain(
-        id: '4',
-        name: 'Education',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        consultantCount: 43,
-      ),
-    ];
-
-    final mockConsultants = [
-      ConsultantProfile(
-        id: '1',
-        description: 'Expert software architect with 10+ years of experience in scalable systems design and cloud architecture.',
-        qualifications: 'MS Computer Science, AWS Certified Solutions Architect',
-        specialization: 'Cloud Architecture & System Design',
-        experience: 10.5,
-        rating: 4.9,
-        domainId: '1',
-        userId: 'user1',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        name: 'Dr. Sarah Chen',
-        image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400',
-        domainName: 'Technology',
-        subDomains: ['Software Architecture', 'Cloud Computing'],
-        tags: ['AWS', 'System Design', 'Microservices'],
-        reviewCount: 143,
-      ),
-      ConsultantProfile(
-        id: '2',
-        description: 'Business strategy consultant helping startups and enterprises optimize their operations and growth strategies.',
-        qualifications: 'MBA Harvard Business School, Certified Management Consultant',
-        specialization: 'Business Strategy & Operations',
-        experience: 8.0,
-        rating: 4.8,
-        domainId: '2',
-        userId: 'user2',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        name: 'Michael Rodriguez',
-        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-        domainName: 'Business',
-        subDomains: ['Strategy', 'Operations'],
-        tags: ['Growth', 'Operations', 'Strategy'],
-        reviewCount: 87,
-      ),
-    ];
-    
-    provider.setDomains(mockDomains);
-    provider.setConsultants(mockConsultants);
+    try {
+      // Load domains
+      final domainsData = await _contentService.getDomains();
+      final domains = domainsData.map((domainData) => Domain(
+        id: domainData['id'],
+        name: domainData['name'],
+        createdAt: domainData['createdAt'] != null ? DateTime.parse(domainData['createdAt']) : DateTime.now(),
+        updatedAt: domainData['updatedAt'] != null ? DateTime.parse(domainData['updatedAt']) : DateTime.now(),
+        consultantCount: 0, // TODO: Calculate from API
+      )).toList();
+      
+      // Load featured consultants (first 5)
+      final consultantsResponse = await _userService.getConsultants(
+        limit: 5,
+        sort: 'rating',
+      );
+      
+      List<ConsultantProfile> consultants = [];
+      if (consultantsResponse is Map<String, dynamic>) {
+        final data = consultantsResponse['data'] as List? ?? [];
+        consultants = data.map((consultantData) => ConsultantProfile(
+          id: consultantData['id'],
+          description: consultantData['description'] ?? '',
+          qualifications: consultantData['qualifications'] ?? '',
+          specialization: consultantData['specialization'] ?? '',
+          experience: (consultantData['experience'] ?? 0).toDouble(),
+          rating: (consultantData['rating'] ?? 0).toDouble(),
+          domainId: consultantData['domainId'] ?? '',
+          userId: consultantData['userId'] ?? '',
+          createdAt: consultantData['createdAt'] != null ? DateTime.parse(consultantData['createdAt']) : DateTime.now(),
+          updatedAt: consultantData['updatedAt'] != null ? DateTime.parse(consultantData['updatedAt']) : DateTime.now(),
+          name: consultantData['user']?['name'] ?? 'Unknown',
+          image: consultantData['user']?['image'] ?? '',
+          domainName: consultantData['domain']?['name'] ?? '',
+          subDomains: (consultantData['subDomains'] as List?)?.map((s) => s['name'].toString()).toList() ?? [],
+          tags: (consultantData['tags'] as List?)?.map((t) => t['name'].toString()).toList() ?? [],
+          reviewCount: (consultantData['reviews'] as List?)?.length ?? 0,
+        )).toList();
+      }
+      
+      provider.setDomains(domains);
+      provider.setConsultants(consultants);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -232,9 +220,15 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, provider, child) {
         final consultants = provider.filteredConsultants;
         
-        if (consultants.isEmpty) {
+        if (_isLoading) {
           return const Center(
             child: CircularProgressIndicator(),
+          );
+        }
+        
+        if (consultants.isEmpty) {
+          return const Center(
+            child: Text('No consultants available'),
           );
         }
 

@@ -7,41 +7,48 @@ class UserService {
 
   final ApiService _apiService = ApiService();
 
-  Future<Map<String, dynamic>> getCurrentUser() async {
+  Future<dynamic> getCurrentUser() async {
     return await _apiService.get('/api/user');
   }
 
-  Future<Map<String, dynamic>> updateUser(Map<String, dynamic> userData) async {
+  Future<dynamic> updateUser(Map<String, dynamic> userData) async {
     return await _apiService.put('/api/user', userData);
   }
 
-  Future<Map<String, dynamic>> getUserById(String userId) async {
+  Future<dynamic> getUserById(String userId) async {
     return await _apiService.get('/api/user/$userId');
   }
 
-  Future<List<Map<String, dynamic>>> getConsultants({
+  Future<dynamic> getConsultants({
     String? domain,
+    String? subdomain,
+    List<String>? tags,
+    int? experience,
     String? search,
-    int? limit,
-    int? offset,
+    String? sort = 'nameAsc',
+    int page = 1,
+    int limit = 10,
   }) async {
     final queryParams = <String, String>{};
     if (domain != null) queryParams['domain'] = domain;
+    if (subdomain != null) queryParams['subdomain'] = subdomain;
+    if (tags != null && tags.isNotEmpty) queryParams['tags'] = tags.join(',');
+    if (experience != null) queryParams['experience'] = experience.toString();
     if (search != null) queryParams['search'] = search;
-    if (limit != null) queryParams['limit'] = limit.toString();
-    if (offset != null) queryParams['offset'] = offset.toString();
+    if (sort != null) queryParams['sort'] = sort;
+    queryParams['page'] = page.toString();
+    queryParams['limit'] = limit.toString();
 
-    final uri = Uri.parse('/api/user/consultants').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+    final uri = Uri.parse('/user/consultants').replace(queryParameters: queryParams);
+    return await _apiService.get(uri.toString());
   }
 
-  Future<Map<String, dynamic>> getConsultantById(String consultantId) async {
-    return await _apiService.get('/api/user/consultants/$consultantId');
+  Future<dynamic> getConsultantById(String consultantId) async {
+    return await _apiService.get('/user/consultants/$consultantId');
   }
 
-  Future<Map<String, dynamic>> getConsultantMeta() async {
-    return await _apiService.get('/api/user/consultants/meta');
+  Future<dynamic> getConsultantMeta() async {
+    return await _apiService.get('/user/consultants/meta');
   }
 
   Future<List<Map<String, dynamic>>> getConsultees({

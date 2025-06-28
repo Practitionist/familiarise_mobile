@@ -8,20 +8,16 @@ class ApiService {
   ApiService._internal();
 
   late final String _baseUrl;
-  late final String _supabaseAnonKey;
 
   void initialize() {
     _baseUrl = dotenv.env['API_BASE_URL'] ?? '';
-    _supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   }
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
-    'apikey': _supabaseAnonKey,
-    'Authorization': 'Bearer $_supabaseAnonKey',
   };
 
-  Future<Map<String, dynamic>> get(String endpoint) async {
+  Future<dynamic> get(String endpoint) async {
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl$endpoint'),
@@ -33,7 +29,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl$endpoint'),
@@ -46,7 +42,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     try {
       final response = await http.put(
         Uri.parse('$_baseUrl$endpoint'),
@@ -59,7 +55,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> delete(String endpoint) async {
+  Future<dynamic> delete(String endpoint) async {
     try {
       final response = await http.delete(
         Uri.parse('$_baseUrl$endpoint'),
@@ -71,14 +67,17 @@ class ApiService {
     }
   }
 
-  Map<String, dynamic> _handleResponse(http.Response response) {
-    final Map<String, dynamic> data = json.decode(response.body);
+  dynamic _handleResponse(http.Response response) {
+    final dynamic data = json.decode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
     } else {
+      final errorMessage = data is Map && data.containsKey('message') 
+          ? data['message'] 
+          : 'Unknown error occurred';
       throw ApiException(
-        data['message'] ?? 'Unknown error occurred',
+        errorMessage,
         statusCode: response.statusCode,
       );
     }

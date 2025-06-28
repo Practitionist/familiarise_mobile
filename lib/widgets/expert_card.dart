@@ -38,7 +38,7 @@ class ExpertCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: CachedNetworkImage(
-                    imageUrl: expert['imageUrl'] ?? '',
+                    imageUrl: expert['user']?['image'] ?? '',
                     width: double.infinity,
                     height: double.infinity,
                     fit: BoxFit.cover,
@@ -58,19 +58,19 @@ class ExpertCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Availability indicator
+                // Availability indicator (placeholder since API doesn't provide this)
                 Positioned(
                   top: 12,
                   right: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: expert['isAvailable'] == true ? Colors.green : Colors.red,
+                      color: Colors.green, // Default to available for now
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      expert['isAvailable'] == true ? 'Available' : 'Busy',
-                      style: const TextStyle(
+                    child: const Text(
+                      'Available',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -123,7 +123,7 @@ class ExpertCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        expert['name'] ?? '',
+                        expert['user']?['name'] ?? 'Unknown Expert',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -133,7 +133,7 @@ class ExpertCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '\$${expert['hourlyRate']}/hr',
+                      'Consultation',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -144,7 +144,7 @@ class ExpertCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  expert['specialization'] ?? '',
+                  expert['specialization'] ?? expert['domain']?['name'] ?? 'General Consultation',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -153,7 +153,7 @@ class ExpertCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  expert['description'] ?? '',
+                  expert['description'] ?? 'Professional consultant available for consultation.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[700],
@@ -172,7 +172,7 @@ class ExpertCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${expert['experience']} years exp',
+                      '${expert['experience']?.toInt() ?? 0} years exp',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -186,7 +186,7 @@ class ExpertCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${expert['reviewCount']} reviews',
+                      '${(expert['reviews'] as List?)?.length ?? 0} reviews',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -198,35 +198,27 @@ class ExpertCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: expert['isAvailable'] == true
-                        ? () {
-                            // Navigate to booking screen
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Booking consultation with ${expert['name']}'),
-                                backgroundColor: Theme.of(context).primaryColor,
-                              ),
-                            );
-                          }
-                        : null,
+                    onPressed: () {
+                      // Navigate to booking screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Booking consultation with ${expert['user']?['name'] ?? 'Expert'}'),
+                          backgroundColor: Theme.of(context).primaryColor,
+                        ),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: expert['isAvailable'] == true
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey[300],
-                      foregroundColor: expert['isAvailable'] == true
-                          ? Colors.white
-                          : Colors.grey[600],
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                       elevation: 0,
                     ),
-                    child: Text(
-                      expert['isAvailable'] == true
-                          ? 'Book Consultation'
-                          : 'Currently Unavailable',
-                      style: const TextStyle(
+                    child: const Text(
+                      'Book Consultation',
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
