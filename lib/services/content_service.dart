@@ -11,10 +11,9 @@ class ContentService {
           .from('domains')
           .select('*');
       
-      print('Domains response: $response');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('Domains error: $e');
+      // Log error in production app
       return [];
     }
   }

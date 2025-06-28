@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
+  provider   = "dart run orm"
+  output     = "../lib/_generated_prisma_client"
+  engineType = "dataproxy"
 }
 
 datasource db {

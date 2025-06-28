@@ -50,8 +50,6 @@ class UserService {
           .select('*')
           .limit(limit);
 
-      print('Raw Supabase response: $response');
-
       return {
         'data': response,
         'meta': {
@@ -62,7 +60,7 @@ class UserService {
         },
       };
     } catch (e) {
-      print('Supabase error: $e');
+      // Log error in production app
       // Return empty result on error
       return {
         'data': [],
