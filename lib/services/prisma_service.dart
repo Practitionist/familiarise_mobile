@@ -19,38 +19,18 @@ class PrismaService {
       final currentDir = Directory.current.path;
       print('DEBUG: Current working directory: $currentDir');
       
-      // Find the project root by looking for pubspec.yaml
-      String? projectRoot = _findProjectRoot();
-      print('DEBUG: Project root: $projectRoot');
+      // For macOS sandbox environment, copy binary to writable location
+      final binaryName = 'prisma-query-engine';
+      final targetPath = '$currentDir/$binaryName';
       
-      // Set absolute paths to potential binary locations
-      final potentialPaths = [
-        '$currentDir/prisma-query-engine',
-        '$currentDir/prisma/prisma-query-engine', 
-        '$currentDir/.dart_tool/prisma-query-engine',
-      ];
+      // Try to copy binary from project to sandbox location
+      bool binaryCopied = await _copyBinaryToSandbox(targetPath);
       
-      if (projectRoot != null) {
-        potentialPaths.addAll([
-          '$projectRoot/prisma-query-engine',
-          '$projectRoot/prisma/prisma-query-engine',
-          '$projectRoot/.dart_tool/prisma-query-engine',
-        ]);
-      }
-      
-      String? binaryPath;
-      for (final path in potentialPaths) {
-        final exists = File(path).existsSync();
-        print('DEBUG: Binary at $path - exists: $exists');
-        if (exists && binaryPath == null) {
-          binaryPath = path;
-        }
-      }
-      
-      if (binaryPath != null) {
-        print('DEBUG: Using binary at: $binaryPath');
-        // Set environment variable to specify the binary path
-        Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = binaryPath;
+      if (binaryCopied) {
+        print('DEBUG: Binary successfully copied to: $targetPath');
+        Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = targetPath;
+      } else {
+        print('DEBUG: Failed to copy binary - Prisma will try default locations');
       }
       
       _client = PrismaClient(
@@ -65,17 +45,65 @@ class PrismaService {
     }
   }
 
-  static String? _findProjectRoot() {
-    Directory current = Directory.current;
-    
-    while (current.path != current.parent.path) {
-      if (File('${current.path}/pubspec.yaml').existsSync()) {
-        return current.path;
+  static Future<bool> _copyBinaryToSandbox(String targetPath) async {
+    try {
+      // First try to extract from app bundle resources
+      final bundleBinaryPath = await _getBundleBinaryPath();
+      if (bundleBinaryPath != null) {
+        print('DEBUG: Found binary in app bundle at $bundleBinaryPath, copying to sandbox...');
+        await File(bundleBinaryPath).copy(targetPath);
+        await Process.run('chmod', ['+x', targetPath]);
+        return true;
       }
-      current = current.parent;
+      
+      // Fallback: Known development source paths 
+      final sourcePaths = [
+        '/Users/kaustavghosh/Desktop/familiarise_mobile/prisma-query-engine',
+        '/Users/kaustavghosh/Desktop/familiarise_mobile/prisma/prisma-query-engine',
+        '/Users/kaustavghosh/Desktop/familiarise_mobile/.dart_tool/prisma-query-engine',
+      ];
+      
+      for (final sourcePath in sourcePaths) {
+        if (File(sourcePath).existsSync()) {
+          print('DEBUG: Found binary at $sourcePath, copying to sandbox...');
+          await File(sourcePath).copy(targetPath);
+          await Process.run('chmod', ['+x', targetPath]);
+          return true;
+        }
+      }
+      
+      print('DEBUG: No source binary found in any of the expected locations');
+      return false;
+    } catch (e) {
+      print('DEBUG: Error copying binary: $e');
+      return false;
     }
-    return null;
   }
+
+  static Future<String?> _getBundleBinaryPath() async {
+    try {
+      if (Platform.isMacOS) {
+        // Try common bundle resource locations
+        final possiblePaths = [
+          '${Directory.current.path}/../Resources/prisma-query-engine',
+          '${Directory.current.path}/../../Resources/prisma-query-engine',
+          '${Directory.current.path}/../Frameworks/App.framework/Resources/prisma-query-engine',
+        ];
+        
+        for (final path in possiblePaths) {
+          if (File(path).existsSync()) {
+            print('DEBUG: Found bundle binary at: $path');
+            return path;
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      print('DEBUG: Error locating bundle binary: $e');
+      return null;
+    }
+  }
+
 
   static Future<void> dispose() async {
     if (_initialized) {
