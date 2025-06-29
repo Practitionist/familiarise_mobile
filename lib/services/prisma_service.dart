@@ -1,3 +1,4 @@
+import 'dart:io';
 import '../_generated_prisma_client/client.dart';
 import '../_generated_prisma_client/prisma.dart';
 
@@ -14,6 +15,44 @@ class PrismaService {
 
   static Future<void> initialize({String? databaseUrl}) async {
     try {
+      // Debug: Print working directory and binary paths
+      final currentDir = Directory.current.path;
+      print('DEBUG: Current working directory: $currentDir');
+      
+      // Find the project root by looking for pubspec.yaml
+      String? projectRoot = _findProjectRoot();
+      print('DEBUG: Project root: $projectRoot');
+      
+      // Set absolute paths to potential binary locations
+      final potentialPaths = [
+        '$currentDir/prisma-query-engine',
+        '$currentDir/prisma/prisma-query-engine', 
+        '$currentDir/.dart_tool/prisma-query-engine',
+      ];
+      
+      if (projectRoot != null) {
+        potentialPaths.addAll([
+          '$projectRoot/prisma-query-engine',
+          '$projectRoot/prisma/prisma-query-engine',
+          '$projectRoot/.dart_tool/prisma-query-engine',
+        ]);
+      }
+      
+      String? binaryPath;
+      for (final path in potentialPaths) {
+        final exists = File(path).existsSync();
+        print('DEBUG: Binary at $path - exists: $exists');
+        if (exists && binaryPath == null) {
+          binaryPath = path;
+        }
+      }
+      
+      if (binaryPath != null) {
+        print('DEBUG: Using binary at: $binaryPath');
+        // Set environment variable to specify the binary path
+        Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = binaryPath;
+      }
+      
       _client = PrismaClient(
         datasourceUrl: databaseUrl,
       );
@@ -24,6 +63,18 @@ class PrismaService {
       print('Failed to connect to Prisma: $e');
       rethrow;
     }
+  }
+
+  static String? _findProjectRoot() {
+    Directory current = Directory.current;
+    
+    while (current.path != current.parent.path) {
+      if (File('${current.path}/pubspec.yaml').existsSync()) {
+        return current.path;
+      }
+      current = current.parent;
+    }
+    return null;
   }
 
   static Future<void> dispose() async {
