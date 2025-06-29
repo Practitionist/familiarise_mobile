@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'jwt_token_manager.dart';
 
 class AuthInterceptor extends Interceptor {
@@ -69,8 +70,9 @@ class AuthInterceptor extends Interceptor {
 
       // Create a new Dio instance to avoid interceptor loops
       final dio = Dio();
+      final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000';
       final response = await dio.post(
-        'http://localhost:3000/api/auth/refresh', // TODO: Use environment variable
+        '$baseUrl/api/auth/refresh',
         data: {'refreshToken': refreshToken},
         options: Options(
           headers: {'Content-Type': 'application/json'},
