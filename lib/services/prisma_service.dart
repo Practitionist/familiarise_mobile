@@ -15,37 +15,86 @@ class PrismaService {
 
   static Future<void> initialize({String? databaseUrl}) async {
     try {
-      // Debug: Print working directory and binary paths
-      final currentDir = Directory.current.path;
-      print('DEBUG: Current working directory: $currentDir');
-      
-      // For macOS sandbox environment, copy binary to writable location
-      final binaryName = 'prisma-query-engine';
-      final targetPath = '$currentDir/$binaryName';
-      
-      // Try to copy binary from project to sandbox location
-      bool binaryCopied = await _copyBinaryToSandbox(targetPath);
-      
-      if (binaryCopied) {
-        print('DEBUG: Binary successfully copied to: $targetPath');
-        Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = targetPath;
+      // Platform-specific initialization
+      if (Platform.isMacOS) {
+        await _initializeMacOS(databaseUrl);
+      } else if (Platform.isWindows) {
+        await _initializeWindows(databaseUrl);
+      } else if (Platform.isLinux) {
+        await _initializeLinux(databaseUrl);
+      } else if (Platform.isIOS || Platform.isAndroid) {
+        throw Exception('Prisma ORM is not supported on mobile platforms. Use direct database connections or REST APIs.');
       } else {
-        print('DEBUG: Failed to copy binary - Prisma will try default locations');
+        await _initializeDefault(databaseUrl);
       }
-      
-      _client = PrismaClient(
-        datasourceUrl: databaseUrl,
-      );
-      await _client.$connect();
-      _initialized = true;
-      print('Prisma client connected successfully');
     } catch (e) {
-      print('Failed to connect to Prisma: $e');
+      print('Failed to initialize Prisma: $e');
       rethrow;
     }
   }
 
-  static Future<bool> _copyBinaryToSandbox(String targetPath) async {
+  // === macOS Platform Initialization ===
+  static Future<void> _initializeMacOS(String? databaseUrl) async {
+    print('DEBUG: Initializing Prisma for macOS platform');
+    final currentDir = Directory.current.path;
+    print('DEBUG: Current working directory: $currentDir');
+    
+    // Try to copy binary from project to sandbox location
+    final binaryName = 'prisma-query-engine';
+    final targetPath = '$currentDir/$binaryName';
+    
+    bool binaryCopied = await _copyBinaryToSandboxMacOS(targetPath);
+    
+    if (binaryCopied) {
+      print('DEBUG: Binary successfully copied to: $targetPath');
+      Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = targetPath;
+    } else {
+      print('DEBUG: Failed to copy binary - Prisma will try default locations');
+    }
+    
+    await _connectPrismaClient(databaseUrl);
+  }
+
+  // === Windows Platform Initialization ===
+  static Future<void> _initializeWindows(String? databaseUrl) async {
+    print('DEBUG: Initializing Prisma for Windows platform');
+    // TODO: Implement Windows-specific binary handling
+    final binaryName = 'prisma-query-engine.exe';
+    final tempDir = Directory.systemTemp.path;
+    final targetPath = '$tempDir\\$binaryName';
+    
+    print('DEBUG: Windows binary target path: $targetPath');
+    // For now, use default initialization
+    await _connectPrismaClient(databaseUrl);
+  }
+
+  // === Linux Platform Initialization ===
+  static Future<void> _initializeLinux(String? databaseUrl) async {
+    print('DEBUG: Initializing Prisma for Linux platform');
+    // TODO: Implement Linux-specific binary handling
+    final binaryName = 'prisma-query-engine';
+    final targetPath = '/tmp/$binaryName';
+    
+    print('DEBUG: Linux binary target path: $targetPath');
+    // For now, use default initialization
+    await _connectPrismaClient(databaseUrl);
+  }
+
+  // === Default Platform Initialization ===
+  static Future<void> _initializeDefault(String? databaseUrl) async {
+    print('DEBUG: Initializing Prisma for unknown platform');
+    await _connectPrismaClient(databaseUrl);
+  }
+
+  // === Common Prisma Client Connection ===
+  static Future<void> _connectPrismaClient(String? databaseUrl) async {
+    _client = PrismaClient(datasourceUrl: databaseUrl);
+    await _client.$connect();
+    _initialized = true;
+    print('Prisma client connected successfully');
+  }
+
+  static Future<bool> _copyBinaryToSandboxMacOS(String targetPath) async {
     try {
       // First try to extract from app bundle resources
       final bundleBinaryPath = await _getBundleBinaryPath();
@@ -83,19 +132,37 @@ class PrismaService {
   static Future<String?> _getBundleBinaryPath() async {
     try {
       if (Platform.isMacOS) {
-        // Try common bundle resource locations
+        final currentDir = Directory.current.path;
+        print('DEBUG: Searching for bundle binary from: $currentDir');
+        
+        // Try comprehensive bundle resource locations
         final possiblePaths = [
-          '${Directory.current.path}/../Resources/prisma-query-engine',
-          '${Directory.current.path}/../../Resources/prisma-query-engine',
-          '${Directory.current.path}/../Frameworks/App.framework/Resources/prisma-query-engine',
+          // Standard app bundle locations
+          '$currentDir/../Resources/prisma-query-engine',
+          '$currentDir/../../Resources/prisma-query-engine',
+          '$currentDir/../../../Resources/prisma-query-engine',
+          '$currentDir/../Frameworks/App.framework/Resources/prisma-query-engine',
+          '$currentDir/../MacOS/../Resources/prisma-query-engine',
+          
+          // Flutter-specific locations
+          '$currentDir/../flutter_assets/prisma-query-engine',
+          '$currentDir/flutter_assets/prisma-query-engine',
+          
+          // Alternative bundle structures
+          '$currentDir/Resources/prisma-query-engine',
+          '$currentDir/../../Contents/Resources/prisma-query-engine',
+          '$currentDir/../Contents/Resources/prisma-query-engine',
         ];
         
+        print('DEBUG: Checking ${possiblePaths.length} possible bundle paths...');
         for (final path in possiblePaths) {
+          print('DEBUG: Checking bundle path: $path');
           if (File(path).existsSync()) {
             print('DEBUG: Found bundle binary at: $path');
             return path;
           }
         }
+        print('DEBUG: No bundle binary found in any expected locations');
       }
       return null;
     } catch (e) {

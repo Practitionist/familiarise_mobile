@@ -98,13 +98,15 @@ PrismaClientInitializationError: QE404 No binary engine found, please make sure 
    Operation not permitted, errno = 1
    ```
 
-4. **Latest Debug Output:** From the most recent run:
+4. **Latest Debug Output (Bundle Detection Attempt):** From the most recent run after implementing bundle resource logic:
    ```
    DEBUG: Current working directory: /Users/kaustavghosh/Library/Containers/com.example.familiariseMobile/Data
    DEBUG: Found binary at /Users/kaustavghosh/Desktop/familiarise_mobile/prisma-query-engine, copying to sandbox...
    DEBUG: Error copying binary: PathAccessException: Cannot copy file to '/Users/kaustavghosh/Library/Containers/com.example.familiariseMobile/Data/prisma-query-engine', path = '/Users/kaustavghosh/Desktop/familiarise_mobile/prisma-query-engine' (OS Error: Operation not permitted, errno = 1)
    DEBUG: Failed to copy binary - Prisma will try default locations
    ```
+   
+   **Analysis:** The bundle binary detection is not finding the binary in app resources, falling back to development paths which fail due to sandbox restrictions.
 
 ### Current Status: Unresolved macOS Sandbox Issue
 
@@ -119,6 +121,62 @@ PrismaClientInitializationError: QE404 No binary engine found, please make sure 
 3.  Placed binaries in expected locations
 4.  Added runtime binary copying logic
 5. L **Blocked by sandbox permissions**
+
+## Platform-Specific Solutions
+
+### macOS Platform
+**Current Status:** ❌ **UNRESOLVED** - Sandbox restrictions prevent binary access
+
+**Challenges:**
+- App sandboxing prevents file system access outside container
+- Bundle resource detection not working (binary not found in app bundle)
+- Runtime binary copying blocked by permission restrictions
+
+**Attempted Solutions:**
+1. ✅ Bundle binary as app resource (`macos/Runner/Resources/`)
+2. ❌ Runtime binary copying (blocked by sandbox)
+3. ❌ Bundle binary detection (paths not found)
+
+**Debug Output:**
+```
+DEBUG: Current working directory: /Users/kaustavghosh/Library/Containers/com.example.familiariseMobile/Data
+DEBUG: Found binary at /Users/kaustavghosh/Desktop/familiarise_mobile/prisma-query-engine, copying to sandbox...
+DEBUG: Error copying binary: PathAccessException: Operation not permitted, errno = 1
+```
+
+### Windows Platform
+**Current Status:** 🚧 **NOT TESTED**
+
+**Expected Challenges:**
+- Similar binary engine requirement
+- Different file system permissions
+- Windows app sandboxing considerations
+
+**Planned Solutions:**
+1. Bundle binary as Windows app resource
+2. Copy binary to writable temp directory
+3. Set executable permissions via PowerShell/cmd
+
+### Linux Platform  
+**Current Status:** 🚧 **NOT TESTED**
+
+**Expected Challenges:**
+- Similar binary engine requirement
+- Linux-specific file permissions
+- Different executable formats
+
+**Planned Solutions:**
+1. Bundle binary as Linux app resource
+2. Copy to `/tmp` or user-writable directory
+3. Set executable permissions via `chmod`
+
+### Mobile Platforms (iOS/Android)
+**Current Status:** 🚧 **NOT TESTED**
+
+**Expected Status:** ❌ **LIKELY UNSUPPORTED**
+- Mobile platforms typically don't support native query engines
+- Prisma Dart ORM may not work on mobile
+- Should use direct database connections or REST APIs
 
 ## Current Working Solution Approaches
 
@@ -184,33 +242,55 @@ The ORM library searches for the binary in this order:
 
 ## Current PrismaService Implementation
 
-The service includes debugging and fallback logic:
+The service now includes platform-specific initialization logic:
 
 ```dart
 class PrismaService {
   static Future<void> initialize({String? databaseUrl}) async {
     try {
-      // Debug working directory
-      final currentDir = Directory.current.path;
-      print('DEBUG: Current working directory: $currentDir');
-      
-      // Attempt to copy binary (fails in sandbox)
-      bool binaryCopied = await _copyBinaryToSandbox(targetPath);
-      
-      if (binaryCopied) {
-        Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = targetPath;
+      // Platform-specific initialization
+      if (Platform.isMacOS) {
+        await _initializeMacOS(databaseUrl);
+      } else if (Platform.isWindows) {
+        await _initializeWindows(databaseUrl);
+      } else if (Platform.isLinux) {
+        await _initializeLinux(databaseUrl);
+      } else if (Platform.isIOS || Platform.isAndroid) {
+        throw Exception('Prisma ORM is not supported on mobile platforms. Use direct database connections or REST APIs.');
+      } else {
+        await _initializeDefault(databaseUrl);
       }
-      
-      _client = PrismaClient(datasourceUrl: databaseUrl);
-      await _client.$connect();
-      _initialized = true;
     } catch (e) {
-      print('Failed to connect to Prisma: $e');
+      print('Failed to initialize Prisma: $e');
       rethrow;
     }
   }
+
+  // === macOS Platform Initialization ===
+  static Future<void> _initializeMacOS(String? databaseUrl) async {
+    print('DEBUG: Initializing Prisma for macOS platform');
+    final currentDir = Directory.current.path;
+    print('DEBUG: Current working directory: $currentDir');
+    
+    // Enhanced bundle binary detection with 10+ possible paths
+    bool binaryCopied = await _copyBinaryToSandboxMacOS(targetPath);
+    
+    if (binaryCopied) {
+      Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = targetPath;
+    }
+    
+    await _connectPrismaClient(databaseUrl);
+  }
 }
 ```
+
+### Enhanced Bundle Detection
+
+The updated service now checks **10+ possible bundle locations**:
+- Standard app bundle paths (`../Resources/`, `../../Resources/`)
+- Flutter-specific locations (`flutter_assets/`)
+- Alternative bundle structures (`Contents/Resources/`)
+- Framework locations (`Frameworks/App.framework/Resources/`)
 
 ## Next Steps
 
