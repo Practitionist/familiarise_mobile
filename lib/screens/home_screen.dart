@@ -8,7 +8,7 @@ import '../widgets/consultant_card.dart';
 import '../models/consultant_profile.dart';
 import '../models/domain.dart';
 import '../services/content_service.dart';
-// import '../services/prisma_service.dart'; // Temporarily disabled
+import '../services/prisma_service.dart';
 import '../services/user_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -96,8 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     
-    print('Prisma service temporarily disabled');
-    /*
     try {
       print('Testing Prisma service...');
       final domains = await PrismaService.getDomains();
@@ -108,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('Prisma service test failed: $e');
     }
-    */
   }
 
   @override

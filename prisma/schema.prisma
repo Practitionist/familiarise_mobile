@@ -1,5 +1,5 @@
 generator client {
-  provider = "dart run orm"
+  provider = "flutter pub run orm"
   output   = "../lib/_generated_prisma_client"
 }
 
