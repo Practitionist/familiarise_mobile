@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/supabase_config.dart';
+// import 'services/prisma_service.dart'; // Temporarily disabled
 import 'screens/home_screen.dart';
 import 'screens/explore_experts_screen.dart';
 import 'providers/app_state_provider.dart';
@@ -12,6 +14,29 @@ void main() async {
   
   await dotenv.load(fileName: ".env");
   await SupabaseConfig.initialize();
+  
+  // Temporarily disable Prisma initialization
+  /*
+  // Initialize Prisma only on non-web platforms (web doesn't support binary engines)
+  if (!kIsWeb) {
+    try {
+      await PrismaService.initialize(
+        databaseUrl: dotenv.env['DATABASE_URL'],
+      );
+      
+      // Test connection
+      final connectionTest = await PrismaService.testConnection();
+      print('Prisma connection test: ${connectionTest ? "SUCCESS" : "FAILED"}');
+    } catch (e) {
+      print('Prisma initialization failed: $e');
+      print('Falling back to Supabase only mode');
+    }
+  } else {
+    print('Running on web platform - using Supabase only (Prisma not supported on web)');
+  }
+  */
+  
+  print('Running in Supabase-only mode (Prisma temporarily disabled)');
   
   runApp(const FamiliariseApp());
 }

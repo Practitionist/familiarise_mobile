@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import '../widgets/consultant_card.dart';
 import '../models/consultant_profile.dart';
 import '../models/domain.dart';
 import '../services/content_service.dart';
+// import '../services/prisma_service.dart'; // Temporarily disabled
 import '../services/user_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -36,6 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final provider = Provider.of<AppStateProvider>(context, listen: false);
     
     try {
+      // Test Prisma service first
+      await _testPrismaService();
+      
       // Load domains
       final domainsData = await _contentService.getDomains();
       final domains = domainsData.map((domainData) => Domain(
@@ -83,6 +88,27 @@ class _HomeScreenState extends State<HomeScreen> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _testPrismaService() async {
+    if (kIsWeb) {
+      print('Skipping Prisma test on web platform - not supported');
+      return;
+    }
+    
+    print('Prisma service temporarily disabled');
+    /*
+    try {
+      print('Testing Prisma service...');
+      final domains = await PrismaService.getDomains();
+      print('Prisma domains count: ${domains.length}');
+      
+      final consultants = await PrismaService.getConsultants(limit: 5);
+      print('Prisma consultants count: ${consultants['data'].length}');
+    } catch (e) {
+      print('Prisma service test failed: $e');
+    }
+    */
   }
 
   @override
