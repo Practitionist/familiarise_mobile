@@ -39,10 +39,14 @@ dependencies:
   supabase_flutter: ^2.8.0
   
   # HTTP client
-  http: ^1.2.2
+  dio: ^5.3.2
   
   # State management
-  provider: ^6.1.2
+  flutter_riverpod: ^2.4.9
+  
+  # Authentication & Security
+  flutter_secure_storage: ^9.0.0
+  jwt_decode: ^0.3.1
   
   # UI components
   flutter_svg: ^2.0.10+1

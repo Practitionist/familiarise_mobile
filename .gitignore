@@ -39,6 +39,14 @@ migrate_working_dir/
 .pub/
 /build/
 
+# iOS/macOS CocoaPods
+**/ios/Pods/
+**/macos/Pods/
+**/ios/Podfile.lock
+**/macos/Podfile.lock
+**/ios/.symlinks/
+**/macos/.symlinks/
+
 # Symbolication related
 app.*.symbols
 
