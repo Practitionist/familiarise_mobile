@@ -1,7 +1,6 @@
 generator client {
-  provider   = "dart run orm"
-  output     = "../lib/_generated_prisma_client"
-  engineType = "dataproxy"
+  provider = "flutter pub run orm"
+  output   = "../lib/_generated_prisma_client"
 }
 
 datasource db {
