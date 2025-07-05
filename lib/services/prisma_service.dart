@@ -39,17 +39,27 @@ class PrismaService {
     final currentDir = Directory.current.path;
     print('DEBUG: Current working directory: $currentDir');
     
-    // Try to copy binary from project to sandbox location
+    // Try to copy binary to expected Prisma locations in sandbox
     final binaryName = 'prisma-query-engine';
-    final targetPath = '$currentDir/$binaryName';
+    final targetPaths = [
+      '$currentDir/$binaryName',
+      '$currentDir/prisma/$binaryName', 
+      '$currentDir/.dart_tool/$binaryName',
+    ];
     
-    bool binaryCopied = await _copyBinaryToSandboxMacOS(targetPath);
+    bool anyBinaryCopied = false;
+    for (final targetPath in targetPaths) {
+      final copied = await _copyBinaryToSandboxMacOS(targetPath);
+      if (copied) {
+        anyBinaryCopied = true;
+        print('DEBUG: Binary successfully copied to: $targetPath');
+      }
+    }
     
-    if (binaryCopied) {
-      print('DEBUG: Binary successfully copied to: $targetPath');
-      Platform.environment['PRISMA_QUERY_ENGINE_BINARY'] = targetPath;
+    if (anyBinaryCopied) {
+      print('DEBUG: Binary copied to one or more expected locations');
     } else {
-      print('DEBUG: Failed to copy binary - Prisma will try default locations');
+      print('DEBUG: Failed to copy binary to any location - Prisma will try default paths');
     }
     
     await _connectPrismaClient(databaseUrl);
@@ -96,6 +106,13 @@ class PrismaService {
 
   static Future<bool> _copyBinaryToSandboxMacOS(String targetPath) async {
     try {
+      // Create directory if it doesn't exist
+      final targetDir = Directory(targetPath).parent;
+      if (!targetDir.existsSync()) {
+        await targetDir.create(recursive: true);
+        print('DEBUG: Created directory: ${targetDir.path}');
+      }
+      
       // First try to extract from app bundle resources
       final bundleBinaryPath = await _getBundleBinaryPath();
       if (bundleBinaryPath != null) {
@@ -135,12 +152,22 @@ class PrismaService {
         final currentDir = Directory.current.path;
         print('DEBUG: Searching for bundle binary from: $currentDir');
         
-        // Try comprehensive bundle resource locations
+        // Known actual bundle location from our testing
+        final knownBundlePath = '/Users/kaustavghosh/Desktop/familiarise_mobile/build/macos/Build/Products/Debug/familiarise_mobile.app/Contents/Resources/prisma-query-engine';
+        print('DEBUG: Checking known bundle path: $knownBundlePath');
+        if (File(knownBundlePath).existsSync()) {
+          print('DEBUG: Found bundle binary at known location: $knownBundlePath');
+          return knownBundlePath;
+        }
+        
+        // Try comprehensive bundle resource locations  
         final possiblePaths = [
           // Standard app bundle locations
           '$currentDir/../Resources/prisma-query-engine',
           '$currentDir/../../Resources/prisma-query-engine',
           '$currentDir/../../../Resources/prisma-query-engine',
+          '$currentDir/../../../../Resources/prisma-query-engine',
+          '$currentDir/../../../../../Resources/prisma-query-engine',
           '$currentDir/../Frameworks/App.framework/Resources/prisma-query-engine',
           '$currentDir/../MacOS/../Resources/prisma-query-engine',
           
@@ -152,6 +179,8 @@ class PrismaService {
           '$currentDir/Resources/prisma-query-engine',
           '$currentDir/../../Contents/Resources/prisma-query-engine',
           '$currentDir/../Contents/Resources/prisma-query-engine',
+          '$currentDir/../../../Contents/Resources/prisma-query-engine',
+          '$currentDir/../../../../Contents/Resources/prisma-query-engine',
         ];
         
         print('DEBUG: Checking ${possiblePaths.length} possible bundle paths...');

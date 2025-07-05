@@ -29,6 +29,7 @@
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		3E6D5BA6A048175763DD9CEE /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 983E8DFD05F2A376BD57F0FD /* Pods_Runner.framework */; };
+		DD4F5C9F2A5B4F2A00000001 /* prisma-query-engine in Resources */ = {isa = PBXBuildFile; fileRef = DD4F5C9E2A5B4F2A00000001 /* prisma-query-engine */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +89,7 @@
 		983E8DFD05F2A376BD57F0FD /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2C81CEEF02107F4323F33A2 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		BAA9C4636DD2A78BD39A270D /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
+		DD4F5C9E2A5B4F2A00000001 /* prisma-query-engine */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = "prisma-query-engine"; path = "Runner/Resources/prisma-query-engine"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -156,6 +158,7 @@
 				33CC10F22044A3C60003C045 /* Assets.xcassets */,
 				33CC10F42044A3C60003C045 /* MainMenu.xib */,
 				33CC10F72044A3C60003C045 /* Info.plist */,
+				DD4F5C9E2A5B4F2A00000001 /* prisma-query-engine */,
 			);
 			name = Resources;
 			path = ..;
@@ -317,6 +320,7 @@
 			files = (
 				33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */,
 				33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */,
+				DD4F5C9F2A5B4F2A00000001 /* prisma-query-engine in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

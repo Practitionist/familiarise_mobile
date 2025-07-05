@@ -126,6 +126,30 @@ PrismaClientInitializationError: QE404 No binary engine found, please make sure 
    - ❌ **Sandbox copying blocked**: Development path copying still fails with permission error
    - **Root Issue**: The binary was copied to `macos/Runner/Resources/` but it's not being included in the actual app bundle during build
 
+5. **Xcode Bundle Configuration Success:** After properly configuring the Xcode project:
+   ```
+   DEBUG: Initializing Prisma for macOS platform
+   DEBUG: Current working directory: /Users/kaustavghosh/Library/Containers/com.example.familiariseMobile/Data
+   DEBUG: Searching for bundle binary from: /Users/kaustavghosh/Library/Containers/com.example.familiariseMobile/Data
+   DEBUG: Checking known bundle path: /Users/kaustavghosh/Desktop/familiarise_mobile/build/macos/Build/Products/Debug/familiarise_mobile.app/Contents/Resources/prisma-query-engine
+   DEBUG: Found bundle binary at known location: /Users/kaustavghosh/Desktop/familiarise_mobile/build/macos/Build/Products/Debug/familiarise_mobile.app/Contents/Resources/prisma-query-engine
+   DEBUG: Found binary in app bundle at /Users/kaustavghosh/Desktop/familiarise_mobile/build/macos/Build/Products/Debug/familiarise_mobile.app/Contents/Resources/prisma-query-engine, copying to sandbox...
+   DEBUG: Binary successfully copied to: /Users/kaustavghosh/Library/Containers/com.example.familiariseMobile/Data/prisma-query-engine
+   ```
+
+6. **Environment Variable Error:** New issue encountered:
+   ```
+   Failed to initialize Prisma: Unsupported operation: Cannot modify unmodifiable map
+   Prisma initialization failed: Unsupported operation: Cannot modify unmodifiable map
+   ```
+   
+   **Root Cause**: `Platform.environment` is read-only in Dart, cannot set `PRISMA_QUERY_ENGINE_BINARY`
+   
+   **Resolution**: Modified approach to copy binary to all expected Prisma locations:
+   - `$currentDir/prisma-query-engine`
+   - `$currentDir/prisma/prisma-query-engine` 
+   - `$currentDir/.dart_tool/prisma-query-engine`
+
 ### Current Status: Unresolved macOS Sandbox Issue
 
 **Problem:** macOS app sandboxing prevents:

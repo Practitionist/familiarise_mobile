@@ -16,26 +16,19 @@ void main() async {
   await dotenv.load(fileName: ".env");
   await SupabaseConfig.initialize();
   
-  // Platform-aware Prisma initialization
+  // Platform-aware Prisma initialization  
   if (!kIsWeb) {
-    if (Platform.isMacOS) {
-      // Temporary workaround: Skip Prisma on macOS due to sandbox restrictions
-      print('macOS detected - using Supabase only mode (Prisma binary access blocked by sandbox)');
-      print('See PRISMA.MD for detailed troubleshooting and solutions');
-    } else {
-      // Initialize Prisma for other desktop platforms
-      try {
-        await PrismaService.initialize(
-          databaseUrl: dotenv.env['DATABASE_URL'],
-        );
-        
-        // Test connection
-        final connectionTest = await PrismaService.testConnection();
-        print('Prisma connection test: ${connectionTest ? "SUCCESS" : "FAILED"}');
-      } catch (e) {
-        print('Prisma initialization failed: $e');
-        print('Falling back to Supabase only mode');
-      }
+    try {
+      await PrismaService.initialize(
+        databaseUrl: dotenv.env['DATABASE_URL'],
+      );
+      
+      // Test connection
+      final connectionTest = await PrismaService.testConnection();
+      print('Prisma connection test: ${connectionTest ? "SUCCESS" : "FAILED"}');
+    } catch (e) {
+      print('Prisma initialization failed: $e');
+      print('Falling back to Supabase only mode');
     }
   } else {
     print('Running on web platform - using Supabase only (Prisma not supported on web)');
