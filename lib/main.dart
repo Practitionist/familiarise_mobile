@@ -9,18 +9,11 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'widgets/auth/auth_wrapper.dart';
-import 'services/auth_service.dart';
-import 'services/api/dio_client.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   await dotenv.load(fileName: ".env");
   await SupabaseConfig.initialize();
-  
-  // Initialize services
-  DioClient().initialize();
-  AuthService().initialize();
   
   runApp(const ProviderScope(child: FamiliariseApp()));
 }

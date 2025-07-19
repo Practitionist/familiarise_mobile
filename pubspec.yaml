@@ -41,6 +41,12 @@ dependencies:
   # HTTP client
   dio: ^5.3.2
   
+  # Cryptography
+  crypto: ^3.0.6
+  
+  # Storage
+  shared_preferences: ^2.2.2
+  
   # State management
   flutter_riverpod: ^2.4.9
   

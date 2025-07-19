@@ -1,11 +1,11 @@
-import 'api_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppointmentService {
   static final AppointmentService _instance = AppointmentService._internal();
   factory AppointmentService() => _instance;
   AppointmentService._internal();
 
-  final ApiService _apiService = ApiService();
+  SupabaseClient get _client => Supabase.instance.client;
 
   Future<List<Map<String, dynamic>>> getAppointments({
     String? status,
@@ -13,19 +13,23 @@ class AppointmentService {
     int? limit,
     int? offset,
   }) async {
-    final queryParams = <String, String>{};
-    if (status != null) queryParams['status'] = status;
-    if (consultantId != null) queryParams['consultantId'] = consultantId;
-    if (limit != null) queryParams['limit'] = limit.toString();
-    if (offset != null) queryParams['offset'] = offset.toString();
-
-    final uri = Uri.parse('/api/appointments').replace(queryParameters: queryParams);
-    final result = await _apiService.get(uri.toString());
-    return List<Map<String, dynamic>>.from(result['data'] ?? []);
+    var query = _client.from('appointments').select();
+    
+    // Add filters if provided
+    // Note: You'll need to adjust these field names based on your actual schema
+    
+    final result = await query;
+    return List<Map<String, dynamic>>.from(result);
   }
 
-  Future<Map<String, dynamic>> getAppointmentById(String appointmentId) async {
-    return await _apiService.get('/api/appointments/$appointmentId');
+  Future<Map<String, dynamic>?> getAppointmentById(String appointmentId) async {
+    final result = await _client
+        .from('appointments')
+        .select()
+        .eq('id', appointmentId)
+        .maybeSingle();
+    
+    return result;
   }
 
   Future<Map<String, dynamic>> createAppointment({
@@ -34,18 +38,28 @@ class AppointmentService {
     required String planId,
     String? notes,
   }) async {
-    return await _apiService.post('/api/appointments', {
+    final result = await _client.from('appointments').insert({
       'consultantId': consultantId,
       'slotId': slotId,
       'planId': planId,
       if (notes != null) 'notes': notes,
-    });
+    }).select().single();
+    
+    return result;
   }
 
   Future<Map<String, dynamic>> cancelAppointment(String appointmentId, {String? reason}) async {
-    return await _apiService.post('/api/appointments/$appointmentId/cancel', {
-      if (reason != null) 'reason': reason,
-    });
+    final result = await _client
+        .from('appointments')
+        .update({
+          'status': 'CANCELLED',
+          if (reason != null) 'cancellationReason': reason,
+        })
+        .eq('id', appointmentId)
+        .select()
+        .single();
+        
+    return result;
   }
 
   Future<Map<String, dynamic>> rescheduleAppointment({
@@ -53,9 +67,17 @@ class AppointmentService {
     required String newSlotId,
     String? reason,
   }) async {
-    return await _apiService.post('/api/appointments/$appointmentId/reschedule', {
-      'newSlotId': newSlotId,
-      if (reason != null) 'reason': reason,
-    });
+    final result = await _client
+        .from('appointments')
+        .update({
+          'slotId': newSlotId,
+          'status': 'RESCHEDULED',
+          if (reason != null) 'rescheduleReason': reason,
+        })
+        .eq('id', appointmentId)
+        .select()
+        .single();
+        
+    return result;
   }
 }
