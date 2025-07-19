@@ -1,24 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/app_state_provider.dart';
 import '../widgets/domain_selector.dart';
-import '../widgets/consultant_card.dart';
-import '../models/consultant_profile.dart';
-import '../models/domain.dart';
-import '../services/content_service.dart';
-import '../services/user_service.dart';
+import '../providers/auth/auth_state_provider.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final ContentService _contentService = ContentService();
-  final UserService _userService = UserService();
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLoading = false;
 
   @override
@@ -33,47 +26,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isLoading) return;
     
     setState(() => _isLoading = true);
-    final provider = Provider.of<AppStateProvider>(context, listen: false);
     
     try {
-      // Load domains
-      final domainsData = await _contentService.getDomains();
-      final domains = domainsData.map((domainData) => Domain(
-        id: domainData['id'],
-        name: domainData['name'],
-        createdAt: domainData['createdAt'] != null ? DateTime.parse(domainData['createdAt']) : DateTime.now(),
-        updatedAt: domainData['updatedAt'] != null ? DateTime.parse(domainData['updatedAt']) : DateTime.now(),
-        consultantCount: 0, // TODO: Calculate from API
-      )).toList();
-      
-      // Load featured consultants (first 5)
-      final consultantsResponse = await _userService.getConsultants(
-        limit: 5,
-        sort: 'rating',
-      );
-      
-      final data = consultantsResponse['data'] as List? ?? [];
-      final consultants = data.map((consultantData) => ConsultantProfile(
-          id: consultantData['id'],
-          description: consultantData['description'] ?? '',
-          qualifications: consultantData['qualifications'] ?? '',
-          specialization: consultantData['specialization'] ?? '',
-          experience: (consultantData['experience'] ?? 0).toDouble(),
-          rating: (consultantData['rating'] ?? 0).toDouble(),
-          domainId: consultantData['domainId'] ?? '',
-          userId: consultantData['userId'] ?? '',
-          createdAt: consultantData['createdAt'] != null ? DateTime.parse(consultantData['createdAt']) : DateTime.now(),
-          updatedAt: consultantData['updatedAt'] != null ? DateTime.parse(consultantData['updatedAt']) : DateTime.now(),
-          name: consultantData['id'] ?? 'Unknown',
-          image: '',
-          domainName: consultantData['domainId'] ?? '',
-          subDomains: [],
-          tags: [],
-          reviewCount: 0,
-        )).toList();
-      
-      provider.setDomains(domains);
-      provider.setConsultants(consultants);
+      // For now, just show loading and success message
+      // TODO: Implement proper data loading with Riverpod providers
+      await Future.delayed(const Duration(seconds: 1));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -87,8 +44,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider);
+    
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text('Welcome ${currentUser?.name ?? 'User'}'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -213,38 +186,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildConsultantsList() {
-    return Consumer<AppStateProvider>(
-      builder: (context, provider, child) {
-        final consultants = provider.filteredConsultants;
-        
-        if (_isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-        
-        if (consultants.isEmpty) {
-          return const Center(
-            child: Text('No consultants available'),
-          );
-        }
-
-        return ListView.builder(
-          itemCount: consultants.length,
-          itemBuilder: (context, index) {
-            final consultant = consultants[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: ConsultantCard(
-                consultant: consultant,
-                onTap: () {
-                  context.go('/consultant/${consultant.id}');
-                },
-              ),
-            );
-          },
-        );
-      },
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    
+    // For now, show a placeholder message
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.people_outline, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Consultants will be loaded here',
+            style: TextStyle(color: Colors.grey, fontSize: 16),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Authentication system is ready!',
+            style: TextStyle(color: Colors.green, fontSize: 14),
+          ),
+        ],
+      ),
     );
   }
 
