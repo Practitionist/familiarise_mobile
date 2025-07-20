@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth/auth_state_provider.dart';
@@ -10,6 +11,11 @@ class AuthWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Skip authentication in debug mode for development
+    if (kDebugMode) {
+      return child;
+    }
+
     final authState = ref.watch(authProvider);
 
     // Show loading screen during initialization

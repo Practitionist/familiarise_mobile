@@ -8,6 +8,10 @@ import 'screens/explore_experts_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
+import 'screens/consultant_detail_screen.dart';
+import 'screens/patient_profile_screen.dart';
+import 'screens/video_call_screen.dart';
+import 'screens/booking_screen.dart';
 import 'widgets/auth/auth_wrapper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +39,36 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/consultant/:id',
       builder: (BuildContext context, GoRouterState state) {
-        return const AuthWrapper(child: HomeScreen()); // TODO: Create ConsultantDetailScreen
+        final consultantId = state.pathParameters['id']!;
+        return AuthWrapper(child: ConsultantDetailScreen(consultantId: consultantId));
+      },
+    ),
+    GoRoute(
+      path: '/patient-profile',
+      builder: (BuildContext context, GoRouterState state) {
+        return const AuthWrapper(child: PatientProfileScreen());
+      },
+    ),
+    GoRoute(
+      path: '/video-call/:consultantId',
+      builder: (BuildContext context, GoRouterState state) {
+        final consultantId = state.pathParameters['consultantId']!;
+        final appointmentId = state.uri.queryParameters['appointmentId'];
+        return AuthWrapper(
+          child: VideoCallScreen(
+            consultantId: consultantId,
+            appointmentId: appointmentId,
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/book/:consultantId',
+      builder: (BuildContext context, GoRouterState state) {
+        final consultantId = state.pathParameters['consultantId']!;
+        return AuthWrapper(
+          child: BookingScreen(consultantId: consultantId),
+        );
       },
     ),
     GoRoute(
