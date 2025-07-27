@@ -392,6 +392,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
+
+  /// Sign out the current user
+  Future<void> signOut() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _authRepository.logout();
+      state = const AuthState(); // Reset to initial state
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to sign out',
+      );
+    }
+  }
 }
 
 // Providers

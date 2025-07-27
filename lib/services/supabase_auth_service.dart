@@ -35,31 +35,11 @@ class SupabaseAuthService {
     try {
       logger.authAttempt(request.email);
       
-      // Check for test user credentials (development only)
-      if (request.email == 'temp@gmail.com' && request.password == '123456') {
-        logger.info('Auth: Test user login successful');
-        logger.warning('Auth: Test user credentials used - development mode only');
-        final testUser = auth_model.User(
-          id: 'test-user-id',
-          email: 'temp@gmail.com',
-          name: 'Test User',
-          role: auth_model.UserRole.consultee,
-          onlineStatus: true,
-          onboardingCompleted: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        final sessionToken = base64.encode(utf8.encode('${testUser.id}:${DateTime.now().millisecondsSinceEpoch}'));
-
-        return LoginResponse(
-          accessToken: sessionToken,
-          refreshToken: sessionToken,
-          user: testUser,
-          expiresAt: DateTime.now().add(const Duration(days: 30)),
-        );
-      }
-
+      // TODO: Implement real Supabase authentication
+      // When user tries to book appointment or access profile:
+      // 1. Check if user is authenticated via currentUserProvider
+      // 2. If not authenticated, redirect to /login with return URL
+      // 3. After login, redirect back to booking/profile page
       // Get user from database
       final userResponse = await _client
           .from('users')

@@ -16,10 +16,14 @@ class LoggingService {
         lineLength: 120,
         colors: true,
         printEmojis: true,
-        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
+        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart
       ),
       level: kDebugMode ? Level.debug : Level.info,
+      output: ConsoleOutput(), // Ensure console output
     );
+    
+    // Initial log to verify logging is working
+    _logger.i('🚀 Logging service initialized - Level: ${kDebugMode ? 'DEBUG' : 'INFO'}');
   }
 
   // Debug logging - only in debug mode

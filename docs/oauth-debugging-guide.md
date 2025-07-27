@@ -123,16 +123,29 @@ In GitHub Settings > Developer settings > OAuth Apps:
 
 ## Debugging Steps
 
-### 1. Enable Debug Logging
-With the new logging system, you can see detailed OAuth flow:
+### 1. Find OAuth Logs
+OAuth logs are now visible in multiple locations:
 
-```dart
-// In your app, logs will show:
-// OAuth: Starting Google authentication
-// OAuth: Google user obtained, getting authentication tokens
-// OAuth: Authenticating with Supabase using Google tokens
-// OAuth: Google authentication successful for user: user@email.com
+**Flutter Debug Console:**
+- When running `flutter run`, logs appear in your terminal/console
+- Look for entries starting with 🚀, OAuth:, Auth:
+- Example log entries:
 ```
+🚀 Logging service initialized - Level: DEBUG
+OAuth: Starting Google authentication
+🔴 GOOGLE OAUTH CONFIGURATION ERROR: [detailed troubleshooting]
+OAuth: Google authentication successful for user: user@email.com
+```
+
+**Where to look for logs:**
+1. **VS Code/Android Studio**: Debug Console panel
+2. **Terminal**: If running `flutter run` from command line  
+3. **Supabase Dashboard**: Project > Logs > Filter by "auth"
+4. **Browser DevTools**: If testing on web (F12 > Console)
+
+**No logs showing?** 
+- Restart the app to see initialization logs
+- Check if LoggingService is properly initialized in main.dart
 
 ### 2. Check Supabase Logs
 In Supabase dashboard, check Logs for authentication errors:

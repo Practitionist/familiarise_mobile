@@ -13,6 +13,7 @@ import 'screens/user_profile_screen.dart';
 import 'screens/video_call_screen.dart';
 import 'screens/booking_screen.dart';
 import 'widgets/auth/auth_wrapper.dart';
+import 'widgets/auth/public_wrapper.dart';
 import 'services/logging_service.dart';
 
 void main() async {
@@ -29,25 +30,29 @@ void main() async {
 
 final GoRouter _router = GoRouter(
   routes: <RouteBase>[
+    // PUBLIC ROUTES - No authentication required
+    // Users can browse consultants and view details without logging in
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) {
-        return const AuthWrapper(child: HomeScreen());
+        return const PublicWrapper(child: HomeScreen());
       },
     ),
     GoRoute(
       path: '/explore-experts',
       builder: (BuildContext context, GoRouterState state) {
-        return const AuthWrapper(child: ExploreExpertsScreen());
+        return const PublicWrapper(child: ExploreExpertsScreen());
       },
     ),
     GoRoute(
       path: '/consultant/:id',
       builder: (BuildContext context, GoRouterState state) {
         final consultantId = state.pathParameters['id']!;
-        return AuthWrapper(child: ConsultantDetailScreen(consultantId: consultantId));
+        return PublicWrapper(child: ConsultantDetailScreen(consultantId: consultantId));
       },
     ),
+    // PRIVATE ROUTES - Authentication required
+    // These features require user login for security and functionality
     GoRoute(
       path: '/user-profile',
       builder: (BuildContext context, GoRouterState state) {
@@ -76,6 +81,7 @@ final GoRouter _router = GoRouter(
         );
       },
     ),
+    // AUTH ROUTES - No wrapper needed, handle their own auth logic
     GoRoute(
       path: '/login',
       builder: (BuildContext context, GoRouterState state) {

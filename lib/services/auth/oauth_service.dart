@@ -29,11 +29,30 @@ class OAuthService {
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       
       if (googleAuth.idToken == null) {
-        logger.error('OAuth: Google ID token is null - Access token: ${googleAuth.accessToken != null ? "present" : "null"}');
-        throw OAuthException('Google authentication failed: No ID token received. This usually indicates:\n' +
-            '1. Google OAuth client ID is not configured correctly\n' +
-            '2. Wrong OAuth client type (should be Web client for Supabase)\n' +
-            '3. Missing SHA-1 certificate fingerprints for Android');
+        final errorDetails = '''
+🔴 GOOGLE OAUTH CONFIGURATION ERROR:
+No ID token received from Google. This indicates a configuration issue:
+
+📋 TROUBLESHOOTING STEPS:
+1. Check Supabase Auth Settings:
+   - Go to: https://supabase.com/dashboard/project/[your-project]/auth/providers
+   - Ensure Google provider is enabled
+   - Verify Client ID is from Web application (not Android)
+
+2. Check Google Cloud Console:
+   - Go to: https://console.cloud.google.com/apis/credentials  
+   - Verify OAuth 2.0 Client IDs exist for both Web and Android
+   - Add SHA-1 fingerprints to Android client
+
+3. For Android Debug:
+   - Run: keytool -list -v -alias androiddebugkey -keystore ~/.android/debug.keystore
+   - Add debug SHA-1 to Google Console
+
+Access Token: ${googleAuth.accessToken != null ? "✅ Present" : "❌ Missing"}
+ID Token: ❌ Missing (This is the problem!)
+''';
+        logger.error('OAuth: Google configuration error', errorDetails);
+        throw OAuthException('Google sign-in failed: Configuration error. Check debug console for details.');
       }
 
       logger.debug('OAuth: Authenticating with Supabase using Google tokens');

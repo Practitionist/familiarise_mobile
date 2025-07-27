@@ -72,6 +72,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildHeader() {
     final currentUser = ref.watch(currentUserProvider);
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    
+    // For public users (not logged in), show generic greeting
+    final greeting = isAuthenticated && currentUser != null
+        ? currentUser.name?.split(' ').first ?? 'User'
+        : 'Guest';
     
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -86,8 +92,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 fontSize: 16,
               ),
             ),
-                          Text(
-                'today, ${currentUser?.name?.split(' ').first ?? 'User'}?',
+            Text(
+              'today, $greeting?',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 fontSize: 24,
@@ -119,7 +125,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(width: 12),
             GestureDetector(
-              onTap: () => context.push('/user-profile'),
+              onTap: () {
+                // If user is authenticated, go to profile; otherwise go to login
+                if (isAuthenticated) {
+                  context.push('/user-profile');
+                } else {
+                  context.push('/login');
+                }
+              },
               child: Container(
                 width: 50,
                 height: 50,
@@ -135,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(25),
-                  child: currentUser?.image != null
+                  child: isAuthenticated && currentUser?.image != null
                       ? CachedNetworkImage(
                           imageUrl: currentUser!.image!,
                           fit: BoxFit.cover,
@@ -150,7 +163,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         )
                       : Container(
                           color: Colors.grey[200],
-                          child: const Icon(Icons.person, color: Colors.grey),
+                          child: Icon(
+                            isAuthenticated ? Icons.person : Icons.login,
+                            color: Colors.grey,
+                          ),
                         ),
                 ),
               ),

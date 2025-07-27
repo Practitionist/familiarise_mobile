@@ -3,6 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth/auth_state_provider.dart';
 import '../../screens/auth/login_screen.dart';
 
+/// AuthWrapper enforces authentication for private routes that require user login.
+/// 
+/// CURRENT USAGE:
+/// - /user-profile: User must be logged in to view/edit profile
+/// - /book/:consultantId: User must be logged in to book appointments  
+/// - /video-call/:consultantId: User must be logged in for video calls
+/// 
+/// PUBLIC ROUTES (use PublicWrapper instead):
+/// - /: Home screen - browse without login
+/// - /explore-experts: Browse consultants without login
+/// - /consultant/:id: View consultant details without login
+
 class AuthWrapper extends ConsumerStatefulWidget {
   final Widget child;
 
