@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_state_provider.dart';
+import '../../services/auth/oauth_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -221,30 +222,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 const SizedBox(height: 24),
 
-                // OAuth Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildOAuthButton(
-                      onPressed: authState.isLoading ? null : _signInWithGoogle,
-                      icon: Icons.login,
-                      label: 'Google',
-                      color: const Color(0xFF4285F4),
-                    ),
-                    _buildOAuthButton(
-                      onPressed: authState.isLoading ? null : _signInWithFacebook,
-                      icon: Icons.facebook,
-                      label: 'Facebook',
-                      color: const Color(0xFF1877F2),
-                    ),
-                    _buildOAuthButton(
-                      onPressed: authState.isLoading ? null : _signInWithGitHub,
-                      icon: Icons.code,
-                      label: 'GitHub',
-                      color: Colors.black,
-                    ),
-                  ],
-                ),
+                // OAuth Buttons - Only show available providers
+                _buildOAuthSection(authState),
 
                 const SizedBox(height: 24),
 
@@ -308,6 +287,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOAuthSection(AuthState authState) {
+    final oauthService = OAuthService();
+    final providerStatus = oauthService.getProviderStatus();
+    
+    // Build list of available OAuth buttons
+    final availableButtons = <Widget>[];
+    
+    if (providerStatus['google'] == true) {
+      availableButtons.add(_buildOAuthButton(
+        onPressed: authState.isLoading ? null : _signInWithGoogle,
+        icon: Icons.login,
+        label: 'Google',
+        color: const Color(0xFF4285F4),
+      ));
+    }
+    
+    if (providerStatus['facebook'] == true) {
+      availableButtons.add(_buildOAuthButton(
+        onPressed: authState.isLoading ? null : _signInWithFacebook,
+        icon: Icons.facebook,
+        label: 'Facebook',
+        color: const Color(0xFF1877F2),
+      ));
+    }
+    
+    if (providerStatus['github'] == true) {
+      availableButtons.add(_buildOAuthButton(
+        onPressed: authState.isLoading ? null : _signInWithGitHub,
+        icon: Icons.code,
+        label: 'GitHub',
+        color: Colors.black,
+      ));
+    }
+    
+    // If no OAuth providers are available, show a helpful message
+    if (availableButtons.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.info_outline, color: Colors.grey[600], size: 24),
+            const SizedBox(height: 8),
+            Text(
+              'OAuth providers not configured',
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Use email/password authentication',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Show available OAuth buttons
+    return Column(
+      children: [
+        Text(
+          'Or sign in with',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: availableButtons,
         ),
       ],
     );

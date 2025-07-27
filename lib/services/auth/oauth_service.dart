@@ -1,22 +1,96 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../models/auth/user_model.dart' as auth_model;
 import '../logging_service.dart';
+import 'web_oauth_config.dart';
 
 class OAuthService {
   static final OAuthService _instance = OAuthService._internal();
   factory OAuthService() => _instance;
-  OAuthService._internal();
+  OAuthService._internal() {
+    _initializeGoogleSignIn();
+    _initializeFacebookAuth();
+    _initializeGitHubAuth();
+  }
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  // Initialize GoogleSignIn with Client ID from environment variables
+  late final GoogleSignIn _googleSignIn;
+
+  void _initializeGoogleSignIn() {
+    final googleClientId = dotenv.env['GOOGLE_CLIENT_ID'];
+    
+    if (googleClientId != null && googleClientId.isNotEmpty) {
+      logger.info('OAuth: Initializing Google Sign-In with Client ID: ${googleClientId.substring(0, 20)}...');
+      _googleSignIn = GoogleSignIn(
+        clientId: googleClientId,
+        scopes: ['email', 'profile'], // Basic scopes only to avoid People API requirement
+        signInOption: SignInOption.standard, // Use standard sign-in to avoid additional API calls
+      );
+    } else {
+      logger.warning('OAuth: GOOGLE_CLIENT_ID not found in environment variables');
+      _googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'], // Basic scopes only
+        signInOption: SignInOption.standard,
+      );
+    }
+  }
+
+  void _initializeFacebookAuth() {
+    final facebookClientId = dotenv.env['FACEBOOK_CLIENT_ID'];
+    
+    if (facebookClientId != null && facebookClientId.isNotEmpty) {
+      logger.info('OAuth: Facebook Client ID found in environment');
+      // Facebook initialization will be handled in the web/index.html meta tag
+    } else {
+      logger.warning('OAuth: FACEBOOK_CLIENT_ID is empty or missing in environment variables');
+      logger.info('OAuth: Facebook authentication will not be available until Client ID is configured');
+    }
+  }
+
+  void _initializeGitHubAuth() {
+    final githubClientId = dotenv.env['GITHUB_CLIENT_ID'];
+    
+    if (githubClientId != null && githubClientId.isNotEmpty) {
+      logger.info('OAuth: GitHub Client ID found in environment');
+      // GitHub OAuth will use Supabase OAuth flow
+    } else {
+      logger.warning('OAuth: GITHUB_CLIENT_ID is empty or missing in environment variables');
+      logger.info('OAuth: GitHub authentication will not be available until Client ID is configured');
+    }
+  }
+
+  /// Check if Google OAuth is available
+  bool isGoogleAvailable() {
+    return WebOAuthConfig.isProviderConfigured('google');
+  }
+
+  /// Check if Facebook OAuth is available
+  bool isFacebookAvailable() {
+    return WebOAuthConfig.isProviderConfigured('facebook');
+  }
+
+  /// Check if GitHub OAuth is available
+  bool isGitHubAvailable() {
+    return WebOAuthConfig.isProviderConfigured('github');
+  }
+
+  /// Get status of all OAuth providers
+  Map<String, bool> getProviderStatus() {
+    return WebOAuthConfig.getProviderStatus();
+  }
 
   Future<auth_model.User?> signInWithGoogle() async {
     try {
+      // Check if Google OAuth is configured
+      if (!isGoogleAvailable()) {
+        logger.warning('OAuth: Google not configured');
+        throw OAuthException(WebOAuthConfig.getProviderErrorMessage('google'));
+      }
+
       logger.oAuthStart('Google');
       
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -26,6 +100,13 @@ class OAuthService {
       }
 
       logger.debug('OAuth: Google user obtained, getting authentication tokens');
+      
+      // Get basic user info without additional API calls
+      final userEmail = googleUser.email;
+      final userName = googleUser.displayName;
+      
+      logger.debug('OAuth: Basic user info - Email: $userEmail, Name: $userName');
+      
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       
       if (googleAuth.idToken == null) {
@@ -103,6 +184,12 @@ ID Token: ❌ Missing (This is the problem!)
 
   Future<auth_model.User?> signInWithFacebook() async {
     try {
+      // Check if Facebook OAuth is configured
+      if (!isFacebookAvailable()) {
+        logger.warning('OAuth: Facebook not configured');
+        throw OAuthException(WebOAuthConfig.getProviderErrorMessage('facebook'));
+      }
+
       logger.oAuthStart('Facebook');
       
       final LoginResult result = await FacebookAuth.instance.login(
@@ -143,16 +230,36 @@ ID Token: ❌ Missing (This is the problem!)
 
   Future<auth_model.User?> signInWithGitHub() async {
     try {
-      // For mobile apps, we need to handle OAuth flow differently
-      // This is a placeholder - in a real implementation you'd need to:
-      // 1. Configure deep linking in your app
-      // 2. Handle the OAuth callback
-      // 3. Extract the tokens from the callback
+      // Check if GitHub OAuth is configured
+      if (!isGitHubAvailable()) {
+        logger.warning('OAuth: GitHub not configured');
+        throw OAuthException(WebOAuthConfig.getProviderErrorMessage('github'));
+      }
+
+      logger.oAuthStart('GitHub');
+
+      // Use Supabase OAuth flow for GitHub
+      final bool result = await _client.auth.signInWithOAuth(
+        OAuthProvider.github,
+        redirectTo: 'https://your-app.com/auth/callback', // Update with your actual redirect URL
+      );
+
+      if (result) {
+        // OAuth flow initiated successfully
+        logger.info('OAuth: GitHub authentication flow initiated');
+        // For GitHub OAuth, the user will be redirected and handled by the callback
+        // This method typically returns null for the redirect flow
+        return null;
+      }
       
-      // For now, throw an exception to indicate GitHub OAuth needs additional setup
-      throw OAuthException('GitHub OAuth requires additional mobile configuration. Please use email/password or other providers for now.');
+      logger.warning('OAuth: Failed to initiate GitHub authentication flow');
+      return null;
+    } on AuthException catch (e) {
+      logger.oAuthError('GitHub', 'Supabase auth error: ${e.message}', e);
+      throw OAuthException('GitHub sign-in failed: ${e.message}. Please check your Supabase OAuth configuration.');
     } catch (e) {
-      throw OAuthException('GitHub sign-in failed: ${e.toString()}');
+      logger.oAuthError('GitHub', 'Unexpected error', e);
+      throw OAuthException('GitHub sign-in failed: ${e.toString()}. Please try again or contact support.');
     }
   }
 

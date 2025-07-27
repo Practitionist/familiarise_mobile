@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/supabase_config.dart';
+import 'services/auth/web_oauth_config.dart';
 import 'screens/home_screen.dart';
 import 'screens/explore_experts_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -24,6 +25,9 @@ void main() async {
   
   await dotenv.load(fileName: ".env");
   await SupabaseConfig.initialize();
+  
+  // Initialize web OAuth configuration (security: inject meta tags dynamically)
+  await WebOAuthConfig.initialize();
   
   runApp(const ProviderScope(child: FamiliariseApp()));
 }
