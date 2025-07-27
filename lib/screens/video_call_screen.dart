@@ -119,7 +119,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text(
@@ -146,7 +146,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -208,7 +208,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -222,7 +222,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -255,11 +255,11 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 40),
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
+        color: Colors.black.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -320,16 +320,16 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          color: backgroundColor ?? (isActive ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1)),
+          color: backgroundColor ?? (isActive ? Colors.white.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.1)),
           shape: BoxShape.circle,
           border: Border.all(
-            color: isActive ? Colors.white.withOpacity(0.3) : Colors.transparent,
+            color: isActive ? Colors.white.withValues(alpha: 0.3) : Colors.transparent,
             width: 2,
           ),
         ),
         child: Icon(
           icon,
-          color: backgroundColor != null ? Colors.white : (isActive ? Colors.white : Colors.white.withOpacity(0.6)),
+          color: backgroundColor != null ? Colors.white : (isActive ? Colors.white : Colors.white.withValues(alpha: 0.6)),
           size: 24,
         ),
       ),

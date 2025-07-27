@@ -47,6 +47,9 @@ dependencies:
   # Storage
   shared_preferences: ^2.2.2
   
+  # Logging
+  logger: ^2.4.0
+  
   # State management
   flutter_riverpod: ^2.4.9
   
@@ -67,6 +70,11 @@ dependencies:
   
   # Environment variables
   flutter_dotenv: ^5.1.0
+  
+  # OAuth authentication
+  google_sign_in: ^6.2.1
+  flutter_facebook_auth: ^7.0.1
+  sign_in_with_apple: ^6.1.1
 
 dev_dependencies:
   flutter_test:

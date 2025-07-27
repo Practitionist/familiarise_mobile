@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../auth/auth_interceptor.dart';
+import '../logging_service.dart';
 
 class DioClient {
   static final DioClient _instance = DioClient._internal();
@@ -40,9 +41,8 @@ class DioClient {
       responseHeader: false,
       error: true,
       logPrint: (obj) {
-        // TODO: Replace with proper logging framework in production
-        // ignore: avoid_print
-        print('[DIO] $obj');
+        // Use proper logging framework
+        LoggingService().debug('[HTTP] $obj');
       },
     ));
   }

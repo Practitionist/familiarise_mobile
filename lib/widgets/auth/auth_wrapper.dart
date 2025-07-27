@@ -1,21 +1,29 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth/auth_state_provider.dart';
 import '../../screens/auth/login_screen.dart';
 
-class AuthWrapper extends ConsumerWidget {
+class AuthWrapper extends ConsumerStatefulWidget {
   final Widget child;
 
   const AuthWrapper({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Skip authentication in debug mode for development
-    if (kDebugMode) {
-      return child;
-    }
+  ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
+}
 
+class _AuthWrapperState extends ConsumerState<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize authentication state when the widget is first created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).initializeAuth();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
     // Show loading screen during initialization
@@ -40,7 +48,7 @@ class AuthWrapper extends ConsumerWidget {
     }
 
     // User is authenticated, show the main app
-    return child;
+    return widget.child;
   }
 }
 

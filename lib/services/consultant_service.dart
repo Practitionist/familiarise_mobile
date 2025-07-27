@@ -83,7 +83,7 @@ class ConsultantService {
 
       return consultants;
     } catch (e) {
-      print('Error fetching consultants: $e');
+      // Error fetching consultants: $e
       return [];
     }
   }
@@ -138,7 +138,7 @@ class ConsultantService {
         reviewCount: _calculateReviewCount((response['rating'] as num?)?.toDouble() ?? 0.0),
       );
     } catch (e) {
-      print('Error fetching consultant by ID: $e');
+      // Error fetching consultant by ID: $e
       return null;
     }
   }
@@ -162,7 +162,7 @@ class ConsultantService {
         );
       }).toList();
     } catch (e) {
-      print('Error fetching domains: $e');
+      // Error fetching domains: $e
       return [];
     }
   }
@@ -203,7 +203,7 @@ class ConsultantService {
         'subDomains': subdomains,
       };
     } catch (e) {
-      print('Error fetching tags and subdomains: $e');
+      // Error fetching tags and subdomains: $e
       return {
         'tags': <String>[],
         'subDomains': <String>[],
@@ -274,7 +274,7 @@ class ConsultantService {
         );
       }).toList();
     } catch (e) {
-      print('Error searching consultants: $e');
+      // Error searching consultants: $e
       return [];
     }
   }

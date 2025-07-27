@@ -51,6 +51,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     Navigator.of(context).pop();
   }
 
+  void _signInWithGoogle() async {
+    await ref.read(authProvider.notifier).signInWithGoogle();
+  }
+
+  void _signInWithFacebook() async {
+    await ref.read(authProvider.notifier).signInWithFacebook();
+  }
+
+  void _signInWithGitHub() async {
+    await ref.read(authProvider.notifier).signInWithGitHub();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -352,6 +364,50 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 const SizedBox(height: 24),
 
+                // Divider
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Or sign up with',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // OAuth Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildOAuthButton(
+                      onPressed: authState.isLoading ? null : _signInWithGoogle,
+                      icon: Icons.login,
+                      label: 'Google',
+                      color: const Color(0xFF4285F4),
+                    ),
+                    _buildOAuthButton(
+                      onPressed: authState.isLoading ? null : _signInWithFacebook,
+                      icon: Icons.facebook,
+                      label: 'Facebook',
+                      color: const Color(0xFF1877F2),
+                    ),
+                    _buildOAuthButton(
+                      onPressed: authState.isLoading ? null : _signInWithGitHub,
+                      icon: Icons.code,
+                      label: 'GitHub',
+                      color: Colors.black,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
                 // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -371,6 +427,49 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildOAuthButton({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            onPressed: onPressed,
+            icon: Icon(
+              icon,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

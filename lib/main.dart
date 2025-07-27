@@ -9,12 +9,17 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/consultant_detail_screen.dart';
-import 'screens/patient_profile_screen.dart';
+import 'screens/user_profile_screen.dart';
 import 'screens/video_call_screen.dart';
 import 'screens/booking_screen.dart';
 import 'widgets/auth/auth_wrapper.dart';
+import 'services/logging_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize logging service
+  LoggingService().initialize();
   
   await dotenv.load(fileName: ".env");
   await SupabaseConfig.initialize();
@@ -44,9 +49,9 @@ final GoRouter _router = GoRouter(
       },
     ),
     GoRoute(
-      path: '/patient-profile',
+      path: '/user-profile',
       builder: (BuildContext context, GoRouterState state) {
-        return const AuthWrapper(child: PatientProfileScreen());
+        return const AuthWrapper(child: UserProfileScreen());
       },
     ),
     GoRoute(

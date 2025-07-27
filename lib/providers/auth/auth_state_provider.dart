@@ -5,6 +5,7 @@ import '../../models/auth/login_request.dart';
 import '../../models/auth/register_request.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/logging_service.dart';
 
 @immutable
 class AuthState {
@@ -81,6 +82,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isInitialized: true,
         isLoading: false,
         error: e.toString(),
+      );
+    }
+  }
+
+  // Public method to re-initialize authentication (useful for app startup)
+  Future<void> initializeAuth() async {
+    logger.info('Auth: Initializing authentication state');
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _checkAuthStatus();
+      state = state.copyWith(isInitialized: true, isLoading: false);
+      logger.info('Auth: Initialization complete - authenticated: ${state.isAuthenticated}');
+    } catch (e) {
+      logger.error('Auth: Initialization failed', e);
+      state = state.copyWith(
+        isInitialized: true,
+        isLoading: false,
+        isAuthenticated: false,
+        user: null,
+        error: 'Failed to initialize authentication',
       );
     }
   }
@@ -297,6 +318,79 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void clearError() {
     state = state.clearError();
+  }
+
+  // OAuth Methods
+  Future<void> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await _authRepository.signInWithGoogle();
+      
+      state = state.copyWith(
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      );
+    } on AuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Google sign-in failed',
+      );
+    }
+  }
+
+  Future<void> signInWithFacebook() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await _authRepository.signInWithFacebook();
+      
+      state = state.copyWith(
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      );
+    } on AuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Facebook sign-in failed',
+      );
+    }
+  }
+
+  Future<void> signInWithGitHub() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await _authRepository.signInWithGitHub();
+      
+      state = state.copyWith(
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      );
+    } on AuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'GitHub sign-in failed',
+      );
+    }
   }
 }
 

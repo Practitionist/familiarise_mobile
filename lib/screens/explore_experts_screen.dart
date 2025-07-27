@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../widgets/consultant_card.dart';
 import '../providers/consultant_provider.dart';
 import '../models/consultant_profile.dart';
-import '../models/domain.dart';
 
 class ExploreExpertsScreen extends ConsumerStatefulWidget {
   const ExploreExpertsScreen({super.key});
@@ -299,7 +297,7 @@ class _ExploreExpertsScreenState extends ConsumerState<ExploreExpertsScreen> {
                       const Icon(Icons.star, color: Colors.amber, size: 16),
                       const SizedBox(width: 4),
                       Text(
-                        (consultant.rating ?? 0).toStringAsFixed(1),
+                        consultant.rating.toStringAsFixed(1),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,

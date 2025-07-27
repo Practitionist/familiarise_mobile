@@ -18,6 +18,11 @@ abstract class AuthRepository {
   Future<void> changePassword({required String currentPassword, required String newPassword});
   Future<void> verifyEmail(String token);
   Future<void> resendEmailVerification();
+  
+  // OAuth methods
+  Future<LoginResponse> signInWithGoogle();
+  Future<LoginResponse> signInWithFacebook();
+  Future<LoginResponse> signInWithGitHub();
 }
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -177,6 +182,43 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // Email verification not implemented in simplified version
       throw AuthException('Email verification not implemented yet', AuthErrorType.unknown);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // OAuth implementations
+  @override
+  Future<LoginResponse> signInWithGoogle() async {
+    try {
+      final response = await _authService.signInWithGoogle();
+      // Store the session token
+      await SimpleTokenManager.storeToken(response.accessToken);
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<LoginResponse> signInWithFacebook() async {
+    try {
+      final response = await _authService.signInWithFacebook();
+      // Store the session token
+      await SimpleTokenManager.storeToken(response.accessToken);
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<LoginResponse> signInWithGitHub() async {
+    try {
+      final response = await _authService.signInWithGitHub();
+      // Store the session token
+      await SimpleTokenManager.storeToken(response.accessToken);
+      return response;
     } catch (e) {
       rethrow;
     }

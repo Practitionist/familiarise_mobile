@@ -3,19 +3,74 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/auth/auth_state_provider.dart';
+import '../providers/user_profile_provider.dart';
+import '../models/user_profile.dart';
 
-class PatientProfileScreen extends ConsumerWidget {
-  const PatientProfileScreen({super.key});
+class UserProfileScreen extends ConsumerWidget {
+  const UserProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
+    final userProfile = ref.watch(currentUserProfileProvider);
+    final isLoading = ref.watch(userProfileLoadingProvider);
+    final error = ref.watch(userProfileErrorProvider);
+
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('User Profile'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red[300],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Failed to load profile',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error,
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: currentUser != null 
+                    ? () => ref.read(userProfileProvider.notifier).refreshProfile(currentUser!)
+                    : null,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
         title: const Text(
-          'Patient card',
+          'User Profile',
           style: TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -39,11 +94,11 @@ class PatientProfileScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            _buildPatientHeader(context, currentUser),
+            _buildUserHeader(context, currentUser, userProfile),
             const SizedBox(height: 24),
-            _buildHealthMetrics(context),
+            _buildHealthMetrics(context, userProfile),
             const SizedBox(height: 24),
-            _buildMedicalInfo(context),
+            _buildMedicalInfo(context, userProfile),
             const SizedBox(height: 24),
             _buildAddInformationButton(context),
           ],
@@ -52,7 +107,7 @@ class PatientProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPatientHeader(BuildContext context, dynamic user) {
+  Widget _buildUserHeader(BuildContext context, dynamic user, UserProfile? profile) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -60,7 +115,7 @@ class PatientProfileScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -75,7 +130,7 @@ class PatientProfileScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -83,9 +138,9 @@ class PatientProfileScreen extends ConsumerWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: user?.image != null
+              child: profile?.profileImage != null
                   ? CachedNetworkImage(
-                      imageUrl: user!.image!,
+                      imageUrl: profile!.profileImage!,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: Colors.grey[200],
@@ -98,7 +153,7 @@ class PatientProfileScreen extends ConsumerWidget {
                     )
                   : Container(
                       color: Colors.grey[200],
-                      child: const Icon(Icons.person, color: Colors.grey),
+                      child: const Icon(Icons.person, color: Colors.grey, size: 40),
                     ),
             ),
           ),
@@ -108,7 +163,7 @@ class PatientProfileScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?.name ?? 'Eleanor Padilla',
+                  user?.name ?? 'User',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
@@ -117,13 +172,13 @@ class PatientProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _buildInfoItem('Gender', 'Female'),
+                    _buildInfoItem('Gender', profile?.displayGender ?? 'Not specified'),
                     const SizedBox(width: 24),
-                    _buildInfoItem('Date of birth', '17/03/1992'),
+                    _buildInfoItem('Date of birth', profile?.formattedDateOfBirth ?? 'Not specified'),
                   ],
                 ),
                 const SizedBox(height: 8),
-                _buildInfoItem('Patient ID', '349UDh-098'),
+                _buildInfoItem('User ID', user?.id ?? 'Unknown'),
               ],
             ),
           ),
@@ -156,7 +211,7 @@ class PatientProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHealthMetrics(BuildContext context) {
+  Widget _buildHealthMetrics(BuildContext context, UserProfile? profile) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -164,7 +219,7 @@ class PatientProfileScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -202,7 +257,7 @@ class PatientProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '78 bpm',
+            profile?.healthMetrics?.displayHeartRate ?? '--',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: Colors.black,
@@ -224,15 +279,15 @@ class PatientProfileScreen extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _buildMetricCard('A+', 'Blood type', Colors.red),
+                child: _buildMetricCard(profile?.displayBloodType ?? '--', 'Blood type', Colors.red),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildMetricCard('169', 'Height', Colors.blue),
+                child: _buildMetricCard(profile?.height?.toString() ?? '--', 'Height (cm)', Colors.blue),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildMetricCard('59', 'Weight', Colors.green),
+                child: _buildMetricCard(profile?.weight?.toString() ?? '--', 'Weight (kg)', Colors.green),
               ),
             ],
           ),
@@ -247,7 +302,7 @@ class PatientProfileScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -273,24 +328,30 @@ class PatientProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMedicalInfo(BuildContext context) {
+  Widget _buildMedicalInfo(BuildContext context, UserProfile? profile) {
     return Column(
       children: [
         _buildInfoCard(
           'Chronic diseases',
-          ['Hypertension', 'Diabetes Type 2'],
+          profile?.chronicDiseases.isNotEmpty == true 
+              ? profile!.chronicDiseases 
+              : ['No chronic diseases recorded'],
           Icons.local_hospital,
         ),
         const SizedBox(height: 16),
         _buildInfoCard(
-          'Allergies (2)',
-          ['Penicillin', 'Shellfish'],
+          'Allergies (${profile?.allergies.length ?? 0})',
+          profile?.allergies.isNotEmpty == true 
+              ? profile!.allergies 
+              : ['No allergies recorded'],
           Icons.warning_amber,
         ),
         const SizedBox(height: 16),
         _buildInfoCard(
           'Operations and surgical interventions',
-          ['Appendectomy (2018)', 'Gallbladder Surgery (2020)'],
+          profile?.surgeries.isNotEmpty == true 
+              ? profile!.surgeries.map((s) => s.displayName).toList()
+              : ['No surgeries recorded'],
           Icons.medical_services,
         ),
       ],
@@ -305,7 +366,7 @@ class PatientProfileScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -316,7 +377,7 @@ class PatientProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -363,7 +424,7 @@ class PatientProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildAddInformationButton(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
@@ -428,4 +489,4 @@ class HeartRateChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
-} 
+}
