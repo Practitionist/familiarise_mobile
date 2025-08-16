@@ -1,171 +1,28 @@
 import 'package:flutter/material.dart';
-import '../widgets/expert_card.dart';
-import '../widgets/filter_chips.dart';
-import '../services/user_service.dart';
-import '../services/content_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/consultant_provider.dart';
+import '../models/consultant_profile.dart';
 
-class ExploreExpertsScreen extends StatefulWidget {
+class ExploreExpertsScreen extends ConsumerStatefulWidget {
   const ExploreExpertsScreen({super.key});
 
   @override
-  State<ExploreExpertsScreen> createState() => _ExploreExpertsScreenState();
+  ConsumerState<ExploreExpertsScreen> createState() => _ExploreExpertsScreenState();
 }
 
-class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
+class _ExploreExpertsScreenState extends ConsumerState<ExploreExpertsScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final UserService _userService = UserService();
-  final ContentService _contentService = ContentService();
-  
-  String _selectedFilter = 'All Experts';
-  bool _isLoading = false;
-  List<Map<String, dynamic>> _experts = [];
-  List<Map<String, dynamic>> _domains = [];
-  List<String> _filterOptions = ['Featured Experts', 'All Experts'];
-  
-  int _currentPage = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeData();
-  }
-
-  Future<void> _initializeData() async {
-    await _loadDomains();
-    await _loadExperts();
-  }
-
-  Future<void> _loadDomains() async {
-    try {
-      final domains = await _contentService.getDomains();
-      setState(() {
-        _domains = domains;
-        _filterOptions = ['Featured Experts', 'All Experts'];
-        _filterOptions.addAll(domains.map((d) => d['name'].toString()));
-      });
-    } catch (e) {
-      // Error loading domains - continue with defaults
-    }
-  }
-
-  Future<void> _loadExperts({bool reset = false}) async {
-    if (_isLoading) return;
-    
-    setState(() => _isLoading = true);
-    
-    try {
-      if (reset) {
-        _currentPage = 1;
-        _experts.clear();
-      }
-      
-      final domainId = _selectedFilter != 'All Experts' && _selectedFilter != 'Featured Experts'
-          ? _domains.firstWhere((d) => d['name'] == _selectedFilter, orElse: () => {})['id']
-          : null;
-      
-      final response = await _userService.getConsultants(
-        domain: domainId,
-        search: _searchController.text.isNotEmpty ? _searchController.text : null,
-        page: _currentPage,
-        limit: 10,
-      );
-      
-      final data = response['data'] as List? ?? [];
-      
-      setState(() {
-        if (reset) {
-          _experts = List<Map<String, dynamic>>.from(data);
-        } else {
-          _experts.addAll(List<Map<String, dynamic>>.from(data));
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading experts: $e')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  List<Map<String, dynamic>> get _filteredExperts {
-    if (_selectedFilter == 'Featured Experts') {
-      return _experts.where((expert) => (expert['rating'] ?? 0) >= 4.8).toList();
-    }
-    return _experts;
-  }
-
-  void _showSortFilter() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Sort & Filter',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSortOption('Rating (Highest first)'),
-            _buildSortOption('Experience (Most experienced)'),
-            _buildSortOption('Price (Lowest to highest)'),
-            _buildSortOption('Availability (Available now)'),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Apply Filters'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSortOption(String title) {
-    return ListTile(
-      title: Text(title),
-      trailing: Radio<String>(
-        value: title,
-        groupValue: null,
-        onChanged: (value) {},
-      ),
-      onTap: () {},
-      contentPadding: EdgeInsets.zero,
-    );
-  }
+  String _selectedDomain = 'All';
+  String _sortBy = 'rating';
 
   @override
   Widget build(BuildContext context) {
+    final consultantsAsync = _searchController.text.isNotEmpty 
+        ? ref.watch(searchConsultantsProvider(_searchController.text))
+        : ref.watch(consultantsProvider);
+    final domainsAsync = ref.watch(domainsProvider);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -179,7 +36,7 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
           ),
         ),
         leading: IconButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
         ),
         actions: [
@@ -191,7 +48,8 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await _loadExperts(reset: true);
+          ref.invalidate(consultantsProvider);
+          ref.invalidate(domainsProvider);
         },
         child: Column(
           children: [
@@ -200,6 +58,7 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
+                  // Search bar
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
@@ -208,15 +67,10 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
                     child: TextField(
                       controller: _searchController,
                       onChanged: (value) {
-                        // Debounce search to avoid too many API calls
-                        Future.delayed(const Duration(milliseconds: 500), () {
-                          if (_searchController.text == value) {
-                            _loadExperts(reset: true);
-                          }
-                        });
+                        setState(() {});
                       },
                       decoration: const InputDecoration(
-                        hintText: 'Search experts',
+                        hintText: 'Search experts by name or specialization',
                         prefixIcon: Icon(Icons.search, color: Colors.grey),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(
@@ -227,33 +81,85 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  FilterChips(
-                    options: _filterOptions,
-                    selectedOption: _selectedFilter,
-                    onSelected: (option) {
-                      setState(() => _selectedFilter = option);
-                      _loadExperts(reset: true);
-                    },
+                  // Domain filter chips
+                  SizedBox(
+                    height: 40,
+                    child: domainsAsync.when(
+                      data: (domains) => ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _buildFilterChip('All', _selectedDomain == 'All'),
+                          const SizedBox(width: 8),
+                          ...domains.map((domain) => 
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _buildFilterChip(
+                                domain.name, 
+                                _selectedDomain == domain.name,
+                                onTap: () => setState(() => _selectedDomain = domain.name),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (error, _) => Text('Error: $error'),
+                    ),
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _filteredExperts.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _filteredExperts.length,
-                          itemBuilder: (context, index) {
-                            final expert = _filteredExperts[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: ExpertCard(expert: expert),
-                            );
-                          },
+              child: consultantsAsync.when(
+                data: (consultants) {
+                  final filteredConsultants = _getFilteredConsultants(consultants);
+                  if (filteredConsultants.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredConsultants.length,
+                    itemBuilder: (context, index) {
+                      final consultant = filteredConsultants[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildConsultantCard(consultant),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stackTrace) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Failed to load experts',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Error: $error',
+                        style: TextStyle(color: Colors.grey[500]),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          ref.invalidate(consultantsProvider);
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -265,6 +171,171 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
         elevation: 4,
         icon: const Icon(Icons.tune),
         label: const Text('Sort & Filter'),
+      ),
+    );
+  }
+
+  List<ConsultantProfile> _getFilteredConsultants(List<ConsultantProfile> consultants) {
+    var filtered = consultants;
+
+    // Filter by domain
+    if (_selectedDomain != 'All') {
+      filtered = filtered.where((c) => 
+        (c.domainName ?? '').toLowerCase() == _selectedDomain.toLowerCase()
+      ).toList();
+    }
+
+    // Sort consultants
+    switch (_sortBy) {
+      case 'rating':
+        filtered.sort((a, b) => (b.rating).compareTo(a.rating));
+        break;
+      case 'experience':
+        filtered.sort((a, b) => (b.experience ?? 0).compareTo(a.experience ?? 0));
+        break;
+      case 'name':
+        filtered.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+        break;
+    }
+
+    return filtered;
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap ?? () => setState(() => _selectedDomain = label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3B82F6) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[300]!,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey[700],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConsultantCard(ConsultantProfile consultant) {
+    return GestureDetector(
+      onTap: () => context.push('/consultant/${consultant.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Profile image
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+                               image: consultant.image != null
+                   ? DecorationImage(
+                       image: NetworkImage(consultant.image!),
+                       fit: BoxFit.cover,
+                     )
+                   : null,
+             ),
+             child: consultant.image == null
+                 ? Icon(Icons.person, color: Colors.grey[400], size: 40)
+                 : null,
+            ),
+            const SizedBox(width: 16),
+            // Consultant info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                                     Text(
+                     consultant.name ?? 'Unknown',
+                     style: const TextStyle(
+                       fontSize: 16,
+                       fontWeight: FontWeight.bold,
+                       color: Colors.black,
+                     ),
+                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    consultant.specialization ?? 'General Consultation',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                                     Text(
+                     consultant.domainName ?? 'Healthcare',
+                     style: const TextStyle(
+                       fontSize: 12,
+                       color: Color(0xFF3B82F6),
+                       fontWeight: FontWeight.w500,
+                     ),
+                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        consultant.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Icon(Icons.work_outline, color: Colors.grey, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${consultant.experience ?? 0} years',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Action button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'View',
+                style: TextStyle(
+                  color: Color(0xFF3B82F6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -295,8 +366,96 @@ class _ExploreExpertsScreenState extends State<ExploreExpertsScreen> {
               color: Colors.grey[500],
             ),
           ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _searchController.clear();
+                _selectedDomain = 'All';
+              });
+            },
+            child: const Text('Clear Filters'),
+          ),
         ],
       ),
+    );
+  }
+
+  void _showSortFilter() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Sort & Filter',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Sort by',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            _buildSortOption('Rating (Highest first)', 'rating'),
+            _buildSortOption('Experience (Most experienced)', 'experience'),
+            _buildSortOption('Name (A-Z)', 'name'),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Apply Filters'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortOption(String title, String value) {
+    return ListTile(
+      title: Text(title),
+      trailing: Radio<String>(
+        value: value,
+        groupValue: _sortBy,
+        onChanged: (newValue) {
+          setState(() => _sortBy = newValue!);
+        },
+      ),
+      onTap: () {
+        setState(() => _sortBy = value);
+      },
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

@@ -1,4 +1,22 @@
-enum UserRole { consultant, consultee, admin, staff }
+enum UserRole { 
+  consultant, 
+  consultee, 
+  admin, 
+  staff;
+
+  String get displayName {
+    switch (this) {
+      case UserRole.consultant:
+        return 'Consultant';
+      case UserRole.consultee:
+        return 'Consultee';
+      case UserRole.admin:
+        return 'Admin';
+      case UserRole.staff:
+        return 'Staff';
+    }
+  }
+}
 
 class User {
   final String id;
@@ -86,6 +104,9 @@ class User {
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
+
+  // Helper getters
+  String get displayName => name ?? email ?? 'User';
 }
 
 enum ConsultationMode { video, audio, inPerson }
@@ -101,6 +122,11 @@ class ConsultantProfile {
   final String userId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  
+  // User information (joined from users table)
+  final String? name;
+  final String? email;
+  final String? image;
 
   ConsultantProfile({
     required this.id,
@@ -113,9 +139,15 @@ class ConsultantProfile {
     required this.userId,
     this.createdAt,
     this.updatedAt,
+    this.name,
+    this.email,
+    this.image,
   });
 
   factory ConsultantProfile.fromJson(Map<String, dynamic> json) {
+    // Extract user data if present (when joined)
+    final userData = json['users'] as Map<String, dynamic>?;
+    
     return ConsultantProfile(
       id: json['id'],
       description: json['description'],
@@ -131,6 +163,10 @@ class ConsultantProfile {
       updatedAt: json['updatedAt'] != null 
           ? DateTime.parse(json['updatedAt']) 
           : null,
+      // User information from joined table
+      name: userData?['name'],
+      email: userData?['email'],
+      image: userData?['image'],
     );
   }
 }
