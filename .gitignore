@@ -1,3 +1,27 @@
+# ============================================
+# ADDED BY CLAUDE - Project Specific
+# ============================================
+
+# Environment files (contains secrets)
+.env
+.env.local
+.env.*.local
+
+# MCP Configuration
+.mcp.json*
+!.mcp.json.example
+
+# Code Generation (rebuild with: dart run build_runner build)
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.config.dart
+*.mocks.dart
+
+# ============================================
+# FLUTTER DEFAULT .gitignore (from flutter create)
+# ============================================
+
 # Miscellaneous
 *.class
 *.log
@@ -43,3 +67,35 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ============================================
+# ADDED BY CLAUDE - Platform Build Files
+# ============================================
+
+# Android build files
+/android/.gradle/
+/android/local.properties
+/android/app/src/main/gen/
+*.jks
+*.keystore
+key.properties
+
+# iOS build files
+/ios/Pods/
+/ios/Podfile.lock
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/ephemeral/
+/ios/Flutter/flutter_export_environment.sh
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+
+# Web build
+/web/favicon.png
+
+# Firebase (add actual files to repo if needed for CI)
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
