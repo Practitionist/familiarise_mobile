@@ -3,7 +3,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Re-export network providers
+import '../../core/constants/storage_keys.dart';
+
+// Re-export network providers and constants
+export '../../core/constants/storage_keys.dart';
 export '../../core/network/dio_client.dart';
 export '../../core/network/network_info.dart';
 
@@ -42,18 +45,4 @@ Future<bool> isLoggedIn(Ref ref) async {
   final storage = ref.watch(secureStorageProvider);
   final token = await storage.read(key: StorageKeys.authToken);
   return token != null;
-}
-
-/// Secure storage keys for easy reference
-abstract final class StorageKeys {
-  // Auth
-  static const String authToken = 'auth_token';
-  static const String refreshToken = 'refresh_token';
-  static const String userId = 'user_id';
-
-  // Preferences (SharedPreferences)
-  static const String onboardingCompleted = 'onboarding_completed';
-  static const String themeMode = 'theme_mode';
-  static const String locale = 'locale';
-  static const String notificationsEnabled = 'notifications_enabled';
 }

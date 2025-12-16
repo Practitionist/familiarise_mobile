@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../config/env_config.dart';
+import '../constants/storage_keys.dart';
 import '../errors/exceptions.dart';
 
 part 'dio_client.g.dart';
@@ -46,7 +47,6 @@ class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._ref);
 
   static const _storage = FlutterSecureStorage();
-  static const _tokenKey = 'auth_token';
 
   @override
   Future<void> onRequest(
@@ -54,7 +54,7 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     // Get token from secure storage
-    final token = await _storage.read(key: _tokenKey);
+    final token = await _storage.read(key: StorageKeys.authToken);
 
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -67,7 +67,7 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     // Handle 401 Unauthorized - clear token and redirect to login
     if (err.response?.statusCode == 401) {
-      _storage.delete(key: _tokenKey);
+      _storage.delete(key: StorageKeys.authToken);
       // Auth state will be handled by auth provider
     }
     handler.next(err);
@@ -75,17 +75,17 @@ class AuthInterceptor extends Interceptor {
 
   /// Save auth token to secure storage
   static Future<void> saveToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+    await _storage.write(key: StorageKeys.authToken, value: token);
   }
 
   /// Clear auth token from secure storage
   static Future<void> clearToken() async {
-    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: StorageKeys.authToken);
   }
 
   /// Get current auth token
   static Future<String?> getToken() async {
-    return _storage.read(key: _tokenKey);
+    return _storage.read(key: StorageKeys.authToken);
   }
 }
 
@@ -140,7 +140,7 @@ class ErrorInterceptor extends Interceptor {
 
         if (statusCode == 404) {
           return NotFoundException(
-            resource: 'Resource',
+            resource: err.requestOptions.path,
             originalError: err,
           );
         }

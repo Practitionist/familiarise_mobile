@@ -76,12 +76,6 @@ extension StringX on String {
     return masked + substring(length - visibleChars);
   }
 
-  /// Check if string is null or empty
-  bool get isNullOrEmpty => isEmpty;
-
-  /// Check if string is not null and not empty
-  bool get isNotNullOrEmpty => isNotEmpty;
-
   /// Get file extension from path
   String? get fileExtension {
     final lastDot = lastIndexOf('.');

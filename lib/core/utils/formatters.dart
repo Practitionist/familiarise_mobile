@@ -1,6 +1,8 @@
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../extensions/date_extensions.dart';
+
 /// Date and currency formatters
 abstract final class Formatters {
   // Date formatters
@@ -87,18 +89,8 @@ abstract final class Formatters {
   }
 
   /// Format duration as "1h 30m", "45m", "2h"
-  static String duration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-
-    if (hours > 0 && minutes > 0) {
-      return '${hours}h ${minutes}m';
-    } else if (hours > 0) {
-      return '${hours}h';
-    } else {
-      return '${minutes}m';
-    }
-  }
+  /// Delegates to DurationX.formattedCompact extension
+  static String duration(Duration duration) => duration.formattedCompact;
 
   /// Format duration as "1 hour 30 minutes"
   static String durationLong(Duration duration) {
