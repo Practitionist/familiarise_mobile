@@ -34,7 +34,8 @@ class NetworkInfoImpl implements NetworkInfo {
     return result.any((r) =>
         r == ConnectivityResult.mobile ||
         r == ConnectivityResult.wifi ||
-        r == ConnectivityResult.ethernet);
+        r == ConnectivityResult.ethernet ||
+        r == ConnectivityResult.vpn);
   }
 }
 

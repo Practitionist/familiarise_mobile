@@ -49,7 +49,7 @@ class AuthException extends AppException {
   });
 
   @override
-  String toString() => 'AuthException: $message';
+  String toString() => 'AuthException: $message (statusCode: $statusCode)';
 }
 
 /// Cache/local storage exception

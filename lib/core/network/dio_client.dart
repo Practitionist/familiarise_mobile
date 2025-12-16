@@ -152,7 +152,9 @@ class ErrorInterceptor extends Interceptor {
               errors: errors.map(
                 (key, value) => MapEntry(
                   key,
-                  (value as List).cast<String>(),
+                  value is List
+                      ? value.map((e) => e.toString()).toList()
+                      : [value.toString()],
                 ),
               ),
               originalError: err,

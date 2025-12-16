@@ -15,12 +15,13 @@ extension StringX on String {
   }
 
   /// Get initials from name
-  /// "John Doe" -> "JD", "John" -> "J"
+  /// "John Doe" -> "JD", "John" -> "J", "   " -> ""
   String get initials {
     if (isEmpty) return '';
 
     final words = trim().split(RegExp(r'\s+'));
-    if (words.length >= 2) {
+    if (words.isEmpty || words.first.isEmpty) return '';
+    if (words.length >= 2 && words[1].isNotEmpty) {
       return '${words[0][0]}${words[1][0]}'.toUpperCase();
     }
     return words[0][0].toUpperCase();

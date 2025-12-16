@@ -147,7 +147,7 @@ abstract final class Validators {
     final nameRegex = RegExp(r"^[a-zA-Z\s\-']+$");
 
     if (!nameRegex.hasMatch(value)) {
-      return 'Name can only contain letters, spaces, and hyphens';
+      return 'Name can only contain letters, spaces, hyphens, and apostrophes';
     }
 
     return null;
