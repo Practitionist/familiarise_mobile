@@ -123,12 +123,13 @@ extension DateTimeX on DateTime {
     return startOfDay.difference(other.startOfDay).inDays;
   }
 
-  /// Get a relative description ("Today", "Tomorrow", "Yesterday", or date)
-  String get relativeDay {
+  /// Get a relative description ("Today", "Tomorrow", "Yesterday", or null)
+  /// Returns null if not today/tomorrow/yesterday - caller should format the date
+  String? get relativeDay {
     if (isToday) return 'Today';
     if (isTomorrow) return 'Tomorrow';
     if (isYesterday) return 'Yesterday';
-    return null.toString(); // Will be formatted by caller
+    return null;
   }
 
   /// Get the age from this date

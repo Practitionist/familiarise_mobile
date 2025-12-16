@@ -33,14 +33,14 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
 @riverpod
 Future<bool> hasCompletedOnboarding(Ref ref) async {
   final prefs = await ref.watch(sharedPreferencesProvider.future);
-  return prefs.getBool('onboarding_completed') ?? false;
+  return prefs.getBool(StorageKeys.onboardingCompleted) ?? false;
 }
 
 /// Provider for checking if user is logged in
 @riverpod
 Future<bool> isLoggedIn(Ref ref) async {
   final storage = ref.watch(secureStorageProvider);
-  final token = await storage.read(key: 'auth_token');
+  final token = await storage.read(key: StorageKeys.authToken);
   return token != null;
 }
 

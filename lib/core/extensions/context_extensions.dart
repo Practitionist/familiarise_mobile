@@ -97,7 +97,7 @@ extension ContextX on BuildContext {
       SnackBar(
         content: Text(message),
         duration: duration,
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF4CAF50), // Material Green 500
         behavior: SnackBarBehavior.floating,
       ),
     );
