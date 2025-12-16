@@ -14,25 +14,25 @@ abstract class EnvConfig {
   static String directUrl = _EnvConfig.directUrl;
 
   // Supabase
-  @EnviedField(varName: 'SUPABASE_URL')
+  @EnviedField(varName: 'SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co')
   static String supabaseUrl = _EnvConfig.supabaseUrl;
 
-  @EnviedField(varName: 'SUPABASE_ANON_KEY')
+  @EnviedField(varName: 'SUPABASE_ANON_KEY', defaultValue: 'placeholder-anon-key')
   static String supabaseAnonKey = _EnvConfig.supabaseAnonKey;
 
   // Stream
-  @EnviedField(varName: 'STREAM_API_KEY')
+  @EnviedField(varName: 'STREAM_API_KEY', defaultValue: 'placeholder-stream-key')
   static String streamApiKey = _EnvConfig.streamApiKey;
 
   // Payments
-  @EnviedField(varName: 'RAZORPAY_KEY_ID')
+  @EnviedField(varName: 'RAZORPAY_KEY_ID', defaultValue: 'rzp_test_placeholder')
   static String razorpayKeyId = _EnvConfig.razorpayKeyId;
 
-  @EnviedField(varName: 'STRIPE_PUBLISHABLE_KEY')
+  @EnviedField(varName: 'STRIPE_PUBLISHABLE_KEY', defaultValue: 'pk_test_placeholder')
   static String stripePublishableKey = _EnvConfig.stripePublishableKey;
 
   // API
-  @EnviedField(varName: 'API_BASE_URL')
+  @EnviedField(varName: 'API_BASE_URL', defaultValue: 'http://localhost:3000')
   static String apiBaseUrl = _EnvConfig.apiBaseUrl;
 
   // Feature Flags
