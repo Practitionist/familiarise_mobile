@@ -208,8 +208,10 @@ ln -sfn /opt/homebrew/opt/openjdk@17 /opt/homebrew/opt/openjdk
 | Get signing report | `cd android && ./gradlew signingReport` |
 | Reload shell config | `source ~/.zshrc` |
 
+---
+
 ## Related Documentation
 
-- [Google OAuth Setup (All Platforms)](./google-oauth-setup.md)
-- [OAuth Setup Checklist](./oauth-checklist.md)
-- [Authentication Architecture](./authentication-architecture.md)
+- [Google OAuth Setup (All Platforms)](./01-google-oauth-setup.md)
+- [OAuth Setup Checklist](./03-oauth-checklist.md)
+- [Authentication Architecture](../01-architecture/01-authentication-architecture.md)

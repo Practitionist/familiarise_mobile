@@ -139,3 +139,11 @@ static String get googleClientId {
 ### iOS: "Invalid redirect URI"
 - Check Info.plist has correct reversed client ID URL scheme
 - Format: `com.googleusercontent.apps.CLIENT_ID_PREFIX`
+
+---
+
+## Related Documentation
+
+- [Android-Specific Setup](./02-google-oauth-setup-android.md)
+- [OAuth Setup Checklist](./03-oauth-checklist.md)
+- [Web Limitations & Solutions](../04-troubleshooting/01-google-sign-in-web-limitations.md)

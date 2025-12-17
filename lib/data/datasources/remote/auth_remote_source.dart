@@ -356,9 +356,10 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   String get _baseUrl => EnvConfig.apiBaseUrl;
 
   GoogleSignIn get googleSignIn {
+    // On web, don't pass clientId - it's read from the meta tag in index.html
+    // Passing both can cause conflicts with google_sign_in 6.x (GIS)
     _googleSignIn ??= GoogleSignIn(
       scopes: ['email', 'profile', 'openid'],
-      clientId: EnvConfig.googleClientIdWeb,
     );
     return _googleSignIn!;
   }
@@ -461,27 +462,30 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
-      // On web, idToken might not be available, use accessToken instead
-      if (idToken == null && accessToken == null) {
-        throw const AuthException(message: 'Failed to get Google credentials');
+      // On web, google_sign_in cannot provide an ID token with signIn() method
+      // (this is a known GIS limitation). We use the access token instead.
+      // The backend will use Google's userinfo endpoint to fetch verified user data.
+      if (accessToken == null) {
+        throw const AuthException(
+          message: 'Failed to get Google credentials. Please try again.',
+        );
       }
 
+      // Send tokens to backend - it will use whichever is available
+      // Mobile: ID token (preferred) | Web: Access token
       final response = await http.post(
         Uri.parse('$_baseUrl/api/auth/google'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'idToken': idToken,
+          'idToken': idToken, // May be null on web
           'accessToken': accessToken,
-          // Send user info from Google Sign-In as fallback
-          'email': googleUser.email,
-          'name': googleUser.displayName,
-          'image': googleUser.photoUrl,
         }),
       );
 
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
-        throw AuthException(message: error['error'] ?? 'Google sign in failed');
+        final errorMsg = error['error']?['message'] ?? 'Google sign in failed';
+        throw AuthException(message: errorMsg);
       }
 
       final data = jsonDecode(response.body);

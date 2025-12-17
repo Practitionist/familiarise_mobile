@@ -55,6 +55,7 @@ Future<Response> onRequest(RequestContext context) async {
       },
     );
   } catch (e, stackTrace) {
+    // Log error server-side only - never expose to client
     print('Error in sign-up: $e');
     print('Stack trace: $stackTrace');
     return Response.json(
@@ -62,7 +63,6 @@ Future<Response> onRequest(RequestContext context) async {
       body: {
         'error': {
           'message': 'An unexpected error occurred',
-          'details': e.toString(),
         },
       },
     );

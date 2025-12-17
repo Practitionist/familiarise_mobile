@@ -89,3 +89,11 @@ dart run build_runner build --delete-conflicting-outputs
 | redirect_uri_mismatch | Check OAuth client type matches platform |
 | Invalid Bundle ID (iOS) | Verify in Xcode > General > Bundle Identifier |
 | SHA-1 mismatch (Android) | Regenerate with correct keystore |
+
+---
+
+## Related Documentation
+
+- [Google OAuth Setup](./01-google-oauth-setup.md)
+- [Android Setup Guide](./02-google-oauth-setup-android.md)
+- [Authentication Architecture](../01-architecture/01-authentication-architecture.md)
