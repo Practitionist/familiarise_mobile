@@ -107,6 +107,17 @@ class DatabaseClient {
     return result ?? {'id': id, 'email': email};
   }
 
+  /// Delete a user by ID (for cleanup on failed registration)
+  Future<void> deleteUser(String id) async {
+    final query = JsonQueryBuilder()
+        .model('users')
+        .action(QueryAction.delete)
+        .where({'id': id})
+        .build();
+
+    await _executor.executeMutation(query);
+  }
+
   // ==================== Account Operations ====================
 
   /// Find account by userId and provider

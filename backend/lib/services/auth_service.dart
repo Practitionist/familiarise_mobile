@@ -2,6 +2,7 @@ import 'package:bcrypt/bcrypt.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/google_token_verifier.dart';
 import 'package:backend/services/jwt_service.dart';
 
 /// Exception thrown for authentication errors
@@ -22,10 +23,12 @@ class AuthException implements Exception {
 /// Service for authentication operations using Prisma Flutter Connector
 class AuthService {
   /// Creates an AuthService with database client and JWT service
-  AuthService(this._db, this._jwtService);
+  AuthService(this._db, this._jwtService, {GoogleTokenVerifier? tokenVerifier})
+      : _tokenVerifier = tokenVerifier ?? GoogleTokenVerifier();
 
   final DatabaseClient _db;
   final JwtService _jwtService;
+  final GoogleTokenVerifier _tokenVerifier;
   final _uuid = const Uuid();
 
   /// Sign in with email and password
@@ -76,6 +79,10 @@ class AuthService {
   }
 
   /// Sign up with email and password
+  ///
+  /// Note: These operations should ideally be wrapped in a database transaction.
+  /// Current implementation uses cleanup logic on failure. For production,
+  /// consider refactoring DatabaseClient methods to support transaction executors.
   Future<Map<String, dynamic>> signUpWithEmail(
     String email,
     String password, {
@@ -94,27 +101,40 @@ class AuthService {
     // Hash password
     final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
     final userId = _uuid.v4();
+    Map<String, dynamic>? user;
 
-    // Create user with password stored in users table
-    final user = await _db.createUser(
-      id: userId,
-      email: email,
-      name: name,
-      hashedPassword: hashedPassword,
-    );
+    try {
+      // Create user with password stored in users table
+      user = await _db.createUser(
+        id: userId,
+        email: email,
+        name: name,
+        hashedPassword: hashedPassword,
+      );
 
-    // Create credentials account (for provider tracking)
-    await _db.createCredentialsAccount(
-      id: _uuid.v4(),
-      userId: userId,
-      hashedPassword: hashedPassword,
-    );
+      // Create credentials account (for provider tracking)
+      await _db.createCredentialsAccount(
+        id: _uuid.v4(),
+        userId: userId,
+        hashedPassword: hashedPassword,
+      );
 
-    // Create consultee profile
-    await _db.createConsulteeProfile(
-      id: _uuid.v4(),
-      userId: userId,
-    );
+      // Create consultee profile
+      await _db.createConsulteeProfile(
+        id: _uuid.v4(),
+        userId: userId,
+      );
+    } catch (e) {
+      // Attempt cleanup on failure - delete partially created user
+      if (user != null) {
+        try {
+          await _db.deleteUser(userId);
+        } catch (_) {
+          // Log cleanup failure but don't mask original error
+        }
+      }
+      rethrow;
+    }
 
     // Create session
     final session = await _createSession(userId);
@@ -176,50 +196,81 @@ class AuthService {
   }
 
   /// Sign in with Google OAuth
-  /// Handles both idToken verification and accessToken/user info fallback
+  ///
+  /// Accepts either an ID token (preferred, from mobile) or access token (web).
+  /// On web, google_sign_in cannot provide an ID token, so we use the access
+  /// token to fetch user info from Google's userinfo endpoint instead.
+  ///
+  /// Both methods are secure - the backend always fetches user info directly
+  /// from Google, never trusting client-provided user data.
+  ///
+  /// Note: New user creation should ideally be wrapped in a database transaction.
   Future<Map<String, dynamic>> signInWithGoogle({
     String? idToken,
     String? accessToken,
-    String? email,
-    String? name,
-    String? image,
   }) async {
-    // For web, we might only have accessToken and user info from Google Sign-In
-    // In that case, we trust the user info from the signed request
-    if (email == null || email.isEmpty) {
-      throw AuthException('Email is required for Google sign-in', statusCode: 400);
+    // Verify token and extract user info from Google
+    final GoogleUserInfo googleUser;
+
+    if (idToken != null && idToken.isNotEmpty) {
+      // Mobile: Verify ID token (preferred method)
+      googleUser = await _tokenVerifier.verifyIdToken(idToken);
+    } else if (accessToken != null && accessToken.isNotEmpty) {
+      // Web: Use access token to fetch user info from Google's userinfo endpoint
+      googleUser = await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
+    } else {
+      throw AuthException(
+        'Either idToken or accessToken is required',
+        statusCode: 400,
+      );
     }
 
-    // Check if user exists
+    // Use the stable Google user ID (sub) as providerAccountId
+    final providerAccountId = googleUser.sub;
+    final email = googleUser.email;
+    final name = googleUser.name;
+    final image = googleUser.picture;
+
+    // Check if user exists by email
     var user = await _db.findUserByEmail(email);
 
     if (user == null) {
-      // Create new user
+      // Create new user with cleanup on failure
       final userId = _uuid.v4();
-      user = await _db.createUser(
-        id: userId,
-        email: email,
-        name: name,
-        image: image,
-      );
+      try {
+        user = await _db.createUser(
+          id: userId,
+          email: email,
+          name: name,
+          image: image,
+        );
 
-      // Create Google OAuth account link
-      await _db.createOAuthAccount(
-        id: _uuid.v4(),
-        userId: userId,
-        provider: 'google',
-        providerAccountId: email, // Using email as provider account ID
-        accessToken: accessToken,
-        idToken: idToken,
-      );
+        // Create Google OAuth account link using stable sub ID
+        await _db.createOAuthAccount(
+          id: _uuid.v4(),
+          userId: userId,
+          provider: 'google',
+          providerAccountId: providerAccountId,
+          accessToken: accessToken,
+          idToken: idToken,
+        );
 
-      // Create consultee profile
-      await _db.createConsulteeProfile(
-        id: _uuid.v4(),
-        userId: userId,
-      );
+        // Create consultee profile
+        await _db.createConsulteeProfile(
+          id: _uuid.v4(),
+          userId: userId,
+        );
+      } catch (e) {
+        // Attempt cleanup on failure
+        try {
+          await _db.deleteUser(userId);
+        } catch (_) {
+          // Log cleanup failure but don't mask original error
+        }
+        rethrow;
+      }
     } else {
-      // Update user info if provided
+      // Update user info from verified token
       if (name != null || image != null) {
         await _db.updateUser(
           id: user['id'] as String,
