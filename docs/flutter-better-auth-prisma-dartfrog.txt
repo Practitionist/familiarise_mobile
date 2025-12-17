@@ -1,0 +1,790 @@
+────────────────────────────────────────────────────────────────────────────
+ Ready to code?
+
+ Here is Claude's plan:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Plan: Phase 2 - Authentication System (Updated)
+
+ Overview
+
+ Branch: feature/phase-2-authentication
+ Scope: Complete authentication system with email/password and social OAuth
+ Auth Provider: better_auth_flutter (will connect to dedicated Dart
+ backend)
+ Social Providers: Google, Email/Password (GitHub deferred)
+
+ ---
+ Architecture Decision (Updated)
+
+ Current State
+
+ - Web App (familiarise_web): Uses NextAuth.js with Prisma
+ - Flutter App: Uses better_auth_flutter (expects Better Auth backend)
+ - Conflict: NextAuth ≠ Better Auth API endpoints
+
+ Planned Solution
+
+ ┌─────────────────────────────────────────────────────────────┐
+ │                    PostgreSQL (Supabase)                     │
+ │         Shared User/Account tables (Prisma schema)          │
+ └─────────────────────────────────────────────────────────────┘
+         ▲                                        ▲
+         │                                        │
+ ┌───────┴───────┐                      ┌─────────┴─────────┐
+ │  Next.js Web  │                      │   Dart Backend    │
+ │   (NextAuth)  │                      │  (Better Auth)    │
+ │               │                      │  + Prisma Flutter │
+ └───────────────┘                      └───────────────────┘
+         ▲                                        ▲
+         │                                        │
+    Web Browser                              Flutter App
+
+ Migration Path
+
+ 1. Phase 2A (Completed): Flutter UI + better_auth_flutter client
+ 2. Phase 2B (Current): Create Dart Frog backend with Better
+ Auth-compatible endpoints
+ 3. Phase 2C (Future): Migrate web from NextAuth to Better Auth (GitHub
+ issue at end)
+
+ ---
+ CURRENT: Dart Frog Backend Implementation
+
+ Backend Location
+
+ Directory: /Users/kaustavghosh/Desktop/familiarise_backend
+
+ Project Structure
+
+ familiarise_backend/
+ ├── pubspec.yaml
+ ├── .env                      # Database credentials
+ ├── routes/
+ │   └── api/
+ │       └── auth/
+ │           ├── sign-in/
+ │           │   └── email.dart    # POST /api/auth/sign-in/email
+ │           ├── sign-up/
+ │           │   └── email.dart    # POST /api/auth/sign-up/email
+ │           ├── sign-out.dart     # POST /api/auth/sign-out
+ │           ├── session.dart      # GET /api/auth/session
+ │           └── social/
+ │               └── google.dart   # POST /api/auth/social/google
+ ├── lib/
+ │   ├── database/
+ │   │   └── prisma_client.dart    # Prisma Flutter Connector setup
+ │   ├── services/
+ │   │   ├── auth_service.dart     # Auth business logic
+ │   │   └── jwt_service.dart      # JWT token management
+ │   ├── models/
+ │   │   ├── user.dart             # User model
+ │   │   └── session.dart          # Session model
+ │   └── middleware/
+ │       ├── auth_middleware.dart  # JWT validation middleware
+ │       └── cors_middleware.dart  # CORS for Flutter web
+ └── main.dart
+
+ Database Credentials (from familiarize_web/.env)
+
+ DATABASE_URL=postgresql://postgres.***REMOVED_PROJECT_REF***:***REMOVED_DB_PASSWORD***@a
+ ws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+ DIRECT_URL=postgresql://postgres.***REMOVED_PROJECT_REF***:***REMOVED_DB_PASSWORD***@aws
+ -0-ap-south-1.pooler.supabase.com:5432/postgres
+ JWT_SECRET=***REMOVED_JWT_SECRET***
+ GOOGLE_CLIENT_ID=***REMOVED_GOOGLE_CLIENT_ID***.apps.google
+ usercontent.com
+ GOOGLE_CLIENT_SECRET=***REMOVED_GOOGLE_CLIENT_SECRET***
+
+ Step B1: Create Dart Frog Project
+
+ cd /Users/kaustavghosh/Desktop
+ dart pub global activate dart_frog_cli
+ dart_frog create familiarise_backend
+ cd familiarise_backend
+
+ Step B2: Add Dependencies (pubspec.yaml)
+
+ dependencies:
+   dart_frog: ^1.2.0
+   prisma_flutter_connector: ^0.1.2
+   postgres: ^3.0.0
+   bcrypt: ^1.1.3          # Password hashing
+   dart_jsonwebtoken: ^2.14.0  # JWT tokens
+   uuid: ^4.3.3
+   dotenv: ^4.2.0
+
+ dev_dependencies:
+   dart_frog_gen: ^2.0.0
+   mocktail: ^1.0.0
+   test: ^1.24.0
+
+ Step B3: Database Setup (lib/database/prisma_client.dart)
+
+ import 'package:postgres/postgres.dart' as pg;
+ import 'package:prisma_flutter_connector/runtime.dart';
+
+ class DatabaseClient {
+   static DatabaseClient? _instance;
+   late final SupabaseAdapter _adapter;
+   late final QueryExecutor _executor;
+
+   DatabaseClient._();
+
+   static Future<DatabaseClient> initialize(String connectionUrl) async {
+     if (_instance != null) return _instance!;
+
+     _instance = DatabaseClient._();
+     final uri = Uri.parse(connectionUrl);
+
+     final connection = await pg.Connection.open(
+       pg.Endpoint(
+         host: uri.host,
+         port: uri.port,
+         database: uri.pathSegments.first,
+         username: uri.userInfo.split(':')[0],
+         password: uri.userInfo.split(':')[1],
+       ),
+       settings: pg.ConnectionSettings(sslMode: pg.SslMode.require),
+     );
+
+     _instance!._adapter = SupabaseAdapter(connection);
+     _instance!._executor = QueryExecutor(adapter: _instance!._adapter);
+
+     return _instance!;
+   }
+
+   QueryExecutor get executor => _executor;
+ }
+
+ Step B4: Auth Service (lib/services/auth_service.dart)
+
+ class AuthService {
+   final QueryExecutor _executor;
+   final JwtService _jwtService;
+
+   // Sign in with email
+   Future<Map<String, dynamic>> signInWithEmail(String email, String
+ password) async {
+     final users = await _executor.executeQueryAsMaps(
+       JsonQueryBuilder()
+         .model('User')
+         .action(QueryAction.findMany)
+         .where({'email': email})
+         .build()
+     );
+
+     if (users.isEmpty) throw AuthException('Invalid credentials');
+
+     final user = users.first;
+     // Note: NextAuth stores hashed passwords in Account table, not User
+     // Need to check Account table for credentials provider
+
+     final session = await _createSession(user['id']);
+     return {'user': user, 'session': session};
+   }
+
+   // Sign up with email
+   Future<Map<String, dynamic>> signUpWithEmail(String email, String
+ password, String? name) async {
+     // Check if user exists
+     final existing = await _executor.executeQueryAsMaps(
+       JsonQueryBuilder()
+         .model('User')
+         .action(QueryAction.findMany)
+         .where({'email': email})
+         .build()
+     );
+
+     if (existing.isNotEmpty) throw AuthException('Email already 
+ registered');
+
+     // Create user
+     final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+     final userId = Uuid().v4();
+
+     final user = await _executor.executeQueryAsMaps(
+       JsonQueryBuilder()
+         .model('User')
+         .action(QueryAction.create)
+         .data({
+           'id': userId,
+           'email': email,
+           'name': name,
+           'role': 'CONSULTEE',
+           'createdAt': DateTime.now().toIso8601String(),
+           'updatedAt': DateTime.now().toIso8601String(),
+         })
+         .build()
+     );
+
+     // Create account for credentials
+     await _executor.executeQueryAsMaps(
+       JsonQueryBuilder()
+         .model('Account')
+         .action(QueryAction.create)
+         .data({
+           'id': Uuid().v4(),
+           'userId': userId,
+           'type': 'credentials',
+           'provider': 'credentials',
+           'providerAccountId': userId,
+           'password': hashedPassword,
+         })
+         .build()
+     );
+
+     final session = await _createSession(userId);
+     return {'user': user.first, 'session': session};
+   }
+ }
+
+ Step B5: API Endpoints
+
+ POST /api/auth/sign-in/email (routes/api/auth/sign-in/email.dart)
+ import 'package:dart_frog/dart_frog.dart';
+
+ Future<Response> onRequest(RequestContext context) async {
+   if (context.request.method != HttpMethod.post) {
+     return Response(statusCode: 405);
+   }
+
+   final body = await context.request.json() as Map<String, dynamic>;
+   final email = body['email'] as String?;
+   final password = body['password'] as String?;
+
+   if (email == null || password == null) {
+     return Response.json(
+       statusCode: 400,
+       body: {'error': {'message': 'Email and password required'}},
+     );
+   }
+
+   try {
+     final authService = context.read<AuthService>();
+     final result = await authService.signInWithEmail(email, password);
+     return Response.json(body: result);
+   } catch (e) {
+     return Response.json(
+       statusCode: 401,
+       body: {'error': {'message': e.toString()}},
+     );
+   }
+ }
+
+ GET /api/auth/session (routes/api/auth/session.dart)
+ Future<Response> onRequest(RequestContext context) async {
+   if (context.request.method != HttpMethod.get) {
+     return Response(statusCode: 405);
+   }
+
+   final token =
+ context.request.headers['authorization']?.replaceFirst('Bearer ', '');
+   if (token == null) {
+     return Response.json(body: {'session': null, 'user': null});
+   }
+
+   try {
+     final jwtService = context.read<JwtService>();
+     final authService = context.read<AuthService>();
+
+     final payload = jwtService.verify(token);
+     final session = await authService.getSession(payload['sessionId']);
+     final user = await authService.getUser(session['userId']);
+
+     return Response.json(body: {'session': session, 'user': user});
+   } catch (e) {
+     return Response.json(body: {'session': null, 'user': null});
+   }
+ }
+
+ Step B6: CORS Middleware (routes/_middleware.dart)
+
+ import 'package:dart_frog/dart_frog.dart';
+
+ Handler middleware(Handler handler) {
+   return (context) async {
+     // Handle CORS preflight
+     if (context.request.method == HttpMethod.options) {
+       return Response(
+         headers: {
+           'Access-Control-Allow-Origin': '*',
+           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, 
+ OPTIONS',
+           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+         },
+       );
+     }
+
+     final response = await handler(context);
+     return response.copyWith(
+       headers: {
+         ...response.headers,
+         'Access-Control-Allow-Origin': '*',
+       },
+     );
+   };
+ }
+
+ Step B7: Main Entry Point (main.dart)
+
+ import 'dart:io';
+ import 'package:dart_frog/dart_frog.dart';
+ import 'package:dotenv/dotenv.dart';
+ import 'lib/database/prisma_client.dart';
+ import 'lib/services/auth_service.dart';
+ import 'lib/services/jwt_service.dart';
+
+ Future<HttpServer> run(Handler handler, InternetAddress ip, int port)
+ async {
+   // Load env
+   final env = DotEnv()..load(['.env']);
+
+   // Initialize database
+   final db = await DatabaseClient.initialize(env['DATABASE_URL']!);
+
+   // Create services
+   final jwtService = JwtService(env['JWT_SECRET']!);
+   final authService = AuthService(db.executor, jwtService);
+
+   // Add providers to handler
+   final handlerWithProviders = handler
+       .use(provider<AuthService>((_) => authService))
+       .use(provider<JwtService>((_) => jwtService));
+
+   return serve(handlerWithProviders, ip, port);
+ }
+
+ Step B8: Update Flutter App (.env)
+
+ Update /Users/kaustavghosh/Desktop/familiarise_mobile/.env:
+ API_BASE_URL=http://localhost:8080
+ GOOGLE_CLIENT_ID=***REMOVED_GOOGLE_CLIENT_ID***.apps.google
+ usercontent.com
+
+ Step B9: Run and Test
+
+ # Terminal 1: Start Dart Frog backend
+ cd /Users/kaustavghosh/Desktop/familiarise_backend
+ dart_frog dev
+
+ # Terminal 2: Start Flutter web
+ cd /Users/kaustavghosh/Desktop/familiarise_mobile
+ flutter run -d chrome
+
+ Step B10: Test with Chrome DevTools MCP
+
+ - Navigate to sign-in screen
+ - Test email/password form submission
+ - Verify network requests to http://localhost:8080/api/auth/*
+ - Check console for errors
+ - Test sign-up flow
+ - Verify session persistence
+
+ ---
+ Architecture
+
+ Domain Layer (interfaces & entities)
+     ↓
+ Data Layer (implementations & DTOs)
+     ↓
+ Feature Layer (providers & UI)
+     ↓
+ Tests (unit tests for repository & provider)
+
+ ---
+ Step 0: Git Branch Setup
+
+ git checkout -b feature/phase-2-authentication
+
+ ---
+ Step 1: Install better_auth_flutter
+
+ File: pubspec.yaml
+ - Uncomment better_auth_flutter: ^0.0.7
+ - Run flutter pub get
+
+ ---
+ Step 2: Domain Layer
+
+ 2.1 User Entity
+
+ File: lib/domain/entities/user.dart
+ @freezed
+ class User with _$User {
+   const factory User({
+     required String id,
+     String? name,
+     String? email,
+     String? image,
+     String? phone,
+     String? timezone,
+     @Default(UserRole.consultee) UserRole role,
+     @Default(false) bool onboardingCompleted,
+     @Default(false) bool emailVerified,
+     String? consulteeProfileId,
+     DateTime? createdAt,
+     DateTime? updatedAt,
+   }) = _User;
+ }
+
+ 2.2 Auth State Entity
+
+ File: lib/domain/entities/auth_state.dart
+ @freezed
+ class AuthState with _$AuthState {
+   const factory AuthState.initial() = _Initial;
+   const factory AuthState.loading() = _Loading;
+   const factory AuthState.authenticated({required User user}) =
+ _Authenticated;
+   const factory AuthState.unauthenticated({String? message}) =
+ _Unauthenticated;
+ }
+
+ 2.3 Auth Repository Interface
+
+ File: lib/domain/repositories/auth_repository.dart
+ - signInWithEmail(email, password) -> Result<User>
+ - signUpWithEmail(email, password, name?) -> Result<User>
+ - signInWithGoogle() -> Result<User>
+ - signInWithGitHub() -> Result<User>
+ - signOut() -> Result<void>
+ - getCurrentUser() -> Result<User?>
+ - sendPasswordResetEmail(email) -> Result<void>
+ - authStateChanges -> Stream<User?>
+
+ ---
+ Step 3: Data Layer
+
+ 3.1 User Model (DTO)
+
+ File: lib/data/models/user_model.dart
+ - JSON serialization with @JsonKey for snake_case mapping
+ - fromJson(), toJson(), toEntity() methods
+ - fromBetterAuthUser() factory for Better Auth response
+
+ 3.2 Auth Remote Data Source
+
+ File: lib/data/datasources/remote/auth_remote_source.dart
+ // Better Auth integration
+ class AuthRemoteSourceImpl implements AuthRemoteSource {
+   @override
+   Future<UserModel> signInWithEmail(String email, String password) async {
+     final (user, error) = await BetterAuth.instance.client
+         .signInWithEmailAndPassword(email: email, password: password);
+     if (error != null) throw AuthException(message: error.message);
+     return UserModel.fromBetterAuthUser(user!);
+   }
+
+   @override
+   Future<UserModel> signInWithGoogle() async {
+     final googleUser = await _googleSignIn.signIn();
+     final googleAuth = await googleUser!.authentication;
+     final (user, error) = await
+ BetterAuth.instance.client.signInWithIdToken(
+       provider: SocialProvider.google,
+       idToken: googleAuth.idToken!,
+       accessToken: googleAuth.accessToken,
+     );
+     if (error != null) throw AuthException(message: error.message);
+     return UserModel.fromBetterAuthUser(user!);
+   }
+
+   @override
+   Future<UserModel> signInWithGitHub() async {
+     final (url, error) = await BetterAuth.instance.client.socialSignIn(
+       provider: SocialProvider.github,
+       callbackUrl: 'familiarise://auth/callback',
+     );
+     // Handle redirect flow with flutter_web_auth_2
+     // ...
+   }
+ }
+
+ 3.3 Auth Local Data Source
+
+ File: lib/data/datasources/local/auth_local_source.dart
+ - User ID storage with FlutterSecureStorage
+ - Uses existing StorageKeys constants
+ - Onboarding flag with SharedPreferences
+ - Note: better_auth_flutter handles session cookies automatically
+
+ 3.4 Auth Repository Implementation
+
+ File: lib/data/repositories/auth_repository_impl.dart
+ - Implements domain interface
+ - Uses NetworkInfo for connectivity checks
+ - Maps exceptions to Failure types
+
+ ---
+ Step 4: Shared Widgets
+
+ 4.1 AppTextField
+
+ File: lib/shared/widgets/app_text_field.dart
+ - Wrapper around ReactiveTextField
+ - Label, hint, prefix/suffix icons
+ - Validation message mapping
+
+ 4.2 LoadingButton
+
+ File: lib/shared/widgets/loading_button.dart
+ - ElevatedButton with loading state
+ - CircularProgressIndicator when loading
+
+ 4.3 SocialSignInButton
+
+ File: lib/shared/widgets/social_sign_in_button.dart
+ - Google and GitHub styled buttons
+ - Uses SVG icons
+
+ ---
+ Step 5: Feature - Auth
+
+ 5.1 Auth Provider
+
+ File: lib/features/auth/providers/auth_provider.dart
+ - @Riverpod(keepAlive: true) for app-wide state
+ - Methods: signInWithEmail, signUpWithEmail, signInWithGoogle,
+ signInWithGitHub, signOut
+ - Convenience providers: currentUser, isAuthenticated
+
+ 5.2 Sign In Screen
+
+ File: lib/features/auth/screens/sign_in_screen.dart
+ - Email/password form with reactive_forms
+ - Google & GitHub social buttons
+ - Forgot password link
+ - Sign up navigation
+
+ 5.3 Sign Up Screen
+
+ File: lib/features/auth/screens/sign_up_screen.dart
+ - Name, email, password, confirm password
+ - Social sign up options
+ - Terms acceptance text
+
+ 5.4 Forgot Password Screen
+
+ File: lib/features/auth/screens/forgot_password_screen.dart
+ - Email input form
+ - Success state with "check your email" message
+
+ ---
+ Step 6: App Configuration
+
+ 6.1 Initialize Better Auth
+
+ File: lib/main.dart
+ void main() async {
+   WidgetsFlutterBinding.ensureInitialized();
+
+   // Initialize Better Auth
+   BetterAuth.init(
+     baseUrl: Uri.parse(EnvConfig.apiBaseUrl),
+   );
+
+   runApp(const ProviderScope(child: FamiliariseApp()));
+ }
+
+ 6.2 Router Updates
+
+ File: lib/app/router.dart
+ - Add auth routes: /auth/sign-in, /auth/sign-up, /auth/forgot-password
+ - Add callback route: /auth/callback for OAuth redirects
+ - Auth redirect guards
+ - refreshListenable for auth state changes
+
+ ---
+ Step 7: Assets & Platform Config
+
+ 7.1 Assets
+
+ - assets/icons/google.svg - Google logo
+ - assets/icons/github.svg - GitHub logo
+ - Update pubspec.yaml assets section
+
+ 7.2 Deep Links
+
+ iOS: ios/Runner/Info.plist
+ <key>CFBundleURLTypes</key>
+ <array>
+   <dict>
+     <key>CFBundleURLSchemes</key>
+     <array>
+       <string>familiarise</string>
+     </array>
+   </dict>
+ </array>
+
+ Android: android/app/src/main/AndroidManifest.xml
+ <intent-filter>
+   <action android:name="android.intent.action.VIEW"/>
+   <category android:name="android.intent.category.DEFAULT"/>
+   <category android:name="android.intent.category.BROWSABLE"/>
+   <data android:scheme="familiarise" android:host="auth"/>
+ </intent-filter>
+
+ ---
+ Step 8: Unit Tests
+
+ 8.1 Auth Repository Tests
+
+ File: test/data/repositories/auth_repository_impl_test.dart
+ - Mock AuthRemoteSource and AuthLocalSource
+ - Test sign in success/failure
+ - Test sign up success/failure
+ - Test network error handling
+
+ 8.2 Auth Provider Tests
+
+ File: test/features/auth/providers/auth_provider_test.dart
+ - Mock AuthRepository
+ - Test state transitions (loading -> authenticated)
+ - Test error handling
+
+ ---
+ Files Summary
+
+ New Files (17)
+
+ | Layer   | File                                                  |
+ |---------|-------------------------------------------------------|
+ | Domain  | lib/domain/entities/user.dart                         |
+ | Domain  | lib/domain/entities/auth_state.dart                   |
+ | Domain  | lib/domain/repositories/auth_repository.dart          |
+ | Data    | lib/data/models/user_model.dart                       |
+ | Data    | lib/data/datasources/remote/auth_remote_source.dart   |
+ | Data    | lib/data/datasources/local/auth_local_source.dart     |
+ | Data    | lib/data/repositories/auth_repository_impl.dart       |
+ | Shared  | lib/shared/widgets/app_text_field.dart                |
+ | Shared  | lib/shared/widgets/loading_button.dart                |
+ | Shared  | lib/shared/widgets/social_sign_in_button.dart         |
+ | Feature | lib/features/auth/providers/auth_provider.dart        |
+ | Feature | lib/features/auth/screens/sign_in_screen.dart         |
+ | Feature | lib/features/auth/screens/sign_up_screen.dart         |
+ | Feature | lib/features/auth/screens/forgot_password_screen.dart |
+ | Test    | test/data/repositories/auth_repository_impl_test.dart |
+ | Test    | test/features/auth/providers/auth_provider_test.dart  |
+ | Assets  | assets/icons/google.svg, assets/icons/github.svg      |
+
+ Modified Files (4)
+
+ | File                                     | Changes
+              |
+ |------------------------------------------|------------------------------
+ -------------|
+ | pubspec.yaml                             | Uncomment
+ better_auth_flutter, add assets |
+ | lib/main.dart                            | Initialize BetterAuth
+              |
+ | lib/app/router.dart                      | Add auth routes & guards
+              |
+ | ios/Runner/Info.plist                    | Add URL scheme
+              |
+ | android/app/src/main/AndroidManifest.xml | Add intent filter
+              |
+
+ ---
+ Build Commands
+
+ After each step with freezed/riverpod files:
+ dart run build_runner build --delete-conflicting-outputs
+
+ ---
+ Dependencies to Enable
+
+ In pubspec.yaml, uncomment:
+ better_auth_flutter: ^0.0.7
+
+ Already installed:
+ - google_sign_in: ^6.2.1
+ - flutter_secure_storage: ^9.2.2
+ - go_router: ^14.2.7
+ - flutter_riverpod: ^2.5.1
+ - reactive_forms: ^17.0.1
+ - fpdart: ^1.1.0
+ - freezed_annotation
+ - mocktail (for tests)
+
+ ---
+ Post-Implementation
+
+ 1. Run flutter analyze
+ 2. Run dart run build_runner build
+ 3. Run tests: flutter test
+ 4. Test on Chrome (web) manually
+ 5. Commit with message: feat(phase-2): Authentication system with Better 
+ Auth
+ 6. Create PR for feature/phase-2-authentication
+
+ ---
+ Final Task: GitHub Issue for NextAuth → Better Auth Migration
+
+ Repository: familiarise_web
+ Title: "Migrate from NextAuth.js to Better Auth for cross-platform auth
+ consistency"
+
+ Issue Content:
+
+ ## Summary
+ The mobile app uses `better_auth_flutter` which expects Better Auth
+ backend endpoints. Currently, the web app uses NextAuth.js. This creates
+ an architecture where we need a separate Dart Frog backend for mobile.
+
+ ## Why Migrate
+ - **Single auth backend** for both web and mobile
+ - **Consistent API** across platforms
+ - **Simplified architecture** (eliminate Dart Frog auth backend)
+ - **Better Auth** has native support for Flutter/Dart clients
+
+ ## Technical Steps
+ 1. Install `better-auth` package
+ 2. Create `/api/auth/[...betterauth]/route.ts`
+ 3. Configure Better Auth with Prisma adapter
+ 4. Migrate session handling from NextAuth to Better Auth
+ 5. Update client-side auth hooks
+ 6. Test all OAuth providers (Google, GitHub)
+ 7. Remove NextAuth configuration
+
+ ## Database Compatibility
+ Better Auth uses its own session/account tables but can be configured to
+ use existing Prisma schema with adapters.
+
+ ## Timeline
+ To be scheduled after Flutter mobile app MVP is complete.
+
+ ---
+ Implementation Summary
+
+ ✅ COMPLETED (Phase 2A - Flutter UI)
+
+ - Domain layer (User, AuthState, AuthRepository interface)
+ - Data layer (UserModel, data sources, repository impl)
+ - Shared widgets (AppTextField, LoadingButton, SocialSignInButton)
+ - Auth screens (SignIn, SignUp, ForgotPassword)
+ - Auth provider with Riverpod
+ - Router configuration with auth guards
+ - Unit tests (41 passing)
+ - Platform config (deep links, AndroidManifest, Info.plist)
+
+ 🚧 IN PROGRESS (Phase 2B - Dart Frog Backend)
+
+ - Create Dart Frog project
+ - Add dependencies (prisma_flutter_connector, postgres, bcrypt, jwt)
+ - Implement database client with Prisma Flutter Connector
+ - Implement auth service (signIn, signUp, session management)
+ - Create API routes (/api/auth/sign-in/email, /api/auth/session, etc.)
+ - Add CORS middleware for Flutter web
+ - Update Flutter app .env with local backend URL
+ - Test end-to-end with Chrome DevTools MCP
+
+ 📋 FINAL (After Testing)
+
+ - Create GitHub issue for NextAuth → Better Auth migration
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+ Would you like to proceed?
+
+ ❯ 1. Yes, and auto-accept edits
+   2. Yes, and manually approve edits
+   3. Type here to tell Claude what to change
