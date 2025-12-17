@@ -398,7 +398,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
 
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
-        throw AuthException(message: error['error'] ?? 'Sign in failed');
+        throw AuthException(
+            message: error['error']?['message'] ?? 'Sign in failed');
       }
 
       final data = jsonDecode(response.body);
@@ -432,7 +433,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         final error = jsonDecode(response.body);
-        throw AuthException(message: error['error'] ?? 'Sign up failed');
+        throw AuthException(
+            message: error['error']?['message'] ?? 'Sign up failed');
       }
 
       final data = jsonDecode(response.body);

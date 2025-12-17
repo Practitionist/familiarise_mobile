@@ -116,7 +116,6 @@ class AuthService {
       await _db.createCredentialsAccount(
         id: _uuid.v4(),
         userId: userId,
-        hashedPassword: hashedPassword,
       );
 
       // Create consultee profile
@@ -272,18 +271,20 @@ class AuthService {
     } else {
       // Update user info from verified token
       if (name != null || image != null) {
-        await _db.updateUser(
+        final updatedUser = await _db.updateUser(
           id: user['id'] as String,
           name: name,
           image: image,
         );
-        // Refresh user data
-        user = await _db.findUserByEmail(email);
+        // Use updated user data directly (updateUser returns the updated record)
+        if (updatedUser != null) {
+          user = updatedUser;
+        }
       }
     }
 
     // Create session
-    final session = await _createSession(user!['id'] as String);
+    final session = await _createSession(user['id'] as String);
 
     // Create JWT token
     final token = _jwtService.createToken(
@@ -326,8 +327,8 @@ class AuthService {
       'name': user['name'],
       'image': user['image'],
       'role': user['role'],
-      'emailVerified': user['emailVerified'],
-      'onboardingCompleted': user['onboardingCompleted'],
+      'emailVerified': user['emailVerified'] as bool? ?? false,
+      'onboardingCompleted': user['onboardingCompleted'] as bool? ?? false,
       'createdAt': user['createdAt']?.toString(),
       'updatedAt': user['updatedAt']?.toString(),
     };

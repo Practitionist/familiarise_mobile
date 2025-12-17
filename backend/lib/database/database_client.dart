@@ -187,11 +187,13 @@ class DatabaseClient {
     return result ?? {'id': id, 'userId': userId};
   }
 
-  /// Create a credentials account with hashed password
+  /// Create a credentials account for email/password users
+  ///
+  /// Note: The password is stored in the users table, not accounts table.
+  /// This method creates the account record for provider tracking.
   Future<Map<String, dynamic>> createCredentialsAccount({
     required String id,
     required String userId,
-    required String hashedPassword,
   }) async {
     final query = JsonQueryBuilder()
         .model('accounts')
@@ -202,8 +204,6 @@ class DatabaseClient {
           'type': 'credentials',
           'provider': 'credentials',
           'providerAccountId': userId,
-          // Note: The accounts table doesn't have a password column in the schema
-          // We store hashed password in users table instead
         })
         .build();
 
@@ -214,6 +214,11 @@ class DatabaseClient {
   // ==================== Session Operations ====================
 
   /// Find session by ID with user data
+  ///
+  /// Note: This uses two queries instead of a single query with include/join.
+  /// The Prisma Flutter Connector currently doesn't support the include option
+  /// for relations. This could be optimized in the future when the connector
+  /// adds relation loading support.
   Future<Map<String, dynamic>?> findSessionById(String sessionId) async {
     // First find the session
     final sessionQuery = JsonQueryBuilder()
@@ -228,13 +233,15 @@ class DatabaseClient {
     // Check if expired
     final expires = session['expires'];
     if (expires != null) {
-      final expiresAt = expires is DateTime ? expires : DateTime.parse(expires.toString());
+      final expiresAt = expires is DateTime
+          ? expires
+          : DateTime.parse(expires.toString());
       if (expiresAt.isBefore(DateTime.now().toUtc())) {
         return null;
       }
     }
 
-    // Get user data
+    // Get user data (separate query - see note above)
     final userId = session['userId'] as String?;
     if (userId == null) return null;
 
@@ -318,41 +325,46 @@ class DatabaseClient {
 
   // ==================== ConsulteeProfile Operations ====================
 
-  /// Create a consultee profile
+  /// Create a consultee profile atomically
+  ///
+  /// This method creates the profile and updates the user in a single
+  /// transaction to ensure data consistency.
   Future<Map<String, dynamic>> createConsulteeProfile({
     required String id,
     required String userId,
   }) async {
     final now = DateTime.now().toUtc();
 
-    // Create the profile
-    final query = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.create)
-        .data({
-          'id': id,
-          'userId': userId,
-          'createdAt': now.toIso8601String(),
-          'updatedAt': now.toIso8601String(),
-        })
-        .build();
+    return _executor.executeInTransaction((txn) async {
+      // Create the profile
+      final query = JsonQueryBuilder()
+          .model('ConsulteeProfile')
+          .action(QueryAction.create)
+          .data({
+            'id': id,
+            'userId': userId,
+            'createdAt': now.toIso8601String(),
+            'updatedAt': now.toIso8601String(),
+          })
+          .build();
 
-    final result = await _executor.executeQueryAsSingleMap(query);
+      final result = await txn.executeQueryAsSingleMap(query);
 
-    // Update user with consultee profile ID
-    final updateUserQuery = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': userId})
-        .data({
-          'consulteeProfileId': id,
-          'updatedAt': now.toIso8601String(),
-        })
-        .build();
+      // Update user with consultee profile ID
+      final updateUserQuery = JsonQueryBuilder()
+          .model('users')
+          .action(QueryAction.update)
+          .where({'id': userId})
+          .data({
+            'consulteeProfileId': id,
+            'updatedAt': now.toIso8601String(),
+          })
+          .build();
 
-    await _executor.executeMutation(updateUserQuery);
+      await txn.executeMutation(updateUserQuery);
 
-    return result ?? {'id': id, 'userId': userId};
+      return result ?? {'id': id, 'userId': userId};
+    });
   }
 
   /// Execute within a transaction
