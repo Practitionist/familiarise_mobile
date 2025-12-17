@@ -36,7 +36,10 @@ Future<Response> onRequest(RequestContext context) async {
         'error': {'message': e.message},
       },
     );
-  } catch (e) {
+  } catch (e, stackTrace) {
+    // Log error server-side only - never expose to client
+    print('Error in sign-in: $e');
+    print('Stack trace: $stackTrace');
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
