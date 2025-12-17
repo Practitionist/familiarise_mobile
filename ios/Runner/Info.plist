@@ -45,5 +45,31 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- URL schemes for OAuth callbacks and deep links -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- App deep link scheme -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.familiarise.mobile</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>familiarise</string>
+			</array>
+		</dict>
+		<!-- Google Sign-In URL scheme (reversed iOS client ID) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.googleusercontent.apps.384845845365-cbj7tlc00581pp7rg6ibn6i3icid5qqi</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.384845845365-cbj7tlc00581pp7rg6ibn6i3icid5qqi</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
