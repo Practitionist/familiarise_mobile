@@ -3,24 +3,63 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../features/auth/providers/auth_provider.dart';
+import '../features/auth/screens/forgot_password_screen.dart';
+import '../features/auth/screens/sign_in_screen.dart';
+import '../features/auth/screens/sign_up_screen.dart';
+
 part 'router.g.dart';
+
+/// Listenable adapter for auth state changes to trigger router refresh
+class AuthStateNotifier extends ChangeNotifier {
+  AuthStateNotifier(this.ref) {
+    ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  final Ref ref;
+}
 
 @riverpod
 GoRouter router(Ref ref) {
-  // TODO: Watch auth state for redirects
-  // final authState = ref.watch(authProvider);
+  final authState = ref.watch(authProvider);
+  final authNotifier = AuthStateNotifier(ref);
 
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
+    refreshListenable: authNotifier,
     redirect: (context, state) {
-      // TODO: Implement auth redirects
-      // final isAuthenticated = authState.valueOrNull?.isAuthenticated ?? false;
-      // final isAuthRoute = state.matchedLocation.startsWith('/auth');
-      //
-      // if (!isAuthenticated && !isAuthRoute) {
-      //   return '/auth/sign-in';
-      // }
+      final isAuthenticated = authState.isAuthenticated;
+      final isLoading = authState.isLoading;
+      final isInitial = authState.maybeMap(
+        initial: (_) => true,
+        orElse: () => false,
+      );
+      final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isSplash = state.matchedLocation == '/';
+
+      // Still initializing auth state, stay on splash
+      if (isInitial || (isLoading && isSplash)) {
+        return null;
+      }
+
+      // Not authenticated and not on auth route -> redirect to sign in
+      if (!isAuthenticated && !isAuthRoute && !isSplash) {
+        return '/auth/sign-in';
+      }
+
+      // On splash and not loading -> redirect based on auth status
+      if (isSplash && !isLoading && !isInitial) {
+        return isAuthenticated ? '/dashboard' : '/auth/sign-in';
+      }
+
+      // Authenticated and on auth route -> redirect to dashboard
+      if (isAuthenticated && isAuthRoute) {
+        return '/dashboard';
+      }
+
       return null;
     },
     routes: [
@@ -52,14 +91,75 @@ GoRouter router(Ref ref) {
         ),
       ),
 
-      // TODO: Add auth routes
-      // GoRoute(
-      //   path: '/auth/sign-in',
-      //   name: 'signIn',
-      //   builder: (context, state) => const SignInScreen(),
-      // ),
+      // Auth routes
+      GoRoute(
+        path: '/auth/sign-in',
+        name: 'signIn',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/auth/sign-up',
+        name: 'signUp',
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/auth/forgot-password',
+        name: 'forgotPassword',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      // OAuth callback route
+      GoRoute(
+        path: '/auth/callback',
+        name: 'authCallback',
+        builder: (context, state) => const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ),
 
-      // TODO: Add main shell with bottom navigation
+      // Dashboard (placeholder - to be implemented in later phases)
+      GoRoute(
+        path: '/dashboard',
+        name: 'dashboard',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Dashboard'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () {
+                  // Sign out through auth provider
+                  final container = ProviderScope.containerOf(context);
+                  container.read(authProvider.notifier).signOut();
+                },
+              ),
+            ],
+          ),
+          body: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle, size: 64, color: Colors.green),
+                SizedBox(height: 16),
+                Text(
+                  'Welcome to Familiarise!',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text('You are successfully signed in.'),
+                SizedBox(height: 24),
+                Text(
+                  'Dashboard coming in Phase 3',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+
+      // TODO: Add main shell with bottom navigation in Phase 3+
       // ShellRoute(
       //   builder: (context, state, child) => MainShell(child: child),
       //   routes: [
@@ -72,7 +172,19 @@ GoRouter router(Ref ref) {
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
-        child: Text('Page not found: ${state.matchedLocation}'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Page not found: ${state.matchedLocation}'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => context.go('/'),
+              child: const Text('Go Home'),
+            ),
+          ],
+        ),
       ),
     ),
   );

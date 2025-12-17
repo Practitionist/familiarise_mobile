@@ -1,4 +1,6 @@
 import 'package:envied/envied.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 part 'env_config.g.dart';
 
@@ -35,9 +37,36 @@ abstract class EnvConfig {
   @EnviedField(varName: 'API_BASE_URL', defaultValue: 'http://localhost:3000')
   static String apiBaseUrl = _EnvConfig.apiBaseUrl;
 
+  // Google OAuth - Platform-specific Client IDs
+  @EnviedField(varName: 'GOOGLE_CLIENT_ID_WEB', defaultValue: '')
+  static String googleClientIdWeb = _EnvConfig.googleClientIdWeb;
+
+  @EnviedField(varName: 'GOOGLE_CLIENT_ID_IOS', defaultValue: '')
+  static String googleClientIdIos = _EnvConfig.googleClientIdIos;
+
+  @EnviedField(varName: 'GOOGLE_CLIENT_ID_ANDROID', defaultValue: '')
+  static String googleClientIdAndroid = _EnvConfig.googleClientIdAndroid;
+
+  /// Get platform-specific Google Client ID
+  static String get googleClientId {
+    if (kIsWeb) {
+      return googleClientIdWeb;
+    }
+
+    // On mobile, check the platform
+    if (Platform.isIOS) {
+      return googleClientIdIos;
+    } else if (Platform.isAndroid) {
+      return googleClientIdAndroid;
+    }
+
+    // Fallback to web client ID
+    return googleClientIdWeb;
+  }
+
   // Feature Flags
   @EnviedField(varName: 'USE_PRISMA', defaultValue: 'false')
-  static String _usePrismaString = _EnvConfig._usePrismaString;
+  static final String _usePrismaString = _EnvConfig._usePrismaString;
 
   static bool get usePrisma => _usePrismaString.toLowerCase() == 'true';
 }
