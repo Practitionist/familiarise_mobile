@@ -22,10 +22,14 @@ part 'auth_remote_source.g.dart';
 /// Provider for AuthRemoteSource
 @riverpod
 AuthRemoteSource authRemoteSource(Ref ref) {
-  if (kIsWeb) {
-    return AuthRemoteSourceWebImpl();
-  }
-  return AuthRemoteSourceImpl();
+  final source = kIsWeb ? AuthRemoteSourceWebImpl() : AuthRemoteSourceImpl();
+
+  // Ensure proper cleanup of StreamController when provider is disposed
+  ref.onDispose(() {
+    source.dispose();
+  });
+
+  return source;
 }
 
 /// Remote data source interface for authentication
@@ -57,6 +61,9 @@ abstract class AuthRemoteSource {
 
   /// Stream of auth state changes
   Stream<UserModel?> get authStateChanges;
+
+  /// Dispose of resources (e.g., StreamControllers)
+  void dispose();
 }
 
 /// Implementation using Better Auth Flutter SDK
@@ -338,6 +345,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     return message;
   }
 
+  @override
   void dispose() {
     _authStateController.close();
   }
@@ -579,6 +587,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   @override
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
 
+  @override
   void dispose() {
     _authStateController.close();
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -11,11 +13,16 @@ part 'auth_provider.g.dart';
 /// Auth state provider - keeps auth state alive for the app lifetime
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
+  StreamSubscription<User?>? _authStateSubscription;
+
   @override
   AuthState build() {
     // Listen to auth state changes from the repository
     final repository = ref.watch(authRepositoryProvider);
-    repository.authStateChanges.listen((user) {
+
+    // Cancel previous subscription if any
+    _authStateSubscription?.cancel();
+    _authStateSubscription = repository.authStateChanges.listen((user) {
       if (user != null) {
         state = AuthState.authenticated(user: user);
       } else {
@@ -23,8 +30,15 @@ class Auth extends _$Auth {
       }
     });
 
+    // Clean up subscription when provider is disposed
+    ref.onDispose(() {
+      _authStateSubscription?.cancel();
+    });
+
     // Initialize by checking current session
-    _initializeAuth();
+    // Note: We schedule the initialization to run after the build completes
+    // to avoid state modification during build
+    Future.microtask(() => _initializeAuth());
     return const AuthState.initial();
   }
 

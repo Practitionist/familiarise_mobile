@@ -233,9 +233,10 @@ class DatabaseClient {
     // Check if expired
     final expires = session['expires'];
     if (expires != null) {
+      // Ensure UTC comparison to avoid timezone issues
       final expiresAt = expires is DateTime
-          ? expires
-          : DateTime.parse(expires.toString());
+          ? expires.toUtc()
+          : DateTime.parse(expires.toString()).toUtc();
       if (expiresAt.isBefore(DateTime.now().toUtc())) {
         return null;
       }

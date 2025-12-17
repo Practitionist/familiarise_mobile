@@ -18,8 +18,11 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   }
 
   final jwtSecret = env['JWT_SECRET'];
-  if (jwtSecret == null) {
+  if (jwtSecret == null || jwtSecret.isEmpty) {
     throw Exception('JWT_SECRET must be set in .env');
+  }
+  if (jwtSecret.length < 32) {
+    throw Exception('JWT_SECRET must be at least 32 characters for security');
   }
 
   // Initialize database
