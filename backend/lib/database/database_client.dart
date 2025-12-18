@@ -71,6 +71,8 @@ class DatabaseClient {
   }
 
   /// Create a new user
+  ///
+  /// Optionally accepts a [TransactionExecutor] to run within a transaction.
   Future<Map<String, dynamic>> createUser({
     required String id,
     required String email,
@@ -78,6 +80,7 @@ class DatabaseClient {
     String? image,
     String? hashedPassword,
     String role = 'CONSULTEE',
+    TransactionExecutor? executor,
   }) async {
     final now = DateTime.now().toUtc();
 
@@ -103,7 +106,12 @@ class DatabaseClient {
         .data(data)
         .build();
 
-    final result = await _executor.executeQueryAsSingleMap(query);
+    final Map<String, dynamic>? result;
+    if (executor != null) {
+      result = await executor.executeQueryAsSingleMap(query);
+    } else {
+      result = await _executor.executeQueryAsSingleMap(query);
+    }
     return result ?? {'id': id, 'email': email};
   }
 
@@ -161,6 +169,8 @@ class DatabaseClient {
   }
 
   /// Create an OAuth account link
+  ///
+  /// Optionally accepts a [TransactionExecutor] to run within a transaction.
   Future<Map<String, dynamic>> createOAuthAccount({
     required String id,
     required String userId,
@@ -168,6 +178,7 @@ class DatabaseClient {
     required String providerAccountId,
     String? accessToken,
     String? idToken,
+    TransactionExecutor? executor,
   }) async {
     final query = JsonQueryBuilder()
         .model('accounts')
@@ -183,7 +194,12 @@ class DatabaseClient {
         })
         .build();
 
-    final result = await _executor.executeQueryAsSingleMap(query);
+    final Map<String, dynamic>? result;
+    if (executor != null) {
+      result = await executor.executeQueryAsSingleMap(query);
+    } else {
+      result = await _executor.executeQueryAsSingleMap(query);
+    }
     return result ?? {'id': id, 'userId': userId};
   }
 
@@ -191,9 +207,11 @@ class DatabaseClient {
   ///
   /// Note: The password is stored in the users table, not accounts table.
   /// This method creates the account record for provider tracking.
+  /// Optionally accepts a [TransactionExecutor] to run within a transaction.
   Future<Map<String, dynamic>> createCredentialsAccount({
     required String id,
     required String userId,
+    TransactionExecutor? executor,
   }) async {
     final query = JsonQueryBuilder()
         .model('accounts')
@@ -207,29 +225,24 @@ class DatabaseClient {
         })
         .build();
 
-    final result = await _executor.executeQueryAsSingleMap(query);
+    final Map<String, dynamic>? result;
+    if (executor != null) {
+      result = await executor.executeQueryAsSingleMap(query);
+    } else {
+      result = await _executor.executeQueryAsSingleMap(query);
+    }
     return result ?? {'id': id, 'userId': userId};
   }
 
   // ==================== Session Operations ====================
 
-  /// Find session by ID with user data
+  /// Hydrate a session record with user data
   ///
-  /// Note: This uses two queries instead of a single query with include/join.
-  /// The Prisma Flutter Connector currently doesn't support the include option
-  /// for relations. This could be optimized in the future when the connector
-  /// adds relation loading support.
-  Future<Map<String, dynamic>?> findSessionById(String sessionId) async {
-    // First find the session
-    final sessionQuery = JsonQueryBuilder()
-        .model('sessions')
-        .action(QueryAction.findUnique)
-        .where({'id': sessionId})
-        .build();
-
-    final session = await _executor.executeQueryAsSingleMap(sessionQuery);
-    if (session == null) return null;
-
+  /// Shared helper used by both findSessionById and findSessionByToken
+  /// to avoid redundant session queries.
+  Future<Map<String, dynamic>?> _hydrateSessionWithUser(
+    Map<String, dynamic> session,
+  ) async {
     // Check if expired
     final expires = session['expires'];
     if (expires != null) {
@@ -241,7 +254,7 @@ class DatabaseClient {
       }
     }
 
-    // Get user data (separate query - see note above)
+    // Get user data
     final userId = session['userId'] as String?;
     if (userId == null) return null;
 
@@ -259,7 +272,27 @@ class DatabaseClient {
     };
   }
 
-  /// Find session by token
+  /// Find session by ID with user data
+  ///
+  /// Note: This uses two queries (session + user) instead of a join.
+  /// The Prisma Flutter Connector currently doesn't support the include
+  /// option for relations.
+  Future<Map<String, dynamic>?> findSessionById(String sessionId) async {
+    final query = JsonQueryBuilder()
+        .model('sessions')
+        .action(QueryAction.findUnique)
+        .where({'id': sessionId})
+        .build();
+
+    final session = await _executor.executeQueryAsSingleMap(query);
+    if (session == null) return null;
+
+    return _hydrateSessionWithUser(session);
+  }
+
+  /// Find session by token with user data
+  ///
+  /// Optimized: Queries session once, then hydrates with user data.
   Future<Map<String, dynamic>?> findSessionByToken(String sessionToken) async {
     final query = JsonQueryBuilder()
         .model('sessions')
@@ -270,8 +303,7 @@ class DatabaseClient {
     final session = await _executor.executeQueryAsSingleMap(query);
     if (session == null) return null;
 
-    // Check if expired and get user data
-    return findSessionById(session['id'] as String);
+    return _hydrateSessionWithUser(session);
   }
 
   /// Create a new session
@@ -329,13 +361,17 @@ class DatabaseClient {
   ///
   /// This method creates the profile and updates the user in a single
   /// transaction to ensure data consistency.
+  ///
+  /// If [executor] is provided, the operations run within that transaction.
+  /// Otherwise, a new transaction is created for atomicity.
   Future<Map<String, dynamic>> createConsulteeProfile({
     required String id,
     required String userId,
+    TransactionExecutor? executor,
   }) async {
     final now = DateTime.now().toUtc();
 
-    return _executor.executeInTransaction((txn) async {
+    Future<Map<String, dynamic>> createProfile(TransactionExecutor txn) async {
       // Create the profile
       final query = JsonQueryBuilder()
           .model('ConsulteeProfile')
@@ -364,7 +400,13 @@ class DatabaseClient {
       await txn.executeMutation(updateUserQuery);
 
       return result ?? {'id': id, 'userId': userId};
-    });
+    }
+
+    // If executor provided, use it; otherwise create own transaction
+    if (executor != null) {
+      return createProfile(executor);
+    }
+    return _executor.executeInTransaction(createProfile);
   }
 
   /// Execute within a transaction

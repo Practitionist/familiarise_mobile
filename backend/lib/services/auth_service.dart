@@ -80,9 +80,8 @@ class AuthService {
 
   /// Sign up with email and password
   ///
-  /// Note: These operations should ideally be wrapped in a database transaction.
-  /// Current implementation uses cleanup logic on failure. For production,
-  /// consider refactoring DatabaseClient methods to support transaction executors.
+  /// User creation is wrapped in a database transaction for atomicity.
+  /// If any step fails, the entire operation is rolled back automatically.
   Future<Map<String, dynamic>> signUpWithEmail(
     String email,
     String password, {
@@ -101,41 +100,36 @@ class AuthService {
     // Hash password
     final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
     final userId = _uuid.v4();
-    Map<String, dynamic>? user;
 
-    try {
+    // Create user, account, and profile atomically in a transaction
+    final user = await _db.executeInTransaction((txn) async {
       // Create user with password stored in users table
-      user = await _db.createUser(
+      final newUser = await _db.createUser(
         id: userId,
         email: email,
         name: name,
         hashedPassword: hashedPassword,
+        executor: txn,
       );
 
       // Create credentials account (for provider tracking)
       await _db.createCredentialsAccount(
         id: _uuid.v4(),
         userId: userId,
+        executor: txn,
       );
 
       // Create consultee profile
       await _db.createConsulteeProfile(
         id: _uuid.v4(),
         userId: userId,
+        executor: txn,
       );
-    } catch (e) {
-      // Attempt cleanup on failure - delete partially created user
-      if (user != null) {
-        try {
-          await _db.deleteUser(userId);
-        } catch (_) {
-          // Log cleanup failure but don't mask original error
-        }
-      }
-      rethrow;
-    }
 
-    // Create session
+      return newUser;
+    });
+
+    // Create session (outside transaction - not critical for user creation)
     final session = await _createSession(userId);
 
     // Create JWT token
@@ -203,7 +197,7 @@ class AuthService {
   /// Both methods are secure - the backend always fetches user info directly
   /// from Google, never trusting client-provided user data.
   ///
-  /// Note: New user creation should ideally be wrapped in a database transaction.
+  /// New user creation is wrapped in a database transaction for atomicity.
   Future<Map<String, dynamic>> signInWithGoogle({
     String? idToken,
     String? accessToken,
@@ -231,17 +225,19 @@ class AuthService {
     final image = googleUser.picture;
 
     // Check if user exists by email
-    var user = await _db.findUserByEmail(email);
+    final existingUser = await _db.findUserByEmail(email);
 
-    if (user == null) {
-      // Create new user with cleanup on failure
+    final Map<String, dynamic> user;
+    if (existingUser == null) {
+      // Create new user atomically in a transaction
       final userId = _uuid.v4();
-      try {
-        user = await _db.createUser(
+      user = await _db.executeInTransaction((txn) async {
+        final newUser = await _db.createUser(
           id: userId,
           email: email,
           name: name,
           image: image,
+          executor: txn,
         );
 
         // Create Google OAuth account link using stable sub ID
@@ -252,38 +248,34 @@ class AuthService {
           providerAccountId: providerAccountId,
           accessToken: accessToken,
           idToken: idToken,
+          executor: txn,
         );
 
         // Create consultee profile
         await _db.createConsulteeProfile(
           id: _uuid.v4(),
           userId: userId,
+          executor: txn,
         );
-      } catch (e) {
-        // Attempt cleanup on failure
-        try {
-          await _db.deleteUser(userId);
-        } catch (_) {
-          // Log cleanup failure but don't mask original error
-        }
-        rethrow;
-      }
+
+        return newUser;
+      });
     } else {
       // Update user info from verified token
       if (name != null || image != null) {
         final updatedUser = await _db.updateUser(
-          id: user['id'] as String,
+          id: existingUser['id'] as String,
           name: name,
           image: image,
         );
-        // Use updated user data directly (updateUser returns the updated record)
-        if (updatedUser != null) {
-          user = updatedUser;
-        }
+        // Use updated user data, fallback to existing if update returns null
+        user = updatedUser ?? existingUser;
+      } else {
+        user = existingUser;
       }
     }
 
-    // Create session
+    // Create session (outside transaction - not critical for user creation)
     final session = await _createSession(user['id'] as String);
 
     // Create JWT token
