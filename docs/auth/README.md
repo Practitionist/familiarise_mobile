@@ -19,8 +19,11 @@ docs/auth/
 ├── 03-security/               # Learn security best practices
 │   └── 01-secure-oauth-backend-verification.md
 │
-└── 04-troubleshooting/        # Reference when issues arise
-    └── 01-google-sign-in-web-limitations.md
+├── 04-troubleshooting/        # Reference when issues arise
+│   └── 01-google-sign-in-web-limitations.md
+│
+└── 05-future/                 # Future architecture decisions
+    └── 01-auth-migration-options.md
 ```
 
 ## Quick Links
@@ -33,6 +36,7 @@ docs/auth/
 | Quick Checklist | [OAuth Checklist](./02-setup/03-oauth-checklist.md) |
 | Security Patterns | [Secure OAuth Verification](./03-security/01-secure-oauth-backend-verification.md) |
 | Web ID Token Issue | [Web Limitations & Solutions](./04-troubleshooting/01-google-sign-in-web-limitations.md) |
+| Migration Options | [Auth Migration Options](./05-future/01-auth-migration-options.md) |
 
 ## Key Takeaways
 
