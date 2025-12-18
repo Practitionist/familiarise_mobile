@@ -20,9 +20,11 @@ class DatabaseClient {
     final uri = Uri.parse(connectionUrl);
 
     // Parse credentials from URL
-    final userInfo = uri.userInfo.split(':');
-    final username = userInfo[0];
-    final password = userInfo.length > 1 ? userInfo[1] : '';
+    // Use indexOf to handle passwords that may contain colons
+    final userInfo = uri.userInfo;
+    final colonIndex = userInfo.indexOf(':');
+    final username = colonIndex == -1 ? userInfo : userInfo.substring(0, colonIndex);
+    final password = colonIndex == -1 ? '' : userInfo.substring(colonIndex + 1);
 
     final connection = await pg.Connection.open(
       pg.Endpoint(
@@ -112,7 +114,10 @@ class DatabaseClient {
     } else {
       result = await _executor.executeQueryAsSingleMap(query);
     }
-    return result ?? {'id': id, 'email': email};
+    if (result == null) {
+      throw Exception('Failed to create user in database');
+    }
+    return result;
   }
 
   /// Delete a user by ID (for cleanup on failed registration)
@@ -200,7 +205,10 @@ class DatabaseClient {
     } else {
       result = await _executor.executeQueryAsSingleMap(query);
     }
-    return result ?? {'id': id, 'userId': userId};
+    if (result == null) {
+      throw Exception('Failed to create OAuth account in database');
+    }
+    return result;
   }
 
   /// Create a credentials account for email/password users
@@ -231,7 +239,10 @@ class DatabaseClient {
     } else {
       result = await _executor.executeQueryAsSingleMap(query);
     }
-    return result ?? {'id': id, 'userId': userId};
+    if (result == null) {
+      throw Exception('Failed to create credentials account in database');
+    }
+    return result;
   }
 
   // ==================== Session Operations ====================
@@ -325,12 +336,10 @@ class DatabaseClient {
         .build();
 
     final result = await _executor.executeQueryAsSingleMap(query);
-    return result ?? {
-      'id': id,
-      'sessionToken': sessionToken,
-      'userId': userId,
-      'expires': expires.toIso8601String(),
-    };
+    if (result == null) {
+      throw Exception('Failed to create session in database');
+    }
+    return result;
   }
 
   /// Delete a session by ID
@@ -399,7 +408,10 @@ class DatabaseClient {
 
       await txn.executeMutation(updateUserQuery);
 
-      return result ?? {'id': id, 'userId': userId};
+      if (result == null) {
+        throw Exception('Failed to create consultee profile in database');
+      }
+      return result;
     }
 
     // If executor provided, use it; otherwise create own transaction

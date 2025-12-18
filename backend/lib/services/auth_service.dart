@@ -325,4 +325,11 @@ class AuthService {
       'updatedAt': user['updatedAt']?.toString(),
     };
   }
+
+  /// Dispose resources used by this service
+  ///
+  /// Should be called on server shutdown to properly release HTTP clients.
+  void dispose() {
+    _tokenVerifier.dispose();
+  }
 }

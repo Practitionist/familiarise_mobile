@@ -50,7 +50,9 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     return Response.json(body: result);
-  } catch (e) {
+  } catch (e, stackTrace) {
+    print('Error in /api/auth/session: $e');
+    print('Stack trace: $stackTrace');
     return Response.json(
       body: {'session': null, 'user': null},
     );
