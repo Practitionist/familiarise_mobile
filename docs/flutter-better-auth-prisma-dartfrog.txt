@@ -86,14 +86,14 @@
 
  Database Credentials (from familiarize_web/.env)
 
- DATABASE_URL=postgresql://postgres.***REMOVED_PROJECT_REF***:***REMOVED_DB_PASSWORD***@a
+ DATABASE_URL=postgresql://postgres.<PROJECT_REF>:<DB_PASSWORD>@a
  ws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true
- DIRECT_URL=postgresql://postgres.***REMOVED_PROJECT_REF***:***REMOVED_DB_PASSWORD***@aws
+ DIRECT_URL=postgresql://postgres.<PROJECT_REF>:<DB_PASSWORD>@aws
  -0-ap-south-1.pooler.supabase.com:5432/postgres
- JWT_SECRET=***REMOVED_JWT_SECRET***
- GOOGLE_CLIENT_ID=***REMOVED_GOOGLE_CLIENT_ID***.apps.google
+ JWT_SECRET=<YOUR_JWT_SECRET>
+ GOOGLE_CLIENT_ID=<YOUR_GOOGLE_CLIENT_ID>.apps.google
  usercontent.com
- GOOGLE_CLIENT_SECRET=***REMOVED_GOOGLE_CLIENT_SECRET***
+ GOOGLE_CLIENT_SECRET=<YOUR_GOOGLE_CLIENT_SECRET>
 
  Step B1: Create Dart Frog Project
 
@@ -358,7 +358,7 @@
 
  Update /Users/kaustavghosh/Desktop/familiarise_mobile/.env:
  API_BASE_URL=http://localhost:8080
- GOOGLE_CLIENT_ID=***REMOVED_GOOGLE_CLIENT_ID***.apps.google
+ GOOGLE_CLIENT_ID=<YOUR_GOOGLE_CLIENT_ID>.apps.google
  usercontent.com
 
  Step B9: Run and Test
