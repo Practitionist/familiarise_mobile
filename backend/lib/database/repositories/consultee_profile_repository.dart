@@ -101,11 +101,12 @@ class ConsulteeProfileRepository extends BaseRepository {
     if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
 
     if (existing != null) {
-      // Update existing profile
+      // Update existing profile using primary key (id), not userId
+      final existingId = existing['id'] as String;
       final query = JsonQueryBuilder()
           .model('ConsulteeProfile')
           .action(QueryAction.update)
-          .where({'userId': userId})
+          .where({'id': existingId})
           .data(data)
           .build();
 

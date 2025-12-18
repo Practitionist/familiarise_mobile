@@ -261,14 +261,14 @@ class ReviewStep extends ConsumerWidget {
     }
   }
 
-  String _communicationLabel(CommunicationMethod method) {
+  String _communicationLabel(ConsultationMode method) {
     switch (method) {
-      case CommunicationMethod.video:
+      case ConsultationMode.video:
         return 'Video Call';
-      case CommunicationMethod.audio:
+      case ConsultationMode.audio:
         return 'Audio Call';
-      case CommunicationMethod.chat:
-        return 'Chat';
+      case ConsultationMode.inPerson:
+        return 'In-Person';
     }
   }
 }

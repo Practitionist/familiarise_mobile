@@ -9,9 +9,9 @@ part 'preferences_data.g.dart';
 @freezed
 class PreferencesData with _$PreferencesData {
   const factory PreferencesData({
-    /// Preferred method of consultation
-    @Default(CommunicationMethod.video)
-    CommunicationMethod preferredCommunicationMethod,
+    /// Preferred mode of consultation (video, audio, in-person)
+    @Default(ConsultationMode.video)
+    ConsultationMode preferredCommunicationMethod,
 
     /// Preferred language for consultations
     String? preferredLanguage,

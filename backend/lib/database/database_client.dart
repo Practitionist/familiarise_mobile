@@ -1,7 +1,11 @@
 import 'package:postgres/postgres.dart' as pg;
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
+import '../generated/prisma_client.dart';
 import 'repositories/repositories.dart';
+
+// Re-export generated types for convenience
+export '../generated/index.dart';
 
 /// Database client using Prisma Flutter Connector
 ///
@@ -13,8 +17,11 @@ import 'repositories/repositories.dart';
 /// - QueryExecutor for query execution
 /// - JsonQueryBuilder for type-safe query building
 class DatabaseClient {
-  DatabaseClient._(this._executor, this._connection) {
-    // Initialize repositories
+  DatabaseClient._(this._executor, this._connection, this._adapter) {
+    // Initialize type-safe PrismaClient
+    _prisma = PrismaClient(adapter: _adapter);
+
+    // Initialize legacy repositories (for backward compatibility)
     _userRepository = UserRepository(_executor);
     _accountRepository = AccountRepository(_executor);
     _sessionRepository = SessionRepository(_executor, _userRepository);
@@ -26,8 +33,12 @@ class DatabaseClient {
   static DatabaseClient? _instance;
   final QueryExecutor _executor;
   final pg.Connection _connection;
+  final PostgresAdapter _adapter;
 
-  // Repositories
+  // Type-safe PrismaClient (use this for new code)
+  late final PrismaClient _prisma;
+
+  // Legacy repositories (for backward compatibility)
   late final UserRepository _userRepository;
   late final AccountRepository _accountRepository;
   late final SessionRepository _sessionRepository;
@@ -65,11 +76,23 @@ class DatabaseClient {
     final adapter = PostgresAdapter(connection);
     final executor = QueryExecutor(adapter: adapter);
 
-    _instance = DatabaseClient._(executor, connection);
+    _instance = DatabaseClient._(executor, connection, adapter);
     return _instance!;
   }
 
   // ==================== Repository Accessors ====================
+
+  /// Get the type-safe PrismaClient for new code
+  ///
+  /// Use this for type-safe database operations with compile-time checking.
+  /// Example:
+  /// ```dart
+  /// final profile = await db.prisma.consulteeProfile.update(
+  ///   where: ConsulteeProfileWhereUniqueInput(id: profileId),
+  ///   data: UpdateConsulteeProfileInput(careerStage: CareerStage.earlyCareer),
+  /// );
+  /// ```
+  PrismaClient get prisma => _prisma;
 
   /// Get the query executor for direct access (advanced usage)
   QueryExecutor get executor => _executor;

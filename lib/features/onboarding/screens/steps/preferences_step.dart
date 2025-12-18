@@ -16,7 +16,7 @@ class PreferencesStep extends ConsumerStatefulWidget {
 
 class _PreferencesStepState extends ConsumerState<PreferencesStep> {
   BudgetPreference? _selectedBudget;
-  CommunicationMethod _selectedCommunication = CommunicationMethod.video;
+  ConsultationMode _selectedCommunication = ConsultationMode.video;
   String? _selectedLanguage;
 
   static const List<String> _languageOptions = [
@@ -40,7 +40,7 @@ class _PreferencesStepState extends ConsumerState<PreferencesStep> {
 
     _selectedBudget = prefs?.budgetPreference;
     _selectedCommunication =
-        prefs?.preferredCommunicationMethod ?? CommunicationMethod.video;
+        prefs?.preferredCommunicationMethod ?? ConsultationMode.video;
     _selectedLanguage = prefs?.preferredLanguage;
   }
 
@@ -139,7 +139,7 @@ class _PreferencesStepState extends ConsumerState<PreferencesStep> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: CommunicationMethod.values.map((method) {
+            children: ConsultationMode.values.map((method) {
               final isSelected = _selectedCommunication == method;
               return ChoiceChip(
                 label: Row(
@@ -238,25 +238,25 @@ class _PreferencesStepState extends ConsumerState<PreferencesStep> {
     }
   }
 
-  IconData _communicationIcon(CommunicationMethod method) {
+  IconData _communicationIcon(ConsultationMode method) {
     switch (method) {
-      case CommunicationMethod.video:
+      case ConsultationMode.video:
         return Icons.videocam_outlined;
-      case CommunicationMethod.audio:
+      case ConsultationMode.audio:
         return Icons.phone_outlined;
-      case CommunicationMethod.chat:
-        return Icons.chat_outlined;
+      case ConsultationMode.inPerson:
+        return Icons.people_outlined;
     }
   }
 
-  String _communicationLabel(CommunicationMethod method) {
+  String _communicationLabel(ConsultationMode method) {
     switch (method) {
-      case CommunicationMethod.video:
+      case ConsultationMode.video:
         return 'Video Call';
-      case CommunicationMethod.audio:
+      case ConsultationMode.audio:
         return 'Audio Call';
-      case CommunicationMethod.chat:
-        return 'Chat';
+      case ConsultationMode.inPerson:
+        return 'In-Person';
     }
   }
 }

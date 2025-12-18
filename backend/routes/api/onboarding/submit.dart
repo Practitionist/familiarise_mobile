@@ -129,10 +129,13 @@ Future<Response> onRequest(RequestContext context) async {
     // Remove password from response
     updatedUser.remove('password');
 
+    // Convert DateTime values to ISO8601 strings for JSON serialization
+    final serializedUser = _serializeForJson(updatedUser);
+
     return Response.json(
       body: {
         'success': true,
-        'user': updatedUser,
+        'user': serializedUser,
         'profileId': profileId,
       },
     );
@@ -294,4 +297,29 @@ DateTime? _parseDateTime(dynamic value) {
     return DateTime.tryParse(value);
   }
   return null;
+}
+
+/// Convert DateTime values to ISO8601 strings for JSON serialization
+Map<String, dynamic> _serializeForJson(Map<String, dynamic> map) {
+  final result = <String, dynamic>{};
+  for (final entry in map.entries) {
+    final value = entry.value;
+    if (value is DateTime) {
+      result[entry.key] = value.toUtc().toIso8601String();
+    } else if (value is Map<String, dynamic>) {
+      result[entry.key] = _serializeForJson(value);
+    } else if (value is List) {
+      result[entry.key] = value.map((e) {
+        if (e is DateTime) {
+          return e.toUtc().toIso8601String();
+        } else if (e is Map<String, dynamic>) {
+          return _serializeForJson(e);
+        }
+        return e;
+      }).toList();
+    } else {
+      result[entry.key] = value;
+    }
+  }
+  return result;
 }
