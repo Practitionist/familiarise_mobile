@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/env_config.dart';
 import '../constants/storage_keys.dart';
@@ -28,6 +30,8 @@ Dio dio(Ref ref) {
   // Add interceptors
   dio.interceptors.addAll([
     AuthInterceptor(ref),
+    // Add interceptor to convert _JsonMap on web
+    JsonMapConversionInterceptor(),
     ErrorInterceptor(),
     LogInterceptor(
       requestBody: true,
@@ -39,6 +43,36 @@ Dio dio(Ref ref) {
   return dio;
 }
 
+/// Interceptor to convert _JsonMap to Map<String, dynamic> on web
+class JsonMapConversionInterceptor extends Interceptor {
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    // Convert response data if needed
+    if (response.data != null) {
+      response.data = _deepConvertMap(response.data);
+    }
+    handler.next(response);
+  }
+
+  /// Recursively convert _JsonMap and _JsonList to standard Dart types
+  dynamic _deepConvertMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      // Already proper type, but recursively check nested values
+      return value.map((k, v) => MapEntry(k, _deepConvertMap(v)));
+    }
+    if (value is Map) {
+      // Convert _JsonMap to Map<String, dynamic>
+      return Map<String, dynamic>.fromEntries(
+        value.entries.map((e) => MapEntry(e.key.toString(), _deepConvertMap(e.value))),
+      );
+    }
+    if (value is List) {
+      return value.map(_deepConvertMap).toList();
+    }
+    return value;
+  }
+}
+
 /// Interceptor to add auth token to requests
 class AuthInterceptor extends Interceptor {
   // ignore: unused_field - kept for future use (e.g., accessing auth state)
@@ -46,15 +80,17 @@ class AuthInterceptor extends Interceptor {
 
   AuthInterceptor(this._ref);
 
-  static const _storage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage();
+  // Web uses SharedPreferences for token storage (see AuthRemoteSourceWebImpl)
+  static const _webTokenKey = 'auth_token';
 
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // Get token from secure storage
-    final token = await _storage.read(key: StorageKeys.authToken);
+    // Get token - web uses SharedPreferences, mobile uses SecureStorage
+    final token = await _getToken();
 
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -67,25 +103,44 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     // Handle 401 Unauthorized - clear token and redirect to login
     if (err.response?.statusCode == 401) {
-      _storage.delete(key: StorageKeys.authToken);
+      clearToken();
       // Auth state will be handled by auth provider
     }
     handler.next(err);
   }
 
+  /// Get token from appropriate storage based on platform
+  static Future<String?> _getToken() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_webTokenKey);
+    }
+    return _secureStorage.read(key: StorageKeys.authToken);
+  }
+
   /// Save auth token to secure storage
   static Future<void> saveToken(String token) async {
-    await _storage.write(key: StorageKeys.authToken, value: token);
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_webTokenKey, token);
+    } else {
+      await _secureStorage.write(key: StorageKeys.authToken, value: token);
+    }
   }
 
   /// Clear auth token from secure storage
   static Future<void> clearToken() async {
-    await _storage.delete(key: StorageKeys.authToken);
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_webTokenKey);
+    } else {
+      await _secureStorage.delete(key: StorageKeys.authToken);
+    }
   }
 
   /// Get current auth token
   static Future<String?> getToken() async {
-    return _storage.read(key: StorageKeys.authToken);
+    return _getToken();
   }
 }
 
@@ -104,6 +159,29 @@ class ErrorInterceptor extends Interceptor {
     );
   }
 
+  /// Safely convert response data to Map<String, dynamic>
+  /// Handles _JsonMap on Flutter web
+  Map<String, dynamic>? _safeMapFromData(dynamic data) {
+    if (data == null) return null;
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return null;
+  }
+
+  /// Safely extract a string value from a map
+  /// Handles cases where value might be a nested object
+  String? _safeStringFromMap(Map<String, dynamic> map, String key) {
+    final value = map[key];
+    if (value == null) return null;
+    if (value is String) return value;
+    // If it's a nested object, try to get a message or convert to string
+    if (value is Map) {
+      final nestedMap = Map<String, dynamic>.from(value);
+      return nestedMap['message']?.toString() ?? value.toString();
+    }
+    return value.toString();
+  }
+
   AppException _mapDioExceptionToAppException(DioException err) {
     switch (err.type) {
       case DioExceptionType.connectionTimeout:
@@ -120,13 +198,14 @@ class ErrorInterceptor extends Interceptor {
 
       case DioExceptionType.badResponse:
         final statusCode = err.response?.statusCode;
-        final data = err.response?.data;
+        final rawData = err.response?.data;
+        final data = _safeMapFromData(rawData);
 
         // Try to extract error message from response
         String message = 'An error occurred';
-        if (data is Map<String, dynamic>) {
-          message = data['message'] as String? ??
-              data['error'] as String? ??
+        if (data != null) {
+          message = _safeStringFromMap(data, 'message') ??
+              _safeStringFromMap(data, 'error') ??
               'An error occurred';
         }
 
@@ -145,8 +224,9 @@ class ErrorInterceptor extends Interceptor {
           );
         }
 
-        if (statusCode == 422 && data is Map<String, dynamic>) {
-          final errors = data['errors'] as Map<String, dynamic>?;
+        if (statusCode == 422 && data != null) {
+          final errorsRaw = data['errors'];
+          final errors = _safeMapFromData(errorsRaw);
           if (errors != null) {
             return ValidationException(
               errors: errors.map(

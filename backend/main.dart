@@ -12,9 +12,12 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   // Load environment variables
   final env = DotEnv()..load(['.env']);
 
-  final databaseUrl = env['DATABASE_URL'] ?? env['DIRECT_URL'];
+  // Use DIRECT_URL for direct PostgreSQL connection (no PgBouncer)
+  // PgBouncer in transaction mode doesn't support prepared statements
+  // which the prisma_flutter_connector uses internally
+  final databaseUrl = env['DIRECT_URL'] ?? env['DATABASE_URL'];
   if (databaseUrl == null) {
-    throw Exception('DATABASE_URL or DIRECT_URL must be set in .env');
+    throw Exception('DIRECT_URL or DATABASE_URL must be set in .env');
   }
 
   final jwtSecret = env['JWT_SECRET'];
