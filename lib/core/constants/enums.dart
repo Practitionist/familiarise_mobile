@@ -1,4 +1,5 @@
 /// Enums matching the Prisma schema from the web app
+library;
 
 enum UserRole {
   consultant,
