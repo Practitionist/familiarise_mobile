@@ -54,25 +54,34 @@ class DomainRepository extends BaseRepository {
         return results;
       }
     } catch (e) {
-      // Fall through to N+1 approach if include isn't supported yet
-      print('Note: Include not fully configured, using N+1 fallback: $e');
+      // Fall through to optimized 2-query approach if include isn't supported
+      print('Note: Include not fully configured, using 2-query fallback: $e');
     }
 
-    // Fallback: N+1 approach (get domains, then subdomains for each)
-    final domains = await findAll();
-    final result = <Map<String, dynamic>>[];
+    // Fallback: 2 parallel queries (optimized from N+1)
+    final results = await Future.wait([
+      findAll(),
+      _findAllSubDomains(),
+    ]);
 
-    for (final domain in domains) {
+    final domains = results[0];
+    final allSubDomains = results[1];
+
+    // Group subdomains by domainId in memory
+    final subDomainsByDomainId = <String, List<Map<String, dynamic>>>{};
+    for (final subDomain in allSubDomains) {
+      final domainId = subDomain['domainId'] as String;
+      (subDomainsByDomainId[domainId] ??= []).add(subDomain);
+    }
+
+    // Attach subdomains to their parent domains
+    return domains.map((domain) {
       final domainId = domain['id'] as String;
-      final subDomains = await findSubDomainsByDomainId(domainId);
-
-      result.add({
+      return {
         ...domain,
-        'subDomains': subDomains,
-      });
-    }
-
-    return result;
+        'subDomains': subDomainsByDomainId[domainId] ?? [],
+      };
+    }).toList();
   }
 
   /// Find a domain by ID
@@ -93,6 +102,16 @@ class DomainRepository extends BaseRepository {
         .model('SubDomain')
         .action(QueryAction.findMany)
         .where({'domainId': domainId}).orderBy({'name': 'asc'}).build();
+
+    return executeQueryAsMaps(query);
+  }
+
+  /// Get ALL subdomains (used for optimized batch loading)
+  Future<List<Map<String, dynamic>>> _findAllSubDomains() async {
+    final query = JsonQueryBuilder()
+        .model('SubDomain')
+        .action(QueryAction.findMany)
+        .orderBy({'name': 'asc'}).build();
 
     return executeQueryAsMaps(query);
   }

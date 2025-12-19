@@ -64,36 +64,9 @@ class OnboardingRemoteSourceImpl implements OnboardingRemoteSource {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Handle response.data which might be _JsonMap on web
-        final dynamic rawData = response.data;
-        final Map<String, dynamic> data;
-
-        if (rawData is Map<String, dynamic>) {
-          data = rawData;
-        } else if (rawData is Map) {
-          // Convert _JsonMap to Map<String, dynamic>
-          data = Map<String, dynamic>.from(rawData);
-        } else {
-          throw ServerException(
-            message: 'Invalid response format',
-            statusCode: response.statusCode,
-          );
-        }
-
-        final dynamic userData = data['user'];
-        final Map<String, dynamic> userMap;
-
-        if (userData is Map<String, dynamic>) {
-          userMap = userData;
-        } else if (userData is Map) {
-          userMap = Map<String, dynamic>.from(userData);
-        } else {
-          throw ServerException(
-            message: 'Invalid user data format',
-            statusCode: response.statusCode,
-          );
-        }
-
+        // JsonMapConversionInterceptor handles _JsonMap conversion globally
+        final data = response.data as Map<String, dynamic>;
+        final userMap = data['user'] as Map<String, dynamic>;
         return UserModel.fromJson(userMap);
       }
 
@@ -112,7 +85,9 @@ class OnboardingRemoteSourceImpl implements OnboardingRemoteSource {
         final data = rawData is Map ? Map<String, dynamic>.from(rawData) : null;
         if (data != null && data['errors'] != null) {
           final errors = data['errors'];
-          final errorsMap = errors is Map ? Map<String, dynamic>.from(errors) : <String, dynamic>{};
+          final errorsMap = errors is Map
+              ? Map<String, dynamic>.from(errors)
+              : <String, dynamic>{};
           throw ValidationException(
             errors: errorsMap.map(
               (key, value) => MapEntry(
