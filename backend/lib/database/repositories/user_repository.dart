@@ -12,8 +12,7 @@ class UserRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('users')
         .action(QueryAction.findFirst)
-        .where({'email': email})
-        .build();
+        .where({'email': email}).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -23,8 +22,7 @@ class UserRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('users')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -156,8 +154,7 @@ class UserRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('users')
         .action(QueryAction.delete)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
 
     await executeMutation(query);
   }

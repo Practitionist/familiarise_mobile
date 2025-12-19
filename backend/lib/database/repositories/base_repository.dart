@@ -19,6 +19,17 @@ abstract class BaseRepository {
     return _executor.executeInTransaction(callback);
   }
 
+  /// Helper to execute a query that returns a list of maps
+  Future<List<Map<String, dynamic>>> executeQueryAsMaps(
+    JsonQuery query, {
+    TransactionExecutor? txn,
+  }) async {
+    if (txn != null) {
+      return txn.executeQueryAsMaps(query);
+    }
+    return _executor.executeQueryAsMaps(query);
+  }
+
   /// Helper to execute a query that returns a single map
   Future<Map<String, dynamic>?> executeQueryAsSingleMap(
     JsonQuery query, {
@@ -40,6 +51,17 @@ abstract class BaseRepository {
     } else {
       await _executor.executeMutation(query);
     }
+  }
+
+  /// Helper to execute a count query
+  Future<int> executeCount(
+    JsonQuery query, {
+    TransactionExecutor? txn,
+  }) async {
+    if (txn != null) {
+      return txn.executeCount(query);
+    }
+    return _executor.executeCount(query);
   }
 
   /// Get current UTC timestamp as ISO8601 string

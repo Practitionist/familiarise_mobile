@@ -166,6 +166,29 @@ class Auth extends _$Auth {
       state = const AuthState.unauthenticated();
     }
   }
+
+  /// Refresh user data from repository
+  Future<void> refreshUser() async {
+    final repository = ref.read(authRepositoryProvider);
+    final result = await repository.getCurrentUser();
+
+    result.fold(
+      (failure) {
+        // Keep current state on failure
+      },
+      (user) {
+        if (user != null) {
+          state = AuthState.authenticated(user: user);
+        }
+      },
+    );
+  }
+
+  /// Update auth state with a new user object directly
+  /// Use this when you have fresh user data (e.g., after onboarding submit)
+  void updateUser(User user) {
+    state = AuthState.authenticated(user: user);
+  }
 }
 
 /// Convenience provider to get the current user

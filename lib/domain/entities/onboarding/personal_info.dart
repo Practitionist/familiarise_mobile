@@ -28,7 +28,15 @@ class PersonalInfo with _$PersonalInfo {
       _$PersonalInfoFromJson(json);
 
   /// Check if personal info is valid for proceeding
-  bool get isValid => name.trim().isNotEmpty;
+  bool get isValid {
+    // Name is required
+    if (name.trim().isEmpty) return false;
+
+    // Bio max length - Prisma constraint: @db.VarChar(160)
+    if (bio != null && bio!.length > 160) return false;
+
+    return true;
+  }
 
   /// Get display name or 'User' if empty
   String get displayName => name.trim().isNotEmpty ? name : 'User';

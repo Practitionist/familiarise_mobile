@@ -18,10 +18,9 @@ class AccountRepository extends BaseRepository {
         .model('accounts')
         .action(QueryAction.findFirst)
         .where({
-          'userId': userId,
-          'provider': provider,
-        })
-        .build();
+      'userId': userId,
+      'provider': provider,
+    }).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -38,19 +37,16 @@ class AccountRepository extends BaseRepository {
     String? idToken,
     TransactionExecutor? txn,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('accounts')
-        .action(QueryAction.create)
-        .data({
-          'id': id,
-          'userId': userId,
-          'type': 'oauth',
-          'provider': provider,
-          'providerAccountId': providerAccountId,
-          'access_token': accessToken,
-          'id_token': idToken,
-        })
-        .build();
+    final query =
+        JsonQueryBuilder().model('accounts').action(QueryAction.create).data({
+      'id': id,
+      'userId': userId,
+      'type': 'oauth',
+      'provider': provider,
+      'providerAccountId': providerAccountId,
+      'access_token': accessToken,
+      'id_token': idToken,
+    }).build();
 
     final result = await executeQueryAsSingleMap(query, txn: txn);
     if (result == null) {
@@ -68,17 +64,14 @@ class AccountRepository extends BaseRepository {
     required String userId,
     TransactionExecutor? txn,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('accounts')
-        .action(QueryAction.create)
-        .data({
-          'id': id,
-          'userId': userId,
-          'type': 'credentials',
-          'provider': 'credentials',
-          'providerAccountId': userId,
-        })
-        .build();
+    final query =
+        JsonQueryBuilder().model('accounts').action(QueryAction.create).data({
+      'id': id,
+      'userId': userId,
+      'type': 'credentials',
+      'provider': 'credentials',
+      'providerAccountId': userId,
+    }).build();
 
     final result = await executeQueryAsSingleMap(query, txn: txn);
     if (result == null) {

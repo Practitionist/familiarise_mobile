@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_widgets.dart';
 import 'steps/steps.dart';
@@ -15,6 +16,18 @@ class OnboardingShellScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final notifier = ref.read(onboardingProvider.notifier);
+
+    // Show loading indicator while draft is being loaded
+    if (state.isLoadingDraft) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Complete Your Profile'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -158,8 +171,11 @@ class OnboardingShellScreen extends ConsumerWidget {
     if (state.currentStep == state.totalSteps - 1) {
       final user = await notifier.submit();
       if (user != null && context.mounted) {
-        // Navigate to main app
-        context.go('/dashboard');
+        // Update auth state with the user from submit (has onboardingCompleted=true)
+        ref.read(authProvider.notifier).updateUser(user);
+        if (context.mounted) {
+          context.go('/dashboard');
+        }
       }
     } else {
       // Go to next step

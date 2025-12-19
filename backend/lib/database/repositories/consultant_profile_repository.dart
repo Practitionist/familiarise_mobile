@@ -15,8 +15,7 @@ class ConsultantProfileRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsultantProfile')
         .action(QueryAction.findFirst)
-        .where({'userId': userId})
-        .build();
+        .where({'userId': userId}).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -26,8 +25,7 @@ class ConsultantProfileRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsultantProfile')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -132,8 +130,7 @@ class ConsultantProfileRepository extends BaseRepository {
     final deleteQuery = JsonQueryBuilder()
         .model('_ConsultantProfileToSubDomain')
         .action(QueryAction.deleteMany)
-        .where({'A': profileId})
-        .build();
+        .where({'A': profileId}).build();
 
     await executeMutation(deleteQuery, txn: txn);
 
@@ -143,10 +140,9 @@ class ConsultantProfileRepository extends BaseRepository {
           .model('_ConsultantProfileToSubDomain')
           .action(QueryAction.create)
           .data({
-            'A': profileId,
-            'B': subDomainId,
-          })
-          .build();
+        'A': profileId,
+        'B': subDomainId,
+      }).build();
 
       await executeQueryAsSingleMap(insertQuery, txn: txn);
     }
@@ -157,8 +153,7 @@ class ConsultantProfileRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsultantProfile')
         .action(QueryAction.deleteMany)
-        .where({'userId': userId})
-        .build();
+        .where({'userId': userId}).build();
 
     await executeMutation(query);
   }

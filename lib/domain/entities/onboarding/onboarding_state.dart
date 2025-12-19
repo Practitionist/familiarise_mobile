@@ -46,6 +46,9 @@ class OnboardingState with _$OnboardingState {
 
     /// Whether this state was loaded from a draft
     @Default(false) bool isDraft,
+
+    /// Whether draft is currently being loaded
+    @Default(true) bool isLoadingDraft,
   }) = _OnboardingState;
 
   const OnboardingState._();

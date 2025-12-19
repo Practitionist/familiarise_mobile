@@ -15,8 +15,7 @@ class ConsulteeProfileRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsulteeProfile')
         .action(QueryAction.findFirst)
-        .where({'userId': userId})
-        .build();
+        .where({'userId': userId}).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -26,8 +25,7 @@ class ConsulteeProfileRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsulteeProfile')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
 
     return executeQueryAsSingleMap(query);
   }
@@ -45,12 +43,11 @@ class ConsulteeProfileRepository extends BaseRepository {
         .model('ConsulteeProfile')
         .action(QueryAction.create)
         .data({
-          'id': id,
-          'userId': userId,
-          'createdAt': nowIso8601,
-          'updatedAt': nowIso8601,
-        })
-        .build();
+      'id': id,
+      'userId': userId,
+      'createdAt': nowIso8601,
+      'updatedAt': nowIso8601,
+    }).build();
 
     final result = await executeQueryAsSingleMap(query, txn: txn);
     if (result == null) {
@@ -62,7 +59,7 @@ class ConsulteeProfileRepository extends BaseRepository {
   /// Upsert a consultee profile (create or update)
   ///
   /// Used during onboarding to set all profile fields.
-  /// If profile exists, updates it; otherwise creates new one.
+  /// Uses the connector's native upsert support (ON CONFLICT DO UPDATE).
   Future<Map<String, dynamic>> upsert({
     required String userId,
     String? occupation,
@@ -77,63 +74,73 @@ class ConsulteeProfileRepository extends BaseRepository {
     String? linkedinUrl,
     TransactionExecutor? txn,
   }) async {
-    // Check if profile exists
+    // First check if profile exists to get its ID
     final existing = await findByUserId(userId);
+    final profileId = existing?['id'] as String? ?? _uuid.v4();
 
-    final data = <String, dynamic>{
+    // Build create data (all fields including required ones)
+    final createData = <String, dynamic>{
+      'id': profileId,
+      'userId': userId,
+      'createdAt': nowIso8601,
       'updatedAt': nowIso8601,
     };
 
-    // Add optional fields
-    if (occupation != null) data['occupation'] = occupation;
-    if (aboutMe != null) data['aboutMe'] = aboutMe;
-    if (careerStage != null) data['careerStage'] = careerStage;
-    if (currentCompany != null) data['currentCompany'] = currentCompany;
-    if (industry != null) data['industry'] = industry;
-    if (skillsToDevelop != null) data['skillsToDevelop'] = skillsToDevelop;
-    if (budgetPreference != null) data['budgetPreference'] = budgetPreference;
+    // Add optional fields to create data
+    if (occupation != null) createData['occupation'] = occupation;
+    if (aboutMe != null) createData['aboutMe'] = aboutMe;
+    if (careerStage != null) createData['careerStage'] = careerStage;
+    if (currentCompany != null) createData['currentCompany'] = currentCompany;
+    if (industry != null) createData['industry'] = industry;
+    if (skillsToDevelop != null)
+      createData['skillsToDevelop'] = skillsToDevelop;
+    if (budgetPreference != null)
+      createData['budgetPreference'] = budgetPreference;
     if (preferredCommunicationMethod != null) {
-      data['preferredCommunicationMethod'] = preferredCommunicationMethod;
+      createData['preferredCommunicationMethod'] = preferredCommunicationMethod;
     }
     if (preferredLanguage != null) {
-      data['preferredLanguage'] = preferredLanguage;
+      createData['preferredLanguage'] = preferredLanguage;
     }
-    if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
+    if (linkedinUrl != null) createData['linkedinUrl'] = linkedinUrl;
 
-    if (existing != null) {
-      // Update existing profile using primary key (id), not userId
-      final existingId = existing['id'] as String;
-      final query = JsonQueryBuilder()
-          .model('ConsulteeProfile')
-          .action(QueryAction.update)
-          .where({'id': existingId})
-          .data(data)
-          .build();
+    // Build update data (only fields that should change on conflict)
+    final updateData = <String, dynamic>{
+      'updatedAt': nowIso8601,
+    };
 
-      final result = await executeQueryAsSingleMap(query, txn: txn);
-      if (result == null) {
-        throw Exception('Failed to update consultee profile');
-      }
-      return result;
-    } else {
-      // Create new profile
-      final id = _uuid.v4();
-      data['id'] = id;
-      data['userId'] = userId;
-      data['createdAt'] = nowIso8601;
-
-      final query = JsonQueryBuilder()
-          .model('ConsulteeProfile')
-          .action(QueryAction.create)
-          .data(data)
-          .build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
-      if (result == null) {
-        throw Exception('Failed to create consultee profile');
-      }
-      return result;
+    // Add optional fields to update data
+    if (occupation != null) updateData['occupation'] = occupation;
+    if (aboutMe != null) updateData['aboutMe'] = aboutMe;
+    if (careerStage != null) updateData['careerStage'] = careerStage;
+    if (currentCompany != null) updateData['currentCompany'] = currentCompany;
+    if (industry != null) updateData['industry'] = industry;
+    if (skillsToDevelop != null)
+      updateData['skillsToDevelop'] = skillsToDevelop;
+    if (budgetPreference != null)
+      updateData['budgetPreference'] = budgetPreference;
+    if (preferredCommunicationMethod != null) {
+      updateData['preferredCommunicationMethod'] = preferredCommunicationMethod;
     }
+    if (preferredLanguage != null) {
+      updateData['preferredLanguage'] = preferredLanguage;
+    }
+    if (linkedinUrl != null) updateData['linkedinUrl'] = linkedinUrl;
+
+    // Use the connector's native upsert (ON CONFLICT DO UPDATE)
+    final query = JsonQueryBuilder()
+        .model('ConsulteeProfile')
+        .action(QueryAction.upsert)
+        .where({'id': profileId}).data({
+      'create': createData,
+      'update': updateData,
+    }).build();
+
+    final result = await executeQueryAsSingleMap(query, txn: txn);
+    if (result == null) {
+      throw Exception('Failed to upsert consultee profile');
+    }
+    return result;
   }
 
   /// Delete a consultee profile by user ID
@@ -141,8 +148,7 @@ class ConsulteeProfileRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsulteeProfile')
         .action(QueryAction.deleteMany)
-        .where({'userId': userId})
-        .build();
+        .where({'userId': userId}).build();
 
     await executeMutation(query);
   }

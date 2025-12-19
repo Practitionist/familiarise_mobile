@@ -20,8 +20,7 @@ class SessionRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('sessions')
         .action(QueryAction.findUnique)
-        .where({'id': sessionId})
-        .build();
+        .where({'id': sessionId}).build();
 
     final session = await executeQueryAsSingleMap(query);
     if (session == null) return null;
@@ -34,8 +33,7 @@ class SessionRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('sessions')
         .action(QueryAction.findFirst)
-        .where({'sessionToken': sessionToken})
-        .build();
+        .where({'sessionToken': sessionToken}).build();
 
     final session = await executeQueryAsSingleMap(query);
     if (session == null) return null;
@@ -50,16 +48,13 @@ class SessionRepository extends BaseRepository {
     required String userId,
     required DateTime expires,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('sessions')
-        .action(QueryAction.create)
-        .data({
-          'id': id,
-          'sessionToken': sessionToken,
-          'userId': userId,
-          'expires': expires.toIso8601String(),
-        })
-        .build();
+    final query =
+        JsonQueryBuilder().model('sessions').action(QueryAction.create).data({
+      'id': id,
+      'sessionToken': sessionToken,
+      'userId': userId,
+      'expires': expires.toIso8601String(),
+    }).build();
 
     final result = await executeQueryAsSingleMap(query);
     if (result == null) {
@@ -73,8 +68,7 @@ class SessionRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('sessions')
         .action(QueryAction.delete)
-        .where({'id': sessionId})
-        .build();
+        .where({'id': sessionId}).build();
 
     await executeMutation(query);
   }
@@ -84,8 +78,7 @@ class SessionRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('sessions')
         .action(QueryAction.deleteMany)
-        .where({'userId': userId})
-        .build();
+        .where({'userId': userId}).build();
 
     await executeMutation(query);
   }
@@ -97,9 +90,8 @@ class SessionRepository extends BaseRepository {
     // Check if expired
     final expires = session['expires'];
     if (expires != null) {
-      final expiresAt = expires is DateTime
-          ? expires
-          : DateTime.parse(expires.toString());
+      final expiresAt =
+          expires is DateTime ? expires : DateTime.parse(expires.toString());
       if (expiresAt.isBefore(DateTime.now().toUtc())) {
         return null;
       }

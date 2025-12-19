@@ -9,7 +9,6 @@ import '../../../data/datasources/local/auth_local_source.dart';
 import '../../../data/repositories/onboarding_repository_impl.dart';
 import '../../../domain/entities/onboarding/onboarding_entities.dart';
 import '../../../domain/entities/user.dart';
-import '../../auth/providers/auth_provider.dart';
 
 part 'onboarding_provider.g.dart';
 
@@ -29,11 +28,16 @@ class Onboarding extends _$Onboarding {
 
     result.fold(
       (failure) {
-        // Ignore draft load failures silently
+        // Draft load failed, mark loading as complete
+        state = state.copyWith(isLoadingDraft: false);
       },
       (draft) {
         if (draft != null) {
-          state = draft;
+          // Restore draft state but mark loading as complete
+          state = draft.copyWith(isLoadingDraft: false);
+        } else {
+          // No draft found, mark loading as complete
+          state = state.copyWith(isLoadingDraft: false);
         }
       },
     );
@@ -219,8 +223,8 @@ class Onboarding extends _$Onboarding {
         final localSource = ref.read(authLocalSourceProvider);
         await localSource.setOnboardingCompleted(true);
 
-        // Refresh auth state to update user
-        ref.invalidate(authProvider);
+        // Note: Auth state refresh is handled by the caller (shell screen)
+        // to ensure navigation happens after auth state is updated
 
         return user;
       },
