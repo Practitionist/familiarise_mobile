@@ -27,6 +27,8 @@ class DatabaseClient {
     _consulteeProfileRepository = ConsulteeProfileRepository(_executor);
     _consultantProfileRepository = ConsultantProfileRepository(_executor);
     _domainRepository = DomainRepository(_executor, _connection);
+    _consultantExploreRepository =
+        ConsultantExploreRepository(_executor, _connection);
   }
 
   static DatabaseClient? _instance;
@@ -44,6 +46,7 @@ class DatabaseClient {
   late final ConsulteeProfileRepository _consulteeProfileRepository;
   late final ConsultantProfileRepository _consultantProfileRepository;
   late final DomainRepository _domainRepository;
+  late final ConsultantExploreRepository _consultantExploreRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -115,6 +118,10 @@ class DatabaseClient {
 
   /// Domain operations repository
   DomainRepository get domains => _domainRepository;
+
+  /// Consultant explore repository (for browsing and discovery)
+  ConsultantExploreRepository get consultantExplore =>
+      _consultantExploreRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all
