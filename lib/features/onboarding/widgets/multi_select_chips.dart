@@ -128,7 +128,8 @@ class _TagInputState extends State<TagInput> {
   void _addTag(String tag) {
     final trimmed = tag.trim();
     if (trimmed.isEmpty) return;
-    if (widget.tags.contains(trimmed)) return;
+    // Case-insensitive duplicate check to prevent "React" and "react" as separate tags
+    if (widget.tags.any((t) => t.toLowerCase() == trimmed.toLowerCase())) return;
     if (widget.maxTags != null && widget.tags.length >= widget.maxTags!) return;
 
     widget.onChanged([...widget.tags, trimmed]);
@@ -144,7 +145,8 @@ class _TagInputState extends State<TagInput> {
     final query = _controller.text.toLowerCase();
     return widget.suggestions!
         .where((s) =>
-            s.toLowerCase().contains(query) && !widget.tags.contains(s))
+            s.toLowerCase().contains(query) &&
+            !widget.tags.any((t) => t.toLowerCase() == s.toLowerCase()))
         .toList();
   }
 
