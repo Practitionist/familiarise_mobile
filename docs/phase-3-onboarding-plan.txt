@@ -1,0 +1,180 @@
+# Phase 3: Onboarding Implementation Plan
+
+## Status: IN PROGRESS
+## Branch: feature/phase-3-onboarding
+
+---
+
+## Progress Tracker
+
+### Step 1: Backend Foundation [COMPLETED]
+- [x] Refactored database layer into clean architecture (repositories pattern)
+- [x] Added database operations (upsert profiles, fetch domains)
+- [x] Created GET /api/domains endpoint
+- [x] Created POST /api/onboarding/submit endpoint
+- [x] Created POST /api/upload/image endpoint
+
+### Step 2: Domain Layer (Flutter) [PENDING]
+- [ ] Create onboarding entities
+- [ ] Create repository interfaces
+
+### Step 3: Data Layer (Flutter) [PENDING]
+- [ ] Create models with Freezed
+- [ ] Create remote/local data sources
+- [ ] Implement repositories
+
+### Step 4: Providers [PENDING]
+- [ ] OnboardingProvider
+- [ ] OnboardingDraftProvider
+- [ ] DomainProvider
+- [ ] ImageUploadProvider
+
+### Step 5: UI Components [PENDING]
+- [ ] Progress bar, selectors, pickers
+- [ ] Profile image picker
+
+### Step 6: Step Screens [PENDING]
+- [ ] 7 step screens
+
+### Step 7: Navigation [PENDING]
+- [ ] Onboarding shell screen
+- [ ] Router updates
+
+### Step 8: Integration & Testing [PENDING]
+
+---
+
+## Completed Work Details
+
+### Backend Database Refactoring
+
+Created clean architecture for database layer:
+
+```
+backend/lib/database/
+├── database_client.dart              # Main entry point (refactored)
+└── repositories/
+    ├── base_repository.dart          # Base class with common operations
+    ├── user_repository.dart          # User CRUD + onboarding update
+    ├── account_repository.dart       # OAuth/credentials accounts
+    ├── session_repository.dart       # Session management
+    ├── consultee_profile_repository.dart  # Consultee profile upsert
+    ├── consultant_profile_repository.dart # Consultant profile upsert
+    ├── domain_repository.dart        # Domains/subdomains fetching
+    └── repositories.dart             # Barrel export file
+```
+
+### API Endpoints Created
+
+```
+backend/routes/api/
+├── domains/
+│   └── index.dart           # GET /api/domains
+├── onboarding/
+│   └── submit.dart          # POST /api/onboarding/submit
+└── upload/
+    └── image.dart           # POST /api/upload/image
+```
+
+---
+
+## Original Plan
+
+### User Requirements
+- Roles Supported: CONSULTEE and CONSULTANT (not STAFF/ADMIN)
+- Role Selection: During onboarding (Step 0)
+- Profile Image: Upload to Supabase Storage
+- Skip Option: Skippable in dev mode, mandatory in production
+- Draft Persistence: Save progress locally for resume capability
+- Consultant Availability: Info screen explaining slots must be set on web
+
+### Conflict Handling (Web + Mobile Simultaneous)
+- Backend uses upsert pattern - last write wins
+- userId @unique on profile tables prevents duplicates
+- No errors - data replacement on re-submission
+
+### Flow Structure
+
+**CONSULTEE (5 steps)**
+| Step | Name | Fields |
+|------|------|--------|
+| 0 | Personal Info + Role | name, phone, DOB, gender, timezone, image, role |
+| 1 | Profile | occupation, aboutMe, careerStage, company, industry, skills |
+| 2 | Preferences | communication method, language, budget |
+| 3 | Agreement | ToS, Privacy acceptance |
+| 4 | Review & Submit | Summary, submit button |
+
+**CONSULTANT (5 steps)**
+| Step | Name | Fields |
+|------|------|--------|
+| 0 | Personal Info + Role | name, phone, DOB, gender, timezone, image, role |
+| 1 | Professional Profile | experience, description, domain, subdomains, headline |
+| 2 | Availability Info | Info card (slots set on web) |
+| 3 | Agreement | ToS, Privacy acceptance |
+| 4 | Review & Submit | Summary, submit button |
+
+### Files to Create (Flutter)
+
+**Domain Layer**
+```
+lib/domain/entities/onboarding/
+├── onboarding_state.dart
+├── personal_info.dart
+├── consultee_profile_data.dart
+├── consultant_profile_data.dart
+├── preferences_data.dart
+└── agreement_data.dart
+
+lib/domain/repositories/
+├── onboarding_repository.dart
+└── domain_repository.dart
+```
+
+**Data Layer**
+```
+lib/data/models/onboarding/
+├── onboarding_request_model.dart
+├── consultee_profile_model.dart
+├── consultant_profile_model.dart
+├── domain_model.dart
+└── onboarding_draft_model.dart
+
+lib/data/datasources/
+├── local/onboarding_local_source.dart
+└── remote/
+    ├── onboarding_remote_source.dart
+    └── domain_remote_source.dart
+
+lib/data/repositories/
+├── onboarding_repository_impl.dart
+└── domain_repository_impl.dart
+```
+
+**Feature Layer**
+```
+lib/features/onboarding/
+├── providers/
+│   ├── onboarding_provider.dart
+│   ├── onboarding_draft_provider.dart
+│   ├── domain_provider.dart
+│   └── image_upload_provider.dart
+├── screens/
+│   ├── onboarding_shell_screen.dart
+│   └── steps/
+│       ├── personal_info_step.dart
+│       ├── consultee_profile_step.dart
+│       ├── consultant_profile_step.dart
+│       ├── preferences_step.dart
+│       ├── availability_info_step.dart
+│       ├── agreement_step.dart
+│       └── review_submit_step.dart
+└── widgets/
+    ├── onboarding_progress_bar.dart
+    ├── role_selection_card.dart
+    ├── profile_image_picker.dart
+    └── (other widgets)
+```
+
+---
+
+## Estimated Total: ~49 files

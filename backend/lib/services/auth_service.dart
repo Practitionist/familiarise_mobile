@@ -1,9 +1,8 @@
-import 'package:bcrypt/bcrypt.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/google_token_verifier.dart';
 import 'package:backend/services/jwt_service.dart';
+import 'package:bcrypt/bcrypt.dart';
+import 'package:uuid/uuid.dart';
 
 /// Exception thrown for authentication errors
 class AuthException implements Exception {
@@ -209,8 +208,10 @@ class AuthService {
       // Mobile: Verify ID token (preferred method)
       googleUser = await _tokenVerifier.verifyIdToken(idToken);
     } else if (accessToken != null && accessToken.isNotEmpty) {
-      // Web: Use access token to fetch user info from Google's userinfo endpoint
-      googleUser = await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
+      // Web: Use access token to fetch user info from Google's userinfo
+      // endpoint
+      googleUser =
+          await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
     } else {
       throw AuthException(
         'Either idToken or accessToken is required',

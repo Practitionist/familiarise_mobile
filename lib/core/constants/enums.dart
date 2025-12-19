@@ -36,6 +36,12 @@ enum ConsultationMode {
   inPerson,
 }
 
+enum CommunicationMethod {
+  video,
+  audio,
+  chat,
+}
+
 enum AppointmentType {
   consultation,
   subscription,

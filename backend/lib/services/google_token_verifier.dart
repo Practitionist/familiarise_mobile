@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:backend/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:backend/services/auth_service.dart';
-
 /// Verified Google user information extracted from ID token
+///
+/// Contains the stable Google user ID (sub) and other profile information.
 class GoogleUserInfo {
+  /// Creates a GoogleUserInfo with required and optional fields
   GoogleUserInfo({
     required this.sub,
     required this.email,
@@ -33,9 +35,10 @@ class GoogleUserInfo {
 
 /// Service to verify Google ID tokens
 ///
-/// Verifies tokens using Google's tokeninfo endpoint and extracts
-/// user information securely from the verified token.
+/// Verifies tokens using Google's tokeninfo endpoint and extracts user
+/// information securely from the verified token.
 class GoogleTokenVerifier {
+  /// Creates a GoogleTokenVerifier with an optional HTTP client
   GoogleTokenVerifier({http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client();
 
@@ -56,7 +59,6 @@ class GoogleTokenVerifier {
       if (response.statusCode != 200) {
         throw AuthException(
           'Invalid Google ID token',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -69,7 +71,6 @@ class GoogleTokenVerifier {
         if (tokenAudience != expectedClientId) {
           throw AuthException(
             'Token audience mismatch',
-            statusCode: HttpStatus.unauthorized,
           );
         }
       }
@@ -83,7 +84,6 @@ class GoogleTokenVerifier {
           if (expiresAt.isBefore(DateTime.now())) {
             throw AuthException(
               'Google ID token has expired',
-              statusCode: HttpStatus.unauthorized,
             );
           }
         }
@@ -96,14 +96,12 @@ class GoogleTokenVerifier {
       if (sub == null || sub.isEmpty) {
         throw AuthException(
           'Invalid token: missing subject claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
       if (email == null || email.isEmpty) {
         throw AuthException(
           'Invalid token: missing email claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -119,16 +117,15 @@ class GoogleTokenVerifier {
     } catch (e) {
       throw AuthException(
         'Failed to verify Google ID token: ${e.runtimeType}',
-        statusCode: HttpStatus.unauthorized,
       );
     }
   }
 
   /// Fetch user info using access token (for web clients)
   ///
-  /// On web, google_sign_in cannot provide an ID token with the signIn() method.
-  /// This method uses Google's userinfo endpoint to fetch verified user data
-  /// using the access token instead.
+  /// On web, google_sign_in cannot provide an ID token with the signIn()
+  /// method. This method uses Google's userinfo endpoint to fetch verified
+  /// user data using the access token instead.
   ///
   /// This is equally secure because:
   /// - The access token is obtained through Google's OAuth flow
@@ -146,7 +143,6 @@ class GoogleTokenVerifier {
       if (response.statusCode != 200) {
         throw AuthException(
           'Invalid Google access token',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -158,14 +154,12 @@ class GoogleTokenVerifier {
       if (sub == null || sub.isEmpty) {
         throw AuthException(
           'Invalid token: missing subject claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
       if (email == null || email.isEmpty) {
         throw AuthException(
           'Invalid token: missing email claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -181,7 +175,6 @@ class GoogleTokenVerifier {
     } catch (e) {
       throw AuthException(
         'Failed to fetch Google user info: ${e.runtimeType}',
-        statusCode: HttpStatus.unauthorized,
       );
     }
   }

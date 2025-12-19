@@ -7,6 +7,7 @@ import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
+import '../features/onboarding/screens/onboarding_shell_screen.dart';
 
 part 'router.g.dart';
 
@@ -33,11 +34,13 @@ GoRouter router(Ref ref) {
     redirect: (context, state) {
       final isAuthenticated = authState.isAuthenticated;
       final isLoading = authState.isLoading;
+      final needsOnboarding = authState.needsOnboarding;
       final isInitial = authState.maybeMap(
         initial: (_) => true,
         orElse: () => false,
       );
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isOnboardingRoute = state.matchedLocation == '/onboarding';
       final isSplash = state.matchedLocation == '/';
 
       // Still initializing auth state, stay on splash
@@ -50,13 +53,29 @@ GoRouter router(Ref ref) {
         return '/auth/sign-in';
       }
 
-      // On splash and not loading -> redirect based on auth status
-      if (isSplash && !isLoading && !isInitial) {
-        return isAuthenticated ? '/dashboard' : '/auth/sign-in';
+      // Authenticated but needs onboarding -> redirect to onboarding
+      if (isAuthenticated && needsOnboarding && !isOnboardingRoute) {
+        return '/onboarding';
       }
 
-      // Authenticated and on auth route -> redirect to dashboard
-      if (isAuthenticated && isAuthRoute) {
+      // On splash and not loading -> redirect based on auth status
+      if (isSplash && !isLoading && !isInitial) {
+        if (!isAuthenticated) {
+          return '/auth/sign-in';
+        }
+        if (needsOnboarding) {
+          return '/onboarding';
+        }
+        return '/dashboard';
+      }
+
+      // Authenticated, completed onboarding, and on auth route -> redirect to dashboard
+      if (isAuthenticated && !needsOnboarding && isAuthRoute) {
+        return '/dashboard';
+      }
+
+      // Authenticated, completed onboarding, but on onboarding route -> redirect to dashboard
+      if (isAuthenticated && !needsOnboarding && isOnboardingRoute) {
         return '/dashboard';
       }
 
@@ -116,6 +135,13 @@ GoRouter router(Ref ref) {
             child: CircularProgressIndicator(),
           ),
         ),
+      ),
+
+      // Onboarding
+      GoRoute(
+        path: '/onboarding',
+        name: 'onboarding',
+        builder: (context, state) => const OnboardingShellScreen(),
       ),
 
       // Dashboard (placeholder - to be implemented in later phases)

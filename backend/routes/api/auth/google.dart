@@ -34,7 +34,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (!hasIdToken && !hasAccessToken) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Either idToken or accessToken is required'}},
+        body: {
+          'error': {'message': 'Either idToken or accessToken is required'},
+        },
       );
     }
 
