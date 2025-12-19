@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 /// Repository for consultee profile database operations
 class ConsulteeProfileRepository extends BaseRepository {
   /// Create a consultee profile repository with the given executor
-  ConsulteeProfileRepository(super.executor);
+  ConsulteeProfileRepository(super._executor);
 
   static const _uuid = Uuid();
 

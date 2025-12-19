@@ -12,7 +12,7 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// - Raw SQL API as escape hatch
 class DomainRepository extends BaseRepository {
   /// Create a domain repository with the given executor and connection
-  DomainRepository(super.executor, this._connection);
+  DomainRepository(super._executor, this._connection);
 
   // Kept for potential future raw SQL needs
   // ignore: unused_field

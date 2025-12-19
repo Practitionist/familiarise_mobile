@@ -106,7 +106,8 @@ class DatabaseClient {
   SessionRepository get sessions => _sessionRepository;
 
   /// Consultee profile operations repository
-  ConsulteeProfileRepository get consulteeProfiles => _consulteeProfileRepository;
+  ConsulteeProfileRepository get consulteeProfiles =>
+      _consulteeProfileRepository;
 
   /// Consultant profile operations repository
   ConsultantProfileRepository get consultantProfiles =>
@@ -115,9 +116,9 @@ class DatabaseClient {
   /// Domain operations repository
   DomainRepository get domains => _domainRepository;
 
-  // ==================== Legacy Methods (for backward compatibility) ====================
-  // These methods delegate to repositories. They will be deprecated
-  // once all services are updated to use repositories directly.
+  // ==================== Legacy Methods ====================
+  // These methods delegate to repositories. They will be deprecated once all
+  // services are updated to use repositories directly.
 
   /// @deprecated Use users.findByEmail instead
   Future<Map<String, dynamic>?> findUserByEmail(String email) =>

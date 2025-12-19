@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 /// Repository for consultant profile database operations
 class ConsultantProfileRepository extends BaseRepository {
   /// Create a consultant profile repository with the given executor
-  ConsultantProfileRepository(super.executor);
+  ConsultantProfileRepository(super._executor);
 
   static const _uuid = Uuid();
 
@@ -75,7 +75,8 @@ class ConsultantProfileRepository extends BaseRepository {
       if (videoIntroUrl != null) 'videoIntroUrl': videoIntroUrl,
     };
 
-    // Build create data (includes all update fields plus required create fields)
+    // Build create data (includes all update fields plus required create
+    // fields)
     final createData = <String, dynamic>{
       'id': profileId,
       'userId': userId,
@@ -102,8 +103,11 @@ class ConsultantProfileRepository extends BaseRepository {
 
   /// Update consultant-subdomain relations
   ///
-  /// This handles the many-to-many relationship between consultants
-  /// and subdomains via the _ConsultantProfileToSubDomain join table.
+  /// This handles the many-to-many relationship between consultants and
+  /// subdomains via the _ConsultantProfileToSubDomain join table.
+  ///
+  /// Uses batch insert (createMany) for efficiency - single INSERT with
+  /// multiple VALUES instead of N individual INSERT queries.
   Future<void> updateSubDomains({
     required String profileId,
     required List<String> subDomainIds,
@@ -117,17 +121,24 @@ class ConsultantProfileRepository extends BaseRepository {
 
     await executeMutation(deleteQuery, txn: txn);
 
-    // Then, create new relations
-    for (final subDomainId in subDomainIds) {
+    // Batch insert new relations using createMany
+    if (subDomainIds.isNotEmpty) {
       final insertQuery = JsonQueryBuilder()
           .model('_ConsultantProfileToSubDomain')
-          .action(QueryAction.create)
+          .action(QueryAction.createMany)
           .data({
-        'A': profileId,
-        'B': subDomainId,
-      }).build();
+            'data': subDomainIds
+                .map(
+                  (subDomainId) => {
+                    'A': profileId,
+                    'B': subDomainId,
+                  },
+                )
+                .toList(),
+          })
+          .build();
 
-      await executeQueryAsSingleMap(insertQuery, txn: txn);
+      await executeMutation(insertQuery, txn: txn);
     }
   }
 

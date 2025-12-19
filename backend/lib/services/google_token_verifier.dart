@@ -5,7 +5,10 @@ import 'package:backend/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 /// Verified Google user information extracted from ID token
+///
+/// Contains the stable Google user ID (sub) and other profile information.
 class GoogleUserInfo {
+  /// Creates a GoogleUserInfo with required and optional fields
   GoogleUserInfo({
     required this.sub,
     required this.email,
@@ -32,9 +35,10 @@ class GoogleUserInfo {
 
 /// Service to verify Google ID tokens
 ///
-/// Verifies tokens using Google's tokeninfo endpoint and extracts
-/// user information securely from the verified token.
+/// Verifies tokens using Google's tokeninfo endpoint and extracts user
+/// information securely from the verified token.
 class GoogleTokenVerifier {
+  /// Creates a GoogleTokenVerifier with an optional HTTP client
   GoogleTokenVerifier({http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client();
 
@@ -119,9 +123,9 @@ class GoogleTokenVerifier {
 
   /// Fetch user info using access token (for web clients)
   ///
-  /// On web, google_sign_in cannot provide an ID token with the signIn() method.
-  /// This method uses Google's userinfo endpoint to fetch verified user data
-  /// using the access token instead.
+  /// On web, google_sign_in cannot provide an ID token with the signIn()
+  /// method. This method uses Google's userinfo endpoint to fetch verified
+  /// user data using the access token instead.
   ///
   /// This is equally secure because:
   /// - The access token is obtained through Google's OAuth flow

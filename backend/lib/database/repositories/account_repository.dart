@@ -6,7 +6,7 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Handles OAuth and credentials account linking.
 class AccountRepository extends BaseRepository {
   /// Create an account repository with the given executor
-  AccountRepository(super.executor);
+  AccountRepository(super._executor);
 
   /// Find account by userId and provider
   Future<Map<String, dynamic>?> findByUserAndProvider(

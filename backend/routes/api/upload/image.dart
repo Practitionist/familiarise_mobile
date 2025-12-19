@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:backend/services/jwt_service.dart';
+import 'package:backend/utils/auth_utils.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:http/http.dart' as http;
 
@@ -33,7 +33,7 @@ Future<Response> onRequest(RequestContext context) async {
 
   try {
     // Verify authentication
-    final userId = await _getUserIdFromToken(context);
+    final userId = getUserIdFromToken(context);
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
@@ -63,7 +63,8 @@ Future<Response> onRequest(RequestContext context) async {
 
     // Get Supabase credentials from environment
     final supabaseUrl = Platform.environment['SUPABASE_URL'];
-    final supabaseServiceKey = Platform.environment['SUPABASE_SERVICE_ROLE_KEY'];
+    final supabaseServiceKey =
+        Platform.environment['SUPABASE_SERVICE_ROLE_KEY'];
 
     if (supabaseUrl == null || supabaseServiceKey == null) {
       return Response.json(
@@ -79,7 +80,9 @@ Future<Response> onRequest(RequestContext context) async {
 
     // Create signed upload URL via Supabase Storage API
     final signedUrlResponse = await http.post(
-      Uri.parse('$supabaseUrl/storage/v1/object/upload/sign/$bucket/$storagePath'),
+      Uri.parse(
+        '$supabaseUrl/storage/v1/object/upload/sign/$bucket/$storagePath',
+      ),
       headers: {
         'Authorization': 'Bearer $supabaseServiceKey',
         'Content-Type': 'application/json',
@@ -98,24 +101,29 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    final signedUrlData = jsonDecode(signedUrlResponse.body) as Map<String, dynamic>;
+    final signedUrlData =
+        jsonDecode(signedUrlResponse.body) as Map<String, dynamic>;
     final signedUrl = signedUrlData['url'] as String?;
     final token = signedUrlData['token'] as String?;
 
     if (signedUrl == null) {
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed to get signed URL from Supabase'}},
+        body: {
+          'error': {'message': 'Failed to get signed URL from Supabase'},
+        },
       );
     }
 
     // Construct the full signed URL
     final fullSignedUrl = token != null
-        ? '$supabaseUrl/storage/v1/object/upload/sign/$bucket/$storagePath?token=$token'
+        ? '$supabaseUrl/storage/v1/object/upload/sign/$bucket/'
+            '$storagePath?token=$token'
         : signedUrl;
 
     // Public URL for accessing the file after upload
-    final publicUrl = '$supabaseUrl/storage/v1/object/public/$bucket/$storagePath';
+    final publicUrl =
+        '$supabaseUrl/storage/v1/object/public/$bucket/$storagePath';
 
     return Response.json(
       body: {
@@ -137,18 +145,4 @@ Future<Response> onRequest(RequestContext context) async {
       body: {'error': {'message': 'Failed to generate upload URL'}},
     );
   }
-}
-
-/// Extract user ID from JWT token in Authorization header
-Future<String?> _getUserIdFromToken(RequestContext context) async {
-  final authHeader = context.request.headers['authorization'];
-  if (authHeader == null || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  final token = authHeader.substring(7);
-  final jwtService = context.read<JwtService>();
-  final payload = jwtService.tryVerify(token);
-
-  return payload?['userId'] as String?;
 }

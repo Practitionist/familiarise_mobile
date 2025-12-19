@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,8 +16,16 @@ part 'onboarding_provider.g.dart';
 /// Main onboarding state provider
 @Riverpod(keepAlive: true)
 class Onboarding extends _$Onboarding {
+  /// Timer for debouncing auto-save
+  Timer? _debounce;
+
   @override
   OnboardingState build() {
+    // Clean up timer on dispose
+    ref.onDispose(() {
+      _debounce?.cancel();
+    });
+
     // Try to load any saved draft on initialization
     _loadDraft();
     return const OnboardingState();
@@ -243,10 +252,13 @@ class Onboarding extends _$Onboarding {
     state = state.copyWith(error: null);
   }
 
-  /// Auto-save draft (debounced in practice, but immediate here for simplicity)
+  /// Auto-save draft with proper debouncing
+  ///
+  /// Uses Timer to ensure only one save occurs after rapid state changes.
+  /// Previous pending saves are cancelled when new changes come in.
   void _autoSave() {
-    // Save draft with a small delay to batch multiple changes
-    Future.delayed(const Duration(milliseconds: 500), () {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
       saveDraft();
     });
   }

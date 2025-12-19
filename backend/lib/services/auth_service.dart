@@ -208,8 +208,10 @@ class AuthService {
       // Mobile: Verify ID token (preferred method)
       googleUser = await _tokenVerifier.verifyIdToken(idToken);
     } else if (accessToken != null && accessToken.isNotEmpty) {
-      // Web: Use access token to fetch user info from Google's userinfo endpoint
-      googleUser = await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
+      // Web: Use access token to fetch user info from Google's userinfo
+      // endpoint
+      googleUser =
+          await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
     } else {
       throw AuthException(
         'Either idToken or accessToken is required',

@@ -4,7 +4,7 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Repository for user-related database operations
 class UserRepository extends BaseRepository {
   /// Create a user repository with the given executor
-  UserRepository(super.executor);
+  UserRepository(super._executor);
 
   /// Find user by email
   Future<Map<String, dynamic>?> findByEmail(String email) async {

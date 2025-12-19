@@ -5,7 +5,7 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Repository for session-related database operations
 class SessionRepository extends BaseRepository {
   /// Create a session repository with the given executor and user repository
-  SessionRepository(super.executor, this._userRepository);
+  SessionRepository(super._executor, this._userRepository);
 
   final UserRepository _userRepository;
 
