@@ -1,8 +1,7 @@
+import 'package:backend/database/repositories/repositories.dart';
+import 'package:backend/generated/prisma_client.dart';
 import 'package:postgres/postgres.dart' as pg;
 import 'package:prisma_flutter_connector/runtime_server.dart';
-
-import '../generated/prisma_client.dart';
-import 'repositories/repositories.dart';
 
 // Re-export generated types for convenience
 export '../generated/index.dart';

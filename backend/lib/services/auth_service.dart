@@ -1,9 +1,8 @@
-import 'package:bcrypt/bcrypt.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/google_token_verifier.dart';
 import 'package:backend/services/jwt_service.dart';
+import 'package:bcrypt/bcrypt.dart';
+import 'package:uuid/uuid.dart';
 
 /// Exception thrown for authentication errors
 class AuthException implements Exception {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/jwt_service.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/onboarding/submit
@@ -48,7 +49,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'},
+        },
       );
     }
 
@@ -65,7 +68,9 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': 'Missing required fields: role, personalInfo, agreement'},
+          'error': {
+            'message': 'Missing required fields: role, personalInfo, agreement',
+          },
         },
       );
     }
@@ -88,7 +93,8 @@ Future<Response> onRequest(RequestContext context) async {
     String? profileId;
 
     if (role == 'CONSULTEE') {
-      final consulteeProfile = data['consulteeProfile'] as Map<String, dynamic>?;
+      final consulteeProfile =
+          data['consulteeProfile'] as Map<String, dynamic>?;
       profileId = await _processConsulteeOnboarding(
         db,
         userId,
@@ -96,7 +102,8 @@ Future<Response> onRequest(RequestContext context) async {
         consulteeProfile,
       );
     } else if (role == 'CONSULTANT') {
-      final consultantProfile = data['consultantProfile'] as Map<String, dynamic>?;
+      final consultantProfile =
+          data['consultantProfile'] as Map<String, dynamic>?;
       if (consultantProfile == null || consultantProfile['domainId'] == null) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
@@ -130,7 +137,7 @@ Future<Response> onRequest(RequestContext context) async {
     updatedUser.remove('password');
 
     // Convert DateTime values to ISO8601 strings for JSON serialization
-    final serializedUser = _serializeForJson(updatedUser);
+    final serializedUser = serializeForJson(updatedUser);
 
     return Response.json(
       body: {
@@ -147,7 +154,9 @@ Future<Response> onRequest(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to complete onboarding: $e'}},
+      body: {
+        'error': {'message': 'Failed to complete onboarding: $e'},
+      },
     );
   }
 }
@@ -297,29 +306,4 @@ DateTime? _parseDateTime(dynamic value) {
     return DateTime.tryParse(value);
   }
   return null;
-}
-
-/// Convert DateTime values to ISO8601 strings for JSON serialization
-Map<String, dynamic> _serializeForJson(Map<String, dynamic> map) {
-  final result = <String, dynamic>{};
-  for (final entry in map.entries) {
-    final value = entry.value;
-    if (value is DateTime) {
-      result[entry.key] = value.toUtc().toIso8601String();
-    } else if (value is Map<String, dynamic>) {
-      result[entry.key] = _serializeForJson(value);
-    } else if (value is List) {
-      result[entry.key] = value.map((e) {
-        if (e is DateTime) {
-          return e.toUtc().toIso8601String();
-        } else if (e is Map<String, dynamic>) {
-          return _serializeForJson(e);
-        }
-        return e;
-      }).toList();
-    } else {
-      result[entry.key] = value;
-    }
-  }
-  return result;
 }

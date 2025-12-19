@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// GET /api/domains
@@ -18,7 +19,7 @@ Future<Response> onRequest(RequestContext context) async {
     final domains = await db.domains.findAllWithSubDomains();
 
     // Serialize DateTime values for JSON encoding
-    final serializedDomains = domains.map(_serializeForJson).toList();
+    final serializedDomains = domains.map(serializeForJson).toList();
 
     return Response.json(
       body: {'domains': serializedDomains},
@@ -32,32 +33,9 @@ Future<Response> onRequest(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch domains'}},
+      body: {
+        'error': {'message': 'Failed to fetch domains'},
+      },
     );
   }
-}
-
-/// Convert DateTime values to ISO8601 strings for JSON serialization
-Map<String, dynamic> _serializeForJson(Map<String, dynamic> map) {
-  final result = <String, dynamic>{};
-  for (final entry in map.entries) {
-    final value = entry.value;
-    if (value is DateTime) {
-      result[entry.key] = value.toUtc().toIso8601String();
-    } else if (value is Map<String, dynamic>) {
-      result[entry.key] = _serializeForJson(value);
-    } else if (value is List) {
-      result[entry.key] = value.map((e) {
-        if (e is DateTime) {
-          return e.toUtc().toIso8601String();
-        } else if (e is Map<String, dynamic>) {
-          return _serializeForJson(e);
-        }
-        return e;
-      }).toList();
-    } else {
-      result[entry.key] = value;
-    }
-  }
-  return result;
 }

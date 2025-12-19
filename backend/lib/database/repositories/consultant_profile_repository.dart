@@ -1,12 +1,11 @@
+import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
-
-import 'base_repository.dart';
 
 /// Repository for consultant profile database operations
 class ConsultantProfileRepository extends BaseRepository {
   /// Create a consultant profile repository with the given executor
-  ConsultantProfileRepository(QueryExecutor executor) : super(executor);
+  ConsultantProfileRepository(super.executor);
 
   static const _uuid = Uuid();
 
@@ -33,7 +32,7 @@ class ConsultantProfileRepository extends BaseRepository {
   /// Upsert a consultant profile (create or update)
   ///
   /// Used during onboarding to set all profile fields.
-  /// If profile exists, updates it; otherwise creates new one.
+  /// Uses the connector's native upsert support (ON CONFLICT DO UPDATE).
   ///
   /// Note: subDomainIds are handled separately via relation table.
   Future<Map<String, dynamic>> upsert({
@@ -53,68 +52,52 @@ class ConsultantProfileRepository extends BaseRepository {
     String? videoIntroUrl,
     TransactionExecutor? txn,
   }) async {
-    // Check if profile exists
+    // Check if profile exists to get its ID
     final existing = await findByUserId(userId);
+    final profileId = existing?['id'] as String? ?? _uuid.v4();
 
-    final data = <String, dynamic>{
+    // Build update data with optional fields using collection-if
+    final updateData = <String, dynamic>{
       'domainId': domainId,
       'updatedAt': nowIso8601,
+      if (experience != null) 'experience': experience,
+      if (description != null) 'description': description,
+      if (headline != null) 'headline': headline,
+      if (languages != null) 'languages': languages,
+      if (toolsAndTechnologies != null)
+        'toolsAndTechnologies': toolsAndTechnologies,
+      if (mentoringStyle != null) 'mentoringStyle': mentoringStyle,
+      if (sessionTypes != null) 'sessionTypes': sessionTypes,
+      'scheduleType': scheduleType ?? 'WEEKLY',
+      if (websiteUrl != null) 'websiteUrl': websiteUrl,
+      if (twitterUrl != null) 'twitterUrl': twitterUrl,
+      if (githubUrl != null) 'githubUrl': githubUrl,
+      if (videoIntroUrl != null) 'videoIntroUrl': videoIntroUrl,
     };
 
-    // Add optional fields
-    if (experience != null) data['experience'] = experience;
-    if (description != null) data['description'] = description;
-    if (headline != null) data['headline'] = headline;
-    if (languages != null) data['languages'] = languages;
-    if (toolsAndTechnologies != null) {
-      data['toolsAndTechnologies'] = toolsAndTechnologies;
+    // Build create data (includes all update fields plus required create fields)
+    final createData = <String, dynamic>{
+      'id': profileId,
+      'userId': userId,
+      'createdAt': nowIso8601,
+      'isVerified': false,
+      ...updateData,
+    };
+
+    // Use the connector's native upsert (ON CONFLICT DO UPDATE)
+    final query = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.upsert)
+        .where({'id': profileId}).data({
+      'create': createData,
+      'update': updateData,
+    }).build();
+
+    final result = await executeQueryAsSingleMap(query, txn: txn);
+    if (result == null) {
+      throw Exception('Failed to upsert consultant profile');
     }
-    if (mentoringStyle != null) data['mentoringStyle'] = mentoringStyle;
-    if (sessionTypes != null) data['sessionTypes'] = sessionTypes;
-    if (scheduleType != null) {
-      data['scheduleType'] = scheduleType;
-    } else {
-      data['scheduleType'] = 'WEEKLY'; // Default
-    }
-    if (websiteUrl != null) data['websiteUrl'] = websiteUrl;
-    if (twitterUrl != null) data['twitterUrl'] = twitterUrl;
-    if (githubUrl != null) data['githubUrl'] = githubUrl;
-    if (videoIntroUrl != null) data['videoIntroUrl'] = videoIntroUrl;
-
-    if (existing != null) {
-      // Update existing profile
-      final query = JsonQueryBuilder()
-          .model('ConsultantProfile')
-          .action(QueryAction.update)
-          .where({'userId': userId})
-          .data(data)
-          .build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
-      if (result == null) {
-        throw Exception('Failed to update consultant profile');
-      }
-      return result;
-    } else {
-      // Create new profile
-      final id = _uuid.v4();
-      data['id'] = id;
-      data['userId'] = userId;
-      data['createdAt'] = nowIso8601;
-      data['isVerified'] = false;
-
-      final query = JsonQueryBuilder()
-          .model('ConsultantProfile')
-          .action(QueryAction.create)
-          .data(data)
-          .build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
-      if (result == null) {
-        throw Exception('Failed to create consultant profile');
-      }
-      return result;
-    }
+    return result;
   }
 
   /// Update consultant-subdomain relations

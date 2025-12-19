@@ -1,13 +1,12 @@
+import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-
-import 'base_repository.dart';
 
 /// Repository for account-related database operations
 ///
 /// Handles OAuth and credentials account linking.
 class AccountRepository extends BaseRepository {
   /// Create an account repository with the given executor
-  AccountRepository(QueryExecutor executor) : super(executor);
+  AccountRepository(super.executor);
 
   /// Find account by userId and provider
   Future<Map<String, dynamic>?> findByUserAndProvider(

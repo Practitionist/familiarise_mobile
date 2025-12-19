@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
-
 import 'package:backend/services/auth_service.dart';
+import 'package:http/http.dart' as http;
 
 /// Verified Google user information extracted from ID token
 class GoogleUserInfo {
@@ -56,7 +55,6 @@ class GoogleTokenVerifier {
       if (response.statusCode != 200) {
         throw AuthException(
           'Invalid Google ID token',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -69,7 +67,6 @@ class GoogleTokenVerifier {
         if (tokenAudience != expectedClientId) {
           throw AuthException(
             'Token audience mismatch',
-            statusCode: HttpStatus.unauthorized,
           );
         }
       }
@@ -83,7 +80,6 @@ class GoogleTokenVerifier {
           if (expiresAt.isBefore(DateTime.now())) {
             throw AuthException(
               'Google ID token has expired',
-              statusCode: HttpStatus.unauthorized,
             );
           }
         }
@@ -96,14 +92,12 @@ class GoogleTokenVerifier {
       if (sub == null || sub.isEmpty) {
         throw AuthException(
           'Invalid token: missing subject claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
       if (email == null || email.isEmpty) {
         throw AuthException(
           'Invalid token: missing email claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -119,7 +113,6 @@ class GoogleTokenVerifier {
     } catch (e) {
       throw AuthException(
         'Failed to verify Google ID token: ${e.runtimeType}',
-        statusCode: HttpStatus.unauthorized,
       );
     }
   }
@@ -146,7 +139,6 @@ class GoogleTokenVerifier {
       if (response.statusCode != 200) {
         throw AuthException(
           'Invalid Google access token',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -158,14 +150,12 @@ class GoogleTokenVerifier {
       if (sub == null || sub.isEmpty) {
         throw AuthException(
           'Invalid token: missing subject claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
       if (email == null || email.isEmpty) {
         throw AuthException(
           'Invalid token: missing email claim',
-          statusCode: HttpStatus.unauthorized,
         );
       }
 
@@ -181,7 +171,6 @@ class GoogleTokenVerifier {
     } catch (e) {
       throw AuthException(
         'Failed to fetch Google user info: ${e.runtimeType}',
-        statusCode: HttpStatus.unauthorized,
       );
     }
   }

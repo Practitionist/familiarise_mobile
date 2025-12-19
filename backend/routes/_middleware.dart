@@ -11,7 +11,6 @@ Handler middleware(Handler handler) {
     // Handle CORS preflight requests
     if (context.request.method == HttpMethod.options) {
       return Response(
-        statusCode: 200,
         headers: corsHeaders,
       );
     }

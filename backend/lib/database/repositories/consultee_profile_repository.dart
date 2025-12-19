@@ -1,12 +1,11 @@
+import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
-
-import 'base_repository.dart';
 
 /// Repository for consultee profile database operations
 class ConsulteeProfileRepository extends BaseRepository {
   /// Create a consultee profile repository with the given executor
-  ConsulteeProfileRepository(QueryExecutor executor) : super(executor);
+  ConsulteeProfileRepository(super.executor);
 
   static const _uuid = Uuid();
 
@@ -78,54 +77,35 @@ class ConsulteeProfileRepository extends BaseRepository {
     final existing = await findByUserId(userId);
     final profileId = existing?['id'] as String? ?? _uuid.v4();
 
+    // Build optional fields map (shared between create and update)
+    final optionalData = <String, dynamic>{
+      if (occupation != null) 'occupation': occupation,
+      if (aboutMe != null) 'aboutMe': aboutMe,
+      if (careerStage != null) 'careerStage': careerStage,
+      if (currentCompany != null) 'currentCompany': currentCompany,
+      if (industry != null) 'industry': industry,
+      if (skillsToDevelop != null) 'skillsToDevelop': skillsToDevelop,
+      if (budgetPreference != null) 'budgetPreference': budgetPreference,
+      if (preferredCommunicationMethod != null)
+        'preferredCommunicationMethod': preferredCommunicationMethod,
+      if (preferredLanguage != null) 'preferredLanguage': preferredLanguage,
+      if (linkedinUrl != null) 'linkedinUrl': linkedinUrl,
+    };
+
     // Build create data (all fields including required ones)
     final createData = <String, dynamic>{
       'id': profileId,
       'userId': userId,
       'createdAt': nowIso8601,
       'updatedAt': nowIso8601,
+      ...optionalData,
     };
-
-    // Add optional fields to create data
-    if (occupation != null) createData['occupation'] = occupation;
-    if (aboutMe != null) createData['aboutMe'] = aboutMe;
-    if (careerStage != null) createData['careerStage'] = careerStage;
-    if (currentCompany != null) createData['currentCompany'] = currentCompany;
-    if (industry != null) createData['industry'] = industry;
-    if (skillsToDevelop != null)
-      createData['skillsToDevelop'] = skillsToDevelop;
-    if (budgetPreference != null)
-      createData['budgetPreference'] = budgetPreference;
-    if (preferredCommunicationMethod != null) {
-      createData['preferredCommunicationMethod'] = preferredCommunicationMethod;
-    }
-    if (preferredLanguage != null) {
-      createData['preferredLanguage'] = preferredLanguage;
-    }
-    if (linkedinUrl != null) createData['linkedinUrl'] = linkedinUrl;
 
     // Build update data (only fields that should change on conflict)
     final updateData = <String, dynamic>{
       'updatedAt': nowIso8601,
+      ...optionalData,
     };
-
-    // Add optional fields to update data
-    if (occupation != null) updateData['occupation'] = occupation;
-    if (aboutMe != null) updateData['aboutMe'] = aboutMe;
-    if (careerStage != null) updateData['careerStage'] = careerStage;
-    if (currentCompany != null) updateData['currentCompany'] = currentCompany;
-    if (industry != null) updateData['industry'] = industry;
-    if (skillsToDevelop != null)
-      updateData['skillsToDevelop'] = skillsToDevelop;
-    if (budgetPreference != null)
-      updateData['budgetPreference'] = budgetPreference;
-    if (preferredCommunicationMethod != null) {
-      updateData['preferredCommunicationMethod'] = preferredCommunicationMethod;
-    }
-    if (preferredLanguage != null) {
-      updateData['preferredLanguage'] = preferredLanguage;
-    }
-    if (linkedinUrl != null) updateData['linkedinUrl'] = linkedinUrl;
 
     // Use the connector's native upsert (ON CONFLICT DO UPDATE)
     final query = JsonQueryBuilder()
