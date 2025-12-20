@@ -7,6 +7,8 @@ import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
+import '../features/explore/screens/consultant_profile_screen.dart';
+import '../features/explore/screens/explore_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 
 part 'router.g.dart';
@@ -185,7 +187,23 @@ GoRouter router(Ref ref) {
         ),
       ),
 
-      // TODO: Add main shell with bottom navigation in Phase 3+
+      // Explore routes (Phase 4)
+      GoRoute(
+        path: '/explore',
+        name: 'explore',
+        builder: (context, state) => const ExploreScreen(),
+        routes: [
+          GoRoute(
+            path: 'consultant/:consultantId',
+            name: 'consultantProfile',
+            builder: (context, state) => ConsultantProfileScreen(
+              consultantId: state.pathParameters['consultantId']!,
+            ),
+          ),
+        ],
+      ),
+
+      // TODO: Add main shell with bottom navigation in later phases
       // ShellRoute(
       //   builder: (context, state, child) => MainShell(child: child),
       //   routes: [
