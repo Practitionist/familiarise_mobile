@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../domain/entities/explore/explore_filters.dart';
 import '../providers/consultants_provider.dart';
 import '../providers/explore_filters_provider.dart';
 import '../widgets/consultant_card.dart';
@@ -22,34 +23,45 @@ class ExploreScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Explore'),
+        centerTitle: false,
         actions: [
           // Filter button with badge
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.tune),
-                onPressed: () => showFilterSheet(context),
-              ),
-              if (filters.activeFilterCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '${filters.activeFilterCount}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontSize: 10,
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    filters.hasActiveFilters
+                        ? Icons.filter_list
+                        : Icons.tune_rounded,
+                  ),
+                  onPressed: () => showFilterSheet(context),
+                  tooltip: 'Filters',
+                ),
+                if (filters.activeFilterCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${filters.activeFilterCount}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -57,14 +69,96 @@ class ExploreScreen extends ConsumerWidget {
         children: [
           // Search bar
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: const ExploreSearchBar(),
           ),
-          // Consultants grid
+          // Active filters chips
+          if (filters.hasActiveFilters)
+            _buildActiveFiltersBar(context, ref, filters),
+          // Consultants list
           Expanded(
             child: _buildContent(context, ref, consultantsState),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActiveFiltersBar(
+    BuildContext context,
+    WidgetRef ref,
+    ExploreFilters filters,
+  ) {
+    final theme = Theme.of(context);
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                if (filters.searchQuery != null)
+                  _buildFilterChip(
+                    theme,
+                    label: '"${filters.searchQuery}"',
+                    onRemove: () => ref
+                        .read(exploreFiltersNotifierProvider.notifier)
+                        .updateFilters(filters.copyWith(searchQuery: null)),
+                  ),
+                if (filters.minRating != null)
+                  _buildFilterChip(
+                    theme,
+                    label: '${filters.minRating}+ stars',
+                    onRemove: () => ref
+                        .read(exploreFiltersNotifierProvider.notifier)
+                        .updateFilters(filters.copyWith(minRating: null)),
+                  ),
+                if (filters.maxPrice != null)
+                  _buildFilterChip(
+                    theme,
+                    label: 'Up to ₹${filters.maxPrice}',
+                    onRemove: () => ref
+                        .read(exploreFiltersNotifierProvider.notifier)
+                        .updateFilters(filters.copyWith(maxPrice: null)),
+                  ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () =>
+                ref.read(exploreFiltersNotifierProvider.notifier).clearFilters(),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+            ),
+            child: const Text('Clear all'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(
+    ThemeData theme, {
+    required String label,
+    required VoidCallback onRemove,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Chip(
+        label: Text(
+          label,
+          style: theme.textTheme.labelSmall,
+        ),
+        deleteIcon: const Icon(Icons.close, size: 16),
+        onDeleted: onRemove,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        labelPadding: const EdgeInsets.only(left: 8),
       ),
     );
   }
@@ -75,7 +169,7 @@ class ExploreScreen extends ConsumerWidget {
     ConsultantsState state,
   ) {
     if (state.isLoading) {
-      return const ConsultantGridSkeleton();
+      return const ConsultantListSkeleton();
     }
 
     if (state.error != null) {
@@ -88,14 +182,8 @@ class ExploreScreen extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () => ref.read(consultantsNotifierProvider.notifier).refresh(),
-      child: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.65,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         itemCount: state.consultants.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           // Load more trigger
@@ -104,15 +192,29 @@ class ExploreScreen extends ConsumerWidget {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               ref.read(consultantsNotifierProvider.notifier).loadMore();
             });
-            return const Center(child: CircularProgressIndicator());
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+            );
           }
 
           final consultant = state.consultants[index];
-          return ConsultantCard(
-            consultant: consultant,
-            onTap: () {
-              context.push('/explore/consultant/${consultant.id}');
-            },
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ConsultantCard(
+              consultant: consultant,
+              onTap: () {
+                context.push('/explore/consultant/${consultant.id}');
+              },
+            ),
           );
         },
       ),
@@ -128,20 +230,29 @@ class ExploreScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.cloud_off_rounded,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              'Something went wrong',
-              style: theme.textTheme.titleMedium,
+              'Unable to load consultants',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               error,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
@@ -150,8 +261,8 @@ class ExploreScreen extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () =>
                   ref.read(consultantsNotifierProvider.notifier).refresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
             ),
           ],
         ),
@@ -169,22 +280,35 @@ class ExploreScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.search_off,
-              size: 48,
-              color: theme.colorScheme.outline,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                filters.hasActiveFilters
+                    ? Icons.filter_alt_off_rounded
+                    : Icons.person_search_rounded,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              'No consultants found',
-              style: theme.textTheme.titleMedium,
+              filters.hasActiveFilters
+                  ? 'No matches found'
+                  : 'No consultants yet',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               filters.hasActiveFilters
-                  ? 'Try adjusting your filters'
+                  ? 'Try adjusting your search or filters'
                   : 'Check back later for new consultants',
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
@@ -195,7 +319,7 @@ class ExploreScreen extends ConsumerWidget {
                 onPressed: () => ref
                     .read(exploreFiltersNotifierProvider.notifier)
                     .clearFilters(),
-                icon: const Icon(Icons.clear_all),
+                icon: const Icon(Icons.clear_all_rounded),
                 label: const Text('Clear filters'),
               ),
             ],

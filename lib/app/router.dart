@@ -41,43 +41,50 @@ GoRouter router(Ref ref) {
         initial: (_) => true,
         orElse: () => false,
       );
-      final isAuthRoute = state.matchedLocation.startsWith('/auth');
-      final isOnboardingRoute = state.matchedLocation == '/onboarding';
-      final isSplash = state.matchedLocation == '/';
+      final location = state.matchedLocation;
+      final isAuthRoute = location.startsWith('/auth');
+      final isOnboardingRoute = location == '/onboarding';
+      final isSplash = location == '/';
 
-      // Still initializing auth state, stay on splash
-      if (isInitial || (isLoading && isSplash)) {
+      // Valid app routes that authenticated users can access
+      final isValidAppRoute = location.startsWith('/dashboard') ||
+          location.startsWith('/explore') ||
+          location.startsWith('/chat') ||
+          location.startsWith('/profile');
+
+      // Still initializing auth state, stay where we are
+      if (isInitial || isLoading) {
         return null;
       }
 
-      // Not authenticated and not on auth route -> redirect to sign in
-      if (!isAuthenticated && !isAuthRoute && !isSplash) {
+      // Not authenticated -> redirect to sign in (unless already on auth route)
+      if (!isAuthenticated) {
+        if (isAuthRoute || isSplash) return null;
         return '/auth/sign-in';
       }
 
       // Authenticated but needs onboarding -> redirect to onboarding
-      if (isAuthenticated && needsOnboarding && !isOnboardingRoute) {
+      if (needsOnboarding && !isOnboardingRoute) {
         return '/onboarding';
       }
 
-      // On splash and not loading -> redirect based on auth status
-      if (isSplash && !isLoading && !isInitial) {
-        if (!isAuthenticated) {
-          return '/auth/sign-in';
-        }
-        if (needsOnboarding) {
-          return '/onboarding';
-        }
+      // Authenticated, completed onboarding, on a valid app route -> stay there
+      if (!needsOnboarding && isValidAppRoute) {
+        return null;
+      }
+
+      // On splash -> redirect to dashboard
+      if (isSplash) {
         return '/dashboard';
       }
 
-      // Authenticated, completed onboarding, and on auth route -> redirect to dashboard
-      if (isAuthenticated && !needsOnboarding && isAuthRoute) {
+      // On auth route -> redirect to dashboard
+      if (isAuthRoute) {
         return '/dashboard';
       }
 
-      // Authenticated, completed onboarding, but on onboarding route -> redirect to dashboard
-      if (isAuthenticated && !needsOnboarding && isOnboardingRoute) {
+      // On onboarding route but completed -> redirect to dashboard
+      if (isOnboardingRoute) {
         return '/dashboard';
       }
 

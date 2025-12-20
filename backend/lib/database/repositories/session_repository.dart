@@ -110,6 +110,7 @@ class SessionRepository extends BaseRepository {
       'user_email': user['email'],
       'user_image': user['image'],
       'user_role': user['role'],
+      'user_onboardingCompleted': user['onboardingCompleted'] ?? false,
     };
   }
 }

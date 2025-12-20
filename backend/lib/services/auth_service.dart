@@ -164,6 +164,7 @@ class AuthService {
       'email': sessionData['user_email'],
       'image': sessionData['user_image'],
       'role': sessionData['user_role'],
+      'onboardingCompleted': sessionData['user_onboardingCompleted'] ?? false,
     };
 
     return {
