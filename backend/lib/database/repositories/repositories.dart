@@ -5,6 +5,7 @@ library;
 
 export 'account_repository.dart';
 export 'base_repository.dart';
+export 'consultant_explore_repository.dart';
 export 'consultant_profile_repository.dart';
 export 'consultee_profile_repository.dart';
 export 'domain_repository.dart';

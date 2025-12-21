@@ -12,6 +12,41 @@ abstract class BaseRepository {
   /// Get the query executor for direct access
   QueryExecutor get executor => _executor;
 
+  /// Execute raw SQL query and return results as maps.
+  ///
+  /// This is an escape hatch for complex queries not supported by the
+  /// query builder. Use parameterized queries to prevent SQL injection.
+  ///
+  /// Example:
+  /// ```dart
+  /// final results = await executeRaw(
+  ///   'SELECT * FROM users WHERE created_at > NOW() - INTERVAL \$1 DAY',
+  ///   [7],
+  /// );
+  /// ```
+  Future<List<Map<String, dynamic>>> executeRaw(
+    String sql,
+    List<dynamic> parameters,
+  ) async {
+    return _executor.executeRaw(sql, parameters);
+  }
+
+  /// Execute raw SQL mutation (INSERT/UPDATE/DELETE) and return affected rows.
+  ///
+  /// Example:
+  /// ```dart
+  /// final affected = await executeMutationRaw(
+  ///   'DELETE FROM sessions WHERE expires_at < NOW()',
+  ///   [],
+  /// );
+  /// ```
+  Future<int> executeMutationRaw(
+    String sql,
+    List<dynamic> parameters,
+  ) async {
+    return _executor.executeMutationRaw(sql, parameters);
+  }
+
   /// Execute a callback within a database transaction
   Future<T> executeInTransaction<T>(
     Future<T> Function(TransactionExecutor) callback,

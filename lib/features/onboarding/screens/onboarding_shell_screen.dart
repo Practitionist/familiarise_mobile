@@ -205,8 +205,11 @@ class OnboardingShellScreen extends ConsumerWidget {
     );
 
     if (result == true && context.mounted) {
-      // Navigate back to auth or dashboard based on auth state
-      context.go('/');
+      // Sign out user and navigate to sign-in page
+      await ref.read(authProvider.notifier).signOut();
+      if (context.mounted) {
+        context.go('/auth/sign-in');
+      }
     }
   }
 }

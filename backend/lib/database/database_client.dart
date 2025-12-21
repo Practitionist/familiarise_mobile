@@ -6,6 +6,158 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 // Re-export generated types for convenience
 export '../generated/index.dart';
 
+/// Build the schema registry with all model relations.
+///
+/// This enables includes with automatic JOINs for all models.
+SchemaRegistry _buildSchemaRegistry() {
+  final schema = SchemaRegistry();
+
+  // ConsultantProfile relations
+  schema.registerModel(ModelSchema(
+    name: 'ConsultantProfile',
+    tableName: 'ConsultantProfile',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'userId': const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'domainId': const FieldInfo(name: 'domainId', columnName: 'domainId', type: 'String'),
+      'headline': const FieldInfo(name: 'headline', columnName: 'headline', type: 'String'),
+      'description': const FieldInfo(name: 'description', columnName: 'description', type: 'String'),
+      'rating': const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
+      'experience': const FieldInfo(name: 'experience', columnName: 'experience', type: 'Float'),
+      'languages': const FieldInfo(name: 'languages', columnName: 'languages', type: 'Json'),
+      'toolsAndTechnologies': const FieldInfo(name: 'toolsAndTechnologies', columnName: 'toolsAndTechnologies', type: 'Json'),
+      'totalMenteesHelped': const FieldInfo(name: 'totalMenteesHelped', columnName: 'totalMenteesHelped', type: 'Int'),
+      'isVerified': const FieldInfo(name: 'isVerified', columnName: 'isVerified', type: 'Boolean'),
+      'createdAt': const FieldInfo(name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+      'domain': RelationInfo.oneToOne(
+        name: 'domain',
+        targetModel: 'Domain',
+        foreignKey: 'domainId',
+        isOwner: true,
+      ),
+      'subDomains': RelationInfo.manyToMany(
+        name: 'subDomains',
+        targetModel: 'SubDomain',
+        joinTable: '_ConsultantProfileToSubDomain',
+        joinColumn: 'A',
+        inverseJoinColumn: 'B',
+      ),
+      'consultationPlans': RelationInfo.oneToMany(
+        name: 'consultationPlans',
+        targetModel: 'ConsultationPlan',
+        foreignKey: 'consultantProfileId',
+      ),
+      'reviews': RelationInfo.oneToMany(
+        name: 'reviews',
+        targetModel: 'ConsultantReview',
+        foreignKey: 'consultantProfileId',
+      ),
+    },
+  ));
+
+  // User model (users table)
+  schema.registerModel(ModelSchema(
+    name: 'users',
+    tableName: 'users',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
+      'email': const FieldInfo(name: 'email', columnName: 'email', type: 'String'),
+      'image': const FieldInfo(name: 'image', columnName: 'image', type: 'String'),
+    },
+  ));
+
+  // Domain model
+  schema.registerModel(ModelSchema(
+    name: 'Domain',
+    tableName: 'Domain',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
+      'description': const FieldInfo(name: 'description', columnName: 'description', type: 'String'),
+    },
+    relations: {
+      'subDomains': RelationInfo.oneToMany(
+        name: 'subDomains',
+        targetModel: 'SubDomain',
+        foreignKey: 'domainId',
+      ),
+    },
+  ));
+
+  // SubDomain model
+  schema.registerModel(ModelSchema(
+    name: 'SubDomain',
+    tableName: 'SubDomain',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
+      'domainId': const FieldInfo(name: 'domainId', columnName: 'domainId', type: 'String'),
+    },
+  ));
+
+  // ConsultationPlan model
+  schema.registerModel(ModelSchema(
+    name: 'ConsultationPlan',
+    tableName: 'ConsultationPlan',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultantProfileId': const FieldInfo(name: 'consultantProfileId', columnName: 'consultantProfileId', type: 'String'),
+      'price': const FieldInfo(name: 'price', columnName: 'price', type: 'Int'),
+      'priceCurrency': const FieldInfo(name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
+    },
+  ));
+
+  // ConsultantReview model
+  schema.registerModel(ModelSchema(
+    name: 'ConsultantReview',
+    tableName: 'ConsultantReview',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultantProfileId': const FieldInfo(name: 'consultantProfileId', columnName: 'consultantProfileId', type: 'String'),
+      'consulteeProfileId': const FieldInfo(name: 'consulteeProfileId', columnName: 'consulteeProfileId', type: 'String'),
+      'rating': const FieldInfo(name: 'rating', columnName: 'rating', type: 'Int'),
+      'comment': const FieldInfo(name: 'comment', columnName: 'comment', type: 'String'),
+    },
+    relations: {
+      'consulteeProfile': RelationInfo.oneToOne(
+        name: 'consulteeProfile',
+        targetModel: 'ConsulteeProfile',
+        foreignKey: 'consulteeProfileId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // ConsulteeProfile model
+  schema.registerModel(ModelSchema(
+    name: 'ConsulteeProfile',
+    tableName: 'ConsulteeProfile',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'userId': const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  return schema;
+}
+
 /// Database client using Prisma Flutter Connector
 ///
 /// This is the main entry point for database operations. It initializes the
@@ -16,23 +168,24 @@ export '../generated/index.dart';
 /// - QueryExecutor for query execution
 /// - JsonQueryBuilder for type-safe query building
 class DatabaseClient {
-  DatabaseClient._(this._executor, this._connection, this._adapter) {
+  DatabaseClient._(this._executor, this._adapter, this._schema) {
     // Initialize type-safe PrismaClient
     _prisma = PrismaClient(adapter: _adapter);
 
-    // Initialize legacy repositories (for backward compatibility)
+    // Initialize repositories
     _userRepository = UserRepository(_executor);
     _accountRepository = AccountRepository(_executor);
     _sessionRepository = SessionRepository(_executor, _userRepository);
     _consulteeProfileRepository = ConsulteeProfileRepository(_executor);
     _consultantProfileRepository = ConsultantProfileRepository(_executor);
-    _domainRepository = DomainRepository(_executor, _connection);
+    _domainRepository = DomainRepository(_executor);
+    _consultantExploreRepository = ConsultantExploreRepository(_executor);
   }
 
   static DatabaseClient? _instance;
   final QueryExecutor _executor;
-  final pg.Connection _connection;
   final PostgresAdapter _adapter;
+  final SchemaRegistry _schema;
 
   // Type-safe PrismaClient (use this for new code)
   late final PrismaClient _prisma;
@@ -44,6 +197,7 @@ class DatabaseClient {
   late final ConsulteeProfileRepository _consulteeProfileRepository;
   late final ConsultantProfileRepository _consultantProfileRepository;
   late final DomainRepository _domainRepository;
+  late final ConsultantExploreRepository _consultantExploreRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -73,9 +227,10 @@ class DatabaseClient {
     );
 
     final adapter = PostgresAdapter(connection);
-    final executor = QueryExecutor(adapter: adapter);
+    final schema = _buildSchemaRegistry();
+    final executor = QueryExecutor(adapter: adapter, schema: schema);
 
-    _instance = DatabaseClient._(executor, connection, adapter);
+    _instance = DatabaseClient._(executor, adapter, schema);
     return _instance!;
   }
 
@@ -115,6 +270,10 @@ class DatabaseClient {
 
   /// Domain operations repository
   DomainRepository get domains => _domainRepository;
+
+  /// Consultant explore repository (for browsing and discovery)
+  ConsultantExploreRepository get consultantExplore =>
+      _consultantExploreRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all

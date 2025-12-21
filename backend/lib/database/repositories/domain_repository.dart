@@ -1,22 +1,17 @@
 // ignore_for_file: avoid_print
 
 import 'package:backend/database/repositories/base_repository.dart';
-import 'package:postgres/postgres.dart' as pg;
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for domain and subdomain database operations
 ///
-/// Uses the Prisma Flutter Connector's new features:
+/// Uses the Prisma Flutter Connector's features:
 /// - findMany for list queries
 /// - include for relations (JOINs)
-/// - Raw SQL API as escape hatch
+/// - executeRaw as escape hatch for complex queries
 class DomainRepository extends BaseRepository {
-  /// Create a domain repository with the given executor and connection
-  DomainRepository(super._executor, this._connection);
-
-  // Kept for potential future raw SQL needs
-  // ignore: unused_field
-  final pg.Connection _connection;
+  /// Create a domain repository with the given executor
+  DomainRepository(super._executor);
 
   /// Get all domains using the connector's findMany
   ///
