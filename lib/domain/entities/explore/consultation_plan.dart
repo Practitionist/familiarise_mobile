@@ -15,8 +15,8 @@ class ConsultationPlan with _$ConsultationPlan {
     @Default('INR') String priceCurrency,
     String? language,
     String? level,
-    @Default([]) List<String> prerequisites,
-    @Default([]) List<String> materialProvided,
+    String? prerequisites,
+    String? materialProvided,
     @Default([]) List<String> learningOutcomes,
     DateTime? createdAt,
   }) = _ConsultationPlan;

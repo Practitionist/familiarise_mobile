@@ -23,8 +23,8 @@ class SubscriptionPlanModel with _$SubscriptionPlanModel {
     String? emailSupport,
     String? language,
     String? level,
-    @Default([]) List<String> prerequisites,
-    @Default([]) List<String> materialProvided,
+    String? prerequisites,
+    String? materialProvided,
     @Default([]) List<String> learningOutcomes,
     String? createdAt,
   }) = _SubscriptionPlanModel;

@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for consultant exploration and discovery
@@ -179,8 +180,8 @@ class ConsultantExploreRepository extends BaseRepository {
         'description': row['description'],
         'rating': row['rating'],
         'experience': row['experience'],
-        'languages': row['languages'],
-        'toolsAndTechnologies': row['toolsAndTechnologies'],
+        'languages': parseStringArray(row['languages']),
+        'toolsAndTechnologies': parseStringArray(row['toolsAndTechnologies']),
         'totalMenteesHelped': row['totalMenteesHelped'],
         'isVerified': row['isVerified'],
         'domainId': row['domainId'],
@@ -278,13 +279,13 @@ class ConsultantExploreRepository extends BaseRepository {
       'description': row['description'],
       'rating': row['rating'],
       'experience': row['experience'],
-      'languages': row['languages'],
-      'toolsAndTechnologies': row['toolsAndTechnologies'],
+      'languages': parseStringArray(row['languages']),
+      'toolsAndTechnologies': parseStringArray(row['toolsAndTechnologies']),
       'totalMenteesHelped': row['totalMenteesHelped'],
       'isVerified': row['isVerified'],
       'domainId': row['domainId'],
       'mentoringStyle': row['mentoringStyle'],
-      'sessionTypes': row['sessionTypes'],
+      'sessionTypes': parseStringArray(row['sessionTypes']),
       'websiteUrl': row['websiteUrl'],
       'twitterUrl': row['twitterUrl'],
       'githubUrl': row['githubUrl'],
