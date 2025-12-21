@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+
+final logger = AppLogger('ConsultantDetailsRoute');
 
 /// GET /api/consultants/:id
 ///
@@ -42,11 +45,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       body: {'consultant': serializedConsultant},
     );
   } catch (e, stackTrace) {
-    // Log error for debugging
-    // ignore: avoid_print
-    print('Error in GET /api/consultants/$id: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
+    logger.severe('Error in GET /api/consultants/$id', e, stackTrace);
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

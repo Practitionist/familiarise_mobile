@@ -212,7 +212,7 @@ class ExploreScreen extends ConsumerWidget {
             child: ConsultantCard(
               consultant: consultant,
               onTap: () {
-                context.push('/explore/consultant/${consultant.id}');
+                context.go('/explore/consultant/${consultant.id}');
               },
             ),
           );

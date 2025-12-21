@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+
+final logger = AppLogger('ConsultantReviewsRoute');
 
 /// GET /api/consultants/:id/reviews
 ///
@@ -44,11 +47,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       },
     );
   } catch (e, stackTrace) {
-    // Log error for debugging
-    // ignore: avoid_print
-    print('Error in GET /api/consultants/$id/reviews: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
+    logger.severe('Error in GET /api/consultants/$id/reviews', e, stackTrace);
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

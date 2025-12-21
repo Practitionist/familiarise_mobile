@@ -419,14 +419,13 @@ class ConsultantExploreRepository extends BaseRepository {
 
     if (userIds.isEmpty) return {};
 
-    // Fetch users
-    final usersQuery = JsonQueryBuilder()
-        .model('User')
-        .action(QueryAction.findMany)
-        .selectFields(['id', 'name', 'image']).where(
-            {'id': FilterOperators.in_(userIds)}).build();
-
-    final users = await executeQueryAsMaps(usersQuery);
+    // Fetch users using raw SQL since @@map("users") isn't respected by ORM
+    final placeholders =
+        List.generate(userIds.length, (i) => '\$${i + 1}').join(', ');
+    final users = await executeRaw(
+      'SELECT id, name, image FROM users WHERE id IN ($placeholders)',
+      userIds,
+    );
 
     // Map userId -> user data
     final userMap = <String, Map<String, dynamic>>{};
