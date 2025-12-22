@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../domain/entities/booking/booking_entities.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
+import '../features/booking/screens/booking_screens.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
 import '../features/explore/screens/explore_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
@@ -49,6 +51,8 @@ GoRouter router(Ref ref) {
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
+          location.startsWith('/booking') ||
+          location.startsWith('/my-bookings') ||
           location.startsWith('/chat') ||
           location.startsWith('/profile');
 
@@ -208,6 +212,30 @@ GoRouter router(Ref ref) {
             ),
           ),
         ],
+      ),
+
+      // Booking routes (Phase 5)
+      GoRoute(
+        path: '/booking/:consultantId/:planId',
+        name: 'booking',
+        builder: (context, state) => BookingScreen(
+          consultantId: state.pathParameters['consultantId']!,
+          planId: state.pathParameters['planId']!,
+          planType: state.uri.queryParameters['type'] ?? 'consultation',
+        ),
+      ),
+      GoRoute(
+        path: '/booking/success',
+        name: 'bookingSuccess',
+        builder: (context, state) {
+          final booking = state.extra as Booking?;
+          return BookingSuccessScreen(booking: booking);
+        },
+      ),
+      GoRoute(
+        path: '/my-bookings',
+        name: 'myBookings',
+        builder: (context, state) => const MyBookingsScreen(),
       ),
 
       // TODO: Add main shell with bottom navigation in later phases

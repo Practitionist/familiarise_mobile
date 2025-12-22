@@ -1,5 +1,59 @@
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
+/// Extension on TransactionExecutor to add raw SQL capabilities.
+///
+/// The base TransactionExecutor only supports JsonQuery operations,
+/// but we need raw SQL for complex queries within transactions.
+extension TransactionExecutorRaw on TransactionExecutor {
+  /// Execute raw SQL query within a transaction and return results as maps.
+  Future<List<Map<String, dynamic>>> executeRaw(
+    String sql,
+    List<dynamic> parameters,
+  ) async {
+    final argTypes = parameters.map(_inferArgType).toList();
+    final sqlQuery = SqlQuery(sql: sql, args: parameters, argTypes: argTypes);
+    final result = await transaction.queryRaw(sqlQuery);
+    return _resultSetToMaps(result);
+  }
+
+  /// Execute raw SQL mutation within a transaction (INSERT/UPDATE/DELETE).
+  Future<int> executeMutationRaw(
+    String sql,
+    List<dynamic> parameters,
+  ) async {
+    final argTypes = parameters.map(_inferArgType).toList();
+    final sqlQuery = SqlQuery(sql: sql, args: parameters, argTypes: argTypes);
+    return transaction.executeRaw(sqlQuery);
+  }
+
+  ArgType _inferArgType(dynamic value) {
+    if (value == null) return ArgType.unknown;
+    if (value is int) return ArgType.int64;
+    if (value is double) return ArgType.double;
+    if (value is bool) return ArgType.boolean;
+    if (value is String) return ArgType.string;
+    if (value is DateTime) return ArgType.dateTime;
+    if (value is List<int>) return ArgType.bytes;
+    if (value is Map) return ArgType.json;
+    return ArgType.unknown;
+  }
+
+  List<Map<String, dynamic>> _resultSetToMaps(SqlResultSet result) {
+    if (result.rows.isEmpty) return [];
+    final maps = <Map<String, dynamic>>[];
+    for (final row in result.rows) {
+      final map = <String, dynamic>{};
+      for (var i = 0; i < result.columnNames.length; i++) {
+        final columnName = result.columnNames[i];
+        final value = i < row.length ? row[i] : null;
+        map[columnName] = value;
+      }
+      maps.add(map);
+    }
+    return maps;
+  }
+}
+
 /// Base class for all database repositories
 ///
 /// Provides access to the query executor and common transaction support.

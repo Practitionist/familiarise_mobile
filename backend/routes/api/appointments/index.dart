@@ -1,0 +1,293 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:backend/database/database_client.dart';
+import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/logger.dart';
+import 'package:dart_frog/dart_frog.dart';
+
+final logger = AppLogger('AppointmentsRoute');
+
+/// Appointments endpoints
+///
+/// GET /api/appointments - List user's bookings
+/// POST /api/appointments - Create a new booking
+Future<Response> onRequest(RequestContext context) async {
+  final method = context.request.method;
+  if (method == HttpMethod.get) {
+    return _handleGetBookings(context);
+  } else if (method == HttpMethod.post) {
+    return _handleCreateBooking(context);
+  }
+  return Response(statusCode: HttpStatus.methodNotAllowed);
+}
+
+/// GET /api/appointments
+///
+/// Returns the authenticated user's bookings with pagination.
+///
+/// Query Parameters:
+/// - status: Filter by status (PENDING, APPROVED, SCHEDULED, etc.)
+/// - page: Page number (0-indexed, default: 0)
+/// - pageSize: Items per page (default: 20, max: 50)
+///
+/// Response:
+/// ```json
+/// {
+///   "bookings": [...],
+///   "pagination": { "page": 0, "pageSize": 20, "totalCount": 10 }
+/// }
+/// ```
+Future<Response> _handleGetBookings(RequestContext context) async {
+  try {
+    // Verify authentication
+    final userId = getUserIdFromToken(context);
+    if (userId == null) {
+      return Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': {'message': 'Unauthorized'}},
+      );
+    }
+
+    final db = context.read<DatabaseClient>();
+    final params = context.request.uri.queryParameters;
+
+    // Parse query parameters
+    final status = params['status'];
+    final page = int.tryParse(params['page'] ?? '0') ?? 0;
+    final pageSize = int.tryParse(params['pageSize'] ?? '20') ?? 20;
+
+    // Fetch bookings
+    final result = await db.appointments.getMyBookings(
+      userId: userId,
+      status: status,
+      page: page,
+      pageSize: pageSize,
+    );
+
+    // Serialize response
+    return Response.json(
+      body: serializeForJson(result),
+    );
+  } catch (e, stackTrace) {
+    logger.severe('Error in GET /api/appointments', e, stackTrace);
+
+    return Response.json(
+      statusCode: HttpStatus.internalServerError,
+      body: {'error': {'message': 'Failed to fetch bookings'}},
+    );
+  }
+}
+
+/// POST /api/appointments
+///
+/// Create a new booking request.
+///
+/// Request body for CONSULTATION:
+/// ```json
+/// {
+///   "type": "CONSULTATION",
+///   "consultantProfileId": "uuid",
+///   "planId": "uuid",
+///   "slotStartTimes": ["2024-01-15T09:00:00Z", ...],
+///   "message": "Optional message"
+/// }
+/// ```
+///
+/// Request body for SUBSCRIPTION:
+/// ```json
+/// {
+///   "type": "SUBSCRIPTION",
+///   "consultantProfileId": "uuid",
+///   "planId": "uuid",
+///   "schedulingPeriodStart": "2024-01-15T00:00:00Z",
+///   "schedulingPeriodEnd": "2024-02-15T00:00:00Z",
+///   "timezone": "Asia/Kolkata",
+///   "message": "Optional message"
+/// }
+/// ```
+Future<Response> _handleCreateBooking(RequestContext context) async {
+  try {
+    // Verify authentication
+    final userId = getUserIdFromToken(context);
+    if (userId == null) {
+      return Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': {'message': 'Unauthorized'}},
+      );
+    }
+
+    // Parse request body
+    final body = await context.request.body();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+
+    // Validate required fields
+    final type = data['type'] as String?;
+    final consultantProfileId = data['consultantProfileId'] as String?;
+    final planId = data['planId'] as String?;
+
+    if (type == null || consultantProfileId == null || planId == null) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Missing required fields: type, '
+                'consultantProfileId, planId',
+          },
+        },
+      );
+    }
+
+    final db = context.read<DatabaseClient>();
+
+    // Get the consultee profile for the current user
+    final consulteeProfile =
+        await db.consulteeProfiles.findByUserId(userId);
+    if (consulteeProfile == null) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'User does not have a consultee profile',
+          },
+        },
+      );
+    }
+
+    final requestedById = consulteeProfile['id'] as String;
+    final message = data['message'] as String?;
+
+    Map<String, dynamic> booking;
+
+    if (type == 'CONSULTATION') {
+      // Validate consultation-specific fields
+      final slotStartTimesRaw = data['slotStartTimes'] as List<dynamic>?;
+      if (slotStartTimesRaw == null || slotStartTimesRaw.isEmpty) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {
+              'message': 'Consultation requires slotStartTimes array',
+            },
+          },
+        );
+      }
+
+      // Parse slot times
+      final slotStartTimes = <DateTime>[];
+      for (final timeStr in slotStartTimesRaw) {
+        try {
+          slotStartTimes.add(DateTime.parse(timeStr.toString()));
+        } catch (e) {
+          return Response.json(
+            statusCode: HttpStatus.badRequest,
+            body: {
+              'error': {
+                'message': 'Invalid date format in slotStartTimes',
+              },
+            },
+          );
+        }
+      }
+
+      // Create consultation booking
+      booking = await db.appointments.createConsultationBooking(
+        consultantProfileId: consultantProfileId,
+        planId: planId,
+        requestedById: requestedById,
+        slotStartTimes: slotStartTimes,
+        message: message,
+      );
+    } else if (type == 'SUBSCRIPTION') {
+      // Validate subscription-specific fields
+      final periodStartStr = data['schedulingPeriodStart'] as String?;
+      final periodEndStr = data['schedulingPeriodEnd'] as String?;
+
+      if (periodStartStr == null || periodEndStr == null) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {
+              'message': 'Subscription requires schedulingPeriodStart '
+                  'and schedulingPeriodEnd',
+            },
+          },
+        );
+      }
+
+      DateTime schedulingPeriodStart;
+      DateTime schedulingPeriodEnd;
+
+      try {
+        schedulingPeriodStart = DateTime.parse(periodStartStr);
+        schedulingPeriodEnd = DateTime.parse(periodEndStr);
+      } catch (e) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {
+              'message': 'Invalid date format. Use ISO8601 format.',
+            },
+          },
+        );
+      }
+
+      // Validate date range
+      if (schedulingPeriodEnd.isBefore(schedulingPeriodStart)) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {
+              'message': 'schedulingPeriodEnd must be after '
+                  'schedulingPeriodStart',
+            },
+          },
+        );
+      }
+
+      final timezone = data['timezone'] as String?;
+
+      // Create subscription booking
+      booking = await db.appointments.createSubscriptionBooking(
+        consultantProfileId: consultantProfileId,
+        planId: planId,
+        requestedById: requestedById,
+        schedulingPeriodStart: schedulingPeriodStart,
+        schedulingPeriodEnd: schedulingPeriodEnd,
+        timezone: timezone,
+        message: message,
+      );
+    } else {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Invalid type. Must be CONSULTATION or SUBSCRIPTION',
+          },
+        },
+      );
+    }
+
+    return Response.json(
+      statusCode: HttpStatus.created,
+      body: serializeForJson(booking),
+    );
+  } catch (e, stackTrace) {
+    logger.severe('Error in POST /api/appointments', e, stackTrace);
+
+    // Handle specific errors
+    final errorMessage = e.toString();
+    if (errorMessage.contains('not found')) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {'error': {'message': errorMessage}},
+      );
+    }
+
+    return Response.json(
+      statusCode: HttpStatus.internalServerError,
+      body: {'error': {'message': 'Failed to create booking'}},
+    );
+  }
+}
