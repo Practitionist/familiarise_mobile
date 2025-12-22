@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
+import '../features/splash/screens/splash_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
@@ -95,28 +96,7 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/',
         name: 'splash',
-        builder: (context, state) => const Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FlutterLogo(size: 100),
-                SizedBox(height: 24),
-                Text(
-                  'Familiarise',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text('Find Your Mentor'),
-                SizedBox(height: 32),
-                CircularProgressIndicator(),
-              ],
-            ),
-          ),
-        ),
+        builder: (context, state) => const SplashScreen(),
       ),
 
       // Auth routes

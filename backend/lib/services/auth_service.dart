@@ -1,4 +1,6 @@
-import 'package:backend/database/database_client.dart';
+import 'dart:io' show Platform;
+
+import 'package:backend/database/database_client.dart' hide Platform;
 import 'package:backend/services/google_token_verifier.dart';
 import 'package:backend/services/jwt_service.dart';
 import 'package:bcrypt/bcrypt.dart';
@@ -295,6 +297,143 @@ class AuthService {
         'expiresAt': session['expires']?.toString(),
       },
     };
+  }
+
+  /// Sign in with Google OAuth using authorization code
+  ///
+  /// Used for browser-based OAuth flow (e.g., macOS) where the client
+  /// receives an authorization code instead of tokens directly.
+  ///
+  /// New user creation is wrapped in a database transaction for atomicity.
+  Future<Map<String, dynamic>> signInWithGoogleCode({
+    required String code,
+    required String redirectUri,
+    String? clientId,
+  }) async {
+    // Get client credentials from environment based on provided clientId
+    final resolvedClientId = _resolveGoogleClientId(clientId);
+    final resolvedClientSecret = _resolveGoogleClientSecret(clientId);
+
+    if (resolvedClientId.isEmpty || resolvedClientSecret.isEmpty) {
+      throw AuthException(
+        'Google OAuth not configured on server',
+        statusCode: 500,
+      );
+    }
+
+    // Exchange code for user info
+    final googleUser = await _tokenVerifier.exchangeCodeForUserInfo(
+      code: code,
+      redirectUri: redirectUri,
+      clientId: resolvedClientId,
+      clientSecret: resolvedClientSecret,
+    );
+
+    // Use the stable Google user ID (sub) as providerAccountId
+    final providerAccountId = googleUser.sub;
+    final email = googleUser.email;
+    final name = googleUser.name;
+    final image = googleUser.picture;
+
+    // Check if user exists by email
+    final existingUser = await _db.findUserByEmail(email);
+
+    final Map<String, dynamic> user;
+    if (existingUser == null) {
+      // Create new user atomically in a transaction
+      final userId = _uuid.v4();
+      user = await _db.executeInTransaction((txn) async {
+        final newUser = await _db.createUser(
+          id: userId,
+          email: email,
+          name: name,
+          image: image,
+          executor: txn,
+        );
+
+        // Create Google OAuth account link using stable sub ID
+        await _db.createOAuthAccount(
+          id: _uuid.v4(),
+          userId: userId,
+          provider: 'google',
+          providerAccountId: providerAccountId,
+          executor: txn,
+        );
+
+        // Create consultee profile
+        await _db.createConsulteeProfile(
+          id: _uuid.v4(),
+          userId: userId,
+          executor: txn,
+        );
+
+        return newUser;
+      });
+    } else {
+      // Update user info from verified token
+      if (name != null || image != null) {
+        final updatedUser = await _db.updateUser(
+          id: existingUser['id'] as String,
+          name: name,
+          image: image,
+        );
+        user = updatedUser ?? existingUser;
+      } else {
+        user = existingUser;
+      }
+    }
+
+    // Create session
+    final session = await _createSession(user['id'] as String);
+
+    // Create JWT token
+    final token = _jwtService.createToken(
+      userId: user['id'] as String,
+      sessionId: session['id'] as String,
+    );
+
+    return {
+      'user': _sanitizeUser(user),
+      'token': token,
+      'session': {
+        'id': session['id'],
+        'userId': session['userId'],
+        'expiresAt': session['expires']?.toString(),
+      },
+    };
+  }
+
+  /// Resolve Google client ID from environment
+  /// If a specific clientId is provided, validate it exists in our config
+  String _resolveGoogleClientId(String? providedClientId) {
+    final macosClientId = Platform.environment['GOOGLE_CLIENT_ID_MACOS'] ?? '';
+    final webClientId = Platform.environment['GOOGLE_CLIENT_ID_WEB'] ??
+        Platform.environment['GOOGLE_CLIENT_ID'] ??
+        '';
+
+    // If a client ID is provided, use it if it matches our configured clients
+    if (providedClientId != null && providedClientId.isNotEmpty) {
+      if (providedClientId == macosClientId) return macosClientId;
+      if (providedClientId == webClientId) return webClientId;
+      // For security, don't use arbitrary client IDs
+      return webClientId;
+    }
+
+    return webClientId;
+  }
+
+  /// Resolve Google client secret based on the client ID
+  String _resolveGoogleClientSecret(String? providedClientId) {
+    final macosClientId = Platform.environment['GOOGLE_CLIENT_ID_MACOS'] ?? '';
+    final macosSecret = Platform.environment['GOOGLE_CLIENT_SECRET_MACOS'] ?? '';
+    final webSecret = Platform.environment['GOOGLE_CLIENT_SECRET'] ?? '';
+
+    // Return secret matching the client ID
+    if (providedClientId == macosClientId && macosSecret.isNotEmpty) {
+      return macosSecret;
+    }
+
+    return webSecret;
   }
 
   /// Create a new session for a user

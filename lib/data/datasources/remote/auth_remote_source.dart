@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show ContentType, HttpServer, InternetAddress, Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
@@ -19,10 +21,19 @@ import '../../models/user_model.dart';
 
 part 'auth_remote_source.g.dart';
 
+/// Check if we should use HTTP-based auth instead of better_auth_flutter
+/// Web and macOS don't support better_auth_flutter's cookie_jar
+bool get _useHttpAuth {
+  if (kIsWeb) return true;
+  // macOS sandboxing blocks cookie_jar file system access
+  if (Platform.isMacOS) return true;
+  return false;
+}
+
 /// Provider for AuthRemoteSource
 @riverpod
 AuthRemoteSource authRemoteSource(Ref ref) {
-  if (kIsWeb) {
+  if (_useHttpAuth) {
     return AuthRemoteSourceWebImpl();
   }
   return AuthRemoteSourceImpl();
@@ -343,8 +354,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   }
 }
 
-/// Web-specific implementation using direct HTTP calls
-/// This bypasses better_auth_flutter which doesn't support web
+/// Web/macOS-specific implementation using direct HTTP calls
+/// This bypasses better_auth_flutter which doesn't support web/macOS
 class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
@@ -354,6 +365,14 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       StreamController<UserModel?>.broadcast();
 
   String get _baseUrl => EnvConfig.apiBaseUrl;
+
+  /// Check if we should use browser-based OAuth instead of native GoogleSignIn
+  /// macOS doesn't have GoogleService-Info.plist configured
+  bool get _useBrowserOAuth {
+    if (kIsWeb) return false; // Web uses google_sign_in GIS
+    if (Platform.isMacOS) return true; // macOS uses browser OAuth
+    return false;
+  }
 
   GoogleSignIn get googleSignIn {
     // On web, don't pass clientId - it's read from the meta tag in index.html
@@ -455,6 +474,11 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   @override
   Future<UserModel> signInWithGoogle() async {
     try {
+      // On macOS, use browser-based OAuth since GoogleService-Info.plist isn't configured
+      if (_useBrowserOAuth) {
+        return _signInWithGoogleBrowser();
+      }
+
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         throw const AuthException(message: 'Google sign in cancelled');
@@ -481,6 +505,108 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
         body: jsonEncode({
           'idToken': idToken, // May be null on web
           'accessToken': accessToken,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        final errorMsg = error['error']?['message'] ?? 'Google sign in failed';
+        throw AuthException(message: errorMsg);
+      }
+
+      final data = jsonDecode(response.body);
+      final userModel = UserModel.fromJson(data['user']);
+      final token = data['token'] as String;
+
+      await _saveToken(token);
+      await _saveUser(userModel);
+      _authStateController.add(userModel);
+
+      return userModel;
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException(message: e.toString());
+    }
+  }
+
+  /// Browser-based Google OAuth for platforms without native GoogleSignIn support
+  Future<UserModel> _signInWithGoogleBrowser() async {
+    try {
+      // Use platform-specific Google client ID (macOS uses Desktop client)
+      final clientId = EnvConfig.googleClientId;
+      if (clientId.isEmpty) {
+        throw const AuthException(
+          message: 'Google Sign-In is not configured for this platform.',
+        );
+      }
+
+      // Start local server to catch OAuth callback
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final port = server.port;
+      final redirectUri = 'http://127.0.0.1:$port/';
+
+      final scope = Uri.encodeComponent('email profile openid');
+      final authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+          '?client_id=$clientId'
+          '&redirect_uri=${Uri.encodeComponent(redirectUri)}'
+          '&response_type=code'
+          '&scope=$scope'
+          '&access_type=offline';
+
+      // Open browser for authentication
+      final launched = await launchUrl(
+        Uri.parse(authUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        await server.close();
+        throw const AuthException(message: 'Could not open browser for sign in');
+      }
+
+      // Wait for callback
+      String? code;
+      String? error;
+
+      await for (final request in server) {
+        final uri = request.uri;
+        code = uri.queryParameters['code'];
+        error = uri.queryParameters['error'];
+
+        // Send response to browser
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.html
+          ..write('''
+            <html>
+              <body style="font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #1a1a2e; color: white;">
+                <div style="text-align: center;">
+                  <h1>${code != null ? '✓ Sign in successful!' : '✗ Sign in failed'}</h1>
+                  <p>You can close this window and return to the app.</p>
+                </div>
+              </body>
+            </html>
+          ''');
+        await request.response.close();
+        break;
+      }
+
+      await server.close();
+
+      if (code == null) {
+        throw AuthException(
+          message: error ?? 'Google sign in failed - no authorization code',
+        );
+      }
+
+      // Exchange code for tokens via backend
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/google/callback'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'code': code,
+          'redirectUri': redirectUri,
+          'clientId': clientId,
         }),
       );
 
@@ -554,6 +680,10 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       }
 
       final data = jsonDecode(response.body);
+      // Check if user data exists in response
+      if (data['user'] == null) {
+        return null;
+      }
       final userModel = UserModel.fromJson(data['user']);
       return userModel;
     } catch (e) {

@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,12 +13,22 @@ import 'app/app.dart';
 import 'core/config/env_config.dart';
 import 'shared/providers/core_providers.dart';
 
+/// Check if we should use better_auth_flutter
+/// Only supported on iOS and Android (mobile platforms)
+bool get _useBetterAuth {
+  if (kIsWeb) return false;
+  // macOS sandboxing blocks cookie_jar file system access
+  if (Platform.isMacOS) return false;
+  return true;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Better Auth only on non-web platforms
-  // better_auth_flutter doesn't support web (uses cookie_jar which requires file system)
-  if (!kIsWeb) {
+  // Initialize Better Auth only on mobile platforms (iOS/Android)
+  // better_auth_flutter uses cookie_jar which requires file system access
+  // Web and macOS use HTTP-based auth instead
+  if (_useBetterAuth) {
     BetterAuth.init(
       baseUrl: Uri.parse(EnvConfig.apiBaseUrl),
     );

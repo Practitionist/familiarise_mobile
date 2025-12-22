@@ -179,6 +179,60 @@ class GoogleTokenVerifier {
     }
   }
 
+  /// Exchange authorization code for tokens
+  ///
+  /// Used for browser-based OAuth flow where the client receives an
+  /// authorization code instead of tokens directly.
+  ///
+  /// Returns a [GoogleUserInfo] after exchanging the code and fetching user
+  /// info.
+  ///
+  /// Throws [AuthException] if the code is invalid or exchange fails.
+  Future<GoogleUserInfo> exchangeCodeForUserInfo({
+    required String code,
+    required String redirectUri,
+    required String clientId,
+    required String clientSecret,
+  }) async {
+    try {
+      // Exchange code for tokens
+      final tokenResponse = await _httpClient.post(
+        Uri.parse('https://oauth2.googleapis.com/token'),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'code': code,
+          'client_id': clientId,
+          'client_secret': clientSecret,
+          'redirect_uri': redirectUri,
+          'grant_type': 'authorization_code',
+        },
+      );
+
+      if (tokenResponse.statusCode != 200) {
+        final error = jsonDecode(tokenResponse.body);
+        throw AuthException(
+          'Failed to exchange code: ${error['error_description'] ?? error['error'] ?? 'Unknown error'}',
+        );
+      }
+
+      final tokenData = jsonDecode(tokenResponse.body) as Map<String, dynamic>;
+      final accessToken = tokenData['access_token'] as String?;
+
+      if (accessToken == null) {
+        throw AuthException('No access token in response');
+      }
+
+      // Use the access token to get user info
+      return getUserInfoFromAccessToken(accessToken);
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      throw AuthException(
+        'Failed to exchange Google authorization code: ${e.runtimeType}',
+      );
+    }
+  }
+
   /// Dispose of resources
   void dispose() {
     _httpClient.close();

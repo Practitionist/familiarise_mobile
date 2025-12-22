@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/errors/failures.dart';
@@ -29,21 +30,34 @@ class Auth extends _$Auth {
   }
 
   Future<void> _initializeAuth() async {
-    final repository = ref.read(authRepositoryProvider);
-    final result = await repository.getCurrentUser();
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      // Add timeout to prevent hanging on network issues
+      final result = await repository.getCurrentUser().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          // On timeout, return Right(null) to indicate no user
+          return const Right(null);
+        },
+      );
 
-    result.fold(
-      (failure) {
-        state = AuthState.unauthenticated(message: failure.displayMessage);
-      },
-      (user) {
-        if (user != null) {
-          state = AuthState.authenticated(user: user);
-        } else {
-          state = const AuthState.unauthenticated();
-        }
-      },
-    );
+      result.fold(
+        (failure) {
+          state = AuthState.unauthenticated(message: failure.displayMessage);
+        },
+        (user) {
+          if (user != null) {
+            state = AuthState.authenticated(user: user);
+          } else {
+            state = const AuthState.unauthenticated();
+          }
+        },
+      );
+    } catch (e) {
+      // If anything goes wrong during initialization, default to unauthenticated
+      // This ensures the app doesn't get stuck on the splash screen
+      state = const AuthState.unauthenticated();
+    }
   }
 
   /// Sign in with email and password

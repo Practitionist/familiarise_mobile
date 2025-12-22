@@ -47,17 +47,23 @@ abstract class EnvConfig {
   @EnviedField(varName: 'GOOGLE_CLIENT_ID_ANDROID', defaultValue: '')
   static String googleClientIdAndroid = _EnvConfig.googleClientIdAndroid;
 
+  @EnviedField(varName: 'GOOGLE_CLIENT_ID_MACOS', defaultValue: '')
+  static String googleClientIdMacos = _EnvConfig.googleClientIdMacos;
+
   /// Get platform-specific Google Client ID
   static String get googleClientId {
     if (kIsWeb) {
       return googleClientIdWeb;
     }
 
-    // On mobile, check the platform
+    // On native platforms, check the platform
     if (Platform.isIOS) {
       return googleClientIdIos;
     } else if (Platform.isAndroid) {
       return googleClientIdAndroid;
+    } else if (Platform.isMacOS) {
+      // macOS uses dedicated desktop OAuth client
+      return googleClientIdMacos.isNotEmpty ? googleClientIdMacos : googleClientIdWeb;
     }
 
     // Fallback to web client ID
