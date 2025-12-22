@@ -95,6 +95,13 @@ key.properties
 # Web build
 /web/favicon.png
 
+# macOS build files
+/macos/Flutter/ephemeral/
+/macos/Flutter/GeneratedPluginRegistrant.swift
+/macos/Pods/
+/macos/Podfile.lock
+/macos/.symlinks/
+
 # Firebase (add actual files to repo if needed for CI)
 google-services.json
 GoogleService-Info.plist
