@@ -1,9 +1,13 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for consultant availability slot operations
 ///
 /// Provides methods for fetching available time slots for booking.
 /// Supports both weekly recurring schedules and custom one-time slots.
+///
+/// Uses Prisma ORM for simple queries, with raw SQL fallback for
+/// complex multi-join queries that exceed ORM capabilities.
 class SlotRepository extends BaseRepository {
   /// Create a slot repository with the given executor
   SlotRepository(super._executor);
@@ -55,24 +59,28 @@ class SlotRepository extends BaseRepository {
     }
   }
 
-  /// Get consultant's schedule configuration
+  /// Get consultant's schedule configuration using ORM
   Future<Map<String, dynamic>?> _getConsultantSchedule(
     String consultantProfileId,
   ) async {
-    final results = await executeRaw(
-      r'''
-      SELECT "scheduleType"
-      FROM "ConsultantProfile"
-      WHERE id = $1
-      ''',
-      [consultantProfileId],
-    );
-    return results.isNotEmpty ? results.first : null;
+    final query = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findUnique)
+        .where({'id': consultantProfileId}).build();
+
+    return executeQueryAsSingleMap(query);
   }
 
   /// Get already booked slots for a date range
   ///
   /// Returns slot times that should be excluded from availability.
+  ///
+  /// NOTE: This query is kept as raw SQL because it's too complex for ORM:
+  /// - 6 tables with mixed INNER/LEFT JOINs
+  /// - OR conditions across multiple relations
+  /// - NOT IN filters with NULL handling
+  ///
+  /// The query is parameterized and safe from SQL injection.
   Future<List<Map<String, dynamic>>> _getBookedSlots({
     required String consultantProfileId,
     required DateTime startDate,
@@ -105,31 +113,33 @@ class SlotRepository extends BaseRepository {
     );
   }
 
-  /// Get custom one-time availability slots
+  /// Get custom one-time availability slots using ORM
   Future<List<Map<String, dynamic>>> _getCustomAvailability({
     required String consultantProfileId,
     required DateTime startDate,
     required DateTime endDate,
     required List<Map<String, dynamic>> bookedSlots,
   }) async {
-    // Get custom availability slots within the date range
-    final slots = await executeRaw(
-      r'''
-      SELECT id,
-             "availabilityStartsAt" as "startsAt",
-             "availabilityEndsAt" as "endsAt"
-      FROM "SlotOfAvailabilityCustom"
-      WHERE "consultantProfileId" = $1
-        AND "availabilityStartsAt" >= $2
-        AND "availabilityStartsAt" < $3
-      ORDER BY "availabilityStartsAt"
-      ''',
-      [
-        consultantProfileId,
-        startDate.toIso8601String(),
-        endDate.toIso8601String(),
-      ],
-    );
+    // Get custom availability slots within the date range using ORM
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityCustom')
+        .action(QueryAction.findMany)
+        .where({
+      'consultantProfileId': consultantProfileId,
+      'availabilityStartsAt': FilterOperators.gte(startDate.toIso8601String()),
+      'availabilityStartsAt_lt': FilterOperators.lt(endDate.toIso8601String()),
+    }).orderBy({'availabilityStartsAt': 'asc'}).build();
+
+    final results = await executeQueryAsMaps(query);
+
+    // Map to expected format
+    final slots = results
+        .map((r) => {
+              'id': r['id'],
+              'startsAt': r['availabilityStartsAt'],
+              'endsAt': r['availabilityEndsAt'],
+            })
+        .toList();
 
     // Filter out booked slots
     return _filterBookedSlots(slots, bookedSlots);
@@ -142,17 +152,14 @@ class SlotRepository extends BaseRepository {
     required DateTime endDate,
     required List<Map<String, dynamic>> bookedSlots,
   }) async {
-    // Get weekly availability pattern
-    final weeklySlots = await executeRaw(
-      r'''
-      SELECT id, "dayOfWeekForStartsAt", "availabilityStartsAt",
-             "dayOfWeekForEndsAt", "availabilityEndsAt"
-      FROM "SlotOfAvailabilityWeekly"
-      WHERE "consultantProfileId" = $1
-      ORDER BY "dayOfWeekForStartsAt"
-      ''',
-      [consultantProfileId],
-    );
+    // Get weekly availability pattern using ORM
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityWeekly')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId}).orderBy(
+            {'dayOfWeekForStartsAt': 'asc'}).build();
+
+    final weeklySlots = await executeQueryAsMaps(query);
 
     if (weeklySlots.isEmpty) {
       return [];

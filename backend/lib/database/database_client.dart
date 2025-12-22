@@ -18,17 +18,32 @@ SchemaRegistry _buildSchemaRegistry() {
     tableName: 'ConsultantProfile',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'userId': const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
-      'domainId': const FieldInfo(name: 'domainId', columnName: 'domainId', type: 'String'),
-      'headline': const FieldInfo(name: 'headline', columnName: 'headline', type: 'String'),
-      'description': const FieldInfo(name: 'description', columnName: 'description', type: 'String'),
-      'rating': const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
-      'experience': const FieldInfo(name: 'experience', columnName: 'experience', type: 'Float'),
-      'languages': const FieldInfo(name: 'languages', columnName: 'languages', type: 'Json'),
-      'toolsAndTechnologies': const FieldInfo(name: 'toolsAndTechnologies', columnName: 'toolsAndTechnologies', type: 'Json'),
-      'totalMenteesHelped': const FieldInfo(name: 'totalMenteesHelped', columnName: 'totalMenteesHelped', type: 'Int'),
-      'isVerified': const FieldInfo(name: 'isVerified', columnName: 'isVerified', type: 'Boolean'),
-      'createdAt': const FieldInfo(name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'userId':
+          const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'domainId': const FieldInfo(
+          name: 'domainId', columnName: 'domainId', type: 'String'),
+      'headline': const FieldInfo(
+          name: 'headline', columnName: 'headline', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'rating':
+          const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
+      'experience': const FieldInfo(
+          name: 'experience', columnName: 'experience', type: 'Float'),
+      'languages': const FieldInfo(
+          name: 'languages', columnName: 'languages', type: 'Json'),
+      'toolsAndTechnologies': const FieldInfo(
+          name: 'toolsAndTechnologies',
+          columnName: 'toolsAndTechnologies',
+          type: 'Json'),
+      'totalMenteesHelped': const FieldInfo(
+          name: 'totalMenteesHelped',
+          columnName: 'totalMenteesHelped',
+          type: 'Int'),
+      'isVerified': const FieldInfo(
+          name: 'isVerified', columnName: 'isVerified', type: 'Boolean'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
     },
     relations: {
       'user': RelationInfo.oneToOne(
@@ -70,8 +85,10 @@ SchemaRegistry _buildSchemaRegistry() {
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
-      'email': const FieldInfo(name: 'email', columnName: 'email', type: 'String'),
-      'image': const FieldInfo(name: 'image', columnName: 'image', type: 'String'),
+      'email':
+          const FieldInfo(name: 'email', columnName: 'email', type: 'String'),
+      'image':
+          const FieldInfo(name: 'image', columnName: 'image', type: 'String'),
     },
   ));
 
@@ -82,7 +99,8 @@ SchemaRegistry _buildSchemaRegistry() {
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
-      'description': const FieldInfo(name: 'description', columnName: 'description', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
     },
     relations: {
       'subDomains': RelationInfo.oneToMany(
@@ -100,19 +118,38 @@ SchemaRegistry _buildSchemaRegistry() {
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
-      'domainId': const FieldInfo(name: 'domainId', columnName: 'domainId', type: 'String'),
+      'domainId': const FieldInfo(
+          name: 'domainId', columnName: 'domainId', type: 'String'),
     },
   ));
 
-  // ConsultationPlan model
+  // ConsultationPlan model (extended for booking)
   schema.registerModel(ModelSchema(
     name: 'ConsultationPlan',
     tableName: 'ConsultationPlan',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'consultantProfileId': const FieldInfo(name: 'consultantProfileId', columnName: 'consultantProfileId', type: 'String'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'title':
+          const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
       'price': const FieldInfo(name: 'price', columnName: 'price', type: 'Int'),
-      'priceCurrency': const FieldInfo(name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
+      'priceCurrency': const FieldInfo(
+          name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
+      'durationInHours': const FieldInfo(
+          name: 'durationInHours',
+          columnName: 'durationInHours',
+          type: 'Float'),
+    },
+    relations: {
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
     },
   ));
 
@@ -122,10 +159,18 @@ SchemaRegistry _buildSchemaRegistry() {
     tableName: 'ConsultantReview',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'consultantProfileId': const FieldInfo(name: 'consultantProfileId', columnName: 'consultantProfileId', type: 'String'),
-      'consulteeProfileId': const FieldInfo(name: 'consulteeProfileId', columnName: 'consulteeProfileId', type: 'String'),
-      'rating': const FieldInfo(name: 'rating', columnName: 'rating', type: 'Int'),
-      'comment': const FieldInfo(name: 'comment', columnName: 'comment', type: 'String'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'consulteeProfileId': const FieldInfo(
+          name: 'consulteeProfileId',
+          columnName: 'consulteeProfileId',
+          type: 'String'),
+      'rating':
+          const FieldInfo(name: 'rating', columnName: 'rating', type: 'Int'),
+      'comment': const FieldInfo(
+          name: 'comment', columnName: 'comment', type: 'String'),
     },
     relations: {
       'consulteeProfile': RelationInfo.oneToOne(
@@ -143,7 +188,8 @@ SchemaRegistry _buildSchemaRegistry() {
     tableName: 'ConsulteeProfile',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'userId': const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'userId':
+          const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
     },
     relations: {
       'user': RelationInfo.oneToOne(
@@ -152,6 +198,253 @@ SchemaRegistry _buildSchemaRegistry() {
         foreignKey: 'userId',
         isOwner: true,
       ),
+    },
+  ));
+
+  // ==================== Phase 5: Booking Models ====================
+
+  // SubscriptionPlan model
+  schema.registerModel(ModelSchema(
+    name: 'SubscriptionPlan',
+    tableName: 'SubscriptionPlan',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'title':
+          const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
+      'price': const FieldInfo(name: 'price', columnName: 'price', type: 'Int'),
+      'priceCurrency': const FieldInfo(
+          name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
+      'totalSessions': const FieldInfo(
+          name: 'totalSessions', columnName: 'totalSessions', type: 'Int'),
+      'sessionDurationInHours': const FieldInfo(
+          name: 'sessionDurationInHours',
+          columnName: 'sessionDurationInHours',
+          type: 'Float'),
+    },
+    relations: {
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // Consultation model (booking request)
+  schema.registerModel(ModelSchema(
+    name: 'Consultation',
+    tableName: 'Consultation',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultationPlanId': const FieldInfo(
+          name: 'consultationPlanId',
+          columnName: 'consultationPlanId',
+          type: 'String'),
+      'requestedById': const FieldInfo(
+          name: 'requestedById', columnName: 'requestedById', type: 'String'),
+      'requestStatus': const FieldInfo(
+          name: 'requestStatus', columnName: 'requestStatus', type: 'String'),
+      'requestNotes': const FieldInfo(
+          name: 'requestNotes', columnName: 'requestNotes', type: 'String'),
+      'bookingSource': const FieldInfo(
+          name: 'bookingSource', columnName: 'bookingSource', type: 'String'),
+      'requestedAt': const FieldInfo(
+          name: 'requestedAt', columnName: 'requestedAt', type: 'DateTime'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'consultationPlan': RelationInfo.oneToOne(
+        name: 'consultationPlan',
+        targetModel: 'ConsultationPlan',
+        foreignKey: 'consultationPlanId',
+        isOwner: true,
+      ),
+      'requestedBy': RelationInfo.oneToOne(
+        name: 'requestedBy',
+        targetModel: 'ConsulteeProfile',
+        foreignKey: 'requestedById',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // Subscription model (subscription booking request)
+  schema.registerModel(ModelSchema(
+    name: 'Subscription',
+    tableName: 'Subscription',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'subscriptionPlanId': const FieldInfo(
+          name: 'subscriptionPlanId',
+          columnName: 'subscriptionPlanId',
+          type: 'String'),
+      'requestedById': const FieldInfo(
+          name: 'requestedById', columnName: 'requestedById', type: 'String'),
+      'requestStatus': const FieldInfo(
+          name: 'requestStatus', columnName: 'requestStatus', type: 'String'),
+      'requestNotes': const FieldInfo(
+          name: 'requestNotes', columnName: 'requestNotes', type: 'String'),
+      'bookingSource': const FieldInfo(
+          name: 'bookingSource', columnName: 'bookingSource', type: 'String'),
+      'schedulingPeriodStartsAt': const FieldInfo(
+          name: 'schedulingPeriodStartsAt',
+          columnName: 'schedulingPeriodStartsAt',
+          type: 'DateTime'),
+      'schedulingPeriodEndsAt': const FieldInfo(
+          name: 'schedulingPeriodEndsAt',
+          columnName: 'schedulingPeriodEndsAt',
+          type: 'DateTime'),
+      'schedulingTimezone': const FieldInfo(
+          name: 'schedulingTimezone',
+          columnName: 'schedulingTimezone',
+          type: 'String'),
+      'requestedAt': const FieldInfo(
+          name: 'requestedAt', columnName: 'requestedAt', type: 'DateTime'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'subscriptionPlan': RelationInfo.oneToOne(
+        name: 'subscriptionPlan',
+        targetModel: 'SubscriptionPlan',
+        foreignKey: 'subscriptionPlanId',
+        isOwner: true,
+      ),
+      'requestedBy': RelationInfo.oneToOne(
+        name: 'requestedBy',
+        targetModel: 'ConsulteeProfile',
+        foreignKey: 'requestedById',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // Appointment model
+  schema.registerModel(ModelSchema(
+    name: 'Appointment',
+    tableName: 'Appointment',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'appointmentType': const FieldInfo(
+          name: 'appointmentType',
+          columnName: 'appointmentType',
+          type: 'String'),
+      'consultationId': const FieldInfo(
+          name: 'consultationId', columnName: 'consultationId', type: 'String'),
+      'subscriptionId': const FieldInfo(
+          name: 'subscriptionId', columnName: 'subscriptionId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'consultation': RelationInfo.oneToOne(
+        name: 'consultation',
+        targetModel: 'Consultation',
+        foreignKey: 'consultationId',
+        isOwner: true,
+      ),
+      'subscription': RelationInfo.oneToOne(
+        name: 'subscription',
+        targetModel: 'Subscription',
+        foreignKey: 'subscriptionId',
+        isOwner: true,
+      ),
+      'slots': RelationInfo.oneToMany(
+        name: 'slots',
+        targetModel: 'SlotOfAppointment',
+        foreignKey: 'appointmentId',
+      ),
+    },
+  ));
+
+  // SlotOfAppointment model
+  schema.registerModel(ModelSchema(
+    name: 'SlotOfAppointment',
+    tableName: 'SlotOfAppointment',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'appointmentId': const FieldInfo(
+          name: 'appointmentId', columnName: 'appointmentId', type: 'String'),
+      'startsAt': const FieldInfo(
+          name: 'startsAt', columnName: 'startsAt', type: 'DateTime'),
+      'endsAt': const FieldInfo(
+          name: 'endsAt', columnName: 'endsAt', type: 'DateTime'),
+      'isTentative': const FieldInfo(
+          name: 'isTentative', columnName: 'isTentative', type: 'Boolean'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'appointment': RelationInfo.oneToOne(
+        name: 'appointment',
+        targetModel: 'Appointment',
+        foreignKey: 'appointmentId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // SlotOfAvailabilityCustom model (one-time availability slots)
+  schema.registerModel(ModelSchema(
+    name: 'SlotOfAvailabilityCustom',
+    tableName: 'SlotOfAvailabilityCustom',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'availabilityStartsAt': const FieldInfo(
+          name: 'availabilityStartsAt',
+          columnName: 'availabilityStartsAt',
+          type: 'DateTime'),
+      'availabilityEndsAt': const FieldInfo(
+          name: 'availabilityEndsAt',
+          columnName: 'availabilityEndsAt',
+          type: 'DateTime'),
+    },
+  ));
+
+  // SlotOfAvailabilityWeekly model (recurring weekly slots)
+  schema.registerModel(ModelSchema(
+    name: 'SlotOfAvailabilityWeekly',
+    tableName: 'SlotOfAvailabilityWeekly',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'dayOfWeekForStartsAt': const FieldInfo(
+          name: 'dayOfWeekForStartsAt',
+          columnName: 'dayOfWeekForStartsAt',
+          type: 'String'),
+      'availabilityStartsAt': const FieldInfo(
+          name: 'availabilityStartsAt',
+          columnName: 'availabilityStartsAt',
+          type: 'DateTime'),
+      'dayOfWeekForEndsAt': const FieldInfo(
+          name: 'dayOfWeekForEndsAt',
+          columnName: 'dayOfWeekForEndsAt',
+          type: 'String'),
+      'availabilityEndsAt': const FieldInfo(
+          name: 'availabilityEndsAt',
+          columnName: 'availabilityEndsAt',
+          type: 'DateTime'),
     },
   ));
 
@@ -215,8 +508,7 @@ class DatabaseClient {
     final colonIndex = userInfo.indexOf(':');
     final username =
         colonIndex == -1 ? userInfo : userInfo.substring(0, colonIndex);
-    final password =
-        colonIndex == -1 ? '' : userInfo.substring(colonIndex + 1);
+    final password = colonIndex == -1 ? '' : userInfo.substring(colonIndex + 1);
 
     final connection = await pg.Connection.open(
       pg.Endpoint(

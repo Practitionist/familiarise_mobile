@@ -324,8 +324,9 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     final paginationJson =
         json['pagination'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
-    final bookings =
-        bookingsJson.map((b) => _parseBooking(b as Map<String, dynamic>)).toList();
+    final bookings = bookingsJson
+        .map((b) => _parseBooking(b as Map<String, dynamic>))
+        .toList();
 
     final pagination = BookingsPagination(
       page: paginationJson['page'] as int? ?? 0,
@@ -344,10 +345,11 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
 
     return slotsJson.map((s) {
       final slotJson = s as Map<String, dynamic>;
+      // Fail fast if startsAt/endsAt is null - indicates data integrity issue
       return BookingSlot(
         id: slotJson['id'] as String,
-        startsAt: _parseDateTime(slotJson['startsAt']) ?? DateTime.now(),
-        endsAt: _parseDateTime(slotJson['endsAt']) ?? DateTime.now(),
+        startsAt: _parseDateTime(slotJson['startsAt'])!,
+        endsAt: _parseDateTime(slotJson['endsAt'])!,
         isTentative: slotJson['isTentative'] as bool? ?? false,
       );
     }).toList();
