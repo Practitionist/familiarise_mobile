@@ -6,8 +6,8 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Provides methods for fetching available time slots for booking.
 /// Supports both weekly recurring schedules and custom one-time slots.
 ///
-/// Uses Prisma ORM for simple queries, with raw SQL fallback for
-/// complex multi-join queries that exceed ORM capabilities.
+/// Uses Prisma ORM v0.2.9+ for all queries including complex multi-join
+/// queries with deep relation path filtering.
 class SlotRepository extends BaseRepository {
   /// Create a slot repository with the given executor
   SlotRepository(super._executor);
@@ -74,43 +74,38 @@ class SlotRepository extends BaseRepository {
   /// Get already booked slots for a date range
   ///
   /// Returns slot times that should be excluded from availability.
-  ///
-  /// NOTE: This query is kept as raw SQL because it's too complex for ORM:
-  /// - 6 tables with mixed INNER/LEFT JOINs
-  /// - OR conditions across multiple relations
-  /// - NOT IN filters with NULL handling
-  ///
-  /// The query is parameterized and safe from SQL injection.
+  /// Uses Prisma ORM with deep relation path filtering (v0.2.9+).
   Future<List<Map<String, dynamic>>> _getBookedSlots({
     required String consultantProfileId,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
     // Get all booked slots for this consultant's appointments.
-    // Path: ConsultantProfile -> Plan -> Request -> Appointment -> Slot
-    return executeRaw(
-      r'''
-      SELECT DISTINCT soa."startsAt", soa."endsAt", soa."isTentative"
-      FROM "SlotOfAppointment" soa
-      INNER JOIN "Appointment" a ON soa."appointmentId" = a.id
-      LEFT JOIN "Consultation" c ON a."consultationId" = c.id
-      LEFT JOIN "ConsultationPlan" cp ON c."consultationPlanId" = cp.id
-      LEFT JOIN "Subscription" s ON a."subscriptionId" = s.id
-      LEFT JOIN "SubscriptionPlan" sp ON s."subscriptionPlanId" = sp.id
-      WHERE (cp."consultantProfileId" = $1 OR sp."consultantProfileId" = $1)
-        AND soa."startsAt" >= $2
-        AND soa."startsAt" < $3
-        AND (c."requestStatus" NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED')
-             OR c."requestStatus" IS NULL)
-        AND (s."requestStatus" NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED')
-             OR s."requestStatus" IS NULL)
-      ''',
-      [
-        consultantProfileId,
-        startDate.toIso8601String(),
-        endDate.toIso8601String(),
+    // Path: SlotOfAppointment -> Appointment -> (Consultation|Subscription) -> Plan
+    // Use AND to combine both date range conditions on startsAt
+    final query = JsonQueryBuilder()
+        .model('SlotOfAppointment')
+        .action(QueryAction.findMany)
+        .distinct()
+        .selectFields(['startsAt', 'endsAt', 'isTentative'])
+        .where({
+      'AND': [
+        {'startsAt': FilterOperators.gte(startDate.toIso8601String())},
+        {'startsAt': FilterOperators.lt(endDate.toIso8601String())},
       ],
-    );
+      'OR': [
+        FilterOperators.relationPath(
+          'appointment.consultation.consultationPlan',
+          {'consultantProfileId': consultantProfileId},
+        ),
+        FilterOperators.relationPath(
+          'appointment.subscription.subscriptionPlan',
+          {'consultantProfileId': consultantProfileId},
+        ),
+      ],
+    }).build();
+
+    return executeQueryAsMaps(query);
   }
 
   /// Get custom one-time availability slots using ORM
@@ -125,10 +120,20 @@ class SlotRepository extends BaseRepository {
         .model('SlotOfAvailabilityCustom')
         .action(QueryAction.findMany)
         .where({
-      'consultantProfileId': consultantProfileId,
-      'availabilityStartsAt': FilterOperators.gte(startDate.toIso8601String()),
-      'availabilityStartsAt_lt': FilterOperators.lt(endDate.toIso8601String()),
-    }).orderBy({'availabilityStartsAt': 'asc'}).build();
+          'consultantProfileId': consultantProfileId,
+          'AND': [
+            {
+              'availabilityStartsAt':
+                  FilterOperators.gte(startDate.toIso8601String()),
+            },
+            {
+              'availabilityStartsAt':
+                  FilterOperators.lt(endDate.toIso8601String()),
+            },
+          ],
+        })
+        .orderBy({'availabilityStartsAt': 'asc'})
+        .build();
 
     final results = await executeQueryAsMaps(query);
 
@@ -138,7 +143,7 @@ class SlotRepository extends BaseRepository {
               'id': r['id'],
               'startsAt': r['availabilityStartsAt'],
               'endsAt': r['availabilityEndsAt'],
-            })
+            },)
         .toList();
 
     // Filter out booked slots
@@ -156,8 +161,9 @@ class SlotRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('SlotOfAvailabilityWeekly')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).orderBy(
-            {'dayOfWeekForStartsAt': 'asc'}).build();
+        .where({'consultantProfileId': consultantProfileId})
+        .orderBy({'dayOfWeekForStartsAt': 'asc'},)
+        .build();
 
     final weeklySlots = await executeQueryAsMaps(query);
 
