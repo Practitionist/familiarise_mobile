@@ -28,7 +28,6 @@ class AuthStateNotifier extends ChangeNotifier {
 
 @riverpod
 GoRouter router(Ref ref) {
-  final authState = ref.watch(authProvider);
   final authNotifier = AuthStateNotifier(ref);
 
   return GoRouter(
@@ -36,6 +35,8 @@ GoRouter router(Ref ref) {
     debugLogDiagnostics: true,
     refreshListenable: authNotifier,
     redirect: (context, state) {
+      // Read fresh auth state on each redirect (not captured from closure)
+      final authState = ref.read(authProvider);
       final isAuthenticated = authState.isAuthenticated;
       final isLoading = authState.isLoading;
       final needsOnboarding = authState.needsOnboarding;
@@ -63,8 +64,8 @@ GoRouter router(Ref ref) {
 
       // Not authenticated -> redirect to sign in (unless already on auth route)
       if (!isAuthenticated) {
-        if (isAuthRoute || isSplash) return null;
-        return '/auth/sign-in';
+        if (isAuthRoute) return null; // Already on auth route, stay there
+        return '/auth/sign-in'; // Redirect to sign-in from splash or any other route
       }
 
       // Authenticated but needs onboarding -> redirect to onboarding

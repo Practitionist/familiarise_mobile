@@ -71,5 +71,8 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Google Sign-In Client ID for iOS -->
+	<key>GIDClientID</key>
+	<string>384845845365-cbj7tlc00581pp7rg6ibn6i3icid5qqi.apps.googleusercontent.com</string>
 </dict>
 </plist>

@@ -35,7 +35,23 @@ abstract class EnvConfig {
 
   // API
   @EnviedField(varName: 'API_BASE_URL', defaultValue: 'http://localhost:3000')
-  static String apiBaseUrl = _EnvConfig.apiBaseUrl;
+  static String _apiBaseUrlRaw = _EnvConfig._apiBaseUrlRaw;
+
+  /// Get platform-aware API base URL
+  /// On Android emulator, localhost maps to the emulator - use 10.0.2.2 to reach host
+  static String get apiBaseUrl {
+    final url = _apiBaseUrlRaw;
+
+    // On web, use as-is
+    if (kIsWeb) return url;
+
+    // On Android, replace localhost with 10.0.2.2 for emulator support
+    if (Platform.isAndroid && (url.contains('localhost') || url.contains('127.0.0.1'))) {
+      return url.replaceFirst('localhost', '10.0.2.2').replaceFirst('127.0.0.1', '10.0.2.2');
+    }
+
+    return url;
+  }
 
   // Google OAuth - Platform-specific Client IDs
   @EnviedField(varName: 'GOOGLE_CLIENT_ID_WEB', defaultValue: '')

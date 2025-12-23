@@ -39,5 +39,18 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    # Remove arm64 from excluded architectures for simulator (Apple Silicon support)
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+    end
+  end
+
+  # Also update the main Pods-Runner config
+  installer.aggregate_targets.each do |target|
+    target.xcconfigs.each do |config_name, config_file|
+      config_file.attributes['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+      xcconfig_path = target.xcconfig_path(config_name)
+      config_file.save_as(xcconfig_path)
+    end
   end
 end
