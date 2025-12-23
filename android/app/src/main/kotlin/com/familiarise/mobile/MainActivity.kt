@@ -1,4 +1,4 @@
-package com.familiarise.familiarise_mobile
+package com.familiarise.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

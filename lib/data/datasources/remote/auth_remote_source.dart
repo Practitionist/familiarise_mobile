@@ -144,26 +144,36 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
-      if (idToken == null) {
+      if (idToken == null && accessToken == null) {
         throw const AuthException(message: 'Failed to get Google credentials');
       }
 
-      final (userData, error) =
-          await BetterAuth.instance.client.signInWithIdToken(
-        provider: SocialProvider.google,
-        idToken: idToken,
-        accessToken: accessToken ?? '',
+      // Use HTTP call to our backend instead of BetterAuth client
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'idToken': idToken,
+          'accessToken': accessToken,
+        }),
       );
 
-      if (error != null) {
-        throw AuthException(message: _mapAuthError(error.message));
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        final errorMsg = error['error']?['message'] ?? 'Google sign in failed';
+        throw AuthException(message: errorMsg);
       }
 
-      if (userData == null) {
-        throw const AuthException(message: 'Google sign in failed');
-      }
+      final data = jsonDecode(response.body);
+      final userModel = UserModel.fromJson(data['user']);
+      final token = data['token'] as String;
 
-      final userModel = _parseUserData(userData);
+      // Store token for future requests
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+
       _authStateController.add(userModel);
       return userModel;
     } catch (e) {

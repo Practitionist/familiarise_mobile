@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -29,21 +31,30 @@ class Auth extends _$Auth {
   }
 
   Future<void> _initializeAuth() async {
-    final repository = ref.read(authRepositoryProvider);
-    final result = await repository.getCurrentUser();
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      // Add timeout to prevent hanging on web/network issues
+      final result = await repository.getCurrentUser().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw TimeoutException('Auth check timed out'),
+      );
 
-    result.fold(
-      (failure) {
-        state = AuthState.unauthenticated(message: failure.displayMessage);
-      },
-      (user) {
-        if (user != null) {
-          state = AuthState.authenticated(user: user);
-        } else {
-          state = const AuthState.unauthenticated();
-        }
-      },
-    );
+      result.fold(
+        (failure) {
+          state = AuthState.unauthenticated(message: failure.displayMessage);
+        },
+        (user) {
+          if (user != null) {
+            state = AuthState.authenticated(user: user);
+          } else {
+            state = const AuthState.unauthenticated();
+          }
+        },
+      );
+    } catch (e) {
+      // On any error (timeout, network, etc), go to unauthenticated
+      state = const AuthState.unauthenticated();
+    }
   }
 
   /// Sign in with email and password
