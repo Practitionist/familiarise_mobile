@@ -275,10 +275,14 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
       body: serializeForJson(booking),
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in POST /api/appointments', e, stackTrace);
+    // Log detailed error for debugging
+    logger.severe('Error in POST /api/appointments: $e');
+    logger.severe('Stack trace: $stackTrace');
 
-    // Handle specific errors
+    // Extract meaningful error message
     final errorMessage = e.toString();
+
+    // Handle specific errors with appropriate status codes
     if (errorMessage.contains('not found')) {
       return Response.json(
         statusCode: HttpStatus.notFound,
@@ -286,9 +290,26 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
       );
     }
 
+    if (errorMessage.contains('permission') ||
+        errorMessage.contains('unauthorized')) {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {'error': {'message': errorMessage}},
+      );
+    }
+
+    // Return the actual error message for better debugging
+    // In production, you might want to sanitize this
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create booking'}},
+      body: {
+        'error': {
+          'message': errorMessage.isNotEmpty
+              ? errorMessage
+              : 'Failed to create booking',
+          'details': 'Check server logs for more information',
+        },
+      },
     );
   }
 }

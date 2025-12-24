@@ -315,21 +315,13 @@ class AppointmentRepository extends BaseRepository {
   }
 
   Future<Map<String, dynamic>> _getConsultationById(String id) async {
-    // Get consultation with includes
+    // Get consultation with plan only (avoid nested includes - ORM bug)
     final query = JsonQueryBuilder()
         .model('Consultation')
         .action(QueryAction.findUnique)
-        .where({'id': id}).include({
-      'consultationPlan': {
-        'include': {
-          'consultantProfile': {
-            'include': {
-              'user': true,
-            },
-          },
-        },
-      },
-    }).build();
+        .where({'id': id})
+        .include({'consultationPlan': true})
+        .build();
 
     final result = await executeQueryAsSingleMap(query);
 
@@ -338,8 +330,21 @@ class AppointmentRepository extends BaseRepository {
     }
 
     final plan = result['consultationPlan'] as Map<String, dynamic>?;
-    final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
-    final user = profile?['user'] as Map<String, dynamic>?;
+    final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+    // Fetch consultant profile and user separately to avoid nested include bug
+    Map<String, dynamic>? profile;
+    Map<String, dynamic>? user;
+    if (consultantProfileId != null) {
+      final profileQuery = JsonQueryBuilder()
+          .model('ConsultantProfile')
+          .action(QueryAction.findUnique)
+          .where({'id': consultantProfileId})
+          .include({'user': true})
+          .build();
+      profile = await executeQueryAsSingleMap(profileQuery);
+      user = profile?['user'] as Map<String, dynamic>?;
+    }
 
     final booking = {
       'id': result['id'],
@@ -386,21 +391,13 @@ class AppointmentRepository extends BaseRepository {
   }
 
   Future<Map<String, dynamic>> _getSubscriptionById(String id) async {
-    // Get subscription with includes
+    // Get subscription with plan only (avoid nested includes - ORM bug)
     final query = JsonQueryBuilder()
         .model('Subscription')
         .action(QueryAction.findUnique)
-        .where({'id': id}).include({
-      'subscriptionPlan': {
-        'include': {
-          'consultantProfile': {
-            'include': {
-              'user': true,
-            },
-          },
-        },
-      },
-    }).build();
+        .where({'id': id})
+        .include({'subscriptionPlan': true})
+        .build();
 
     final result = await executeQueryAsSingleMap(query);
 
@@ -409,8 +406,21 @@ class AppointmentRepository extends BaseRepository {
     }
 
     final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-    final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
-    final user = profile?['user'] as Map<String, dynamic>?;
+    final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+    // Fetch consultant profile and user separately to avoid nested include bug
+    Map<String, dynamic>? profile;
+    Map<String, dynamic>? user;
+    if (consultantProfileId != null) {
+      final profileQuery = JsonQueryBuilder()
+          .model('ConsultantProfile')
+          .action(QueryAction.findUnique)
+          .where({'id': consultantProfileId})
+          .include({'user': true})
+          .build();
+      profile = await executeQueryAsSingleMap(profileQuery);
+      user = profile?['user'] as Map<String, dynamic>?;
+    }
 
     return {
       'id': result['id'],

@@ -205,6 +205,12 @@ GoRouter router(Ref ref) {
             name: 'profile',
             builder: (context, state) => const ProfileScreen(),
           ),
+          // My Bookings (inside shell for bottom nav)
+          GoRoute(
+            path: '/my-bookings',
+            name: 'myBookings',
+            builder: (context, state) => const MyBookingsScreen(),
+          ),
         ],
       ),
 
@@ -226,12 +232,6 @@ GoRouter router(Ref ref) {
           return BookingSuccessScreen(booking: booking);
         },
       ),
-      GoRoute(
-        path: '/my-bookings',
-        name: 'myBookings',
-        builder: (context, state) => const MyBookingsScreen(),
-      ),
-
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/errors/exceptions.dart';
 import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 
@@ -43,6 +44,9 @@ class BookingFlow extends _$BookingFlow {
         ),
       );
       state = BookingFlowState.success(booking);
+    } on AppException catch (e) {
+      // Handle app-level exceptions (ServerException, AuthException, etc.)
+      state = BookingFlowState.error(e.message);
     } on DioException catch (e) {
       final data = e.response?.data;
       String message = 'Network error occurred';
@@ -52,7 +56,7 @@ class BookingFlow extends _$BookingFlow {
       }
       state = BookingFlowState.error(message);
     } catch (e) {
-      state = const BookingFlowState.error('An unexpected error occurred');
+      state = BookingFlowState.error('An unexpected error occurred: $e');
     }
   }
 
@@ -80,6 +84,9 @@ class BookingFlow extends _$BookingFlow {
         ),
       );
       state = BookingFlowState.success(booking);
+    } on AppException catch (e) {
+      // Handle app-level exceptions (ServerException, AuthException, etc.)
+      state = BookingFlowState.error(e.message);
     } on DioException catch (e) {
       final data = e.response?.data;
       String message = 'Network error occurred';
@@ -89,7 +96,7 @@ class BookingFlow extends _$BookingFlow {
       }
       state = BookingFlowState.error(message);
     } catch (e) {
-      state = const BookingFlowState.error('An unexpected error occurred');
+      state = BookingFlowState.error('An unexpected error occurred: $e');
     }
   }
 

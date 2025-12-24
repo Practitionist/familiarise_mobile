@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -80,9 +80,15 @@ class AuthInterceptor extends Interceptor {
 
   AuthInterceptor(this._ref);
 
-  static const _secureStorage = FlutterSecureStorage();
-  // Web uses SharedPreferences for token storage (see AuthRemoteSourceWebImpl)
-  static const _webTokenKey = 'auth_token';
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
+  // Key used for SharedPreferences storage (web and mobile fallback)
+  static const _tokenKey = 'auth_token';
+  // Mobile fallback key in SharedPreferences (separate from web key)
+  static const _mobileTokenFallbackKey = 'auth_token_mobile_fallback';
 
   @override
   Future<void> onRequest(
@@ -113,41 +119,64 @@ class AuthInterceptor extends Interceptor {
   static Future<String?> _getToken() async {
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_webTokenKey);
+      return prefs.getString(_tokenKey);
     }
-    // Try SecureStorage first, then fallback to SharedPreferences (for migration)
-    final secureToken = await _secureStorage.read(key: StorageKeys.authToken);
-    if (secureToken != null) {
-      return secureToken;
+
+    // On mobile: Try SecureStorage first
+    try {
+      final secureToken = await _secureStorage.read(key: StorageKeys.authToken);
+      if (secureToken != null && secureToken.isNotEmpty) {
+        return secureToken;
+      }
+    } catch (e) {
+      // SecureStorage failed (common on Android emulators), continue to fallback
+      debugPrint('AuthInterceptor: SecureStorage read failed: $e');
     }
-    // Fallback: check SharedPreferences (old storage location)
+
+    // Fallback: check SharedPreferences (works on all platforms including emulators)
     final prefs = await SharedPreferences.getInstance();
-    final prefsToken = prefs.getString(_webTokenKey);
-    if (prefsToken != null) {
-      // Migrate token to SecureStorage for future use
-      await _secureStorage.write(key: StorageKeys.authToken, value: prefsToken);
-      await prefs.remove(_webTokenKey);
+    final fallbackToken = prefs.getString(_mobileTokenFallbackKey);
+    if (fallbackToken != null && fallbackToken.isNotEmpty) {
+      return fallbackToken;
     }
-    return prefsToken;
+
+    return null;
   }
 
-  /// Save auth token to secure storage
+  /// Save auth token to secure storage (with fallback to SharedPreferences on mobile)
   static Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_webTokenKey, token);
+      await prefs.setString(_tokenKey, token);
     } else {
-      await _secureStorage.write(key: StorageKeys.authToken, value: token);
+      // On mobile: Try SecureStorage first, then always save to SharedPreferences as fallback
+      try {
+        await _secureStorage.write(key: StorageKeys.authToken, value: token);
+      } catch (e) {
+        debugPrint('AuthInterceptor: SecureStorage write failed: $e');
+      }
+
+      // Always save to SharedPreferences as fallback (handles Android emulator issues)
+      await prefs.setString(_mobileTokenFallbackKey, token);
+      debugPrint('AuthInterceptor: Token saved successfully');
     }
   }
 
-  /// Clear auth token from secure storage
+  /// Clear auth token from all storage locations
   static Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_webTokenKey);
+      await prefs.remove(_tokenKey);
     } else {
-      await _secureStorage.delete(key: StorageKeys.authToken);
+      // Clear from both SecureStorage and SharedPreferences fallback
+      try {
+        await _secureStorage.delete(key: StorageKeys.authToken);
+      } catch (e) {
+        debugPrint('AuthInterceptor: SecureStorage delete failed: $e');
+      }
+      await prefs.remove(_mobileTokenFallbackKey);
     }
   }
 
