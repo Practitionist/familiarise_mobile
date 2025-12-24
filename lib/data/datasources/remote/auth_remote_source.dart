@@ -15,6 +15,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../../../core/config/env_config.dart';
 import '../../../core/errors/exceptions.dart';
+import '../../../core/network/dio_client.dart' show AuthInterceptor;
 import '../../models/user_model.dart';
 
 part 'auth_remote_source.g.dart';
@@ -169,9 +170,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       final userModel = UserModel.fromJson(data['user']);
       final token = data['token'] as String;
 
-      // Store token for future requests
+      // Store token for future requests (uses SecureStorage on mobile, SharedPrefs on web)
+      await AuthInterceptor.saveToken(token);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
       await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);

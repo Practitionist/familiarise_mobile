@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/rating_stars.dart';
 import '../providers/consultant_detail_provider.dart';
@@ -205,7 +206,9 @@ class ConsultantProfileScreen extends ConsumerWidget {
                         child: ConsultationPlanCard(
                           plan: plan,
                           onTap: () {
-                            // TODO: Navigate to checkout
+                            context.push(
+                              '/booking/${consultant.id}/${plan.id}?type=consultation',
+                            );
                           },
                         ),
                       ),
@@ -222,7 +225,9 @@ class ConsultantProfileScreen extends ConsumerWidget {
                         child: SubscriptionPlanCard(
                           plan: plan,
                           onTap: () {
-                            // TODO: Navigate to checkout
+                            context.push(
+                              '/booking/${consultant.id}/${plan.id}?type=subscription',
+                            );
                           },
                         ),
                       ),

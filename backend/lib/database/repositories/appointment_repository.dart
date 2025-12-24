@@ -23,6 +23,7 @@ class AppointmentRepository extends BaseRepository {
     required String consultantProfileId,
     required String planId,
     required String requestedById,
+    required String userId, // User ID for junction table
     required List<DateTime> slotStartTimes,
     String? message,
   }) async {
@@ -102,10 +103,11 @@ class AppointmentRepository extends BaseRepository {
       // Link users to slots via junction table
       // Note: This still uses raw SQL as there's no ORM support for junction
       // tables without model definitions. This is parameterized and safe.
+      // Column B references users.id, so we use userId (not consulteeProfileId)
       for (final slotData in slotsData) {
         await txn.executeMutationRaw(
           r'INSERT INTO "_SlotOfAppointmentToUser" ("A", "B") VALUES ($1, $2)',
-          [slotData['id'], requestedById],
+          [slotData['id'], userId],
         );
       }
 
@@ -228,22 +230,12 @@ class AppointmentRepository extends BaseRepository {
       where['requestStatus'] = status;
     }
 
-    // Get consultations with ORM includes
+    // Get consultations - use simple include to avoid nested include bugs
     final consultationsQuery = JsonQueryBuilder()
         .model('Consultation')
         .action(QueryAction.findMany)
         .where(where)
-        .include({
-          'consultationPlan': {
-            'include': {
-              'consultantProfile': {
-                'include': {
-                  'user': true,
-                },
-              },
-            },
-          },
-        })
+        .include({'consultationPlan': true})
         .orderBy({'createdAt': 'desc'})
         .take(effectivePageSize)
         .skip(offset)
@@ -261,13 +253,27 @@ class AppointmentRepository extends BaseRepository {
     final totalCount = await executeCount(countQuery);
     final totalPages = (totalCount / effectivePageSize).ceil();
 
-    // Transform results to flat structure
-    final bookings = consultations.map((c) {
+    // Transform results - fetch consultant info separately to avoid nested include bugs
+    final bookings = <Map<String, dynamic>>[];
+    for (final c in consultations) {
       final plan = c['consultationPlan'] as Map<String, dynamic>?;
-      final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
-      final user = profile?['user'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
 
-      return {
+      // Fetch consultant profile and user separately
+      Map<String, dynamic>? profile;
+      Map<String, dynamic>? user;
+      if (consultantProfileId != null) {
+        final profileQuery = JsonQueryBuilder()
+            .model('ConsultantProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': consultantProfileId})
+            .include({'user': true})
+            .build();
+        profile = await executeQueryAsSingleMap(profileQuery);
+        user = profile?['user'] as Map<String, dynamic>?;
+      }
+
+      bookings.add({
         'id': c['id'],
         'bookingType': 'CONSULTATION',
         'status': c['requestStatus'],
@@ -282,8 +288,8 @@ class AppointmentRepository extends BaseRepository {
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
-      };
-    }).toList();
+      });
+    }
 
     return {
       'bookings': bookings,

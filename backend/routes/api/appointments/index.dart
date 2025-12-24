@@ -196,6 +196,7 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
         consultantProfileId: consultantProfileId,
         planId: planId,
         requestedById: requestedById,
+        userId: userId, // User ID for junction table
         slotStartTimes: slotStartTimes,
         message: message,
       );

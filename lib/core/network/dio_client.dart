@@ -115,7 +115,20 @@ class AuthInterceptor extends Interceptor {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_webTokenKey);
     }
-    return _secureStorage.read(key: StorageKeys.authToken);
+    // Try SecureStorage first, then fallback to SharedPreferences (for migration)
+    final secureToken = await _secureStorage.read(key: StorageKeys.authToken);
+    if (secureToken != null) {
+      return secureToken;
+    }
+    // Fallback: check SharedPreferences (old storage location)
+    final prefs = await SharedPreferences.getInstance();
+    final prefsToken = prefs.getString(_webTokenKey);
+    if (prefsToken != null) {
+      // Migrate token to SecureStorage for future use
+      await _secureStorage.write(key: StorageKeys.authToken, value: prefsToken);
+      await prefs.remove(_webTokenKey);
+    }
+    return prefsToken;
   }
 
   /// Save auth token to secure storage
