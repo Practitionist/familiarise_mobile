@@ -32,7 +32,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   // For subscription bookings
   DateTime? _periodStartDate;
-  DateTime? _periodEndDate;
+  // Note: End date is calculated based on plan duration
+  int _planDurationMonths = 1; // Default, will be updated from plan data
 
   @override
   void dispose() {
@@ -59,11 +60,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             );
           },
           error: (message) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor: theme.colorScheme.error,
-              ),
+            // Navigate to failure screen with error details and retry info
+            context.pushReplacementNamed(
+              'bookingFailure',
+              extra: {
+                'errorMessage': message,
+                'consultantId': widget.consultantId,
+                'planId': widget.planId,
+                'planType': widget.planType,
+              },
             );
           },
         );
@@ -156,6 +161,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   Widget _buildSubscriptionBooking(ThemeData theme, bool isLoading) {
+    // Calculate end date based on start date and plan duration
+    final calculatedEndDate = _periodStartDate != null
+        ? DateTime(
+            _periodStartDate!.year,
+            _periodStartDate!.month + _planDurationMonths,
+            _periodStartDate!.day,
+          )
+        : null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -183,8 +197,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Select a scheduling period. The consultant will '
-                    'allocate specific time slots within this period.',
+                    'Select your preferred start date. The subscription period '
+                    'will be $_planDurationMonths month${_planDurationMonths > 1 ? 's' : ''} from the start date.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -209,17 +223,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           ),
           const SizedBox(height: 16),
 
-          // End date
+          // End date (calculated, read-only)
           Text(
             'Scheduling Period End',
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          _buildDatePickerCard(
+          _buildCalculatedEndDateDisplay(
             theme,
-            _periodEndDate,
-            'Select end date',
-            (date) => setState(() => _periodEndDate = date),
+            calculatedEndDate,
+            _planDurationMonths,
           ),
           const SizedBox(height: 24),
 
@@ -231,10 +244,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed:
-                  _periodStartDate != null && _periodEndDate != null && !isLoading
-                      ? _handleSubscriptionBooking
-                      : null,
+              onPressed: _periodStartDate != null && !isLoading
+                  ? _handleSubscriptionBooking
+                  : null,
               child: isLoading
                   ? const SizedBox(
                       width: 20,
@@ -242,6 +254,54 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Request Subscription'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalculatedEndDateDisplay(
+    ThemeData theme,
+    DateTime? endDate,
+    int months,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              endDate != null
+                  ? _formatDate(endDate)
+                  : 'Select start date first',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: endDate != null
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Icon(
+            Icons.lock_outline,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Auto',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -469,13 +529,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   void _handleSubscriptionBooking() {
-    if (_periodStartDate == null || _periodEndDate == null) return;
+    if (_periodStartDate == null) return;
 
     ref.read(bookingFlowProvider.notifier).createSubscriptionBooking(
           consultantProfileId: widget.consultantId,
           planId: widget.planId,
           schedulingPeriodStart: _periodStartDate!,
-          schedulingPeriodEnd: _periodEndDate!,
           message: _messageController.text.isEmpty
               ? null
               : _messageController.text,

@@ -248,38 +248,34 @@ class BookingCard extends StatelessWidget {
           const Color(0xFF616161),
           Icons.timer_off,
         );
+      case RequestStatus.completed:
+        return (
+          const Color(0xFFE8F5E9),
+          const Color(0xFF1B5E20),
+          Icons.check_circle,
+        );
     }
   }
 
   Widget _buildTypeBadge(ThemeData theme) {
-    final isSubscription = booking.bookingType == BookingType.subscription;
     final colorScheme = theme.colorScheme;
+    final (icon, label, bgColor, fgColor) = _getTypeStyle(colorScheme);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isSubscription
-            ? colorScheme.tertiaryContainer.withOpacity(0.5)
-            : colorScheme.secondaryContainer.withOpacity(0.5),
+        color: bgColor,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isSubscription ? Icons.repeat : Icons.videocam_outlined,
-            size: 14,
-            color: isSubscription
-                ? colorScheme.onTertiaryContainer
-                : colorScheme.onSecondaryContainer,
-          ),
+          Icon(icon, size: 14, color: fgColor),
           const SizedBox(width: 4),
           Text(
-            isSubscription ? 'Subscription' : 'Consultation',
+            label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: isSubscription
-                  ? colorScheme.onTertiaryContainer
-                  : colorScheme.onSecondaryContainer,
+              color: fgColor,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -288,23 +284,80 @@ class BookingCard extends StatelessWidget {
     );
   }
 
+  (IconData, String, Color, Color) _getTypeStyle(ColorScheme colorScheme) {
+    switch (booking.bookingType) {
+      case BookingType.consultation:
+        return (
+          Icons.videocam_outlined,
+          'Consultation',
+          colorScheme.secondaryContainer.withOpacity(0.5),
+          colorScheme.onSecondaryContainer,
+        );
+      case BookingType.subscription:
+        return (
+          Icons.repeat,
+          'Subscription',
+          colorScheme.tertiaryContainer.withOpacity(0.5),
+          colorScheme.onTertiaryContainer,
+        );
+      case BookingType.webinar:
+        return (
+          Icons.groups_outlined,
+          'Webinar',
+          colorScheme.primaryContainer.withOpacity(0.5),
+          colorScheme.onPrimaryContainer,
+        );
+      case BookingType.classes:
+        return (
+          Icons.school_outlined,
+          'Class',
+          const Color(0xFFE8EAF6).withOpacity(0.7), // Indigo container
+          const Color(0xFF3949AB), // Indigo accent
+        );
+    }
+  }
+
   Widget _buildScheduleInfo(ThemeData theme) {
     final slot = booking.slots.first;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.calendar_today,
-          size: 14,
-          color: theme.colorScheme.primary,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 14,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              slot.formattedDate,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 4),
-        Text(
-          slot.formattedDate,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w500,
-          ),
+        const SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.access_time,
+              size: 12,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              slot.formattedTimeRange,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ],
     );

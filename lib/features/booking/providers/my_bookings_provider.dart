@@ -65,6 +65,14 @@ class MyBookings extends _$MyBookings {
     }
   }
 
+  /// Filter by type (called when switching category tabs)
+  /// Note: Currently the API fetches all types, so this just resets
+  /// the state. Actual filtering is done client-side in the UI.
+  void filterByType(String type) {
+    // Could potentially add server-side filtering here in the future
+    // For now, just reset status filter when changing categories
+  }
+
   /// Refresh the bookings list
   Future<void> refresh() async {
     _currentPage = 0;

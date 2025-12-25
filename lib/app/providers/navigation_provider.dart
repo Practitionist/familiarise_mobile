@@ -17,6 +17,7 @@ class NavigationIndex extends _$NavigationIndex {
 enum NavigationTab {
   explore('/explore', 'Explore'),
   dashboard('/dashboard', 'Dashboard'),
+  messages('/messages', 'Messages'),
   profile('/profile', 'Profile');
 
   const NavigationTab(this.path, this.label);

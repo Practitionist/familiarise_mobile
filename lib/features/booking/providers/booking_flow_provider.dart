@@ -61,11 +61,13 @@ class BookingFlow extends _$BookingFlow {
   }
 
   /// Create a subscription booking
+  ///
+  /// Note: The end date is auto-calculated by the backend based on
+  /// the plan's durationInMonths.
   Future<void> createSubscriptionBooking({
     required String consultantProfileId,
     required String planId,
     required DateTime schedulingPeriodStart,
-    required DateTime schedulingPeriodEnd,
     String? timezone,
     String? message,
   }) async {
@@ -78,7 +80,6 @@ class BookingFlow extends _$BookingFlow {
           consultantProfileId: consultantProfileId,
           planId: planId,
           schedulingPeriodStart: schedulingPeriodStart,
-          schedulingPeriodEnd: schedulingPeriodEnd,
           timezone: timezone,
           message: message,
         ),

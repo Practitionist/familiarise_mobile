@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/database/repositories/appointment_repository.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/logger.dart';
@@ -203,26 +204,22 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     } else if (type == 'SUBSCRIPTION') {
       // Validate subscription-specific fields
       final periodStartStr = data['schedulingPeriodStart'] as String?;
-      final periodEndStr = data['schedulingPeriodEnd'] as String?;
 
-      if (periodStartStr == null || periodEndStr == null) {
+      if (periodStartStr == null) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
           body: {
             'error': {
-              'message': 'Subscription requires schedulingPeriodStart '
-                  'and schedulingPeriodEnd',
+              'message': 'Subscription requires schedulingPeriodStart',
             },
           },
         );
       }
 
       DateTime schedulingPeriodStart;
-      DateTime schedulingPeriodEnd;
 
       try {
         schedulingPeriodStart = DateTime.parse(periodStartStr);
-        schedulingPeriodEnd = DateTime.parse(periodEndStr);
       } catch (e) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
@@ -234,28 +231,14 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
         );
       }
 
-      // Validate date range
-      if (schedulingPeriodEnd.isBefore(schedulingPeriodStart)) {
-        return Response.json(
-          statusCode: HttpStatus.badRequest,
-          body: {
-            'error': {
-              'message': 'schedulingPeriodEnd must be after '
-                  'schedulingPeriodStart',
-            },
-          },
-        );
-      }
-
       final timezone = data['timezone'] as String?;
 
-      // Create subscription booking
+      // Create subscription booking (end date is auto-calculated from plan)
       booking = await db.appointments.createSubscriptionBooking(
         consultantProfileId: consultantProfileId,
         planId: planId,
         requestedById: requestedById,
         schedulingPeriodStart: schedulingPeriodStart,
-        schedulingPeriodEnd: schedulingPeriodEnd,
         timezone: timezone,
         message: message,
       );
@@ -273,6 +256,30 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.created,
       body: serializeForJson(booking),
+    );
+  } on DuplicateBookingException catch (e) {
+    // 409 Conflict for duplicate bookings
+    logger.info('Duplicate booking attempt: $e');
+    return Response.json(
+      statusCode: HttpStatus.conflict,
+      body: {
+        'error': {
+          'code': 'DUPLICATE_BOOKING',
+          'message': e.message,
+        },
+      },
+    );
+  } on SlotConflictException catch (e) {
+    // 409 Conflict for slot conflicts
+    logger.info('Slot conflict: $e');
+    return Response.json(
+      statusCode: HttpStatus.conflict,
+      body: {
+        'error': {
+          'code': 'SLOT_CONFLICT',
+          'message': e.message,
+        },
+      },
     );
   } catch (e, stackTrace) {
     // Log detailed error for debugging

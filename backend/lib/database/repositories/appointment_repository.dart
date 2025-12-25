@@ -2,6 +2,24 @@ import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
+/// Exception thrown when user already has an active booking with a consultant
+class DuplicateBookingException implements Exception {
+  final String message;
+  DuplicateBookingException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Exception thrown when requested time slots conflict with existing bookings
+class SlotConflictException implements Exception {
+  final String message;
+  SlotConflictException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Repository for appointment/booking operations using Prisma ORM
 ///
 /// Handles creation, retrieval, and management of appointments
@@ -14,11 +32,141 @@ class AppointmentRepository extends BaseRepository {
 
   final _uuid = const Uuid();
 
+  /// Active statuses that block new bookings
+  static const _activeStatuses = [
+    'PENDING',
+    'APPROVED',
+    'APPROVED_PENDING_PAYMENT',
+    'SCHEDULED',
+  ];
+
+  /// Check if user has an active consultation booking with a consultant
+  ///
+  /// Returns true if there's already a PENDING, APPROVED, or SCHEDULED
+  /// consultation with this consultant.
+  Future<bool> hasActiveConsultationBooking({
+    required String consulteeProfileId,
+    required String consultantProfileId,
+  }) async {
+    // We need to check consultations that have a plan belonging to this consultant
+    // First get all consultation plan IDs for this consultant
+    final plansQuery = JsonQueryBuilder()
+        .model('ConsultationPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true})
+        .build();
+
+    final plans = await executeQueryAsMaps(plansQuery);
+    if (plans.isEmpty) return false;
+
+    final planIds = plans.map((p) => p['id'] as String).toList();
+
+    // Check if there's an active consultation with any of these plans
+    final countQuery = JsonQueryBuilder()
+        .model('Consultation')
+        .action(QueryAction.count)
+        .where({
+      'requestedById': consulteeProfileId,
+      'consultationPlanId': {'in': planIds},
+      'requestStatus': {'in': _activeStatuses},
+    }).build();
+
+    final count = await executeCount(countQuery);
+    return count > 0;
+  }
+
+  /// Check if user has an active subscription booking with a consultant
+  ///
+  /// Returns true if there's already a PENDING, APPROVED, or SCHEDULED
+  /// subscription with this consultant.
+  Future<bool> hasActiveSubscriptionBooking({
+    required String consulteeProfileId,
+    required String consultantProfileId,
+  }) async {
+    // Get all subscription plan IDs for this consultant
+    final plansQuery = JsonQueryBuilder()
+        .model('SubscriptionPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true})
+        .build();
+
+    final plans = await executeQueryAsMaps(plansQuery);
+    if (plans.isEmpty) return false;
+
+    final planIds = plans.map((p) => p['id'] as String).toList();
+
+    // Check if there's an active subscription with any of these plans
+    final countQuery = JsonQueryBuilder()
+        .model('Subscription')
+        .action(QueryAction.count)
+        .where({
+      'requestedById': consulteeProfileId,
+      'subscriptionPlanId': {'in': planIds},
+      'requestStatus': {'in': _activeStatuses},
+    }).build();
+
+    final count = await executeCount(countQuery);
+    return count > 0;
+  }
+
+  /// Check if any of the given time slots conflict with existing bookings
+  ///
+  /// Returns list of conflicting slot start times if any conflicts exist.
+  Future<List<DateTime>> checkSlotConflicts({
+    required String consultantProfileId,
+    required List<DateTime> slotStartTimes,
+    required int durationMinutes,
+  }) async {
+    final conflicts = <DateTime>[];
+
+    for (final slotStart in slotStartTimes) {
+      final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
+
+      // Check if there's any non-tentative slot that overlaps with this time
+      // A slot overlaps if: existing.start < new.end AND existing.end > new.start
+      final query = JsonQueryBuilder()
+          .model('SlotOfAppointment')
+          .action(QueryAction.count)
+          .where({
+        'isTentative': false,
+        'startsAt': {'lt': slotEnd.toUtc().toIso8601String()},
+        'endsAt': {'gt': slotStart.toUtc().toIso8601String()},
+        'appointment': {
+          'OR': [
+            {
+              'consultation': {
+                'consultationPlan': {'consultantProfileId': consultantProfileId},
+              }
+            },
+            {
+              'subscription': {
+                'subscriptionPlan': {'consultantProfileId': consultantProfileId},
+              }
+            },
+          ],
+        },
+      }).build();
+
+      final count = await executeCount(query);
+      if (count > 0) {
+        conflicts.add(slotStart);
+      }
+    }
+
+    return conflicts;
+  }
+
   /// Create a consultation booking request
   ///
   /// Creates a Consultation record with PENDING status.
   /// For consultation bookings, also creates the Appointment and
   /// SlotOfAppointment records.
+  ///
+  /// Throws:
+  /// - [DuplicateBookingException] if user already has an active booking
+  /// - [SlotConflictException] if any requested slots are already booked
   Future<Map<String, dynamic>> createConsultationBooking({
     required String consultantProfileId,
     required String planId,
@@ -27,6 +175,19 @@ class AppointmentRepository extends BaseRepository {
     required List<DateTime> slotStartTimes,
     String? message,
   }) async {
+    // Check for duplicate booking first
+    final hasDuplicate = await hasActiveConsultationBooking(
+      consulteeProfileId: requestedById,
+      consultantProfileId: consultantProfileId,
+    );
+
+    if (hasDuplicate) {
+      throw DuplicateBookingException(
+        'You already have an active consultation request with this consultant. '
+        'Please wait for it to be completed or cancel it before booking again.',
+      );
+    }
+
     // Get the plan to verify it exists and get duration
     final planQuery = JsonQueryBuilder()
         .model('ConsultationPlan')
@@ -44,6 +205,22 @@ class AppointmentRepository extends BaseRepository {
 
     final durationHours = (plan['durationInHours'] as num).toDouble();
     final durationMinutes = (durationHours * 60).round();
+
+    // Check for slot conflicts
+    final conflicts = await checkSlotConflicts(
+      consultantProfileId: consultantProfileId,
+      slotStartTimes: slotStartTimes,
+      durationMinutes: durationMinutes,
+    );
+
+    if (conflicts.isNotEmpty) {
+      throw SlotConflictException(
+        'The following time slots are no longer available: '
+        '${conflicts.map((d) => d.toIso8601String()).join(', ')}. '
+        'Please select different times.',
+      );
+    }
+
     final now = nowIso8601;
 
     // Create the booking within a transaction
@@ -135,17 +312,33 @@ class AppointmentRepository extends BaseRepository {
   /// Create a subscription booking request
   ///
   /// Creates a Subscription record with scheduling period.
+  /// The end date is automatically calculated based on plan.durationInMonths.
   /// Slots are allocated by the consultant later.
+  ///
+  /// Throws:
+  /// - [DuplicateBookingException] if user already has an active subscription
   Future<Map<String, dynamic>> createSubscriptionBooking({
     required String consultantProfileId,
     required String planId,
     required String requestedById,
     required DateTime schedulingPeriodStart,
-    required DateTime schedulingPeriodEnd,
     String? timezone,
     String? message,
   }) async {
-    // Verify plan exists
+    // Check for duplicate booking first
+    final hasDuplicate = await hasActiveSubscriptionBooking(
+      consulteeProfileId: requestedById,
+      consultantProfileId: consultantProfileId,
+    );
+
+    if (hasDuplicate) {
+      throw DuplicateBookingException(
+        'You already have an active subscription with this consultant. '
+        'Please wait for it to be completed or cancel it before subscribing again.',
+      );
+    }
+
+    // Verify plan exists and get duration
     final planQuery = JsonQueryBuilder()
         .model('SubscriptionPlan')
         .action(QueryAction.findFirst)
@@ -159,6 +352,14 @@ class AppointmentRepository extends BaseRepository {
     if (plan == null) {
       throw Exception('Subscription plan not found');
     }
+
+    // Auto-calculate end date from plan duration
+    final durationInMonths = (plan['durationInMonths'] as num?)?.toInt() ?? 1;
+    final schedulingPeriodEnd = DateTime(
+      schedulingPeriodStart.year,
+      schedulingPeriodStart.month + durationInMonths,
+      schedulingPeriodStart.day,
+    );
 
     final now = nowIso8601;
     final subscriptionId = _uuid.v4();
@@ -190,6 +391,7 @@ class AppointmentRepository extends BaseRepository {
 
   /// Get user's bookings with pagination and optional status filter
   ///
+  /// Fetches all four booking types: Consultations, Subscriptions, Webinars, Classes.
   /// Uses ORM with parameterized queries - NO SQL INJECTION RISK.
   Future<Map<String, dynamic>> getMyBookings({
     required String userId,
@@ -208,21 +410,73 @@ class AppointmentRepository extends BaseRepository {
 
     final profile = await executeQueryAsSingleMap(profileQuery);
 
-    if (profile == null) {
-      return {
-        'bookings': <Map<String, dynamic>>[],
-        'pagination': {
-          'page': page,
-          'pageSize': effectivePageSize,
-          'totalCount': 0,
-          'totalPages': 0,
-        },
-      };
+    final consulteeProfileId = profile?['id'] as String?;
+
+    // Collect all bookings from different types
+    final allBookings = <Map<String, dynamic>>[];
+
+    // 1. Fetch CONSULTATIONS (uses ConsulteeProfile)
+    if (consulteeProfileId != null) {
+      final consultationBookings = await _fetchConsultationBookings(
+        consulteeProfileId: consulteeProfileId,
+        status: status,
+      );
+      allBookings.addAll(consultationBookings);
     }
 
-    final consulteeProfileId = profile['id'] as String;
+    // 2. Fetch SUBSCRIPTIONS (uses ConsulteeProfile)
+    if (consulteeProfileId != null) {
+      final subscriptionBookings = await _fetchSubscriptionBookings(
+        consulteeProfileId: consulteeProfileId,
+        status: status,
+      );
+      allBookings.addAll(subscriptionBookings);
+    }
 
-    // Build where clause - status is parameterized (SAFE from SQL injection)
+    // 3. Fetch WEBINARS (uses Waitlist with userId)
+    final webinarBookings = await _fetchWebinarBookings(
+      userId: userId,
+      status: status,
+    );
+    allBookings.addAll(webinarBookings);
+
+    // 4. Fetch CLASSES (uses Waitlist with userId)
+    final classBookings = await _fetchClassBookings(
+      userId: userId,
+      status: status,
+    );
+    allBookings.addAll(classBookings);
+
+    // Sort all bookings by createdAt descending
+    allBookings.sort((a, b) {
+      final aDate = DateTime.tryParse(a['createdAt']?.toString() ?? '') ??
+          DateTime(1970);
+      final bDate = DateTime.tryParse(b['createdAt']?.toString() ?? '') ??
+          DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
+
+    // Apply pagination
+    final totalCount = allBookings.length;
+    final totalPages = (totalCount / effectivePageSize).ceil();
+    final paginatedBookings = allBookings.skip(offset).take(effectivePageSize).toList();
+
+    return {
+      'bookings': paginatedBookings,
+      'pagination': {
+        'page': page,
+        'pageSize': effectivePageSize,
+        'totalCount': totalCount,
+        'totalPages': totalPages,
+      },
+    };
+  }
+
+  /// Fetch consultation bookings for a consultee
+  Future<List<Map<String, dynamic>>> _fetchConsultationBookings({
+    required String consulteeProfileId,
+    String? status,
+  }) async {
     final where = <String, dynamic>{
       'requestedById': consulteeProfileId,
     };
@@ -230,48 +484,34 @@ class AppointmentRepository extends BaseRepository {
       where['requestStatus'] = status;
     }
 
-    // Get consultations - use simple include to avoid nested include bugs
     final consultationsQuery = JsonQueryBuilder()
         .model('Consultation')
         .action(QueryAction.findMany)
         .where(where)
         .include({'consultationPlan': true})
         .orderBy({'createdAt': 'desc'})
-        .take(effectivePageSize)
-        .skip(offset)
         .build();
 
     final consultations = await executeQueryAsMaps(consultationsQuery);
-
-    // Get total count
-    final countQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
-
-    final totalCount = await executeCount(countQuery);
-    final totalPages = (totalCount / effectivePageSize).ceil();
-
-    // Transform results - fetch consultant info separately to avoid nested include bugs
     final bookings = <Map<String, dynamic>>[];
+
     for (final c in consultations) {
       final plan = c['consultationPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
 
-      // Fetch consultant profile and user separately
-      Map<String, dynamic>? profile;
-      Map<String, dynamic>? user;
-      if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId})
-            .include({'user': true})
-            .build();
-        profile = await executeQueryAsSingleMap(profileQuery);
-        user = profile?['user'] as Map<String, dynamic>?;
-      }
+      // Fetch consultant info
+      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+
+      // Fetch slots for this consultation
+      final consultationId = c['id'] as String;
+      final appointmentQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findFirst)
+          .where({'consultationId': consultationId})
+          .include({'slots': true})
+          .build();
+      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+      final slots = appointment?['slots'] as List<dynamic>?;
 
       bookings.add({
         'id': c['id'],
@@ -284,22 +524,291 @@ class AppointmentRepository extends BaseRepository {
         'planPrice': plan?['price'],
         'planCurrency': plan?['priceCurrency'],
         'planDuration': plan?['durationInHours'],
-        'consultantProfileId': profile?['id'],
-        'consultantUserId': user?['id'],
-        'consultantName': user?['name'],
-        'consultantImage': user?['image'],
+        ...consultantInfo,
+        if (slots != null && slots.isNotEmpty)
+          'slots': _formatSlots(slots),
       });
     }
 
-    return {
-      'bookings': bookings,
-      'pagination': {
-        'page': page,
-        'pageSize': effectivePageSize,
-        'totalCount': totalCount,
-        'totalPages': totalPages,
-      },
+    return bookings;
+  }
+
+  /// Fetch subscription bookings for a consultee
+  Future<List<Map<String, dynamic>>> _fetchSubscriptionBookings({
+    required String consulteeProfileId,
+    String? status,
+  }) async {
+    final where = <String, dynamic>{
+      'requestedById': consulteeProfileId,
     };
+    if (status != null) {
+      where['requestStatus'] = status;
+    }
+
+    final subscriptionsQuery = JsonQueryBuilder()
+        .model('Subscription')
+        .action(QueryAction.findMany)
+        .where(where)
+        .include({'subscriptionPlan': true})
+        .orderBy({'createdAt': 'desc'})
+        .build();
+
+    final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
+    final bookings = <Map<String, dynamic>>[];
+
+    for (final s in subscriptions) {
+      final plan = s['subscriptionPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+      // Fetch consultant info
+      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+
+      bookings.add({
+        'id': s['id'],
+        'bookingType': 'SUBSCRIPTION',
+        'status': s['requestStatus'],
+        'message': s['requestNotes'],
+        'createdAt': s['createdAt'],
+        'schedulingPeriodStartsAt': s['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt': s['schedulingPeriodEndsAt'],
+        'schedulingTimezone': s['schedulingTimezone'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'totalSessions': plan?['totalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
+        'durationInMonths': plan?['durationInMonths'],
+        ...consultantInfo,
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch webinar bookings for a user (via Waitlist)
+  Future<List<Map<String, dynamic>>> _fetchWebinarBookings({
+    required String userId,
+    String? status,
+  }) async {
+    // Get user's waitlist entries for webinars
+    final waitlistQuery = JsonQueryBuilder()
+        .model('Waitlist')
+        .action(QueryAction.findMany)
+        .where({
+      'userId': userId,
+      'webinarId': {'not': null},
+    }).build();
+
+    final waitlistEntries = await executeQueryAsMaps(waitlistQuery);
+    final bookings = <Map<String, dynamic>>[];
+
+    for (final entry in waitlistEntries) {
+      final webinarId = entry['webinarId'] as String?;
+      if (webinarId == null) continue;
+
+      // Fetch webinar with plan
+      final webinarQuery = JsonQueryBuilder()
+          .model('Webinar')
+          .action(QueryAction.findUnique)
+          .where({'id': webinarId})
+          .include({'webinarPlan': true})
+          .build();
+
+      final webinar = await executeQueryAsSingleMap(webinarQuery);
+      if (webinar == null) continue;
+
+      // Filter by status if specified (map webinar status to request status)
+      final webinarStatus = webinar['status'] as String?;
+      if (status != null && !_matchesWebinarStatus(webinarStatus, status)) {
+        continue;
+      }
+
+      final plan = webinar['webinarPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+      // Fetch consultant info
+      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+
+      // Fetch appointment and slots
+      final appointmentQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findFirst)
+          .where({'webinarId': webinarId})
+          .include({'slots': true})
+          .build();
+      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+      final slots = appointment?['slots'] as List<dynamic>?;
+
+      bookings.add({
+        'id': webinarId,
+        'bookingType': 'WEBINAR',
+        'status': _mapWebinarStatusToRequestStatus(webinarStatus),
+        'createdAt': entry['joinedAt'] ?? webinar['createdAt'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'planDuration': plan?['durationInHours'],
+        'maxParticipants': plan?['maxParticipants'],
+        ...consultantInfo,
+        if (slots != null && slots.isNotEmpty)
+          'slots': _formatSlots(slots),
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch class bookings for a user (via Waitlist)
+  Future<List<Map<String, dynamic>>> _fetchClassBookings({
+    required String userId,
+    String? status,
+  }) async {
+    // Get user's waitlist entries for classes
+    final waitlistQuery = JsonQueryBuilder()
+        .model('Waitlist')
+        .action(QueryAction.findMany)
+        .where({
+      'userId': userId,
+      'classId': {'not': null},
+    }).build();
+
+    final waitlistEntries = await executeQueryAsMaps(waitlistQuery);
+    final bookings = <Map<String, dynamic>>[];
+
+    for (final entry in waitlistEntries) {
+      final classId = entry['classId'] as String?;
+      if (classId == null) continue;
+
+      // Fetch class with plan
+      final classQuery = JsonQueryBuilder()
+          .model('Class')
+          .action(QueryAction.findUnique)
+          .where({'id': classId})
+          .include({'classPlan': true})
+          .build();
+
+      final classRecord = await executeQueryAsSingleMap(classQuery);
+      if (classRecord == null) continue;
+
+      // Filter by status if specified (map class status to request status)
+      final classStatus = classRecord['status'] as String?;
+      if (status != null && !_matchesClassStatus(classStatus, status)) {
+        continue;
+      }
+
+      final plan = classRecord['classPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+      // Fetch consultant info
+      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+
+      bookings.add({
+        'id': classId,
+        'bookingType': 'CLASS',
+        'status': _mapClassStatusToRequestStatus(classStatus),
+        'createdAt': entry['joinedAt'] ?? classRecord['createdAt'],
+        'schedulingPeriodStartsAt': classRecord['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt': classRecord['schedulingPeriodEndsAt'],
+        'schedulingTimezone': classRecord['schedulingTimezone'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'totalSessions': plan?['totalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
+        'durationInMonths': plan?['durationInMonths'],
+        'maxParticipants': plan?['maxParticipants'],
+        ...consultantInfo,
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch consultant profile and user info
+  Future<Map<String, dynamic>> _fetchConsultantInfo(String? consultantProfileId) async {
+    if (consultantProfileId == null) {
+      return {
+        'consultantProfileId': null,
+        'consultantUserId': null,
+        'consultantName': null,
+        'consultantImage': null,
+      };
+    }
+
+    final profileQuery = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findUnique)
+        .where({'id': consultantProfileId})
+        .include({'user': true})
+        .build();
+
+    final profile = await executeQueryAsSingleMap(profileQuery);
+    final user = profile?['user'] as Map<String, dynamic>?;
+
+    return {
+      'consultantProfileId': profile?['id'],
+      'consultantUserId': user?['id'],
+      'consultantName': user?['name'],
+      'consultantImage': user?['image'],
+    };
+  }
+
+  /// Format slots for response
+  List<Map<String, dynamic>> _formatSlots(List<dynamic> slots) {
+    return slots
+        .map((s) => {
+              'id': s['id'],
+              'startsAt': s['startsAt'],
+              'endsAt': s['endsAt'],
+              'isTentative': s['isTentative'],
+            })
+        .toList();
+  }
+
+  /// Check if webinar status matches the requested filter status
+  bool _matchesWebinarStatus(String? webinarStatus, String requestStatus) {
+    // Map webinar statuses to request statuses for filtering
+    return _mapWebinarStatusToRequestStatus(webinarStatus) == requestStatus;
+  }
+
+  /// Check if class status matches the requested filter status
+  bool _matchesClassStatus(String? classStatus, String requestStatus) {
+    return _mapClassStatusToRequestStatus(classStatus) == requestStatus;
+  }
+
+  /// Map WebinarStatus to RequestStatus for consistency
+  String _mapWebinarStatusToRequestStatus(String? webinarStatus) {
+    switch (webinarStatus) {
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'IN_PROGRESS':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      default:
+        return 'PENDING';
+    }
+  }
+
+  /// Map ClassStatus to RequestStatus for consistency
+  String _mapClassStatusToRequestStatus(String? classStatus) {
+    switch (classStatus) {
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'IN_PROGRESS':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      default:
+        return 'PENDING';
+    }
   }
 
   /// Get a booking by ID

@@ -9,6 +9,7 @@ import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
 import '../features/booking/screens/booking_screens.dart';
+import '../features/chat/screens/messages_screen.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
 import '../features/explore/screens/explore_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
@@ -58,8 +59,11 @@ GoRouter router(Ref ref) {
           location.startsWith('/explore') ||
           location.startsWith('/booking') ||
           location.startsWith('/my-bookings') ||
+          location.startsWith('/messages') ||
           location.startsWith('/chat') ||
-          location.startsWith('/profile');
+          location.startsWith('/profile') ||
+          location == '/booking/failure' ||
+          location == '/booking/success';
 
       // Still initializing auth state, stay where we are
       if (isInitial || isLoading) {
@@ -199,6 +203,12 @@ GoRouter router(Ref ref) {
             name: 'dashboard',
             builder: (context, state) => const DashboardScreen(),
           ),
+          // Messages tab (placeholder)
+          GoRoute(
+            path: '/messages',
+            name: 'messages',
+            builder: (context, state) => const MessagesPlaceholderScreen(),
+          ),
           // Profile tab
           GoRoute(
             path: '/profile',
@@ -230,6 +240,19 @@ GoRouter router(Ref ref) {
         builder: (context, state) {
           final booking = state.extra as Booking?;
           return BookingSuccessScreen(booking: booking);
+        },
+      ),
+      GoRoute(
+        path: '/booking/failure',
+        name: 'bookingFailure',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return BookingFailureScreen(
+            errorMessage: extra?['errorMessage'] as String?,
+            consultantId: extra?['consultantId'] as String?,
+            planId: extra?['planId'] as String?,
+            planType: extra?['planType'] as String?,
+          );
         },
       ),
     ],

@@ -6,7 +6,9 @@ part 'booking.g.dart';
 /// Booking type enumeration
 enum BookingType {
   consultation('CONSULTATION'),
-  subscription('SUBSCRIPTION');
+  subscription('SUBSCRIPTION'),
+  webinar('WEBINAR'),
+  classes('CLASS'); // 'class' is a reserved keyword, using 'classes'
 
   final String value;
   const BookingType(this.value);
@@ -27,7 +29,8 @@ enum RequestStatus {
   scheduled('SCHEDULED'),
   rejected('REJECTED'),
   cancelled('CANCELLED'),
-  expired('EXPIRED');
+  expired('EXPIRED'),
+  completed('COMPLETED');
 
   final String value;
   const RequestStatus(this.value);
@@ -40,7 +43,7 @@ enum RequestStatus {
   }
 }
 
-/// Represents a booking (consultation or subscription)
+/// Represents a booking (consultation, subscription, webinar, or class)
 @freezed
 class Booking with _$Booking {
   const factory Booking({
@@ -61,14 +64,18 @@ class Booking with _$Booking {
     String? consultantUserId,
     String? consultantName,
     String? consultantImage,
-    // Slots (for consultations)
+    // Slots (for consultations and webinars)
     @Default([]) List<BookingSlot> slots,
-    // Subscription-specific
+    // Subscription/Class-specific scheduling period
     DateTime? schedulingPeriodStartsAt,
     DateTime? schedulingPeriodEndsAt,
     String? schedulingTimezone,
     int? totalSessions,
     double? sessionDurationInHours,
+    // Duration in months (for subscriptions and classes)
+    int? durationInMonths,
+    // Webinar/Class-specific
+    int? maxParticipants,
   }) = _Booking;
 
   const Booking._();
@@ -100,6 +107,8 @@ class Booking with _$Booking {
         return 'Cancelled';
       case RequestStatus.expired:
         return 'Expired';
+      case RequestStatus.completed:
+        return 'Completed';
     }
   }
 
@@ -194,13 +203,15 @@ class ConsultationBookingRequest with _$ConsultationBookingRequest {
 }
 
 /// Request to create a subscription booking
+///
+/// Note: schedulingPeriodEnd is auto-calculated by the backend based on
+/// the plan's durationInMonths, so we only send the start date.
 @freezed
 class SubscriptionBookingRequest with _$SubscriptionBookingRequest {
   const factory SubscriptionBookingRequest({
     required String consultantProfileId,
     required String planId,
     required DateTime schedulingPeriodStart,
-    required DateTime schedulingPeriodEnd,
     String? timezone,
     String? message,
   }) = _SubscriptionBookingRequest;
@@ -216,7 +227,6 @@ class SubscriptionBookingRequest with _$SubscriptionBookingRequest {
         'planId': planId,
         'schedulingPeriodStart':
             schedulingPeriodStart.toUtc().toIso8601String(),
-        'schedulingPeriodEnd': schedulingPeriodEnd.toUtc().toIso8601String(),
         if (timezone != null) 'timezone': timezone,
         if (message != null) 'message': message,
       };
