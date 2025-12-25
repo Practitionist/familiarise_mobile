@@ -979,126 +979,132 @@ class AppointmentRepository extends BaseRepository {
   }
 
   Future<Map<String, dynamic>> _getConsultationById(String id) async {
-    // Get consultation with plan only (avoid nested includes - ORM bug)
-    final query = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).include({'consultationPlan': true}).build();
-
-    final result = await executeQueryAsSingleMap(query);
-
-    if (result == null) {
-      throw Exception('Consultation not found');
-    }
-
-    final plan = result['consultationPlan'] as Map<String, dynamic>?;
-    final consultantProfileId = plan?['consultantProfileId'] as String?;
-
-    // Fetch consultant profile and user separately to avoid nested include bug
-    Map<String, dynamic>? profile;
-    Map<String, dynamic>? user;
-    if (consultantProfileId != null) {
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsultantProfile')
+    // Wrap in transaction for consistent reads
+    return executeInTransaction((txn) async {
+      // Get consultation with plan only (avoid nested includes - ORM bug)
+      final query = JsonQueryBuilder()
+          .model('Consultation')
           .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId}).include({'user': true}).build();
-      profile = await executeQueryAsSingleMap(profileQuery);
-      user = profile?['user'] as Map<String, dynamic>?;
-    }
+          .where({'id': id}).include({'consultationPlan': true}).build();
 
-    final booking = {
-      'id': result['id'],
-      'bookingType': 'CONSULTATION',
-      'status': result['requestStatus'],
-      'message': result['requestNotes'],
-      'createdAt': result['createdAt'],
-      'updatedAt': result['updatedAt'],
-      'planId': plan?['id'],
-      'planTitle': plan?['title'],
-      'planPrice': plan?['price'],
-      'planCurrency': plan?['priceCurrency'],
-      'planDuration': plan?['durationInHours'],
-      'consultantProfileId': profile?['id'],
-      'consultantUserId': user?['id'],
-      'consultantName': user?['name'],
-      'consultantImage': user?['image'],
-    };
+      final result = await executeQueryAsSingleMap(query, txn: txn);
 
-    // Get appointment and slots
-    final appointmentQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findFirst)
-        .where({'consultationId': id}).include({'slots': true}).build();
-
-    final appointment = await executeQueryAsSingleMap(appointmentQuery);
-
-    if (appointment != null) {
-      booking['appointmentId'] = appointment['id'];
-      final slots = appointment['slots'] as List<dynamic>?;
-      if (slots != null) {
-        booking['slots'] = slots
-            .map((s) => {
-                  'id': s['id'],
-                  'startsAt': s['startsAt'],
-                  'endsAt': s['endsAt'],
-                  'isTentative': s['isTentative'],
-                })
-            .toList();
+      if (result == null) {
+        throw Exception('Consultation not found');
       }
-    }
 
-    return booking;
+      final plan = result['consultationPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+      // Fetch consultant profile and user separately to avoid nested include bug
+      Map<String, dynamic>? profile;
+      Map<String, dynamic>? user;
+      if (consultantProfileId != null) {
+        final profileQuery = JsonQueryBuilder()
+            .model('ConsultantProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': consultantProfileId}).include({'user': true}).build();
+        profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
+        user = profile?['user'] as Map<String, dynamic>?;
+      }
+
+      final booking = {
+        'id': result['id'],
+        'bookingType': 'CONSULTATION',
+        'status': result['requestStatus'],
+        'message': result['requestNotes'],
+        'createdAt': result['createdAt'],
+        'updatedAt': result['updatedAt'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'planDuration': plan?['durationInHours'],
+        'consultantProfileId': profile?['id'],
+        'consultantUserId': user?['id'],
+        'consultantName': user?['name'],
+        'consultantImage': user?['image'],
+      };
+
+      // Get appointment and slots
+      final appointmentQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findFirst)
+          .where({'consultationId': id}).include({'slots': true}).build();
+
+      final appointment = await executeQueryAsSingleMap(appointmentQuery, txn: txn);
+
+      if (appointment != null) {
+        booking['appointmentId'] = appointment['id'];
+        final slots = appointment['slots'] as List<dynamic>?;
+        if (slots != null) {
+          booking['slots'] = slots
+              .map((s) => {
+                    'id': s['id'],
+                    'startsAt': s['startsAt'],
+                    'endsAt': s['endsAt'],
+                    'isTentative': s['isTentative'],
+                  })
+              .toList();
+        }
+      }
+
+      return booking;
+    });
   }
 
   Future<Map<String, dynamic>> _getSubscriptionById(String id) async {
-    // Get subscription with plan only (avoid nested includes - ORM bug)
-    final query = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).include({'subscriptionPlan': true}).build();
-
-    final result = await executeQueryAsSingleMap(query);
-
-    if (result == null) {
-      throw Exception('Subscription not found');
-    }
-
-    final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-    final consultantProfileId = plan?['consultantProfileId'] as String?;
-
-    // Fetch consultant profile and user separately to avoid nested include bug
-    Map<String, dynamic>? profile;
-    Map<String, dynamic>? user;
-    if (consultantProfileId != null) {
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsultantProfile')
+    // Wrap in transaction for consistent reads
+    return executeInTransaction((txn) async {
+      // Get subscription with plan only (avoid nested includes - ORM bug)
+      final query = JsonQueryBuilder()
+          .model('Subscription')
           .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId}).include({'user': true}).build();
-      profile = await executeQueryAsSingleMap(profileQuery);
-      user = profile?['user'] as Map<String, dynamic>?;
-    }
+          .where({'id': id}).include({'subscriptionPlan': true}).build();
 
-    return {
-      'id': result['id'],
-      'bookingType': 'SUBSCRIPTION',
-      'status': result['requestStatus'],
-      'message': result['requestNotes'],
-      'schedulingPeriodStartsAt': result['schedulingPeriodStartsAt'],
-      'schedulingPeriodEndsAt': result['schedulingPeriodEndsAt'],
-      'schedulingTimezone': result['schedulingTimezone'],
-      'createdAt': result['createdAt'],
-      'updatedAt': result['updatedAt'],
-      'planId': plan?['id'],
-      'planTitle': plan?['title'],
-      'planPrice': plan?['price'],
-      'planCurrency': plan?['priceCurrency'],
-      'totalSessions': plan?['totalSessions'],
-      'sessionDurationInHours': plan?['sessionDurationInHours'],
-      'consultantProfileId': profile?['id'],
-      'consultantUserId': user?['id'],
-      'consultantName': user?['name'],
-      'consultantImage': user?['image'],
-    };
+      final result = await executeQueryAsSingleMap(query, txn: txn);
+
+      if (result == null) {
+        throw Exception('Subscription not found');
+      }
+
+      final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
+
+      // Fetch consultant profile and user separately to avoid nested include bug
+      Map<String, dynamic>? profile;
+      Map<String, dynamic>? user;
+      if (consultantProfileId != null) {
+        final profileQuery = JsonQueryBuilder()
+            .model('ConsultantProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': consultantProfileId}).include({'user': true}).build();
+        profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
+        user = profile?['user'] as Map<String, dynamic>?;
+      }
+
+      return {
+        'id': result['id'],
+        'bookingType': 'SUBSCRIPTION',
+        'status': result['requestStatus'],
+        'message': result['requestNotes'],
+        'schedulingPeriodStartsAt': result['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt': result['schedulingPeriodEndsAt'],
+        'schedulingTimezone': result['schedulingTimezone'],
+        'createdAt': result['createdAt'],
+        'updatedAt': result['updatedAt'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'totalSessions': plan?['totalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
+        'consultantProfileId': profile?['id'],
+        'consultantUserId': user?['id'],
+        'consultantName': user?['name'],
+        'consultantImage': user?['image'],
+      };
+    });
   }
 
   /// Cancel a booking

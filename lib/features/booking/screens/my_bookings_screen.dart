@@ -98,13 +98,10 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                     },
                     child: bookingsAsync.when(
                       data: (bookings) {
-                        // Filter by current category
-                        final filteredBookings = bookings.where((b) {
-                          final matchesCategory = b.bookingType.value == category.value;
-                          final matchesStatus = _selectedStatus.value == null ||
-                              b.status.value == _selectedStatus.value;
-                          return matchesCategory && matchesStatus;
-                        }).toList();
+                        // Filter by category only (status filtering is done server-side)
+                        final filteredBookings = bookings
+                            .where((b) => b.bookingType.value == category.value)
+                            .toList();
 
                         if (filteredBookings.isEmpty) {
                           return _buildEmptyState(theme, category);

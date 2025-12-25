@@ -305,15 +305,13 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
       );
     }
 
-    // Return the actual error message for better debugging
-    // In production, you might want to sanitize this
+    // Return a sanitized error message to avoid information disclosure
+    // Full error details are already logged above
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
         'error': {
-          'message': errorMessage.isNotEmpty
-              ? errorMessage
-              : 'Failed to create booking',
+          'message': 'An unexpected error occurred while creating the booking.',
           'details': 'Check server logs for more information',
         },
       },
