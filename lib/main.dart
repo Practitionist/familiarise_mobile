@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Conditionally import better_auth_flutter (not supported on web)
@@ -11,36 +12,51 @@ import 'app/app.dart';
 import 'core/config/env_config.dart';
 import 'shared/providers/core_providers.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Better Auth only on non-web platforms
-  // better_auth_flutter doesn't support web (uses cookie_jar which requires file system)
-  if (!kIsWeb) {
-    BetterAuth.init(
-      baseUrl: Uri.parse(EnvConfig.apiBaseUrl),
-    );
-  }
 
   // Initialize SharedPreferences before running the app
   final sharedPreferences = await SharedPreferences.getInstance();
 
-  // TODO: Initialize Firebase for analytics and crash reporting
-  // await Firebase.initializeApp();
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = EnvConfig.sentryDsn;
 
-  // TODO: Initialize Supabase if needed as fallback
-  // await Supabase.initialize(
-  //   url: EnvConfig.supabaseUrl,
-  //   anonKey: EnvConfig.supabaseAnonKey,
-  // );
+      // Environment tagging
+      options.environment = kDebugMode ? 'development' : 'production';
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        // Override the async provider with the pre-initialized value
-        sharedPreferencesProvider.overrideWith((ref) => sharedPreferences),
-      ],
-      child: const FamiliariseApp(),
-    ),
+      // Lightweight sampling: 20% of transactions in production
+      options.tracesSampleRate = kDebugMode ? 1.0 : 0.2;
+
+      // Disable debug mode in production
+      options.debug = kDebugMode;
+
+      // Capture unhandled exceptions automatically
+      options.enableAutoSessionTracking = true;
+
+      // Disable heavy features to keep it lightweight
+      options.attachScreenshot = false;
+      options.attachViewHierarchy = false;
+
+      // Breadcrumb limit to avoid memory overhead
+      options.maxBreadcrumbs = 50;
+    },
+    appRunner: () async {
+      // Initialize Better Auth only on non-web platforms
+      if (!kIsWeb) {
+        BetterAuth.init(
+          baseUrl: Uri.parse(EnvConfig.apiBaseUrl),
+        );
+      }
+
+      runApp(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWith((ref) => sharedPreferences),
+          ],
+          child: const FamiliariseApp(),
+        ),
+      );
+    },
   );
 }

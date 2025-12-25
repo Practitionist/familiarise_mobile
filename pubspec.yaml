@@ -8,6 +8,7 @@ environment:
   flutter: ">=3.24.0"
 
 dependencies:
+  sentry_flutter: ^9.9.1
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -87,6 +88,7 @@ dependencies:
   http: ^1.6.0
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.2.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
@@ -123,3 +125,9 @@ flutter:
   #         weight: 600
   #       - asset: assets/fonts/Inter-Bold.ttf
   #         weight: 700
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: familiarise_mobile
+  org: practitionist

@@ -80,6 +80,10 @@ abstract class EnvConfig {
     return googleClientIdWeb;
   }
 
+  // Sentry
+  @EnviedField(varName: 'SENTRY_DSN', defaultValue: '')
+  static String sentryDsn = _EnvConfig.sentryDsn;
+
   // Feature Flags
   @EnviedField(varName: 'USE_PRISMA', defaultValue: 'false')
   static final String _usePrismaString = _EnvConfig._usePrismaString;

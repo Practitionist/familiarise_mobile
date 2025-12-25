@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../domain/entities/booking/booking_entities.dart';
 import '../features/auth/providers/auth_provider.dart';
@@ -39,6 +40,7 @@ GoRouter router(Ref ref) {
     initialLocation: '/',
     debugLogDiagnostics: true,
     refreshListenable: authNotifier,
+    observers: [SentryNavigatorObserver()],
     redirect: (context, state) {
       // Read fresh auth state on each redirect (not captured from closure)
       final authState = ref.read(authProvider);

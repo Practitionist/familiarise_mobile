@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -115,6 +116,24 @@ class ProfileScreen extends ConsumerWidget {
                 );
               },
             ),
+
+            // Debug: Verify Sentry Setup (only in debug mode)
+            if (kDebugMode) ...[
+              const SizedBox(height: 24),
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    throw StateError('Sentry Test Exception - Verify Setup');
+                  },
+                  icon: const Icon(Icons.bug_report),
+                  label: const Text('Verify Sentry Setup'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
             const Divider(),
