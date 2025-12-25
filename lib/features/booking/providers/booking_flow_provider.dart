@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/errors/exceptions.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 
@@ -55,7 +56,12 @@ class BookingFlow extends _$BookingFlow {
             data['error']?.toString() ?? data['message']?.toString() ?? message;
       }
       state = BookingFlowState.error(message);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'BookingFlowNotifier.createBooking',
+      );
       state = BookingFlowState.error('An unexpected error occurred: $e');
     }
   }
@@ -96,7 +102,12 @@ class BookingFlow extends _$BookingFlow {
             data['error']?.toString() ?? data['message']?.toString() ?? message;
       }
       state = BookingFlowState.error(message);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'BookingFlowNotifier.createBooking',
+      );
       state = BookingFlowState.error('An unexpected error occurred: $e');
     }
   }

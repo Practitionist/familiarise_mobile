@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 
@@ -46,6 +47,11 @@ class MyBookings extends _$MyBookings {
       state = AsyncData([...previousBookings, ...newBookings]);
     } catch (e, stack) {
       // Keep previous data on error
+      SentryLogger.captureException(
+        e,
+        stackTrace: stack,
+        context: 'MyBookings.loadMore',
+      );
       state = AsyncError(e, stack);
     }
   }
@@ -61,6 +67,11 @@ class MyBookings extends _$MyBookings {
       final bookings = await _fetchBookings();
       state = AsyncData(bookings);
     } catch (e, stack) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stack,
+        context: 'MyBookings.filterByStatus',
+      );
       state = AsyncError(e, stack);
     }
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/consultant_repository_impl.dart';
 import '../../../domain/entities/common/paginated_result.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/explore/consultant.dart';
 import 'explore_filters_provider.dart';
 
@@ -75,7 +76,12 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         consultants: result.items,
         pagination: result.pagination,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ConsultantsNotifier._loadInitial',
+      );
       state = ConsultantsState(error: e.toString());
     }
   }
@@ -97,7 +103,12 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         consultants: result.items,
         pagination: result.pagination,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ConsultantsNotifier.refresh',
+      );
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -122,7 +133,12 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         pagination: result.pagination,
         isLoadingMore: false,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ConsultantsNotifier.loadMore',
+      );
       state = state.copyWith(isLoadingMore: false, error: e.toString());
     }
   }

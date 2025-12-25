@@ -5,6 +5,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/errors/exceptions.dart';
+import '../../core/utils/sentry_logger.dart';
 import '../../core/errors/failures.dart';
 import '../../core/network/network_info.dart';
 import '../../domain/entities/onboarding/onboarding_state.dart';
@@ -99,7 +100,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
       return Left(Failure.network(message: e.message));
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.submitOnboarding');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -112,7 +114,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
       return const Right(null);
     } on CacheException catch (e) {
       return Left(Failure.unknown(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.saveDraft');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -125,7 +128,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
       return Right(draft.toState());
     } on CacheException catch (e) {
       return Left(Failure.unknown(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.loadDraft');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -137,7 +141,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
       return const Right(null);
     } on CacheException catch (e) {
       return Left(Failure.unknown(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.clearDraft');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -171,7 +176,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
       ));
     } on NetworkException catch (e) {
       return Left(Failure.network(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.uploadProfileImage');
       return Left(Failure.unknown(message: e.toString()));
     }
   }

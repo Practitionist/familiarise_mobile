@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/errors/exceptions.dart';
+import '../../core/utils/sentry_logger.dart';
 import '../../core/errors/failures.dart';
 import '../../core/network/network_info.dart';
 import '../../domain/entities/onboarding/domain_entity.dart';
@@ -47,7 +48,8 @@ class DomainRepositoryImpl implements DomainRepository {
       ));
     } on NetworkException catch (e) {
       return Left(Failure.network(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'DomainRepository.getAllDomains');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -70,7 +72,8 @@ class DomainRepositoryImpl implements DomainRepository {
       ));
     } on NetworkException catch (e) {
       return Left(Failure.network(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'DomainRepository.getDomainById');
       return Left(Failure.unknown(message: e.toString()));
     }
   }

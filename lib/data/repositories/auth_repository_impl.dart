@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/errors/exceptions.dart';
 import '../../core/errors/failures.dart';
+import '../../core/utils/sentry_logger.dart';
 import '../../core/network/network_info.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -51,7 +52,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(Failure.auth(message: e.message));
     } on ServerException catch (e) {
       return Left(Failure.server(message: e.message, statusCode: e.statusCode));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -75,7 +77,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(Failure.auth(message: e.message));
     } on ServerException catch (e) {
       return Left(Failure.server(message: e.message, statusCode: e.statusCode));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -92,7 +95,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(userModel.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -109,7 +113,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(userModel.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -120,7 +125,8 @@ class AuthRepositoryImpl implements AuthRepository {
       await remoteSource.signOut();
       await localSource.clearAll();
       return const Right(null);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -133,7 +139,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(userModel.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -149,7 +156,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(null);
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -188,7 +196,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(userModel.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
   }

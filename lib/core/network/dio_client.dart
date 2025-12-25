@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/env_config.dart';
 import '../constants/storage_keys.dart';
 import '../errors/exceptions.dart';
+import '../utils/sentry_logger.dart';
 
 part 'dio_client.g.dart';
 
@@ -128,9 +129,14 @@ class AuthInterceptor extends Interceptor {
       if (secureToken != null && secureToken.isNotEmpty) {
         return secureToken;
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       // SecureStorage failed (common on Android emulators), continue to fallback
-      debugPrint('AuthInterceptor: SecureStorage read failed: $e');
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthInterceptor._getToken',
+        extras: {'operation': 'SecureStorage.read'},
+      );
     }
 
     // Fallback: check SharedPreferences (works on all platforms including emulators)
@@ -153,8 +159,13 @@ class AuthInterceptor extends Interceptor {
       // On mobile: Try SecureStorage first, then always save to SharedPreferences as fallback
       try {
         await _secureStorage.write(key: StorageKeys.authToken, value: token);
-      } catch (e) {
-        debugPrint('AuthInterceptor: SecureStorage write failed: $e');
+      } catch (e, stackTrace) {
+        SentryLogger.captureException(
+          e,
+          stackTrace: stackTrace,
+          context: 'AuthInterceptor.saveToken',
+          extras: {'operation': 'SecureStorage.write'},
+        );
       }
 
       // Always save to SharedPreferences as fallback (handles Android emulator issues)
@@ -173,8 +184,13 @@ class AuthInterceptor extends Interceptor {
       // Clear from both SecureStorage and SharedPreferences fallback
       try {
         await _secureStorage.delete(key: StorageKeys.authToken);
-      } catch (e) {
-        debugPrint('AuthInterceptor: SecureStorage delete failed: $e');
+      } catch (e, stackTrace) {
+        SentryLogger.captureException(
+          e,
+          stackTrace: stackTrace,
+          context: 'AuthInterceptor.clearToken',
+          extras: {'operation': 'SecureStorage.delete'},
+        );
       }
       await prefs.remove(_mobileTokenFallbackKey);
     }
@@ -191,6 +207,20 @@ class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final exception = _mapDioExceptionToAppException(err);
+
+    // Report to Sentry with network context
+    SentryLogger.captureException(
+      exception,
+      stackTrace: err.stackTrace,
+      context: 'ErrorInterceptor.onError',
+      extras: {
+        'url': err.requestOptions.uri.toString(),
+        'method': err.requestOptions.method,
+        'statusCode': err.response?.statusCode,
+        'dioErrorType': err.type.name,
+      },
+    );
+
     handler.reject(
       DioException(
         requestOptions: err.requestOptions,
