@@ -15,6 +15,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../../../core/config/env_config.dart';
 import '../../../core/errors/exceptions.dart';
+import '../../../core/network/dio_client.dart' show AuthInterceptor;
 import '../../models/user_model.dart';
 
 part 'auth_remote_source.g.dart';
@@ -81,18 +82,29 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   @override
   Future<UserModel> signInWithEmail(String email, String password) async {
     try {
-      final (userData, error) = await BetterAuth.instance.client
-          .signInWithEmailAndPassword(email: email, password: password);
+      // Use HTTP call to get token (same pattern as Google sign-in)
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/sign-in/email'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
 
-      if (error != null) {
-        throw AuthException(message: _mapAuthError(error.message));
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+            message: error['error']?['message'] ?? 'Sign in failed');
       }
 
-      if (userData == null) {
-        throw const AuthException(message: 'Sign in failed');
-      }
+      final data = jsonDecode(response.body);
+      final userModel = UserModel.fromJson(data['user']);
+      final token = data['token'] as String;
 
-      final userModel = _parseUserData(userData);
+      // Store token for future requests (uses SecureStorage on mobile)
+      await AuthInterceptor.saveToken(token);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+
       _authStateController.add(userModel);
       return userModel;
     } catch (e) {
@@ -108,22 +120,33 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     String? name,
   ) async {
     try {
-      final (userData, error) =
-          await BetterAuth.instance.client.signUpWithEmailAndPassword(
-        email: email,
-        password: password,
-        name: name ?? '',
+      // Use HTTP call to get token (same pattern as Google sign-in)
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/sign-up/email'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'name': name ?? '',
+        }),
       );
 
-      if (error != null) {
-        throw AuthException(message: _mapAuthError(error.message));
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+            message: error['error']?['message'] ?? 'Sign up failed');
       }
 
-      if (userData == null) {
-        throw const AuthException(message: 'Sign up failed');
-      }
+      final data = jsonDecode(response.body);
+      final userModel = UserModel.fromJson(data['user']);
+      final token = data['token'] as String;
 
-      final userModel = _parseUserData(userData);
+      // Store token for future requests (uses SecureStorage on mobile)
+      await AuthInterceptor.saveToken(token);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+
       _authStateController.add(userModel);
       return userModel;
     } catch (e) {
@@ -169,9 +192,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       final userModel = UserModel.fromJson(data['user']);
       final token = data['token'] as String;
 
-      // Store token for future requests
+      // Store token for future requests (uses SecureStorage on mobile, SharedPrefs on web)
+      await AuthInterceptor.saveToken(token);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
       await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);

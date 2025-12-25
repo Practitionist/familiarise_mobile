@@ -3,13 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../domain/entities/booking/booking_entities.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
+import '../features/booking/screens/booking_screens.dart';
+import '../features/chat/screens/messages_screen.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
 import '../features/explore/screens/explore_screen.dart';
+import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
+import 'providers/navigation_provider.dart';
+import 'shells/main_shell.dart';
 
 part 'router.g.dart';
 
@@ -50,8 +57,13 @@ GoRouter router(Ref ref) {
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
+          location.startsWith('/booking') ||
+          location.startsWith('/my-bookings') ||
+          location.startsWith('/messages') ||
           location.startsWith('/chat') ||
-          location.startsWith('/profile');
+          location.startsWith('/profile') ||
+          location == '/booking/failure' ||
+          location == '/booking/success';
 
       // Still initializing auth state, stay where we are
       if (isInitial || isLoading) {
@@ -154,73 +166,95 @@ GoRouter router(Ref ref) {
         builder: (context, state) => const OnboardingShellScreen(),
       ),
 
-      // Dashboard (placeholder - to be implemented in later phases)
-      GoRoute(
-        path: '/dashboard',
-        name: 'dashboard',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            title: const Text('Dashboard'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () {
-                  // Sign out through auth provider
-                  final container = ProviderScope.containerOf(context);
-                  container.read(authProvider.notifier).signOut();
-                },
+      // Main app shell with bottom navigation
+      ShellRoute(
+        builder: (context, state, child) {
+          // Sync navigation index based on current route
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final container = ProviderScope.containerOf(context);
+            final currentPath = state.matchedLocation;
+            final currentTab = NavigationTab.fromPath(currentPath);
+            final currentIndex = container.read(navigationIndexProvider);
+            if (currentIndex != currentTab.index) {
+              container.read(navigationIndexProvider.notifier).setIndex(currentTab.index);
+            }
+          });
+          return MainShell(child: child);
+        },
+        routes: [
+          // Explore tab
+          GoRoute(
+            path: '/explore',
+            name: 'explore',
+            builder: (context, state) => const ExploreScreen(),
+            routes: [
+              GoRoute(
+                path: 'consultant/:consultantId',
+                name: 'consultantProfile',
+                builder: (context, state) => ConsultantProfileScreen(
+                  consultantId: state.pathParameters['consultantId']!,
+                ),
               ),
             ],
           ),
-          body: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle, size: 64, color: Colors.green),
-                SizedBox(height: 16),
-                Text(
-                  'Welcome to Familiarise!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('You are successfully signed in.'),
-                SizedBox(height: 24),
-                Text(
-                  'Dashboard coming in Phase 3',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-
-      // Explore routes (Phase 4)
-      GoRoute(
-        path: '/explore',
-        name: 'explore',
-        builder: (context, state) => const ExploreScreen(),
-        routes: [
+          // Dashboard tab
           GoRoute(
-            path: 'consultant/:consultantId',
-            name: 'consultantProfile',
-            builder: (context, state) => ConsultantProfileScreen(
-              consultantId: state.pathParameters['consultantId']!,
-            ),
+            path: '/dashboard',
+            name: 'dashboard',
+            builder: (context, state) => const DashboardScreen(),
+          ),
+          // Messages tab (placeholder)
+          GoRoute(
+            path: '/messages',
+            name: 'messages',
+            builder: (context, state) => const MessagesPlaceholderScreen(),
+          ),
+          // Profile tab
+          GoRoute(
+            path: '/profile',
+            name: 'profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+          // My Bookings (inside shell for bottom nav)
+          GoRoute(
+            path: '/my-bookings',
+            name: 'myBookings',
+            builder: (context, state) => const MyBookingsScreen(),
           ),
         ],
       ),
 
-      // TODO: Add main shell with bottom navigation in later phases
-      // ShellRoute(
-      //   builder: (context, state, child) => MainShell(child: child),
-      //   routes: [
-      //     GoRoute(path: '/dashboard', ...),
-      //     GoRoute(path: '/explore', ...),
-      //     GoRoute(path: '/chat', ...),
-      //     GoRoute(path: '/profile', ...),
-      //   ],
-      // ),
+      // Booking routes (Phase 5)
+      GoRoute(
+        path: '/booking/:consultantId/:planId',
+        name: 'booking',
+        builder: (context, state) => BookingScreen(
+          consultantId: state.pathParameters['consultantId']!,
+          planId: state.pathParameters['planId']!,
+          planType: state.uri.queryParameters['type'] ?? 'consultation',
+        ),
+      ),
+      GoRoute(
+        path: '/booking/success',
+        name: 'bookingSuccess',
+        builder: (context, state) {
+          final booking = state.extra as Booking?;
+          return BookingSuccessScreen(booking: booking);
+        },
+      ),
+      GoRoute(
+        path: '/booking/failure',
+        name: 'bookingFailure',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return BookingFailureScreen(
+            errorMessage: extra?['errorMessage'] as String?,
+            consultantId: extra?['consultantId'] as String?,
+            planId: extra?['planId'] as String?,
+            planType: extra?['planType'] as String?,
+          );
+        },
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
