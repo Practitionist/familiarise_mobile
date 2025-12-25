@@ -357,12 +357,24 @@ class AppointmentRepository extends BaseRepository {
       throw Exception('Subscription plan not found');
     }
 
-    // Auto-calculate end date from plan duration
+    // Auto-calculate end date from plan duration, safely handling month-end dates
     final durationInMonths = (plan['durationInMonths'] as num?)?.toInt() ?? 1;
-    final schedulingPeriodEnd = DateTime(
+    // First get the target month (using day 1 to avoid invalid day errors)
+    final targetMonth = DateTime(
       schedulingPeriodStart.year,
       schedulingPeriodStart.month + durationInMonths,
-      schedulingPeriodStart.day,
+      1,
+    );
+    // Get the last valid day of the target month
+    final lastDayOfMonth = DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
+    // Use the original day if valid, otherwise use the last day of the month
+    final targetDay = schedulingPeriodStart.day > lastDayOfMonth
+        ? lastDayOfMonth
+        : schedulingPeriodStart.day;
+    final schedulingPeriodEnd = DateTime(
+      targetMonth.year,
+      targetMonth.month,
+      targetDay,
     );
 
     final now = nowIso8601;
