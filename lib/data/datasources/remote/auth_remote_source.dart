@@ -15,6 +15,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../../../core/config/env_config.dart';
 import '../../../core/errors/exceptions.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../core/network/dio_client.dart' show AuthInterceptor;
 import '../../models/user_model.dart';
 
@@ -107,8 +108,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
 
       _authStateController.add(userModel);
       return userModel;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -149,8 +151,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
 
       _authStateController.add(userModel);
       return userModel;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -199,8 +202,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
 
       _authStateController.add(userModel);
       return userModel;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -238,8 +242,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
 
       _authStateController.add(currentUser);
       return currentUser;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -253,8 +258,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
         throw AuthException(message: error.message);
       }
       _authStateController.add(null);
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -444,8 +450,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       _authStateController.add(userModel);
 
       return userModel;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -479,8 +486,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       _authStateController.add(userModel);
 
       return userModel;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -532,8 +540,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       _authStateController.add(userModel);
 
       return userModel;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
