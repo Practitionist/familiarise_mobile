@@ -76,7 +76,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
 
     final bookingState = ref.watch(bookingFlowProvider);
-    final isLoading = bookingState is AsyncLoading;
+    final isLoading = bookingState.maybeWhen(
+      loading: () => true,
+      orElse: () => false,
+    );
 
     return Scaffold(
       appBar: AppBar(

@@ -53,9 +53,8 @@ class AppointmentRepository extends BaseRepository {
     final plansQuery = JsonQueryBuilder()
         .model('ConsultationPlan')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true}).build();
 
     final plans = await executeQueryAsMaps(plansQuery);
     if (plans.isEmpty) return false;
@@ -88,9 +87,8 @@ class AppointmentRepository extends BaseRepository {
     final plansQuery = JsonQueryBuilder()
         .model('SubscriptionPlan')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true}).build();
 
     final plans = await executeQueryAsMaps(plansQuery);
     if (plans.isEmpty) return false;
@@ -137,12 +135,16 @@ class AppointmentRepository extends BaseRepository {
           'OR': [
             {
               'consultation': {
-                'consultationPlan': {'consultantProfileId': consultantProfileId},
+                'consultationPlan': {
+                  'consultantProfileId': consultantProfileId
+                },
               }
             },
             {
               'subscription': {
-                'subscriptionPlan': {'consultantProfileId': consultantProfileId},
+                'subscriptionPlan': {
+                  'consultantProfileId': consultantProfileId
+                },
               }
             },
           ],
@@ -376,7 +378,7 @@ class AppointmentRepository extends BaseRepository {
       'schedulingPeriodStartsAt':
           schedulingPeriodStart.toUtc().toIso8601String(),
       'schedulingPeriodEndsAt': schedulingPeriodEnd.toUtc().toIso8601String(),
-      'schedulingTimezone': timezone ?? 'Asia/Kolkata',
+      'schedulingTimezone': timezone ?? 'UTC',
       'requestNotes': message,
       'bookingSource': 'REQUEST_SUBMITTED',
       'requestedAt': now,
@@ -449,17 +451,18 @@ class AppointmentRepository extends BaseRepository {
 
     // Sort all bookings by createdAt descending
     allBookings.sort((a, b) {
-      final aDate = DateTime.tryParse(a['createdAt']?.toString() ?? '') ??
-          DateTime(1970);
-      final bDate = DateTime.tryParse(b['createdAt']?.toString() ?? '') ??
-          DateTime(1970);
+      final aDate =
+          DateTime.tryParse(a['createdAt']?.toString() ?? '') ?? DateTime(1970);
+      final bDate =
+          DateTime.tryParse(b['createdAt']?.toString() ?? '') ?? DateTime(1970);
       return bDate.compareTo(aDate);
     });
 
     // Apply pagination
     final totalCount = allBookings.length;
     final totalPages = (totalCount / effectivePageSize).ceil();
-    final paginatedBookings = allBookings.skip(offset).take(effectivePageSize).toList();
+    final paginatedBookings =
+        allBookings.skip(offset).take(effectivePageSize).toList();
 
     return {
       'bookings': paginatedBookings,
@@ -488,29 +491,54 @@ class AppointmentRepository extends BaseRepository {
         .model('Consultation')
         .action(QueryAction.findMany)
         .where(where)
-        .include({'consultationPlan': true})
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        .include({'consultationPlan': true}).orderBy(
+            {'createdAt': 'desc'}).build();
 
     final consultations = await executeQueryAsMaps(consultationsQuery);
-    final bookings = <Map<String, dynamic>>[];
+    if (consultations.isEmpty) return [];
 
+    // Collect all consultant profile IDs for batch fetch
+    final consultantProfileIds = <String>[];
+    final consultationIds = <String>[];
     for (final c in consultations) {
       final plan = c['consultationPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
+      if (consultantProfileId != null) {
+        consultantProfileIds.add(consultantProfileId);
+      }
+      consultationIds.add(c['id'] as String);
+    }
 
-      // Fetch consultant info
-      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+    // Batch fetch consultant info (1 query instead of N)
+    final consultantLookup =
+        await _batchFetchConsultantInfo(consultantProfileIds);
 
-      // Fetch slots for this consultation
+    // Batch fetch appointments with slots
+    final appointmentsQuery = JsonQueryBuilder()
+        .model('Appointment')
+        .action(QueryAction.findMany)
+        .where({
+      'consultationId': {'in': consultationIds}
+    }).include({'slots': true}).build();
+    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    final appointmentLookup = <String, Map<String, dynamic>>{};
+    for (final a in appointments) {
+      final consultationId = a['consultationId'] as String?;
+      if (consultationId != null) {
+        appointmentLookup[consultationId] = a;
+      }
+    }
+
+    // Build bookings using lookup maps (no additional queries)
+    final bookings = <Map<String, dynamic>>[];
+    for (final c in consultations) {
+      final plan = c['consultationPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
       final consultationId = c['id'] as String;
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'consultationId': consultationId})
-          .include({'slots': true})
-          .build();
-      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+
+      final consultantInfo =
+          _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
+      final appointment = appointmentLookup[consultationId];
       final slots = appointment?['slots'] as List<dynamic>?;
 
       bookings.add({
@@ -525,8 +553,7 @@ class AppointmentRepository extends BaseRepository {
         'planCurrency': plan?['priceCurrency'],
         'planDuration': plan?['durationInHours'],
         ...consultantInfo,
-        if (slots != null && slots.isNotEmpty)
-          'slots': _formatSlots(slots),
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
       });
     }
 
@@ -549,19 +576,34 @@ class AppointmentRepository extends BaseRepository {
         .model('Subscription')
         .action(QueryAction.findMany)
         .where(where)
-        .include({'subscriptionPlan': true})
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        .include({'subscriptionPlan': true}).orderBy(
+            {'createdAt': 'desc'}).build();
 
     final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
-    final bookings = <Map<String, dynamic>>[];
+    if (subscriptions.isEmpty) return [];
 
+    // Collect all consultant profile IDs for batch fetch
+    final consultantProfileIds = <String>[];
+    for (final s in subscriptions) {
+      final plan = s['subscriptionPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = plan?['consultantProfileId'] as String?;
+      if (consultantProfileId != null) {
+        consultantProfileIds.add(consultantProfileId);
+      }
+    }
+
+    // Batch fetch consultant info (1 query instead of N)
+    final consultantLookup =
+        await _batchFetchConsultantInfo(consultantProfileIds);
+
+    // Build bookings using lookup map (no additional queries)
+    final bookings = <Map<String, dynamic>>[];
     for (final s in subscriptions) {
       final plan = s['subscriptionPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
 
-      // Fetch consultant info
-      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+      final consultantInfo =
+          _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
       bookings.add({
         'id': s['id'],
@@ -601,24 +643,58 @@ class AppointmentRepository extends BaseRepository {
     }).build();
 
     final waitlistEntries = await executeQueryAsMaps(waitlistQuery);
-    final bookings = <Map<String, dynamic>>[];
+    if (waitlistEntries.isEmpty) return [];
 
+    // Collect webinar IDs for batch fetch
+    final webinarIds = waitlistEntries
+        .map((e) => e['webinarId'] as String?)
+        .whereType<String>()
+        .toList();
+
+    // Batch fetch webinars with plans
+    final webinarsQuery =
+        JsonQueryBuilder().model('Webinar').action(QueryAction.findMany).where({
+      'id': {'in': webinarIds}
+    }).include({'webinarPlan': true}).build();
+    final webinars = await executeQueryAsMaps(webinarsQuery);
+    final webinarLookup = <String, Map<String, dynamic>>{};
+    for (final w in webinars) {
+      webinarLookup[w['id'] as String] = w;
+    }
+
+    // Collect consultant profile IDs for batch fetch
+    final consultantProfileIds = <String>[];
+    for (final w in webinars) {
+      final plan = w['webinarPlan'] as Map<String, dynamic>?;
+      final id = plan?['consultantProfileId'] as String?;
+      if (id != null) consultantProfileIds.add(id);
+    }
+    final consultantLookup =
+        await _batchFetchConsultantInfo(consultantProfileIds);
+
+    // Batch fetch appointments with slots
+    final appointmentsQuery = JsonQueryBuilder()
+        .model('Appointment')
+        .action(QueryAction.findMany)
+        .where({
+      'webinarId': {'in': webinarIds}
+    }).include({'slots': true}).build();
+    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    final appointmentLookup = <String, Map<String, dynamic>>{};
+    for (final a in appointments) {
+      final webinarId = a['webinarId'] as String?;
+      if (webinarId != null) appointmentLookup[webinarId] = a;
+    }
+
+    // Build bookings using lookup maps
+    final bookings = <Map<String, dynamic>>[];
     for (final entry in waitlistEntries) {
       final webinarId = entry['webinarId'] as String?;
       if (webinarId == null) continue;
 
-      // Fetch webinar with plan
-      final webinarQuery = JsonQueryBuilder()
-          .model('Webinar')
-          .action(QueryAction.findUnique)
-          .where({'id': webinarId})
-          .include({'webinarPlan': true})
-          .build();
-
-      final webinar = await executeQueryAsSingleMap(webinarQuery);
+      final webinar = webinarLookup[webinarId];
       if (webinar == null) continue;
 
-      // Filter by status if specified (map webinar status to request status)
       final webinarStatus = webinar['status'] as String?;
       if (status != null && !_matchesWebinarStatus(webinarStatus, status)) {
         continue;
@@ -626,18 +702,10 @@ class AppointmentRepository extends BaseRepository {
 
       final plan = webinar['webinarPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
+      final consultantInfo =
+          _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
-      // Fetch consultant info
-      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
-
-      // Fetch appointment and slots
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'webinarId': webinarId})
-          .include({'slots': true})
-          .build();
-      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+      final appointment = appointmentLookup[webinarId];
       final slots = appointment?['slots'] as List<dynamic>?;
 
       bookings.add({
@@ -652,8 +720,7 @@ class AppointmentRepository extends BaseRepository {
         'planDuration': plan?['durationInHours'],
         'maxParticipants': plan?['maxParticipants'],
         ...consultantInfo,
-        if (slots != null && slots.isNotEmpty)
-          'slots': _formatSlots(slots),
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
       });
     }
 
@@ -675,24 +742,44 @@ class AppointmentRepository extends BaseRepository {
     }).build();
 
     final waitlistEntries = await executeQueryAsMaps(waitlistQuery);
-    final bookings = <Map<String, dynamic>>[];
+    if (waitlistEntries.isEmpty) return [];
 
+    // Collect class IDs for batch fetch
+    final classIds = waitlistEntries
+        .map((e) => e['classId'] as String?)
+        .whereType<String>()
+        .toList();
+
+    // Batch fetch classes with plans
+    final classesQuery =
+        JsonQueryBuilder().model('Class').action(QueryAction.findMany).where({
+      'id': {'in': classIds}
+    }).include({'classPlan': true}).build();
+    final classes = await executeQueryAsMaps(classesQuery);
+    final classLookup = <String, Map<String, dynamic>>{};
+    for (final c in classes) {
+      classLookup[c['id'] as String] = c;
+    }
+
+    // Collect consultant profile IDs for batch fetch
+    final consultantProfileIds = <String>[];
+    for (final c in classes) {
+      final plan = c['classPlan'] as Map<String, dynamic>?;
+      final id = plan?['consultantProfileId'] as String?;
+      if (id != null) consultantProfileIds.add(id);
+    }
+    final consultantLookup =
+        await _batchFetchConsultantInfo(consultantProfileIds);
+
+    // Build bookings using lookup maps
+    final bookings = <Map<String, dynamic>>[];
     for (final entry in waitlistEntries) {
       final classId = entry['classId'] as String?;
       if (classId == null) continue;
 
-      // Fetch class with plan
-      final classQuery = JsonQueryBuilder()
-          .model('Class')
-          .action(QueryAction.findUnique)
-          .where({'id': classId})
-          .include({'classPlan': true})
-          .build();
-
-      final classRecord = await executeQueryAsSingleMap(classQuery);
+      final classRecord = classLookup[classId];
       if (classRecord == null) continue;
 
-      // Filter by status if specified (map class status to request status)
       final classStatus = classRecord['status'] as String?;
       if (status != null && !_matchesClassStatus(classStatus, status)) {
         continue;
@@ -700,9 +787,8 @@ class AppointmentRepository extends BaseRepository {
 
       final plan = classRecord['classPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
-
-      // Fetch consultant info
-      final consultantInfo = await _fetchConsultantInfo(consultantProfileId);
+      final consultantInfo =
+          _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
       bookings.add({
         'id': classId,
@@ -727,8 +813,65 @@ class AppointmentRepository extends BaseRepository {
     return bookings;
   }
 
-  /// Fetch consultant profile and user info
-  Future<Map<String, dynamic>> _fetchConsultantInfo(String? consultantProfileId) async {
+  /// Batch fetch consultant profiles and user info for multiple IDs
+  ///
+  /// Returns a map of consultantProfileId -> consultant info for O(1) lookup.
+  /// This eliminates N+1 query problems by fetching all profiles in one query.
+  Future<Map<String, Map<String, dynamic>>> _batchFetchConsultantInfo(
+    List<String> consultantProfileIds,
+  ) async {
+    if (consultantProfileIds.isEmpty) return {};
+
+    // Remove duplicates and nulls
+    final uniqueIds = consultantProfileIds.toSet().toList();
+
+    final profilesQuery = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findMany)
+        .where({
+      'id': {'in': uniqueIds}
+    }).include({'user': true}).build();
+
+    final profiles = await executeQueryAsMaps(profilesQuery);
+
+    // Build lookup map
+    final result = <String, Map<String, dynamic>>{};
+    for (final profile in profiles) {
+      final id = profile['id'] as String?;
+      if (id == null) continue;
+
+      final user = profile['user'] as Map<String, dynamic>?;
+      result[id] = {
+        'consultantProfileId': id,
+        'consultantUserId': user?['id'],
+        'consultantName': user?['name'],
+        'consultantImage': user?['image'],
+      };
+    }
+
+    return result;
+  }
+
+  /// Get consultant info from lookup map, or return empty info if not found
+  Map<String, dynamic> _getConsultantInfoFromMap(
+    Map<String, Map<String, dynamic>> lookupMap,
+    String? consultantProfileId,
+  ) {
+    if (consultantProfileId == null ||
+        !lookupMap.containsKey(consultantProfileId)) {
+      return {
+        'consultantProfileId': null,
+        'consultantUserId': null,
+        'consultantName': null,
+        'consultantImage': null,
+      };
+    }
+    return lookupMap[consultantProfileId]!;
+  }
+
+  /// Fetch consultant profile and user info (single query - used for getBookingById)
+  Future<Map<String, dynamic>> _fetchConsultantInfo(
+      String? consultantProfileId) async {
     if (consultantProfileId == null) {
       return {
         'consultantProfileId': null,
@@ -741,9 +884,7 @@ class AppointmentRepository extends BaseRepository {
     final profileQuery = JsonQueryBuilder()
         .model('ConsultantProfile')
         .action(QueryAction.findUnique)
-        .where({'id': consultantProfileId})
-        .include({'user': true})
-        .build();
+        .where({'id': consultantProfileId}).include({'user': true}).build();
 
     final profile = await executeQueryAsSingleMap(profileQuery);
     final user = profile?['user'] as Map<String, dynamic>?;
@@ -828,9 +969,7 @@ class AppointmentRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('Consultation')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .include({'consultationPlan': true})
-        .build();
+        .where({'id': id}).include({'consultationPlan': true}).build();
 
     final result = await executeQueryAsSingleMap(query);
 
@@ -848,9 +987,7 @@ class AppointmentRepository extends BaseRepository {
       final profileQuery = JsonQueryBuilder()
           .model('ConsultantProfile')
           .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId})
-          .include({'user': true})
-          .build();
+          .where({'id': consultantProfileId}).include({'user': true}).build();
       profile = await executeQueryAsSingleMap(profileQuery);
       user = profile?['user'] as Map<String, dynamic>?;
     }
@@ -904,9 +1041,7 @@ class AppointmentRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('Subscription')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .include({'subscriptionPlan': true})
-        .build();
+        .where({'id': id}).include({'subscriptionPlan': true}).build();
 
     final result = await executeQueryAsSingleMap(query);
 
@@ -924,9 +1059,7 @@ class AppointmentRepository extends BaseRepository {
       final profileQuery = JsonQueryBuilder()
           .model('ConsultantProfile')
           .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId})
-          .include({'user': true})
-          .build();
+          .where({'id': consultantProfileId}).include({'user': true}).build();
       profile = await executeQueryAsSingleMap(profileQuery);
       user = profile?['user'] as Map<String, dynamic>?;
     }

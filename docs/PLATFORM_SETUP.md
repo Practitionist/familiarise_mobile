@@ -135,7 +135,7 @@ Add these entries to `ios/Runner/Info.plist`:
 
 #### Google Cloud Console:
 1. Create an iOS OAuth Client
-2. Add your iOS Bundle ID: `com.familiarise.familiariseMobile`
+2. Add your iOS Bundle ID: `com.familiarise.mobile`
 3. Download the `GoogleService-Info.plist` if using Firebase
 
 ### 2. Apple Silicon Simulator Support
