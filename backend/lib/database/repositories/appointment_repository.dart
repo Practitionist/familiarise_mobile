@@ -280,8 +280,10 @@ class AppointmentRepository extends BaseRepository {
       await txn.executeMutation(slotsQuery);
 
       // Link users to slots via junction table
-      // Note: This still uses raw SQL as there's no ORM support for junction
-      // tables without model definitions. This is parameterized and safe.
+      // Note: For bulk operations with createMany, raw SQL is more efficient.
+      // For single-record operations, use the v0.3.0 connect API:
+      //   JsonQueryBuilder().model('SlotOfAppointment').action(QueryAction.create)
+      //     .data({'id': slotId, 'users': {'connect': [{'id': userId}]}}).build()
       // Column B references users.id, so we use userId (not consulteeProfileId)
       for (final slotData in slotsData) {
         await txn.executeMutationRaw(
