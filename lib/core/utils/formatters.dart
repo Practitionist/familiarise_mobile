@@ -29,51 +29,61 @@ abstract final class Formatters {
   );
 
   /// Format date as "Jan 15, 2024"
+  /// Converts to local timezone before formatting
   static String date(DateTime dateTime) {
-    return _dateFormat.format(dateTime);
+    return _dateFormat.format(dateTime.toLocal());
   }
 
   /// Format date and time as "Jan 15, 2024 • 3:00 PM"
+  /// Converts to local timezone before formatting
   static String dateTime(DateTime dateTime) {
-    return _dateTimeFormat.format(dateTime);
+    return _dateTimeFormat.format(dateTime.toLocal());
   }
 
   /// Format time as "3:00 PM"
+  /// Converts to local timezone before formatting
   static String time(DateTime dateTime) {
-    return _timeFormat.format(dateTime);
+    return _timeFormat.format(dateTime.toLocal());
   }
 
   /// Format as "Jan 15"
+  /// Converts to local timezone before formatting
   static String dayMonth(DateTime dateTime) {
-    return _dayMonthFormat.format(dateTime);
+    return _dayMonthFormat.format(dateTime.toLocal());
   }
 
   /// Format as "Monday, January 15, 2024"
+  /// Converts to local timezone before formatting
   static String fullDate(DateTime dateTime) {
-    return _fullDateFormat.format(dateTime);
+    return _fullDateFormat.format(dateTime.toLocal());
   }
 
   /// Format as "January 2024"
+  /// Converts to local timezone before formatting
   static String monthYear(DateTime dateTime) {
-    return _monthYearFormat.format(dateTime);
+    return _monthYearFormat.format(dateTime.toLocal());
   }
 
   /// Format as "15/1/24"
+  /// Converts to local timezone before formatting
   static String shortDate(DateTime dateTime) {
-    return _shortDateFormat.format(dateTime);
+    return _shortDateFormat.format(dateTime.toLocal());
   }
 
   /// Format as relative time "2 hours ago", "just now", etc.
+  /// Converts to local timezone before calculating relative time
   static String relative(DateTime dateTime) {
-    return timeago.format(dateTime);
+    return timeago.format(dateTime.toLocal());
   }
 
   /// Format as relative time with short format "2h", "5m"
+  /// Converts to local timezone before calculating relative time
   static String relativeShort(DateTime dateTime) {
-    return timeago.format(dateTime, locale: 'en_short');
+    return timeago.format(dateTime.toLocal(), locale: 'en_short');
   }
 
   /// Format time range "3:00 PM - 4:00 PM"
+  /// Converts to local timezone before formatting
   static String timeRange(DateTime start, DateTime end) {
     return '${time(start)} - ${time(end)}';
   }

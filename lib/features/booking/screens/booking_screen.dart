@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/booking/booking_entities.dart';
+import '../../../shared/widgets/timezone_indicator.dart';
 import '../providers/availability_provider.dart';
 import '../providers/booking_flow_provider.dart';
 
@@ -84,6 +85,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isConsultation ? 'Book Consultation' : 'Book Subscription'),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: TimezoneIndicator(),
+          ),
+        ],
       ),
       body: isConsultation
           ? _buildConsultationBooking(theme, isLoading)
@@ -544,8 +551,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         );
   }
 
+  /// Compares two dates to check if they represent the same day
+  /// Both dates are converted to local timezone for accurate comparison
   bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final localA = a.toLocal();
+    final localB = b.toLocal();
+    return localA.year == localB.year &&
+        localA.month == localB.month &&
+        localA.day == localB.day;
   }
 
   String _formatDate(DateTime date) {

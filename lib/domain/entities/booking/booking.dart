@@ -142,7 +142,9 @@ class BookingSlot with _$BookingSlot {
       _$BookingSlotFromJson(json);
 
   /// Formatted date (e.g., "Mon, Jan 15")
+  /// Date is converted from UTC to local timezone for display
   String get formattedDate {
+    final localStart = startsAt.toLocal();
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const months = [
       'Jan',
@@ -158,20 +160,24 @@ class BookingSlot with _$BookingSlot {
       'Nov',
       'Dec',
     ];
-    final weekday = weekdays[startsAt.weekday - 1];
-    final month = months[startsAt.month - 1];
-    return '$weekday, $month ${startsAt.day}';
+    final weekday = weekdays[localStart.weekday - 1];
+    final month = months[localStart.month - 1];
+    return '$weekday, $month ${localStart.day}';
   }
 
   /// Formatted time range
+  /// Times are converted from UTC to local timezone for display
   String get formattedTimeRange {
-    final startHour = startsAt.hour % 12 == 0 ? 12 : startsAt.hour % 12;
-    final startMin = startsAt.minute.toString().padLeft(2, '0');
-    final startPeriod = startsAt.hour < 12 ? 'AM' : 'PM';
+    final localStart = startsAt.toLocal();
+    final localEnd = endsAt.toLocal();
 
-    final endHour = endsAt.hour % 12 == 0 ? 12 : endsAt.hour % 12;
-    final endMin = endsAt.minute.toString().padLeft(2, '0');
-    final endPeriod = endsAt.hour < 12 ? 'AM' : 'PM';
+    final startHour = localStart.hour % 12 == 0 ? 12 : localStart.hour % 12;
+    final startMin = localStart.minute.toString().padLeft(2, '0');
+    final startPeriod = localStart.hour < 12 ? 'AM' : 'PM';
+
+    final endHour = localEnd.hour % 12 == 0 ? 12 : localEnd.hour % 12;
+    final endMin = localEnd.minute.toString().padLeft(2, '0');
+    final endPeriod = localEnd.hour < 12 ? 'AM' : 'PM';
 
     return '$startHour:$startMin $startPeriod - $endHour:$endMin $endPeriod';
   }
