@@ -107,8 +107,10 @@ class BookingFailureScreen extends StatelessWidget {
         'booking',
         pathParameters: {
           'consultantId': consultantId!,
-          'planType': planType!,
           'planId': planId!,
+        },
+        queryParameters: {
+          'type': planType!,
         },
       );
     }
