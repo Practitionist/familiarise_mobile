@@ -17,10 +17,14 @@ BookingRemoteSource bookingRemoteSource(Ref ref) {
 /// Remote data source interface for booking operations
 abstract class BookingRemoteSource {
   /// Get consultant availability for a date range
+  ///
+  /// [planId] and [planType] are used to determine slot duration.
   Future<List<DayAvailability>> getConsultantAvailability({
     required String consultantProfileId,
     required DateTime startDate,
     required DateTime endDate,
+    String? planId,
+    String? planType,
   });
 
   /// Get user's bookings with pagination and optional status filter
@@ -65,14 +69,24 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     required String consultantProfileId,
     required DateTime startDate,
     required DateTime endDate,
+    String? planId,
+    String? planType,
   }) async {
     try {
+      final queryParams = <String, dynamic>{
+        'startDate': startDate.toUtc().toIso8601String(),
+        'endDate': endDate.toUtc().toIso8601String(),
+      };
+      if (planId != null) {
+        queryParams['planId'] = planId;
+      }
+      if (planType != null) {
+        queryParams['planType'] = planType;
+      }
+
       final response = await _dio.get(
         '/api/consultants/$consultantProfileId/availability',
-        queryParameters: {
-          'startDate': startDate.toUtc().toIso8601String(),
-          'endDate': endDate.toUtc().toIso8601String(),
-        },
+        queryParameters: queryParams,
       );
 
       if (response.statusCode == 200) {

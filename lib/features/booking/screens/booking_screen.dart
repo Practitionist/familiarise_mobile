@@ -109,6 +109,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           consultantProfileId: widget.consultantId,
           startDate: startDate,
           endDate: endDate,
+          planId: widget.planId,
+          planType: widget.planType,
         ),
       ),
     );
@@ -391,9 +393,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       orElse: () => DayAvailability(date: _selectedDate, slots: []),
     );
 
-    final availableSlots = dayAvailability.availableSlots;
+    final allSlots = dayAvailability.slots;
 
-    if (availableSlots.isEmpty) {
+    if (allSlots.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
@@ -409,7 +411,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'No available slots for this date',
+              'No slots for this date',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -419,18 +421,106 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       );
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: availableSlots.map((slot) {
-        final isSelected = _selectedSlot?.id == slot.id;
+    // Check if any slots are available
+    final hasAvailableSlots = allSlots.any((s) => s.isAvailable);
 
-        return ChoiceChip(
-          label: Text(slot.formattedTimeRange),
-          selected: isSelected,
-          onSelected: (_) => setState(() => _selectedSlot = slot),
-        );
-      }).toList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: allSlots.map((slot) {
+            final isSelected = _selectedSlot?.id == slot.id;
+            final isAvailable = slot.isAvailable;
+            final isPast = slot.isPast;
+            final isBooked = slot.isBooked;
+
+            // Color scheme:
+            // - Past: grey
+            // - Booked: dark grey
+            // - Available: light green
+            // - Selected: almost black
+            Color backgroundColor;
+            Color textColor;
+            Color borderColor;
+
+            if (isSelected) {
+              backgroundColor = const Color(0xFF2D2D2D); // Almost black
+              textColor = Colors.white;
+              borderColor = Colors.black;
+            } else if (isPast) {
+              backgroundColor = Colors.grey.shade300;
+              textColor = Colors.grey.shade700;
+              borderColor = Colors.grey.shade400;
+            } else if (isBooked) {
+              backgroundColor = Colors.grey.shade600;
+              textColor = Colors.white;
+              borderColor = Colors.grey.shade700;
+            } else {
+              // Available
+              backgroundColor = Colors.green.shade100;
+              textColor = Colors.green.shade900;
+              borderColor = Colors.green.shade300;
+            }
+
+            return GestureDetector(
+              onTap: isAvailable
+                  ? () => setState(() => _selectedSlot = slot)
+                  : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: borderColor,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Text(
+                  slot.formattedTimeRange,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: textColor,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        if (!hasAvailableSlots) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No available slots for this date. Please select another date.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
