@@ -85,9 +85,16 @@ class SlotRepository extends BaseRepository {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    // Get all booked slots for this consultant's appointments.
+    // Get all booked slots for this consultant's ACTIVE appointments.
     // Path: SlotOfAppointment -> Appointment -> (Consultation|Subscription) -> Plan
-    // Use AND to combine both date range conditions on startsAt
+    // Only include appointments with active statuses (exclude CANCELLED, REJECTED, EXPIRED)
+    const activeStatuses = [
+      'PENDING',
+      'APPROVED',
+      'APPROVED_PENDING_PAYMENT',
+      'SCHEDULED',
+    ];
+
     final query = JsonQueryBuilder()
         .model('SlotOfAppointment')
         .action(QueryAction.findMany)
@@ -99,13 +106,21 @@ class SlotRepository extends BaseRepository {
         {'startsAt': FilterOperators.lt(endDate.toIso8601String())},
       ],
       'OR': [
+        // Consultation appointments: filter by consultant AND active status
         FilterOperators.relationPath(
-          'appointment.consultation.consultationPlan',
-          {'consultantProfileId': consultantProfileId},
+          'appointment.consultation',
+          {
+            'consultationPlan': {'consultantProfileId': consultantProfileId},
+            'requestStatus': FilterOperators.in_(activeStatuses),
+          },
         ),
+        // Subscription appointments: filter by consultant AND active status
         FilterOperators.relationPath(
-          'appointment.subscription.subscriptionPlan',
-          {'consultantProfileId': consultantProfileId},
+          'appointment.subscription',
+          {
+            'subscriptionPlan': {'consultantProfileId': consultantProfileId},
+            'requestStatus': FilterOperators.in_(activeStatuses),
+          },
         ),
       ],
     }).build();
@@ -151,7 +166,7 @@ class SlotRepository extends BaseRepository {
 
     // Generate slots at 30-minute increments within each merged window
     final expandedSlots = <Map<String, dynamic>>[];
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc(); // Use UTC for consistent timezone handling
     final slotDuration = Duration(minutes: durationMinutes);
     const slotIncrement = Duration(minutes: 30);
 
@@ -214,17 +229,84 @@ class SlotRepository extends BaseRepository {
     // Expand weekly pattern into specific date slots with plan duration
     final expandedSlots = <Map<String, dynamic>>[];
     var currentDate = startDate;
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc(); // Use UTC for consistent timezone handling
     final slotDuration = Duration(minutes: durationMinutes);
     const slotIncrement = Duration(minutes: 30); // 30-min increments
 
     while (currentDate.isBefore(endDate)) {
       final dayOfWeek = _getDayOfWeekString(currentDate.weekday);
+      final previousDayOfWeek = _getDayOfWeekString(
+        currentDate.weekday == 1 ? 7 : currentDate.weekday - 1,
+      );
 
-      // Filter windows for this day
+      // Filter windows that START on this day
       final dayWindows = weeklySlots
           .where((s) => s['dayOfWeekForStartsAt'] == dayOfWeek)
           .toList();
+
+      // Also get cross-day windows that END on this day (started on previous day)
+      // This handles overnight availability like Mon 22:00 - Tue 02:00
+      // when the query range starts on Tuesday
+      final crossDayWindows = weeklySlots
+          .where((s) =>
+              s['dayOfWeekForEndsAt'] == dayOfWeek &&
+              s['dayOfWeekForStartsAt'] == previousDayOfWeek)
+          .toList();
+
+      // Process cross-day windows: only the post-midnight portion
+      for (final crossDaySlot in crossDayWindows) {
+        final availEnd = crossDaySlot['availabilityEndsAt'];
+        DateTime windowEnd;
+        if (availEnd is DateTime) {
+          windowEnd = DateTime(
+            currentDate.year,
+            currentDate.month,
+            currentDate.day,
+            availEnd.hour,
+            availEnd.minute,
+          );
+        } else {
+          final parsed = DateTime.parse(availEnd.toString());
+          windowEnd = DateTime(
+            currentDate.year,
+            currentDate.month,
+            currentDate.day,
+            parsed.hour,
+            parsed.minute,
+          );
+        }
+
+        // Generate slots from midnight to windowEnd (the post-midnight portion)
+        final windowStart = DateTime(
+          currentDate.year,
+          currentDate.month,
+          currentDate.day,
+          0, // Start at midnight
+          0,
+        );
+
+        // Only generate if end is after midnight
+        if (windowEnd.isAfter(windowStart)) {
+          var slotStart = windowStart;
+          while (slotStart.add(slotDuration).isBefore(windowEnd) ||
+              slotStart.add(slotDuration).isAtSameMomentAs(windowEnd)) {
+            final slotEnd = slotStart.add(slotDuration);
+            final isPast = slotStart.isBefore(now);
+            final isBooked = _isSlotBooked(slotStart, slotEnd, bookedSlots);
+
+            expandedSlots.add({
+              'id': '${crossDaySlot['id']}_crossday_${slotStart.toIso8601String()}',
+              'startsAt': slotStart,
+              'endsAt': slotEnd,
+              'isBooked': isBooked,
+              'isTentative': false,
+              'isPast': isPast,
+            });
+
+            slotStart = slotStart.add(slotIncrement);
+          }
+        }
+      }
 
       // Merge consecutive windows to allow longer duration slots
       final mergedWindows = _mergeConsecutiveWindows(dayWindows, currentDate);
@@ -275,6 +357,13 @@ class SlotRepository extends BaseRepository {
           );
         }
 
+        // Fix cross-midnight windows: if end time is before or equal to start time,
+        // it means the window crosses midnight and end is on the next day
+        if (windowEnd.isBefore(windowStart) ||
+            windowEnd.isAtSameMomentAs(windowStart)) {
+          windowEnd = windowEnd.add(const Duration(days: 1));
+        }
+
         // Generate slots at 30-minute increments within the merged window
         var slotStart = windowStart;
         while (slotStart.add(slotDuration).isBefore(windowEnd) ||
@@ -306,13 +395,20 @@ class SlotRepository extends BaseRepository {
     return expandedSlots;
   }
 
-  /// Check if a slot overlaps with any booked slot
+  /// Check if a slot overlaps with any confirmed (non-tentative) booked slot
+  ///
+  /// Tentative slots are excluded because they haven't been confirmed yet
+  /// and shouldn't block other users from booking the same time.
   bool _isSlotBooked(
     DateTime slotStart,
     DateTime slotEnd,
     List<Map<String, dynamic>> bookedSlots,
   ) {
     for (final bookedSlot in bookedSlots) {
+      // Skip tentative slots - they don't block availability
+      // Only confirmed appointments should prevent new bookings
+      if (bookedSlot['isTentative'] == true) continue;
+
       final bookedStart = _parseDateTime(bookedSlot['startsAt']);
       final bookedEnd = _parseDateTime(bookedSlot['endsAt']);
 
