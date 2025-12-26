@@ -127,10 +127,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           _buildPlanInfoCard(theme),
           const SizedBox(height: 16),
 
-          // Date selection
-          Text(
-            'Select Date',
-            style: theme.textTheme.titleMedium,
+          // Date selection with calendar picker
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Select Date',
+                style: theme.textTheme.titleMedium,
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_month),
+                tooltip: 'Pick a date',
+                onPressed: () => _showDatePickerDialog(context),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           _buildDateSelector(theme),
@@ -700,13 +710,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               ],
               if (description != null && description.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ],
@@ -741,6 +754,23 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showDatePickerDialog(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Select a date',
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedSlot = null; // Clear selected slot when date changes
+      });
+    }
   }
 
   void _handleConsultationBooking() {
