@@ -27,6 +27,12 @@ class SlotConflictException implements Exception {
 ///
 /// Uses JsonQueryBuilder for type-safe queries, eliminating SQL injection risks.
 class AppointmentRepository extends BaseRepository {
+  /// Month abbreviations for date formatting
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
   /// Create an appointment repository with the given executor
   AppointmentRepository(super._executor);
 
@@ -221,9 +227,7 @@ class AppointmentRepository extends BaseRepository {
         final hour = d.hour % 12 == 0 ? 12 : d.hour % 12;
         final minute = d.minute.toString().padLeft(2, '0');
         final period = d.hour < 12 ? 'AM' : 'PM';
-        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return '${months[d.month - 1]} ${d.day} at $hour:$minute $period UTC';
+        return '${_months[d.month - 1]} ${d.day} at $hour:$minute $period UTC';
       }).join(', ');
 
       throw SlotConflictException(

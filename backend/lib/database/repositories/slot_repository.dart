@@ -255,26 +255,10 @@ class SlotRepository extends BaseRepository {
 
       // Process cross-day windows: only the post-midnight portion
       for (final crossDaySlot in crossDayWindows) {
-        final availEnd = crossDaySlot['availabilityEndsAt'];
-        DateTime windowEnd;
-        if (availEnd is DateTime) {
-          windowEnd = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            availEnd.hour,
-            availEnd.minute,
-          );
-        } else {
-          final parsed = DateTime.parse(availEnd.toString());
-          windowEnd = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            parsed.hour,
-            parsed.minute,
-          );
-        }
+        final windowEnd = _parseTimeForDate(
+          crossDaySlot['availabilityEndsAt'],
+          currentDate,
+        );
 
         // Generate slots from midnight to windowEnd (the post-midnight portion)
         final windowStart = DateTime(
@@ -312,50 +296,15 @@ class SlotRepository extends BaseRepository {
       final mergedWindows = _mergeConsecutiveWindows(dayWindows, currentDate);
 
       for (final weeklySlot in mergedWindows) {
-        // Parse the availability window times
-        final availStart = weeklySlot['availabilityStartsAt'];
-        final availEnd = weeklySlot['availabilityEndsAt'];
-
-        DateTime windowStart;
-        DateTime windowEnd;
-
-        if (availStart is DateTime) {
-          windowStart = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            availStart.hour,
-            availStart.minute,
-          );
-        } else {
-          final parsed = DateTime.parse(availStart.toString());
-          windowStart = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            parsed.hour,
-            parsed.minute,
-          );
-        }
-
-        if (availEnd is DateTime) {
-          windowEnd = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            availEnd.hour,
-            availEnd.minute,
-          );
-        } else {
-          final parsed = DateTime.parse(availEnd.toString());
-          windowEnd = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            parsed.hour,
-            parsed.minute,
-          );
-        }
+        // Parse the availability window times using helper
+        var windowStart = _parseTimeForDate(
+          weeklySlot['availabilityStartsAt'],
+          currentDate,
+        );
+        var windowEnd = _parseTimeForDate(
+          weeklySlot['availabilityEndsAt'],
+          currentDate,
+        );
 
         // Fix cross-midnight windows: if end time is before or equal to start time,
         // it means the window crosses midnight and end is on the next day
@@ -418,30 +367,6 @@ class SlotRepository extends BaseRepository {
       }
     }
     return false;
-  }
-
-  /// Filter out slots that overlap with booked slots
-  List<Map<String, dynamic>> _filterBookedSlots(
-    List<Map<String, dynamic>> availableSlots,
-    List<Map<String, dynamic>> bookedSlots,
-  ) {
-    return availableSlots.where((availSlot) {
-      final availStart = _parseDateTime(availSlot['startsAt']);
-      final availEnd = _parseDateTime(availSlot['endsAt']);
-
-      // Check if this slot overlaps with any booked slot
-      for (final bookedSlot in bookedSlots) {
-        final bookedStart = _parseDateTime(bookedSlot['startsAt']);
-        final bookedEnd = _parseDateTime(bookedSlot['endsAt']);
-
-        // Check for overlap: slots overlap if one starts before the other ends
-        if (availStart.isBefore(bookedEnd) && availEnd.isAfter(bookedStart)) {
-          return false; // Slot is booked, filter it out
-        }
-      }
-
-      return true; // Slot is available
-    }).toList();
   }
 
   DateTime _parseDateTime(dynamic value) {

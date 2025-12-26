@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/formatters.dart';
+
 part 'booking.freezed.dart';
 part 'booking.g.dart';
 
@@ -167,20 +169,7 @@ class BookingSlot with _$BookingSlot {
 
   /// Formatted time range
   /// Times are converted from UTC to local timezone for display
-  String get formattedTimeRange {
-    final localStart = startsAt.toLocal();
-    final localEnd = endsAt.toLocal();
-
-    final startHour = localStart.hour % 12 == 0 ? 12 : localStart.hour % 12;
-    final startMin = localStart.minute.toString().padLeft(2, '0');
-    final startPeriod = localStart.hour < 12 ? 'AM' : 'PM';
-
-    final endHour = localEnd.hour % 12 == 0 ? 12 : localEnd.hour % 12;
-    final endMin = localEnd.minute.toString().padLeft(2, '0');
-    final endPeriod = localEnd.hour < 12 ? 'AM' : 'PM';
-
-    return '$startHour:$startMin $startPeriod - $endHour:$endMin $endPeriod';
-  }
+  String get formattedTimeRange => Formatters.timeRange(startsAt, endsAt);
 }
 
 /// Request to create a consultation booking
