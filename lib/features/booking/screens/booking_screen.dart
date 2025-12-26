@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/booking/booking_entities.dart';
+import '../../../domain/entities/explore/consultation_plan.dart';
+import '../../../domain/entities/explore/subscription_plan.dart';
 import '../../../shared/widgets/timezone_indicator.dart';
+import '../../explore/providers/consultant_detail_provider.dart';
 import '../providers/availability_provider.dart';
 import '../providers/booking_flow_provider.dart';
 
@@ -120,6 +123,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Plan info card
+          _buildPlanInfoCard(theme),
+          const SizedBox(height: 16),
+
           // Date selection
           Text(
             'Select Date',
@@ -187,6 +194,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Plan info card
+          _buildPlanInfoCard(theme),
+          const SizedBox(height: 16),
+
           // Info card
           Card(
             child: Padding(
@@ -587,6 +598,123 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
+    );
+  }
+
+  Widget _buildPlanInfoCard(ThemeData theme) {
+    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+
+    return consultantAsync.when(
+      data: (consultant) {
+        if (consultant == null) return const SizedBox.shrink();
+
+        final isConsultation = widget.planType == 'consultation';
+        String? title;
+        String? description;
+        String? duration;
+        String? price;
+
+        if (isConsultation) {
+          final plan = consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
+            (p) => p?.id == widget.planId,
+            orElse: () => null,
+          );
+          if (plan != null) {
+            title = plan.title;
+            description = plan.description;
+            duration = plan.formattedDuration;
+            price = plan.formattedPrice;
+          }
+        } else {
+          final plan = consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
+            (p) => p?.id == widget.planId,
+            orElse: () => null,
+          );
+          if (plan != null) {
+            title = plan.title;
+            description = plan.description;
+            duration = plan.formattedDuration;
+            price = plan.formattedPrice;
+          }
+        }
+
+        if (title == null) return const SizedBox.shrink();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      price ?? '',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (duration != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 14,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      duration,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (description != null && description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
