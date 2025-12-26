@@ -11,11 +11,15 @@ class AvailabilityParams {
   final String consultantProfileId;
   final DateTime startDate;
   final DateTime endDate;
+  final String? planId;
+  final String? planType;
 
   const AvailabilityParams({
     required this.consultantProfileId,
     required this.startDate,
     required this.endDate,
+    this.planId,
+    this.planType,
   });
 
   @override
@@ -24,12 +28,18 @@ class AvailabilityParams {
     return other is AvailabilityParams &&
         other.consultantProfileId == consultantProfileId &&
         other.startDate == startDate &&
-        other.endDate == endDate;
+        other.endDate == endDate &&
+        other.planId == planId &&
+        other.planType == planType;
   }
 
   @override
   int get hashCode =>
-      consultantProfileId.hashCode ^ startDate.hashCode ^ endDate.hashCode;
+      consultantProfileId.hashCode ^
+      startDate.hashCode ^
+      endDate.hashCode ^
+      planId.hashCode ^
+      planType.hashCode;
 }
 
 /// Provider for fetching consultant availability
@@ -43,6 +53,8 @@ Future<List<DayAvailability>> consultantAvailability(
     consultantProfileId: params.consultantProfileId,
     startDate: params.startDate,
     endDate: params.endDate,
+    planId: params.planId,
+    planType: params.planType,
   );
 }
 

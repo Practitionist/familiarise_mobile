@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/formatters.dart';
+
 part 'availability.freezed.dart';
 part 'availability.g.dart';
 
@@ -23,20 +25,11 @@ class AvailabilitySlot with _$AvailabilitySlot {
   Duration get duration => endsAt.difference(startsAt);
 
   /// Formatted time range (e.g., "9:00 AM - 10:00 AM")
-  String get formattedTimeRange {
-    final startHour = startsAt.hour % 12 == 0 ? 12 : startsAt.hour % 12;
-    final startMin = startsAt.minute.toString().padLeft(2, '0');
-    final startPeriod = startsAt.hour < 12 ? 'AM' : 'PM';
+  /// Times are converted from UTC to local timezone for display
+  String get formattedTimeRange => Formatters.timeRange(startsAt, endsAt);
 
-    final endHour = endsAt.hour % 12 == 0 ? 12 : endsAt.hour % 12;
-    final endMin = endsAt.minute.toString().padLeft(2, '0');
-    final endPeriod = endsAt.hour < 12 ? 'AM' : 'PM';
-
-    return '$startHour:$startMin $startPeriod - $endHour:$endMin $endPeriod';
-  }
-
-  /// Whether this slot is in the past
-  bool get isPast => startsAt.isBefore(DateTime.now());
+  /// Whether this slot is in the past (compares UTC times)
+  bool get isPast => startsAt.isBefore(DateTime.now().toUtc());
 
   /// Whether this slot is available for booking
   bool get isAvailable => !isBooked && !isTentative && !isPast;
@@ -63,7 +56,9 @@ class DayAvailability with _$DayAvailability {
   bool get hasAvailableSlots => availableSlots.isNotEmpty;
 
   /// Formatted date (e.g., "Mon, Jan 15")
+  /// Date is converted from UTC to local timezone for display
   String get formattedDate {
+    final localDate = date.toLocal();
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const months = [
       'Jan',
@@ -79,9 +74,9 @@ class DayAvailability with _$DayAvailability {
       'Nov',
       'Dec',
     ];
-    final weekday = weekdays[date.weekday - 1];
-    final month = months[date.month - 1];
-    return '$weekday, $month ${date.day}';
+    final weekday = weekdays[localDate.weekday - 1];
+    final month = months[localDate.month - 1];
+    return '$weekday, $month ${localDate.day}';
   }
 }
 

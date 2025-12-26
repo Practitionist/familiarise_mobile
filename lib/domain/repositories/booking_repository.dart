@@ -3,10 +3,14 @@ import '../entities/booking/booking_entities.dart';
 /// Repository interface for booking operations
 abstract class BookingRepository {
   /// Get consultant availability for a date range
+  ///
+  /// [planId] and [planType] are used to determine slot duration.
   Future<List<DayAvailability>> getConsultantAvailability({
     required String consultantProfileId,
     required DateTime startDate,
     required DateTime endDate,
+    String? planId,
+    String? planType,
   });
 
   /// Get user's bookings with pagination and optional status filter

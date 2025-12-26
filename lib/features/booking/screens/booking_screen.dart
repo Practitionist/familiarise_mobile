@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/booking/booking_entities.dart';
+import '../../../domain/entities/explore/consultation_plan.dart';
+import '../../../domain/entities/explore/subscription_plan.dart';
+import '../../../shared/widgets/timezone_indicator.dart';
+import '../../explore/providers/consultant_detail_provider.dart';
 import '../providers/availability_provider.dart';
 import '../providers/booking_flow_provider.dart';
 
@@ -84,6 +88,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isConsultation ? 'Book Consultation' : 'Book Subscription'),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: TimezoneIndicator(),
+          ),
+        ],
       ),
       body: isConsultation
           ? _buildConsultationBooking(theme, isLoading)
@@ -102,6 +112,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           consultantProfileId: widget.consultantId,
           startDate: startDate,
           endDate: endDate,
+          planId: widget.planId,
+          planType: widget.planType,
         ),
       ),
     );
@@ -111,10 +123,24 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date selection
-          Text(
-            'Select Date',
-            style: theme.textTheme.titleMedium,
+          // Plan info card
+          _buildPlanInfoCard(theme),
+          const SizedBox(height: 16),
+
+          // Date selection with calendar picker
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Select Date',
+                style: theme.textTheme.titleMedium,
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_month),
+                tooltip: 'Pick a date',
+                onPressed: () => _showDatePickerDialog(context),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           _buildDateSelector(theme),
@@ -178,6 +204,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Plan info card
+          _buildPlanInfoCard(theme),
+          const SizedBox(height: 16),
+
           // Info card
           Card(
             child: Padding(
@@ -384,9 +414,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       orElse: () => DayAvailability(date: _selectedDate, slots: []),
     );
 
-    final availableSlots = dayAvailability.availableSlots;
+    final allSlots = dayAvailability.slots;
 
-    if (availableSlots.isEmpty) {
+    if (allSlots.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
@@ -402,7 +432,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'No available slots for this date',
+              'No slots for this date',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -412,18 +442,106 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       );
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: availableSlots.map((slot) {
-        final isSelected = _selectedSlot?.id == slot.id;
+    // Check if any slots are available
+    final hasAvailableSlots = allSlots.any((s) => s.isAvailable);
 
-        return ChoiceChip(
-          label: Text(slot.formattedTimeRange),
-          selected: isSelected,
-          onSelected: (_) => setState(() => _selectedSlot = slot),
-        );
-      }).toList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: allSlots.map((slot) {
+            final isSelected = _selectedSlot?.id == slot.id;
+            final isAvailable = slot.isAvailable;
+            final isPast = slot.isPast;
+            final isBooked = slot.isBooked;
+
+            // Color scheme:
+            // - Past: grey
+            // - Booked: dark grey
+            // - Available: light green
+            // - Selected: almost black
+            Color backgroundColor;
+            Color textColor;
+            Color borderColor;
+
+            if (isSelected) {
+              backgroundColor = const Color(0xFF2D2D2D); // Almost black
+              textColor = Colors.white;
+              borderColor = Colors.black;
+            } else if (isPast) {
+              backgroundColor = Colors.grey.shade300;
+              textColor = Colors.grey.shade700;
+              borderColor = Colors.grey.shade400;
+            } else if (isBooked) {
+              backgroundColor = Colors.grey.shade600;
+              textColor = Colors.white;
+              borderColor = Colors.grey.shade700;
+            } else {
+              // Available
+              backgroundColor = Colors.green.shade100;
+              textColor = Colors.green.shade900;
+              borderColor = Colors.green.shade300;
+            }
+
+            return GestureDetector(
+              onTap: isAvailable
+                  ? () => setState(() => _selectedSlot = slot)
+                  : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: borderColor,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Text(
+                  slot.formattedTimeRange,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: textColor,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        if (!hasAvailableSlots) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No available slots for this date. Please select another date.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -493,6 +611,126 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
+  Widget _buildPlanInfoCard(ThemeData theme) {
+    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+
+    return consultantAsync.when(
+      data: (consultant) {
+        if (consultant == null) return const SizedBox.shrink();
+
+        final isConsultation = widget.planType == 'consultation';
+        String? title;
+        String? description;
+        String? duration;
+        String? price;
+
+        if (isConsultation) {
+          final plan = consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
+            (p) => p?.id == widget.planId,
+            orElse: () => null,
+          );
+          if (plan != null) {
+            title = plan.title;
+            description = plan.description;
+            duration = plan.formattedDuration;
+            price = plan.formattedPrice;
+          }
+        } else {
+          final plan = consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
+            (p) => p?.id == widget.planId,
+            orElse: () => null,
+          );
+          if (plan != null) {
+            title = plan.title;
+            description = plan.description;
+            duration = plan.formattedDuration;
+            price = plan.formattedPrice;
+          }
+        }
+
+        if (title == null) return const SizedBox.shrink();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      price ?? '',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (duration != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 14,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      duration,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (description != null && description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildError(ThemeData theme, String message) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -516,6 +754,23 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showDatePickerDialog(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Select a date',
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedSlot = null; // Clear selected slot when date changes
+      });
+    }
   }
 
   void _handleConsultationBooking() {
@@ -544,8 +799,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         );
   }
 
+  /// Compares two dates to check if they represent the same day
+  /// Both dates are converted to local timezone for accurate comparison
   bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final localA = a.toLocal();
+    final localB = b.toLocal();
+    return localA.year == localB.year &&
+        localA.month == localB.month &&
+        localA.day == localB.day;
   }
 
   String _formatDate(DateTime date) {

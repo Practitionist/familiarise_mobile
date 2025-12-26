@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 final logger = AppLogger('ConsultantAvailabilityRoute');
 
@@ -13,6 +14,8 @@ final logger = AppLogger('ConsultantAvailabilityRoute');
 /// Query Parameters:
 /// - startDate: Start of the date range (ISO8601, required)
 /// - endDate: End of the date range (ISO8601, required)
+/// - planId: The plan ID to determine slot duration (optional)
+/// - planType: 'consultation' or 'subscription' (optional, defaults to 'consultation')
 ///
 /// Response:
 /// ```json
@@ -26,7 +29,8 @@ final logger = AppLogger('ConsultantAvailabilityRoute');
 ///           "startsAt": "2024-01-15T09:00:00Z",
 ///           "endsAt": "2024-01-15T10:00:00Z",
 ///           "isBooked": false,
-///           "isTentative": false
+///           "isTentative": false,
+///           "isPast": false
 ///         }
 ///       ]
 ///     }
@@ -103,11 +107,29 @@ Future<Response> onRequest(RequestContext context, String id) async {
     // The route receives consultant profile ID directly
     final consultantProfileId = id;
 
-    // Fetch availability
+    // Parse optional planId and planType to determine slot duration
+    final planId = params['planId'];
+    final planType = params['planType'] ?? 'consultation';
+    var durationMinutes = 60; // Default 1 hour
+
+    if (planId != null) {
+      // Fetch the plan to get duration
+      final planDuration = await _getPlanDuration(
+        db.executor,
+        planId,
+        planType,
+      );
+      if (planDuration != null) {
+        durationMinutes = planDuration;
+      }
+    }
+
+    // Fetch availability with plan duration
     final slots = await db.slots.getAvailability(
       consultantProfileId: consultantProfileId,
       startDate: startDate,
       endDate: endDate,
+      durationMinutes: durationMinutes,
     );
 
     // Group slots by date
@@ -131,5 +153,47 @@ Future<Response> onRequest(RequestContext context, String id) async {
         'error': {'message': 'Failed to fetch availability'},
       },
     );
+  }
+}
+
+/// Fetch plan duration in minutes from the database
+///
+/// Returns the duration in minutes, or null if plan not found.
+/// For ConsultationPlan, uses `durationInHours`.
+/// For SubscriptionPlan, uses `sessionDurationInHours`.
+Future<int?> _getPlanDuration(
+  QueryExecutor executor,
+  String planId,
+  String planType,
+) async {
+  try {
+    final modelName = planType.toLowerCase() == 'subscription'
+        ? 'SubscriptionPlan'
+        : 'ConsultationPlan';
+
+    final durationField = planType.toLowerCase() == 'subscription'
+        ? 'sessionDurationInHours'
+        : 'durationInHours';
+
+    final query = JsonQueryBuilder()
+        .model(modelName)
+        .action(QueryAction.findUnique)
+        .selectFields([durationField])
+        .where({'id': planId})
+        .build();
+
+    final result = await executor.executeQueryAsSingleMap(query);
+    if (result == null) {
+      return null;
+    }
+
+    final durationHours = result[durationField];
+    if (durationHours == null) return null;
+
+    // Convert hours to minutes
+    return ((durationHours as num) * 60).round();
+  } catch (e) {
+    logger.warning('Failed to fetch plan duration: $e');
+    return null;
   }
 }

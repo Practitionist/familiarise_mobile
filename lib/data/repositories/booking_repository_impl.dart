@@ -27,11 +27,15 @@ class BookingRepositoryImpl implements BookingRepository {
     required String consultantProfileId,
     required DateTime startDate,
     required DateTime endDate,
+    String? planId,
+    String? planType,
   }) {
     return _remoteSource.getConsultantAvailability(
       consultantProfileId: consultantProfileId,
       startDate: startDate,
       endDate: endDate,
+      planId: planId,
+      planType: planType,
     );
   }
 

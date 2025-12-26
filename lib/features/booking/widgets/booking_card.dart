@@ -395,9 +395,10 @@ class BookingCard extends StatelessWidget {
     );
   }
 
+  /// Formats the scheduling period date range in local timezone
   String _formatDateRange() {
-    final start = booking.schedulingPeriodStartsAt;
-    final end = booking.schedulingPeriodEndsAt;
+    final start = booking.schedulingPeriodStartsAt?.toLocal();
+    final end = booking.schedulingPeriodEndsAt?.toLocal();
     if (start == null || end == null) return 'TBD';
 
     const months = [
@@ -417,9 +418,12 @@ class BookingCard extends StatelessWidget {
     return '${months[start.month - 1]} ${start.day} - ${months[end.month - 1]} ${end.day}';
   }
 
+  /// Formats a date relative to now (today, yesterday, N days ago, or date)
+  /// Date is converted from UTC to local timezone for comparison
   String _formatRelativeDate(DateTime date) {
+    final localDate = date.toLocal();
     final now = DateTime.now();
-    final diff = now.difference(date);
+    final diff = now.difference(localDate);
 
     if (diff.inDays == 0) {
       return 'today';
@@ -442,7 +446,7 @@ class BookingCard extends StatelessWidget {
         'Nov',
         'Dec',
       ];
-      return '${months[date.month - 1]} ${date.day}';
+      return '${months[localDate.month - 1]} ${localDate.day}';
     }
   }
 }

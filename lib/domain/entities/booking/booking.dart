@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/formatters.dart';
+
 part 'booking.freezed.dart';
 part 'booking.g.dart';
 
@@ -142,7 +144,9 @@ class BookingSlot with _$BookingSlot {
       _$BookingSlotFromJson(json);
 
   /// Formatted date (e.g., "Mon, Jan 15")
+  /// Date is converted from UTC to local timezone for display
   String get formattedDate {
+    final localStart = startsAt.toLocal();
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const months = [
       'Jan',
@@ -158,23 +162,14 @@ class BookingSlot with _$BookingSlot {
       'Nov',
       'Dec',
     ];
-    final weekday = weekdays[startsAt.weekday - 1];
-    final month = months[startsAt.month - 1];
-    return '$weekday, $month ${startsAt.day}';
+    final weekday = weekdays[localStart.weekday - 1];
+    final month = months[localStart.month - 1];
+    return '$weekday, $month ${localStart.day}';
   }
 
   /// Formatted time range
-  String get formattedTimeRange {
-    final startHour = startsAt.hour % 12 == 0 ? 12 : startsAt.hour % 12;
-    final startMin = startsAt.minute.toString().padLeft(2, '0');
-    final startPeriod = startsAt.hour < 12 ? 'AM' : 'PM';
-
-    final endHour = endsAt.hour % 12 == 0 ? 12 : endsAt.hour % 12;
-    final endMin = endsAt.minute.toString().padLeft(2, '0');
-    final endPeriod = endsAt.hour < 12 ? 'AM' : 'PM';
-
-    return '$startHour:$startMin $startPeriod - $endHour:$endMin $endPeriod';
-  }
+  /// Times are converted from UTC to local timezone for display
+  String get formattedTimeRange => Formatters.timeRange(startsAt, endsAt);
 }
 
 /// Request to create a consultation booking

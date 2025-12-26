@@ -19,10 +19,12 @@ class Review with _$Review {
   factory Review.fromJson(Map<String, dynamic> json) => _$ReviewFromJson(json);
 
   /// Time ago string (e.g., "2 days ago")
+  /// Converts to local timezone before calculating relative time
   String get timeAgo {
     if (createdAt == null) return '';
+    final localCreatedAt = createdAt!.toLocal();
     final now = DateTime.now();
-    final diff = now.difference(createdAt!);
+    final diff = now.difference(localCreatedAt);
 
     if (diff.inDays > 365) {
       final years = (diff.inDays / 365).floor();

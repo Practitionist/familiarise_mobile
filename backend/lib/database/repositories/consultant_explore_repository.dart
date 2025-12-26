@@ -472,7 +472,7 @@ class ConsultantExploreRepository extends BaseRepository {
       'learningOutcomes',
       'createdAt',
     ]).where({'consultantProfileId': consultantId}).orderBy(
-            {'price': 'asc'}).build();
+            {'durationInHours': 'asc'}).build();
 
     final result = await executeQueryAsMaps(query);
 
@@ -523,7 +523,7 @@ class ConsultantExploreRepository extends BaseRepository {
       'learningOutcomes',
       'createdAt',
     ]).where({'consultantProfileId': consultantId}).orderBy(
-            {'price': 'asc'}).build();
+            {'sessionDurationInHours': 'asc'}).build();
 
     final result = await executeQueryAsMaps(query);
 
