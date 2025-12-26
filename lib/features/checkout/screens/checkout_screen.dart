@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/booking/booking.dart';
 import '../../../domain/entities/checkout/checkout_entities.dart';
 import '../providers/checkout_flow_provider.dart';
@@ -148,6 +149,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 DiscountCodeInput(
                   bookingId: _discountValidationId, // Use planId as fallback for direct checkout
                   originalAmount: _originalPrice,
+                  currency: _currency,
                   onDiscountApplied: (code) {
                     setState(() {
                       _discountCode = code;
@@ -314,7 +316,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               _buildDetailRow(
                 theme,
                 'Date & Time',
-                _formatDateTime(directParams!.slotStartTime!),
+                Formatters.dateTime(directParams!.slotStartTime!),
               ),
             ],
 
@@ -324,14 +326,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               _buildDetailRow(
                 theme,
                 'Period',
-                '${_formatDate(booking!.schedulingPeriodStartsAt!)} - ${_formatDate(booking.schedulingPeriodEndsAt!)}',
+                '${Formatters.date(booking!.schedulingPeriodStartsAt!)} - ${Formatters.date(booking.schedulingPeriodEndsAt!)}',
               ),
             ] else if (directParams?.schedulingPeriodStart != null) ...[
               const SizedBox(height: 8),
               _buildDetailRow(
                 theme,
                 'Start Date',
-                _formatDate(directParams!.schedulingPeriodStart!),
+                Formatters.date(directParams!.schedulingPeriodStart!),
               ),
             ],
           ],
@@ -460,22 +462,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    final local = date.toLocal();
-    return '${months[local.month - 1]} ${local.day}, ${local.year}';
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final local = dateTime.toLocal();
-    final hour = local.hour > 12 ? local.hour - 12 : local.hour;
-    final period = local.hour >= 12 ? 'PM' : 'AM';
-    final minute = local.minute.toString().padLeft(2, '0');
-    return '${_formatDate(dateTime)} at $hour:$minute $period';
-  }
 }
 
 /// Parameters for direct checkout flow (without pre-created booking)

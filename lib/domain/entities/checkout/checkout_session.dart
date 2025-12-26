@@ -52,37 +52,6 @@ class CheckoutSession with _$CheckoutSession {
     return (finalAmount * 100).round();
   }
 
-  /// Currency symbol
-  String get currencySymbol {
-    switch (currency.toUpperCase()) {
-      case 'INR':
-        return '\u20B9'; // ₹
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return '\u20AC'; // €
-      case 'GBP':
-        return '\u00A3'; // £
-      default:
-        return currency;
-    }
-  }
-
-  /// Formatted final amount display
-  String get formattedAmount {
-    return '$currencySymbol${finalAmount.toStringAsFixed(2)}';
-  }
-
-  /// Formatted original amount
-  String get formattedOriginalAmount {
-    return '$currencySymbol${amount.toStringAsFixed(2)}';
-  }
-
-  /// Formatted discount amount
-  String get formattedDiscountAmount {
-    if (discountAmount == null || discountAmount! <= 0) return '';
-    return '-$currencySymbol${discountAmount!.toStringAsFixed(2)}';
-  }
 
   /// Has discount applied
   bool get hasDiscount => discountAmount != null && discountAmount! > 0;

@@ -8,6 +8,7 @@ import '../providers/checkout_flow_provider.dart';
 class DiscountCodeInput extends ConsumerStatefulWidget {
   final String bookingId;
   final double? originalAmount;
+  final String currency;
   final ValueChanged<String> onDiscountApplied;
   final VoidCallback onDiscountRemoved;
 
@@ -15,6 +16,7 @@ class DiscountCodeInput extends ConsumerStatefulWidget {
     super.key,
     required this.bookingId,
     this.originalAmount,
+    this.currency = 'INR',
     required this.onDiscountApplied,
     required this.onDiscountRemoved,
   });
@@ -165,7 +167,7 @@ class _DiscountCodeInputState extends ConsumerState<DiscountCodeInput> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                discount.displayText,
+                discount.displayTextWithCurrency(widget.currency),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.green.shade700,
                   fontWeight: FontWeight.w500,

@@ -79,9 +79,6 @@ class DiscountInfo with _$DiscountInfo {
     return DateTime.now().isAfter(expiresAt!);
   }
 
-  /// Display text for the discount (defaults to INR for backwards compatibility)
-  String get displayText => displayTextWithCurrency('INR');
-
   /// Display text for the discount with specified currency
   String displayTextWithCurrency(String currency) {
     if (!isValid) return errorMessage ?? 'Invalid discount code';
