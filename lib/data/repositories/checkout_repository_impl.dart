@@ -87,6 +87,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
 
     try {
       final response = await _remoteSource.createDirectCheckout(
+        consultantProfileId: consultantProfileId,
         planId: planId,
         appointmentType: planType.toUpperCase(),
         paymentGateway: gateway.value,

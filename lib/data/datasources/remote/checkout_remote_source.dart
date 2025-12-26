@@ -27,6 +27,7 @@ abstract class CheckoutRemoteSource {
 
   /// Create a direct checkout session (without pre-created booking)
   Future<CheckoutResponseModel> createDirectCheckout({
+    required String consultantProfileId,
     required String planId,
     required String appointmentType,
     required String paymentGateway,
@@ -96,6 +97,7 @@ class CheckoutRemoteSourceImpl implements CheckoutRemoteSource {
 
   @override
   Future<CheckoutResponseModel> createDirectCheckout({
+    required String consultantProfileId,
     required String planId,
     required String appointmentType,
     required String paymentGateway,
@@ -110,6 +112,7 @@ class CheckoutRemoteSourceImpl implements CheckoutRemoteSource {
   }) async {
     try {
       final data = <String, dynamic>{
+        'consultantProfileId': consultantProfileId,
         'planId': planId,
         'appointmentType': appointmentType,
         'paymentGateway': paymentGateway,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/formatters.dart';
 import '../providers/checkout_flow_provider.dart';
 
 /// Widget displaying price breakdown with discount
@@ -16,23 +17,9 @@ class PriceSummaryCard extends ConsumerWidget {
     this.discountCode,
   });
 
-  String get _currencySymbol {
-    switch (currency.toUpperCase()) {
-      case 'INR':
-        return '\u20B9'; // ₹
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return '\u20AC'; // €
-      case 'GBP':
-        return '\u00A3'; // £
-      default:
-        return currency;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currencySymbol = Formatters.currencySymbol(currency);
     final theme = Theme.of(context);
     final discountState = ref.watch(discountCodeValidatorProvider);
 
@@ -67,7 +54,7 @@ class PriceSummaryCard extends ConsumerWidget {
             _buildPriceRow(
               theme,
               'Subtotal',
-              '$_currencySymbol${originalPrice.toStringAsFixed(2)}',
+              '$currencySymbol${originalPrice.toStringAsFixed(2)}',
             ),
 
             // Discount (if any)
@@ -76,7 +63,7 @@ class PriceSummaryCard extends ConsumerWidget {
               _buildPriceRow(
                 theme,
                 'Discount',
-                '-$_currencySymbol${discountAmount.toStringAsFixed(2)}',
+                '-$currencySymbol${discountAmount.toStringAsFixed(2)}',
                 valueColor: Colors.green.shade700,
                 icon: Icons.local_offer,
               ),
@@ -94,7 +81,7 @@ class PriceSummaryCard extends ConsumerWidget {
             _buildPriceRow(
               theme,
               'Total',
-              '$_currencySymbol${finalPrice.toStringAsFixed(2)}',
+              '$currencySymbol${finalPrice.toStringAsFixed(2)}',
               isBold: true,
               isLarge: true,
             ),
@@ -121,7 +108,7 @@ class PriceSummaryCard extends ConsumerWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'You save $_currencySymbol${discountAmount.toStringAsFixed(2)}!',
+                      'You save $currencySymbol${discountAmount.toStringAsFixed(2)}!',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.green.shade700,
                         fontWeight: FontWeight.w500,
@@ -197,19 +184,9 @@ class CheckoutPriceInfo extends ConsumerWidget {
     required this.currency,
   });
 
-  String get _currencySymbol {
-    switch (currency.toUpperCase()) {
-      case 'INR':
-        return '\u20B9';
-      case 'USD':
-        return '\$';
-      default:
-        return currency;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currencySymbol = Formatters.currencySymbol(currency);
     final theme = Theme.of(context);
     final discountState = ref.watch(discountCodeValidatorProvider);
 
@@ -226,7 +203,7 @@ class CheckoutPriceInfo extends ConsumerWidget {
       children: [
         if (hasDiscount) ...[
           Text(
-            '$_currencySymbol${originalPrice.toStringAsFixed(0)}',
+            '$currencySymbol${originalPrice.toStringAsFixed(0)}',
             style: theme.textTheme.bodySmall?.copyWith(
               decoration: TextDecoration.lineThrough,
               color: theme.colorScheme.onSurfaceVariant,
@@ -234,7 +211,7 @@ class CheckoutPriceInfo extends ConsumerWidget {
           ),
         ],
         Text(
-          '$_currencySymbol${finalPrice.toStringAsFixed(0)}',
+          '$currencySymbol${finalPrice.toStringAsFixed(0)}',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             color: theme.colorScheme.onPrimary,

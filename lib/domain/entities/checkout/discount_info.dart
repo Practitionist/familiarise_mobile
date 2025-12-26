@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/formatters.dart';
+
 part 'discount_info.freezed.dart';
 
 /// Discount type
@@ -77,15 +79,19 @@ class DiscountInfo with _$DiscountInfo {
     return DateTime.now().isAfter(expiresAt!);
   }
 
-  /// Display text for the discount
-  String get displayText {
+  /// Display text for the discount (defaults to INR for backwards compatibility)
+  String get displayText => displayTextWithCurrency('INR');
+
+  /// Display text for the discount with specified currency
+  String displayTextWithCurrency(String currency) {
     if (!isValid) return errorMessage ?? 'Invalid discount code';
 
     if (discountType == DiscountType.percentage && discountPercentage != null) {
       return '${discountPercentage!.toStringAsFixed(0)}% off';
     } else if (discountType == DiscountType.fixedAmount &&
         discountAmount != null) {
-      return '\u20B9${discountAmount!.toStringAsFixed(0)} off';
+      final symbol = Formatters.currencySymbol(currency);
+      return '$symbol${discountAmount!.toStringAsFixed(0)} off';
     }
 
     return description ?? 'Discount applied';

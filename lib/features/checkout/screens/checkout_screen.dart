@@ -44,6 +44,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   String get _bookingId => widget.booking?.id ?? '';
 
+  String get _planId => widget.directCheckoutParams?.planId ?? '';
+
+  /// Get identifier for discount validation (bookingId or planId for direct checkout)
+  String get _discountValidationId =>
+      _bookingId.isNotEmpty ? _bookingId : _planId;
+
   @override
   void initState() {
     super.initState();
@@ -140,13 +146,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 const SizedBox(height: 8),
                 DiscountCodeInput(
-                  bookingId: _bookingId,
+                  bookingId: _discountValidationId, // Use planId as fallback for direct checkout
                   originalAmount: _originalPrice,
                   onDiscountApplied: (code) {
-                    setState(() => _discountCode = code);
+                    setState(() {
+                      _discountCode = code;
+                      _checkoutInitialized = false; // Reset session on discount change
+                    });
                   },
                   onDiscountRemoved: () {
-                    setState(() => _discountCode = null);
+                    setState(() {
+                      _discountCode = null;
+                      _checkoutInitialized = false; // Reset session on discount removal
+                    });
                   },
                 ),
                 const SizedBox(height: 24),
@@ -163,7 +175,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   selectedGateway: _selectedGateway,
                   currency: _currency,
                   onGatewaySelected: (gateway) {
-                    setState(() => _selectedGateway = gateway);
+                    setState(() {
+                      _selectedGateway = gateway;
+                      _checkoutInitialized = false; // Reset session on gateway change
+                    });
                   },
                 ),
                 const SizedBox(height: 24),

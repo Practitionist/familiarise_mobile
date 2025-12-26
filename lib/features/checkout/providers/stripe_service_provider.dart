@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -101,10 +102,36 @@ class StripeService extends _$StripeService {
     );
   }
 
+  /// Get merchant country code from currency
+  String _getMerchantCountry(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'INR':
+        return 'IN';
+      case 'USD':
+        return 'US';
+      case 'EUR':
+        return 'DE';
+      case 'GBP':
+        return 'GB';
+      case 'AUD':
+        return 'AU';
+      case 'CAD':
+        return 'CA';
+      case 'JPY':
+        return 'JP';
+      case 'SGD':
+        return 'SG';
+      default:
+        return 'US'; // Default to US for unsupported currencies
+    }
+  }
+
   /// Process payment using Stripe Payment Sheet (in-app)
   Future<StripeResult> _handlePaymentSheet(CheckoutSession session) async {
     try {
       debugPrint('Initializing Stripe Payment Sheet...');
+
+      final merchantCountry = _getMerchantCountry(session.currency);
 
       // Initialize Payment Sheet
       await Stripe.instance.initPaymentSheet(
@@ -121,12 +148,12 @@ class StripeService extends _$StripeService {
             ),
           ),
           // Enable Apple Pay and Google Pay
-          applePay: const PaymentSheetApplePay(
-            merchantCountryCode: 'IN',
+          applePay: PaymentSheetApplePay(
+            merchantCountryCode: merchantCountry,
           ),
-          googlePay: const PaymentSheetGooglePay(
-            merchantCountryCode: 'IN',
-            testEnv: true, // Set to false for production
+          googlePay: PaymentSheetGooglePay(
+            merchantCountryCode: merchantCountry,
+            testEnv: kDebugMode, // Use kDebugMode for test/production switching
           ),
         ),
       );
