@@ -402,6 +402,15 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                   ),
                 );
               },
+              onPayNow: booking.status == RequestStatus.approvedPendingPayment
+                  ? () {
+                      // Navigate to checkout screen
+                      context.pushNamed(
+                        'checkout',
+                        extra: booking,
+                      );
+                    }
+                  : null,
             ),
           );
         },
