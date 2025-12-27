@@ -3,15 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Conditionally import better_auth_flutter (not supported on web)
-import 'package:better_auth_flutter/better_auth_flutter.dart'
-    if (dart.library.html) '../../../core/utils/better_auth_stub.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../../../core/config/env_config.dart';
 import '../../../core/errors/exceptions.dart';
@@ -61,7 +57,7 @@ abstract class AuthRemoteSource {
   Stream<UserModel?> get authStateChanges;
 }
 
-/// Implementation using Better Auth Flutter SDK
+/// Implementation using direct HTTP calls to the backend API
 class AuthRemoteSourceImpl implements AuthRemoteSource {
   GoogleSignIn? _googleSignIn;
   final StreamController<UserModel?> _authStateController =
@@ -86,7 +82,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Use HTTP call to get token (same pattern as Google sign-in)
       final baseUrl = EnvConfig.apiBaseUrl;
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/sign-in/email'),
+        Uri.parse('$baseUrl/api/auth/email/sign-in'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
@@ -125,7 +121,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Use HTTP call to get token (same pattern as Google sign-in)
       final baseUrl = EnvConfig.apiBaseUrl;
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/sign-up/email'),
+        Uri.parse('$baseUrl/api/auth/email/sign-up'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email,
@@ -177,7 +173,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Use HTTP call to our backend instead of BetterAuth client
       final baseUrl = EnvConfig.apiBaseUrl;
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/google'),
+        Uri.parse('$baseUrl/api/auth/google/callback'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'idToken': idToken,
@@ -212,36 +208,71 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   @override
   Future<UserModel> signInWithGitHub() async {
     try {
-      // Get the OAuth URL from Better Auth
-      final (url, error) = await BetterAuth.instance.client.socialSignIn(
-        provider: SocialProvider.github,
-        callbackUrl: 'familiarise://auth/callback',
-        callbackUrlScheme: 'familiarise',
+      final baseUrl = EnvConfig.apiBaseUrl;
+
+      // Step 1: Get the OAuth URL and state from our backend
+      final urlResponse = await http.get(
+        Uri.parse('$baseUrl/api/auth/github/url'),
+        headers: {'Content-Type': 'application/json'},
       );
 
-      if (error != null) {
-        throw AuthException(message: _mapAuthError(error.message));
+      if (urlResponse.statusCode != 200) {
+        final error = jsonDecode(urlResponse.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to get GitHub auth URL',
+        );
       }
 
-      if (url == null || url.isEmpty) {
+      final urlData = jsonDecode(urlResponse.body);
+      final oauthUrl = urlData['url'] as String?;
+      final state = urlData['state'] as String?;
+
+      if (oauthUrl == null || oauthUrl.isEmpty) {
         throw const AuthException(message: 'Failed to get GitHub auth URL');
       }
 
-      // Open the URL in a web view and wait for callback
-      await FlutterWebAuth2.authenticate(
-        url: url,
+      // Step 2: Open the OAuth URL in a web view and wait for callback
+      final callbackResult = await FlutterWebAuth2.authenticate(
+        url: oauthUrl,
         callbackUrlScheme: 'familiarise',
       );
 
-      // After OAuth redirect, fetch the current user
-      final currentUser = await getCurrentUser();
+      // Step 3: Extract the authorization code from the callback URL
+      final callbackUri = Uri.parse(callbackResult);
+      final code = callbackUri.queryParameters['code'];
 
-      if (currentUser == null) {
-        throw const AuthException(message: 'GitHub sign in failed');
+      if (code == null || code.isEmpty) {
+        throw const AuthException(message: 'GitHub authorization failed');
       }
 
-      _authStateController.add(currentUser);
-      return currentUser;
+      // Step 4: Exchange the code for user credentials via our backend
+      final callbackResponse = await http.post(
+        Uri.parse('$baseUrl/api/auth/github/callback'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'code': code,
+          'state': state,
+        }),
+      );
+
+      if (callbackResponse.statusCode != 200) {
+        final error = jsonDecode(callbackResponse.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'GitHub sign in failed',
+        );
+      }
+
+      final data = jsonDecode(callbackResponse.body);
+      final userModel = UserModel.fromJson(data['user']);
+      final token = data['token'] as String;
+
+      // Store token for future requests
+      await AuthInterceptor.saveToken(token);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+
+      _authStateController.add(userModel);
+      return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
@@ -252,51 +283,84 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   @override
   Future<void> signOut() async {
     try {
+      // Sign out from Google
       await googleSignIn.signOut();
-      final error = await BetterAuth.instance.client.signOut();
-      if (error != null) {
-        throw AuthException(message: error.message);
-      }
-      _authStateController.add(null);
+
+      // Clear all locally stored auth data
+      await _clearLocalAuth();
     } catch (e, stackTrace) {
-      if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+      // Even if sign out fails, still clear local auth
+      await _clearLocalAuth();
+      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource.signOut');
     }
   }
 
   @override
   Future<UserModel?> getCurrentUser() async {
     try {
-      // getSession returns ((Session?, User?)?, BetterAuthFailure?) tuple
-      final result = await BetterAuth.instance.client.getSession();
-      final sessionUserTuple = result.$1;
-      final error = result.$2;
+      // First, try to get the stored token from local storage
+      final token = await AuthInterceptor.getToken();
 
-      if (error != null || sessionUserTuple == null) {
-        return null;
+      if (token != null && token.isNotEmpty) {
+        // Validate token with backend
+        final baseUrl = EnvConfig.apiBaseUrl;
+        try {
+          final response = await http.get(
+            Uri.parse('$baseUrl/api/auth/session'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final userModel = UserModel.fromJson(data['user']);
+            // Update cached user data
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+            return userModel;
+          }
+
+          // Token invalid (401, user deleted, etc.) - clear local storage
+          if (response.statusCode == 401) {
+            await _clearLocalAuth();
+            return null;
+          }
+        } catch (e) {
+          // Network error - try to return cached user data
+          return await _getCachedUser();
+        }
       }
 
-      final session = sessionUserTuple.$1;
-      final user = sessionUserTuple.$2;
+      // No stored token - return null (user must sign in)
+      return null;
+    } catch (e) {
+      // On any error, try cached user as last resort
+      return await _getCachedUser();
+    }
+  }
 
-      if (session == null) {
-        return null;
+  /// Get cached user from SharedPreferences
+  Future<UserModel?> _getCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('auth_user');
+      if (userJson != null && userJson.isNotEmpty) {
+        return UserModel.fromJson(jsonDecode(userJson));
       }
-
-      // If we have user data, use it
-      if (user != null) {
-        return _parseUserData(user);
-      }
-
-      // If we only have session, create a minimal UserModel
-      return UserModel(
-        id: session.userId,
-        createdAt: session.createdAt,
-      );
+      return null;
     } catch (e) {
       return null;
     }
+  }
+
+  /// Clear all locally stored auth data
+  Future<void> _clearLocalAuth() async {
+    await AuthInterceptor.clearToken();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_user');
+    _authStateController.add(null);
   }
 
   @override
@@ -320,70 +384,12 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   @override
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
 
-  /// Parse user data from API response
-  /// Handles both User object and Map responses
-  UserModel _parseUserData(dynamic userData) {
-    if (userData is User) {
-      return UserModel(
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        image: userData.image,
-        emailVerified: userData.emailVerified,
-        createdAt: userData.createdAt,
-      );
-    } else if (userData is Map<String, dynamic>) {
-      return UserModel(
-        id: userData['id'] as String? ?? '',
-        email: userData['email'] as String?,
-        name: userData['name'] as String?,
-        image: userData['image'] as String?,
-        emailVerified: userData['emailVerified'] as bool? ?? false,
-        createdAt: userData['createdAt'] != null
-            ? DateTime.tryParse(userData['createdAt'].toString())
-            : null,
-      );
-    } else {
-      throw const AuthException(message: 'Invalid user data format');
-    }
-  }
-
-  /// Map auth errors to user-friendly messages
-  String _mapAuthError(String message) {
-    final lowerMessage = message.toLowerCase();
-
-    if (lowerMessage.contains('invalid') &&
-        (lowerMessage.contains('email') || lowerMessage.contains('password'))) {
-      return 'Invalid email or password';
-    }
-    if (lowerMessage.contains('not confirmed') ||
-        lowerMessage.contains('not verified')) {
-      return 'Please verify your email address';
-    }
-    if (lowerMessage.contains('already') &&
-        (lowerMessage.contains('registered') ||
-            lowerMessage.contains('exists'))) {
-      return 'An account with this email already exists';
-    }
-    if (lowerMessage.contains('password') &&
-        (lowerMessage.contains('short') || lowerMessage.contains('weak'))) {
-      return 'Password must be at least 8 characters';
-    }
-    if (lowerMessage.contains('network') ||
-        lowerMessage.contains('connection')) {
-      return 'Network error. Please check your connection.';
-    }
-
-    return message;
-  }
-
   void dispose() {
     _authStateController.close();
   }
 }
 
 /// Web-specific implementation using direct HTTP calls
-/// This bypasses better_auth_flutter which doesn't support web
 class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
@@ -430,7 +436,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   Future<UserModel> signInWithEmail(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/auth/sign-in/email'),
+        Uri.parse('$_baseUrl/api/auth/email/sign-in'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
@@ -462,7 +468,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       String email, String password, String? name) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/auth/sign-up/email'),
+        Uri.parse('$_baseUrl/api/auth/email/sign-up'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email,
@@ -517,7 +523,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       // Send tokens to backend - it will use whichever is available
       // Mobile: ID token (preferred) | Web: Access token
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/auth/google'),
+        Uri.parse('$_baseUrl/api/auth/google/callback'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'idToken': idToken, // May be null on web

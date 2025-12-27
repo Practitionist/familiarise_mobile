@@ -1,10 +1,11 @@
 import 'dart:io';
 
-import 'package:backend/services/auth_service.dart';
+import 'package:backend/services/auth/auth_service.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
-/// POST /api/auth/google
-/// Google OAuth sign-in endpoint
+/// POST /api/auth/google/callback
+/// Exchanges Google OAuth tokens for user credentials
 ///
 /// Request body:
 /// - idToken (preferred): Google ID token to verify (from mobile)
@@ -16,6 +17,10 @@ import 'package:dart_frog/dart_frog.dart';
 ///
 /// Both methods are secure - the backend always fetches user info
 /// directly from Google, never trusting client-provided user data.
+///
+/// Response:
+/// - user: The authenticated user object
+/// - token: JWT token for subsequent API calls
 Future<Response> onRequest(RequestContext context) async {
   // Only allow POST
   if (context.request.method != HttpMethod.post) {
@@ -53,9 +58,12 @@ Future<Response> onRequest(RequestContext context) async {
       body: {'error': {'message': e.message}},
     );
   } catch (e, stackTrace) {
-    // Log error server-side only - never expose to client
-    print('Error in Google sign-in: $e');
-    print('Stack trace: $stackTrace');
+    await SentryLogger.severe(
+      'Google OAuth callback failed',
+      context: 'AuthGoogleCallback',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {'error': {'message': 'An unexpected error occurred'}},

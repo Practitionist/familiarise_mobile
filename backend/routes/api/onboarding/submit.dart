@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/onboarding/submit
@@ -147,10 +148,12 @@ Future<Response> onRequest(RequestContext context) async {
       },
     );
   } catch (e, stackTrace) {
-    // ignore: avoid_print
-    print('Error in POST /api/onboarding/submit: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
+    await SentryLogger.severe(
+      'Onboarding submission failed',
+      context: 'OnboardingSubmit',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

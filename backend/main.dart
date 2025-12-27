@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
-import 'package:backend/services/auth_service.dart';
-import 'package:backend/services/jwt_service.dart';
+import 'package:backend/services/auth/auth_service.dart';
+import 'package:backend/services/auth/github_oauth_service.dart';
+import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
 
@@ -11,6 +13,9 @@ import 'package:dotenv/dotenv.dart';
 Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   // Load environment variables
   final env = DotEnv()..load(['.env']);
+
+  // Initialize Sentry for error tracking (optional)
+  await SentryLogger.init(env['SENTRY_DSN']);
 
   // Use DIRECT_URL for direct PostgreSQL connection (no PgBouncer)
   // PgBouncer in transaction mode doesn't support prepared statements
@@ -25,22 +30,55 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     throw Exception('JWT_SECRET must be set in .env');
   }
 
+  // GitHub OAuth credentials (optional - only needed if using GitHub auth)
+  final githubClientId = env['GITHUB_CLIENT_ID'];
+  final githubClientSecret = env['GITHUB_CLIENT_SECRET'];
+  final githubRedirectUri = env['GITHUB_REDIRECT_URI'];
+  final hasGitHubOAuth = githubClientId != null &&
+      githubClientSecret != null &&
+      githubRedirectUri != null;
+
+  if (!hasGitHubOAuth) {
+    SentryLogger.info(
+      'GitHub OAuth credentials not configured. GitHub sign-in will not work.',
+      context: 'Startup',
+    );
+  }
+
   // Initialize database
-  print('Connecting to database...');
+  SentryLogger.info('Connecting to database...', context: 'Startup');
   final db = await DatabaseClient.initialize(databaseUrl);
-  print('Database connected successfully!');
+  SentryLogger.info('Database connected successfully!', context: 'Startup');
 
   // Create services
   final jwtService = JwtService(jwtSecret);
   final authService = AuthService(db, jwtService);
 
+  // Create GitHub OAuth service if configured
+  final GitHubOAuthService? githubOAuthService = hasGitHubOAuth
+      ? GitHubOAuthService(
+          clientId: githubClientId!,
+          clientSecret: githubClientSecret!,
+          redirectUri: githubRedirectUri!,
+        )
+      : null;
+
   // Add services to handler using providers
-  final handlerWithProviders = handler
+  var handlerWithProviders = handler
       .use(provider<DatabaseClient>((_) => db))
       .use(provider<JwtService>((_) => jwtService))
       .use(provider<AuthService>((_) => authService));
 
+  // Add GitHub OAuth service if configured
+  if (githubOAuthService != null) {
+    handlerWithProviders = handlerWithProviders
+        .use(provider<GitHubOAuthService>((_) => githubOAuthService));
+  }
+
   // Start server
-  print('Starting server on http://${ip.address}:$port');
+  SentryLogger.info(
+    'Starting server on http://${ip.address}:$port',
+    context: 'Startup',
+  );
   return serve(handlerWithProviders, ip, port);
 }

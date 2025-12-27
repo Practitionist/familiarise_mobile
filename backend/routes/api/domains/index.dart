@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// GET /api/domains
@@ -25,11 +26,12 @@ Future<Response> onRequest(RequestContext context) async {
       body: {'domains': serializedDomains},
     );
   } catch (e, stackTrace) {
-    // Log error for debugging
-    // ignore: avoid_print
-    print('Error in GET /api/domains: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
+    await SentryLogger.severe(
+      'Failed to fetch domains',
+      context: 'Domains',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

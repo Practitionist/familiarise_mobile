@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:http/http.dart' as http;
 
@@ -93,8 +94,10 @@ Future<Response> onRequest(RequestContext context) async {
     );
 
     if (signedUrlResponse.statusCode != 200) {
-      // ignore: avoid_print
-      print('Supabase error: ${signedUrlResponse.body}');
+      SentryLogger.info(
+        'Supabase signed URL error: ${signedUrlResponse.body}',
+        context: 'UploadImage',
+      );
       return Response.json(
         statusCode: HttpStatus.internalServerError,
         body: {'error': {'message': 'Failed to generate signed URL'}},
@@ -135,10 +138,12 @@ Future<Response> onRequest(RequestContext context) async {
       },
     );
   } catch (e, stackTrace) {
-    // ignore: avoid_print
-    print('Error in POST /api/upload/image: $e');
-    // ignore: avoid_print
-    print('Stack trace: $stackTrace');
+    await SentryLogger.severe(
+      'Image upload URL generation failed',
+      context: 'UploadImage',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

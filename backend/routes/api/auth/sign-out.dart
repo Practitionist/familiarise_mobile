@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:backend/services/auth_service.dart';
-import 'package:backend/services/jwt_service.dart';
+import 'package:backend/services/auth/auth_service.dart';
+import 'package:backend/services/auth/jwt_service.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/auth/sign-out
