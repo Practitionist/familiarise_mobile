@@ -1,4 +1,4 @@
-import 'package:backend/services/jwt_service.dart';
+import 'package:backend/services/auth/jwt_service.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// Extract user ID from JWT token in Authorization header

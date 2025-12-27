@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:backend/services/auth_service.dart';
+import 'package:backend/services/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 /// Verified Google user information extracted from ID token

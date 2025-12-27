@@ -1,6 +1,7 @@
 import 'package:backend/database/database_client.dart';
-import 'package:backend/services/google_token_verifier.dart';
-import 'package:backend/services/jwt_service.dart';
+import 'package:backend/services/auth/github_oauth_service.dart';
+import 'package:backend/services/auth/google_token_verifier.dart';
+import 'package:backend/services/auth/jwt_service.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:uuid/uuid.dart';
 
@@ -278,6 +279,90 @@ class AuthService {
     }
 
     // Create session (outside transaction - not critical for user creation)
+    final session = await _createSession(user['id'] as String);
+
+    // Create JWT token
+    final token = _jwtService.createToken(
+      userId: user['id'] as String,
+      sessionId: session['id'] as String,
+    );
+
+    return {
+      'user': _sanitizeUser(user),
+      'token': token,
+      'session': {
+        'id': session['id'],
+        'userId': session['userId'],
+        'expiresAt': session['expires']?.toString(),
+      },
+    };
+  }
+
+  /// Sign in with GitHub OAuth
+  ///
+  /// Exchanges the authorization code for user info and creates/updates the user.
+  Future<Map<String, dynamic>> signInWithGitHub(GitHubUserInfo githubUser) async {
+    final email = githubUser.email;
+    if (email == null || email.isEmpty) {
+      throw AuthException(
+        'Could not get email from GitHub. Please make sure your GitHub email is public or verified.',
+        statusCode: 400,
+      );
+    }
+
+    final providerAccountId = githubUser.id.toString();
+    final name = githubUser.name ?? githubUser.login;
+    final image = githubUser.avatarUrl;
+
+    // Check if user exists by email
+    final existingUser = await _db.findUserByEmail(email);
+
+    final Map<String, dynamic> user;
+    if (existingUser == null) {
+      // Create new user atomically in a transaction
+      final userId = _uuid.v4();
+      user = await _db.executeInTransaction((txn) async {
+        final newUser = await _db.createUser(
+          id: userId,
+          email: email,
+          name: name,
+          image: image,
+          executor: txn,
+        );
+
+        // Create GitHub OAuth account link
+        await _db.createOAuthAccount(
+          id: _uuid.v4(),
+          userId: userId,
+          provider: 'github',
+          providerAccountId: providerAccountId,
+          executor: txn,
+        );
+
+        // Create consultee profile
+        await _db.createConsulteeProfile(
+          id: _uuid.v4(),
+          userId: userId,
+          executor: txn,
+        );
+
+        return newUser;
+      });
+    } else {
+      // Update user info if changed
+      if (name != null || image != null) {
+        final updatedUser = await _db.updateUser(
+          id: existingUser['id'] as String,
+          name: name,
+          image: image,
+        );
+        user = updatedUser ?? existingUser;
+      } else {
+        user = existingUser;
+      }
+    }
+
+    // Create session
     final session = await _createSession(user['id'] as String);
 
     // Create JWT token

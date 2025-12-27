@@ -46,20 +46,6 @@ class UserModel with _$UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) =>
       _$UserModelFromJson(json);
 
-  /// Create from Better Auth user response
-  factory UserModel.fromBetterAuthUser(Map<String, dynamic> userData) {
-    return UserModel(
-      id: userData['id'] as String? ?? '',
-      email: userData['email'] as String?,
-      name: userData['name'] as String?,
-      image: userData['image'] as String?,
-      emailVerified: userData['emailVerified'] as bool? ?? false,
-      createdAt: userData['createdAt'] != null
-          ? DateTime.tryParse(userData['createdAt'] as String)
-          : null,
-    );
-  }
-
   /// Convert to domain entity
   User toEntity() {
     return User(

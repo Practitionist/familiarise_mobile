@@ -32,7 +32,7 @@ class AuthStateNotifier extends ChangeNotifier {
   final Ref ref;
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
   final authNotifier = AuthStateNotifier(ref);
 
@@ -52,6 +52,9 @@ GoRouter router(Ref ref) {
         orElse: () => false,
       );
       final location = state.matchedLocation;
+
+      // Debug logging
+      debugPrint('🔀 Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
       final isAuthRoute = location.startsWith('/auth');
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
@@ -99,7 +102,7 @@ GoRouter router(Ref ref) {
       }
 
       // On onboarding route but completed -> redirect to dashboard
-      if (isOnboardingRoute) {
+      if (isOnboardingRoute && !needsOnboarding) {
         return '/dashboard';
       }
 

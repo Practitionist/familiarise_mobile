@@ -1,7 +1,8 @@
 import 'dart:io';
 
-import 'package:backend/services/auth_service.dart';
-import 'package:backend/services/jwt_service.dart';
+import 'package:backend/services/auth/auth_service.dart';
+import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// GET /api/auth/session
@@ -51,8 +52,12 @@ Future<Response> onRequest(RequestContext context) async {
 
     return Response.json(body: result);
   } catch (e, stackTrace) {
-    print('Error in /api/auth/session: $e');
-    print('Stack trace: $stackTrace');
+    await SentryLogger.severe(
+      'Session retrieval failed',
+      context: 'AuthSession',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return Response.json(
       body: {'session': null, 'user': null},
     );

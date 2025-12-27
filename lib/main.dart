@@ -1,12 +1,8 @@
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Conditionally import better_auth_flutter (not supported on web)
-import 'package:better_auth_flutter/better_auth_flutter.dart'
-    if (dart.library.html) 'core/utils/better_auth_stub.dart';
 
 import 'app/app.dart';
 import 'core/config/env_config.dart';
@@ -41,14 +37,7 @@ Future<void> main() async {
       // Breadcrumb limit to avoid memory overhead
       options.maxBreadcrumbs = 50;
     },
-    appRunner: () async {
-      // Initialize Better Auth only on non-web platforms
-      if (!kIsWeb) {
-        BetterAuth.init(
-          baseUrl: Uri.parse(EnvConfig.apiBaseUrl),
-        );
-      }
-
+    appRunner: () {
       runApp(
         ProviderScope(
           overrides: [
