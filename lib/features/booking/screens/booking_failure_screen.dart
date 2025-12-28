@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 /// Booking failure screen shown when a booking attempt fails
 class BookingFailureScreen extends StatelessWidget {
@@ -7,6 +8,7 @@ class BookingFailureScreen extends StatelessWidget {
   final String? consultantId;
   final String? planId;
   final String? planType;
+  final List<DateTime>? conflictingSlots;
 
   const BookingFailureScreen({
     super.key,
@@ -14,6 +16,7 @@ class BookingFailureScreen extends StatelessWidget {
     this.consultantId,
     this.planId,
     this.planType,
+    this.conflictingSlots,
   });
 
   @override
@@ -21,6 +24,14 @@ class BookingFailureScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => context.goNamed('explore'),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -55,7 +66,7 @@ class BookingFailureScreen extends StatelessWidget {
 
               // Description
               Text(
-                errorMessage ?? 'Something went wrong while processing your booking. Please try again.',
+                _buildErrorDescription(),
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -101,6 +112,25 @@ class BookingFailureScreen extends StatelessWidget {
   bool get _canRetry =>
       consultantId != null && planId != null && planType != null;
 
+  /// Build error description with formatted conflicting slots in local timezone
+  String _buildErrorDescription() {
+    if (conflictingSlots != null && conflictingSlots!.isNotEmpty) {
+      // Format each slot with local timezone
+      final formattedSlots = conflictingSlots!.map((slot) {
+        final local = slot.toLocal();
+        // Format as "Dec 28 at 2:30 PM"
+        final dateFormat = DateFormat('MMM d');
+        final timeFormat = DateFormat('h:mm a');
+        return '${dateFormat.format(local)} at ${timeFormat.format(local)}';
+      }).join(', ');
+
+      return 'The following time slots are no longer available: '
+          '$formattedSlots. Please select different times.';
+    }
+    return errorMessage ??
+        'Something went wrong while processing your booking. Please try again.';
+  }
+
   void _retryBooking(BuildContext context) {
     if (_canRetry) {
       context.goNamed(
@@ -111,6 +141,7 @@ class BookingFailureScreen extends StatelessWidget {
         },
         queryParameters: {
           'type': planType!,
+          'refresh': 'true', // Force availability refresh
         },
       );
     }

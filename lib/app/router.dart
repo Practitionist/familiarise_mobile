@@ -241,6 +241,7 @@ GoRouter router(Ref ref) {
           consultantId: state.pathParameters['consultantId']!,
           planId: state.pathParameters['planId']!,
           planType: state.uri.queryParameters['type'] ?? 'consultation',
+          forceRefresh: state.uri.queryParameters['refresh'] == 'true',
         ),
       ),
       GoRoute(
@@ -261,6 +262,7 @@ GoRouter router(Ref ref) {
             consultantId: extra?['consultantId'] as String?,
             planId: extra?['planId'] as String?,
             planType: extra?['planType'] as String?,
+            conflictingSlots: extra?['conflictingSlots'] as List<DateTime>?,
           );
         },
       ),

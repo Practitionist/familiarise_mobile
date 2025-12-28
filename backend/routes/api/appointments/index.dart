@@ -278,6 +278,7 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
         'error': {
           'code': 'SLOT_CONFLICT',
           'message': e.message,
+          'conflictingSlots': e.conflictingSlotTimes,
         },
       },
     );

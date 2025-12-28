@@ -14,7 +14,9 @@ class DuplicateBookingException implements Exception {
 /// Exception thrown when requested time slots conflict with existing bookings
 class SlotConflictException implements Exception {
   final String message;
-  SlotConflictException(this.message);
+  final List<String> conflictingSlotTimes;
+
+  SlotConflictException(this.message, [this.conflictingSlotTimes = const []]);
 
   @override
   String toString() => message;
@@ -222,18 +224,15 @@ class AppointmentRepository extends BaseRepository {
     );
 
     if (conflicts.isNotEmpty) {
-      // Format times in a readable way (UTC)
-      final formattedTimes = conflicts.map((d) {
-        final hour = d.hour % 12 == 0 ? 12 : d.hour % 12;
-        final minute = d.minute.toString().padLeft(2, '0');
-        final period = d.hour < 12 ? 'AM' : 'PM';
-        return '${_months[d.month - 1]} ${d.day} at $hour:$minute $period UTC';
-      }).join(', ');
+      // Return ISO8601 times for client-side formatting in local timezone
+      final conflictTimes = conflicts
+          .map((d) => d.toUtc().toIso8601String())
+          .toList();
 
       throw SlotConflictException(
-        'The following time slots are no longer available: '
-        '$formattedTimes. '
+        'The following time slots are no longer available. '
         'Please select different times.',
+        conflictTimes,
       );
     }
 

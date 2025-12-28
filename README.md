@@ -188,6 +188,78 @@ For detailed architecture documentation, see [CLAUDE.md](./CLAUDE.md).
 | `flutter build ios` | Build iOS app |
 | `cd backend && dart_frog dev` | Start backend server |
 
+## Development Environment
+
+### iOS Simulator
+
+```bash
+# List available simulators
+xcrun simctl list devices available
+
+# Boot a simulator
+xcrun simctl boot "iPhone 17 Pro"
+
+# Shutdown a simulator
+xcrun simctl shutdown "iPhone 17 Pro"
+
+# Shutdown all simulators
+xcrun simctl shutdown all
+
+# Run Flutter app on iOS simulator
+flutter run -d "iPhone 17 Pro"
+```
+
+### Android Emulator
+
+```bash
+# List available AVDs
+~/Library/Android/sdk/emulator/emulator -list-avds
+
+# Start emulator (runs in background)
+~/Library/Android/sdk/emulator/emulator -avd Medium_Phone_API_36.1 &
+
+# Kill emulator
+~/Library/Android/sdk/platform-tools/adb -s emulator-5554 emu kill
+
+# Run Flutter app on Android emulator
+flutter run -d emulator-5554
+```
+
+### Backend Server (Dart Frog)
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Build backend (required before running production server)
+~/.pub-cache/bin/dart_frog build
+
+# Run backend server on port 8080
+PORT=8080 dart build/bin/server.dart
+
+# Kill backend server
+lsof -ti:8080 | xargs kill -9
+
+# One-liner restart
+lsof -ti:8080 | xargs kill -9 2>/dev/null; PORT=8080 dart build/bin/server.dart
+
+# Development mode (with hot reload)
+~/.pub-cache/bin/dart_frog dev
+```
+
+### Quick Reference
+
+| Action | Command |
+|--------|---------|
+| Start iOS Simulator | `xcrun simctl boot "iPhone 17 Pro"` |
+| Stop iOS Simulator | `xcrun simctl shutdown "iPhone 17 Pro"` |
+| Start Android Emulator | `~/Library/Android/sdk/emulator/emulator -avd Medium_Phone_API_36.1 &` |
+| Stop Android Emulator | `~/Library/Android/sdk/platform-tools/adb -s emulator-5554 emu kill` |
+| Start Backend | `cd backend && PORT=8080 dart build/bin/server.dart` |
+| Stop Backend | `lsof -ti:8080 \| xargs kill -9` |
+| Run on iOS | `flutter run -d "iPhone 17 Pro"` |
+| Run on Android | `flutter run -d emulator-5554` |
+
 ## Testing
 
 ### Unit Tests
