@@ -45,11 +45,17 @@ class Consultant with _$Consultant {
   String get formattedRating =>
       rating != null ? rating!.toStringAsFixed(1) : 'N/A';
 
-  /// Formatted price (e.g., "₹2,000")
-  String get formattedMinPrice {
-    if (minPrice == null) return 'Contact for price';
+  /// Formatted price (e.g., "From ₹2,000") - null if no price set
+  String? get formattedMinPrice {
+    if (minPrice == null) return null;
     final symbol = priceCurrency == 'INR' ? '₹' : '\$';
-    return '$symbol${minPrice!.toStringAsFixed(0)}';
+    return 'From $symbol${minPrice!.toStringAsFixed(0)}';
+  }
+
+  /// Subdomains as comma-separated string
+  String? get formattedSubDomains {
+    if (subDomains.isEmpty) return null;
+    return subDomains.map((s) => s.name).join(', ');
   }
 
   /// Formatted experience (e.g., "5+ years")

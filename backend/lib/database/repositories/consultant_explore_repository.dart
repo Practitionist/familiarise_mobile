@@ -171,10 +171,20 @@ class ConsultantExploreRepository extends BaseRepository {
 
     final consultantsResult = await executeQueryAsMaps(mainQuery);
 
+    // Get consultant IDs for price lookup
+    final consultantIds = consultantsResult
+        .map((row) => row['id'] as String)
+        .toList();
+
+    // Fetch minPrice separately since ComputedField may not work reliably
+    final priceMap = await _fetchMinPrices(consultantIds);
+
     // Build consultant list - relations are already included in result
     final consultants = consultantsResult.map((row) {
+      final id = row['id'] as String;
+      final priceInfo = priceMap[id];
       return {
-        'id': row['id'],
+        'id': id,
         'userId': row['userId'],
         'headline': row['headline'],
         'description': row['description'],
@@ -188,8 +198,8 @@ class ConsultantExploreRepository extends BaseRepository {
         'createdAt': _serializeDateTime(row['createdAt']),
         'user': row['user'],
         'domain': row['domain'],
-        'minPrice': row['minPrice'],
-        'priceCurrency': row['priceCurrency'] ?? 'INR',
+        'minPrice': priceInfo?['minPrice'] ?? row['minPrice'],
+        'priceCurrency': priceInfo?['priceCurrency'] ?? row['priceCurrency'] ?? 'INR',
         'subDomains': row['subDomains'] ?? <Map<String, dynamic>>[],
       };
     }).toList();
@@ -378,6 +388,44 @@ class ConsultantExploreRepository extends BaseRepository {
   }
 
   // ==================== Private Helper Methods ====================
+
+  /// Fetch minimum prices for a list of consultant IDs
+  ///
+  /// Returns a map of consultantId -> {minPrice, priceCurrency}
+  Future<Map<String, Map<String, dynamic>>> _fetchMinPrices(
+    List<String> consultantIds,
+  ) async {
+    if (consultantIds.isEmpty) return {};
+
+    // Build placeholders for SQL IN clause
+    final placeholders =
+        List.generate(consultantIds.length, (i) => '\$${i + 1}').join(', ');
+
+    // Query to get min price per consultant
+    final results = await executeRaw('''
+      SELECT
+        "consultantProfileId",
+        MIN(price) as "minPrice",
+        (SELECT "priceCurrency" FROM "ConsultationPlan" cp2
+         WHERE cp2."consultantProfileId" = cp."consultantProfileId"
+         ORDER BY price ASC LIMIT 1) as "priceCurrency"
+      FROM "ConsultationPlan" cp
+      WHERE "consultantProfileId" IN ($placeholders)
+      GROUP BY "consultantProfileId"
+    ''', consultantIds);
+
+    // Build result map
+    final priceMap = <String, Map<String, dynamic>>{};
+    for (final row in results) {
+      final consultantId = row['consultantProfileId'] as String;
+      priceMap[consultantId] = {
+        'minPrice': row['minPrice'],
+        'priceCurrency': row['priceCurrency'] ?? 'INR',
+      };
+    }
+
+    return priceMap;
+  }
 
   /// Serialize DateTime to ISO8601 string
   String? _serializeDateTime(dynamic value) {
