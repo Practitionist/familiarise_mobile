@@ -42,4 +42,12 @@ abstract class BookingRepository {
     required BookingType type,
     String? reason,
   });
+
+  /// Reschedule a booking
+  /// For subscriptions, optionally pass [slotId] for individual session reschedule
+  Future<Booking> rescheduleBooking({
+    required String id,
+    required BookingType type,
+    String? slotId,
+  });
 }

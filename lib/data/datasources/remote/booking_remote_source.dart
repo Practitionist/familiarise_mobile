@@ -56,6 +56,14 @@ abstract class BookingRemoteSource {
     required BookingType type,
     String? reason,
   });
+
+  /// Reschedule a booking
+  /// For subscriptions, optionally pass [slotId] for individual session reschedule
+  Future<Booking> rescheduleBooking({
+    required String id,
+    required BookingType type,
+    String? slotId,
+  });
 }
 
 /// Implementation of BookingRemoteSource
@@ -295,6 +303,53 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       }
       throw ServerException(
         message: e.message ?? 'Failed to cancel booking',
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
+    }
+  }
+
+  @override
+  Future<Booking> rescheduleBooking({
+    required String id,
+    required BookingType type,
+    String? slotId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/appointments/$id/reschedule',
+        queryParameters: {'type': type.value},
+        data: slotId != null ? {'slotId': slotId} : null,
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final bookingJson = data['booking'] as Map<String, dynamic>;
+        return _parseBooking(bookingJson);
+      }
+
+      throw ServerException(
+        message: 'Failed to reschedule booking',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw const NotFoundException(resource: 'Booking');
+      }
+      // Handle 400 for 24h restriction
+      if (e.response?.statusCode == 400) {
+        final errorMessage = _extractErrorMessage(e) ??
+            'Cannot reschedule within 24 hours of appointment';
+        throw ValidationException(
+          errors: {'reschedule': [errorMessage]},
+          message: errorMessage,
+        );
+      }
+      if (e.error is AppException) {
+        throw e.error as AppException;
+      }
+      throw ServerException(
+        message: _extractErrorMessage(e) ?? 'Failed to reschedule booking',
         statusCode: e.response?.statusCode,
         originalError: e,
       );
