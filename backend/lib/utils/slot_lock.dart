@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:http/http.dart' as http;
-import 'package:logging/logging.dart';
 
 /// Distributed locking utility for slot booking using Upstash Redis
 ///
@@ -10,7 +10,6 @@ import 'package:logging/logging.dart';
 ///
 /// Lock key format: `slot-lock:{consultantProfileId}:{slotStartTimeISO}`
 class SlotLock {
-  static final _logger = Logger('SlotLock');
 
   /// Lock TTL in milliseconds (60 seconds - matches web app)
   static const int _lockTtlMs = 60000;
@@ -76,7 +75,10 @@ class SlotLock {
       return null;
     } catch (e) {
       // Log error but don't block booking if Redis is unavailable
-      _logger.warning('Failed to acquire slot lock: $e');
+      SentryLogger.warning(
+        'Failed to acquire slot lock: $e',
+        context: 'SlotLock',
+      );
       // Return a value to allow booking to proceed
       // The database transaction will still provide ACID guarantees
       return 'fallback-${DateTime.now().millisecondsSinceEpoch}';
@@ -114,7 +116,10 @@ class SlotLock {
       ).timeout(const Duration(seconds: 5));
     } catch (e) {
       // Log but don't throw - lock will expire automatically
-      _logger.warning('Failed to release slot lock: $e');
+      SentryLogger.warning(
+        'Failed to release slot lock: $e',
+        context: 'SlotLock',
+      );
     }
   }
 

@@ -1,6 +1,5 @@
-// ignore_for_file: avoid_print
-
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for domain and subdomain database operations
@@ -49,7 +48,10 @@ class DomainRepository extends BaseRepository {
       }
     } catch (e) {
       // Fall through to optimized 2-query approach if include isn't supported
-      print('Note: Include not fully configured, using 2-query fallback: $e');
+      SentryLogger.debug(
+        'Include not fully configured, using 2-query fallback: $e',
+        context: 'DomainRepository',
+      );
     }
 
     // Fallback: 2 parallel queries (optimized from N+1)
