@@ -246,22 +246,67 @@ class CheckoutRemoteSourceImpl implements CheckoutRemoteSource {
     }
 
     final message = _extractErrorMessage(e) ?? defaultMessage;
+    final errorCode = _extractErrorCode(e);
     final statusCode = e.response?.statusCode;
 
     // Check for specific error types
     if (statusCode == 404) {
-      return NotFoundException(resource: defaultMessage.replaceAll('Failed to ', ''));
+      return NotFoundException(
+        resource: defaultMessage.replaceAll('Failed to ', ''),
+      );
     }
 
     if (statusCode == 401 || statusCode == 403) {
       return AuthException(message: message);
     }
 
+    // Handle 409 Conflict - check error code to determine type
+    if (statusCode == 409) {
+      // Only treat as slot conflict if error code indicates it
+      if (errorCode == 'SLOT_CONFLICT') {
+        final conflictingSlots = _extractConflictingSlots(e);
+        return SlotConflictException(
+          message: message,
+          conflictingSlots: conflictingSlots,
+          originalError: e,
+        );
+      }
+      // Other 409 errors (DUPLICATE_BOOKING, etc.) fall through to ServerException
+    }
+
     return ServerException(
       message: message,
       statusCode: statusCode,
+      errorCode: errorCode,
       originalError: e,
     );
+  }
+
+  /// Extract error code from API response
+  String? _extractErrorCode(DioException e) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map<String, dynamic>) {
+        return error['code'] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// Extract conflicting slots from 409 error response
+  List<String> _extractConflictingSlots(DioException e) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map<String, dynamic>) {
+        final slots = error['conflictingSlots'];
+        if (slots is List) {
+          return slots.map((s) => s.toString()).toList();
+        }
+      }
+    }
+    return [];
   }
 
   /// Extract error message from DioException response

@@ -273,12 +273,23 @@ class ErrorInterceptor extends Interceptor {
         final rawData = err.response?.data;
         final data = _safeMapFromData(rawData);
 
-        // Try to extract error message from response
+        // Try to extract error message and code from response
         String message = 'An error occurred';
+        String? errorCode;
+
         if (data != null) {
-          message = _safeStringFromMap(data, 'message') ??
-              _safeStringFromMap(data, 'error') ??
-              'An error occurred';
+          // Check for nested error object (standard API format)
+          final errorObj = data['error'];
+          if (errorObj is Map) {
+            final errorMap = Map<String, dynamic>.from(errorObj);
+            message = errorMap['message']?.toString() ?? message;
+            errorCode = errorMap['code']?.toString();
+          } else {
+            // Fallback to top-level message
+            message = _safeStringFromMap(data, 'message') ??
+                _safeStringFromMap(data, 'error') ??
+                'An error occurred';
+          }
         }
 
         if (statusCode == 401) {
@@ -317,6 +328,7 @@ class ErrorInterceptor extends Interceptor {
         return ServerException(
           message: message,
           statusCode: statusCode,
+          errorCode: errorCode,
           originalError: err,
         );
 
