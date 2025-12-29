@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/slot_lock.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -120,43 +121,49 @@ class AppointmentRepository extends BaseRepository {
   /// Check if any of the given time slots conflict with existing bookings
   ///
   /// Returns list of conflicting slot start times if any conflicts exist.
+  /// Uses a two-step approach to avoid complex nested relation filters.
   Future<List<DateTime>> checkSlotConflicts({
     required String consultantProfileId,
     required List<DateTime> slotStartTimes,
     required int durationMinutes,
   }) async {
+    // Step 1: Get all appointment IDs for this consultant
+    // This avoids the complex nested relation filter that causes SQL errors
+    final appointmentIds = await _getConsultantAppointmentIds(consultantProfileId);
+
+    if (appointmentIds.isEmpty) {
+      // No existing appointments for this consultant, so no conflicts possible
+      return [];
+    }
+
     final conflicts = <DateTime>[];
+    final tentativeCutoff = DateTime.now()
+        .subtract(const Duration(seconds: 60))
+        .toUtc()
+        .toIso8601String();
 
     for (final slotStart in slotStartTimes) {
       final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
 
-      // Check if there's any non-tentative slot that overlaps with this time
+      // Step 2: Check for overlapping slots in those appointments
       // A slot overlaps if: existing.start < new.end AND existing.end > new.start
       final query = JsonQueryBuilder()
           .model('SlotOfAppointment')
           .action(QueryAction.count)
           .where({
-        'isTentative': false,
+        'appointmentId': FilterOperators.in_(appointmentIds),
+        // Check either confirmed slots OR recent tentative slots
+        'OR': [
+          {'isTentative': false},
+          {
+            'AND': [
+              {'isTentative': true},
+              {'createdAt': {'gte': tentativeCutoff}},
+            ],
+          },
+        ],
         'startsAt': {'lt': slotEnd.toUtc().toIso8601String()},
         'endsAt': {'gt': slotStart.toUtc().toIso8601String()},
-        'appointment': {
-          'OR': [
-            {
-              'consultation': {
-                'consultationPlan': {
-                  'consultantProfileId': consultantProfileId
-                },
-              }
-            },
-            {
-              'subscription': {
-                'subscriptionPlan': {
-                  'consultantProfileId': consultantProfileId
-                },
-              }
-            },
-          ],
-        },
       }).build();
 
       final count = await executeCount(query);
@@ -166,6 +173,81 @@ class AppointmentRepository extends BaseRepository {
     }
 
     return conflicts;
+  }
+
+  /// Get all appointment IDs for a consultant (from both consultations and subscriptions)
+  Future<List<String>> _getConsultantAppointmentIds(String consultantProfileId) async {
+    final appointmentIds = <String>[];
+
+    // Get consultation plan IDs for this consultant
+    final consultationPlansQuery = JsonQueryBuilder()
+        .model('ConsultationPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true})
+        .build();
+    final consultationPlans = await executeQueryAsMaps(consultationPlansQuery);
+    final consultationPlanIds = consultationPlans.map((p) => p['id'] as String).toList();
+
+    // Get subscription plan IDs for this consultant
+    final subscriptionPlansQuery = JsonQueryBuilder()
+        .model('SubscriptionPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true})
+        .build();
+    final subscriptionPlans = await executeQueryAsMaps(subscriptionPlansQuery);
+    final subscriptionPlanIds = subscriptionPlans.map((p) => p['id'] as String).toList();
+
+    // Get consultation IDs for those plans
+    if (consultationPlanIds.isNotEmpty) {
+      final consultationsQuery = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.findMany)
+          .where({'consultationPlanId': FilterOperators.in_(consultationPlanIds)})
+          .select({'id': true})
+          .build();
+      final consultations = await executeQueryAsMaps(consultationsQuery);
+      final consultationIds = consultations.map((c) => c['id'] as String).toList();
+
+      // Get appointment IDs for those consultations
+      if (consultationIds.isNotEmpty) {
+        final appointmentsQuery = JsonQueryBuilder()
+            .model('Appointment')
+            .action(QueryAction.findMany)
+            .where({'consultationId': FilterOperators.in_(consultationIds)})
+            .select({'id': true})
+            .build();
+        final appointments = await executeQueryAsMaps(appointmentsQuery);
+        appointmentIds.addAll(appointments.map((a) => a['id'] as String));
+      }
+    }
+
+    // Get subscription IDs for those plans
+    if (subscriptionPlanIds.isNotEmpty) {
+      final subscriptionsQuery = JsonQueryBuilder()
+          .model('Subscription')
+          .action(QueryAction.findMany)
+          .where({'subscriptionPlanId': FilterOperators.in_(subscriptionPlanIds)})
+          .select({'id': true})
+          .build();
+      final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
+      final subscriptionIds = subscriptions.map((s) => s['id'] as String).toList();
+
+      // Get appointment IDs for those subscriptions
+      if (subscriptionIds.isNotEmpty) {
+        final appointmentsQuery = JsonQueryBuilder()
+            .model('Appointment')
+            .action(QueryAction.findMany)
+            .where({'subscriptionId': FilterOperators.in_(subscriptionIds)})
+            .select({'id': true})
+            .build();
+        final appointments = await executeQueryAsMaps(appointmentsQuery);
+        appointmentIds.addAll(appointments.map((a) => a['id'] as String));
+      }
+    }
+
+    return appointmentIds;
   }
 
   /// Create a consultation booking request
@@ -216,30 +298,46 @@ class AppointmentRepository extends BaseRepository {
     final durationHours = (plan['durationInHours'] as num).toDouble();
     final durationMinutes = (durationHours * 60).round();
 
-    // Check for slot conflicts
-    final conflicts = await checkSlotConflicts(
-      consultantProfileId: consultantProfileId,
-      slotStartTimes: slotStartTimes,
-      durationMinutes: durationMinutes,
+    // Acquire distributed locks for all slots
+    // This prevents race conditions when multiple users book the same slot
+    final locks = await SlotLock.acquireMultipleSlotLocks(
+      consultantProfileId,
+      slotStartTimes,
     );
 
-    if (conflicts.isNotEmpty) {
-      // Return ISO8601 times for client-side formatting in local timezone
-      final conflictTimes = conflicts
-          .map((d) => d.toUtc().toIso8601String())
-          .toList();
-
+    if (locks == null) {
       throw SlotConflictException(
-        'The following time slots are no longer available. '
-        'Please select different times.',
-        conflictTimes,
+        'This slot is being booked by another user. Please try again.',
+        slotStartTimes.map((d) => d.toUtc().toIso8601String()).toList(),
       );
     }
 
-    final now = nowIso8601;
+    try {
+      // Re-check for slot conflicts inside the lock
+      // This ensures no one else booked while we were acquiring the lock
+      final conflicts = await checkSlotConflicts(
+        consultantProfileId: consultantProfileId,
+        slotStartTimes: slotStartTimes,
+        durationMinutes: durationMinutes,
+      );
 
-    // Create the booking within a transaction
-    return executeInTransaction((txn) async {
+      if (conflicts.isNotEmpty) {
+        // Return ISO8601 times for client-side formatting in local timezone
+        final conflictTimes = conflicts
+            .map((d) => d.toUtc().toIso8601String())
+            .toList();
+
+        throw SlotConflictException(
+          'The following time slots are no longer available. '
+          'Please select different times.',
+          conflictTimes,
+        );
+      }
+
+      final now = nowIso8601;
+
+      // Create the booking within a transaction
+      return await executeInTransaction((txn) async {
       // Create Consultation record
       final consultationId = _uuid.v4();
       final consultationQuery = JsonQueryBuilder()
@@ -324,6 +422,10 @@ class AppointmentRepository extends BaseRepository {
         'createdAt': result['createdAt'],
       };
     });
+    } finally {
+      // Always release locks, even if transaction fails
+      await SlotLock.releaseMultipleLocks(consultantProfileId, locks);
+    }
   }
 
   /// Create a subscription booking request
