@@ -30,10 +30,12 @@ class CheckoutScreen extends ConsumerStatefulWidget {
   ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
+    with WidgetsBindingObserver {
   PaymentGatewayType _selectedGateway = PaymentGatewayType.stripe;
   String? _discountCode;
   bool _checkoutInitialized = false;
+  bool _wasInProcessing = false;
 
   String get _currency => widget.booking?.planCurrency ??
       widget.directCheckoutParams?.currency ??
@@ -54,9 +56,59 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Default to Razorpay for INR
     if (_currency.toUpperCase() == 'INR') {
       _selectedGateway = PaymentGatewayType.razorpay;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Track when we're in processing state before app goes to background
+    final checkoutState = ref.read(checkoutFlowProvider);
+    if (state == AppLifecycleState.paused) {
+      _wasInProcessing = checkoutState.maybeWhen(
+        processing: () => true,
+        orElse: () => false,
+      );
+    }
+
+    // When app resumes and we were in processing state, give a brief moment
+    // then check if Razorpay callback came through. If still processing,
+    // it means Razorpay was dismissed without callback (e.g., iOS swipe dismiss)
+    if (state == AppLifecycleState.resumed && _wasInProcessing) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        final currentState = ref.read(checkoutFlowProvider);
+        final stillProcessing = currentState.maybeWhen(
+          processing: () => true,
+          orElse: () => false,
+        );
+        if (stillProcessing) {
+          // Razorpay was likely dismissed without callback
+          debugPrint('Razorpay dismissed without callback - resetting state');
+          ref.read(checkoutFlowProvider.notifier).reset();
+          setState(() {
+            _checkoutInitialized = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment cancelled'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        _wasInProcessing = false;
+      });
     }
   }
 
@@ -101,6 +153,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             );
             // Reset flow for retry
             ref.read(checkoutFlowProvider.notifier).reset();
+            setState(() {
+              _checkoutInitialized = false;
+            });
           },
         );
       },
@@ -213,6 +268,31 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           loadingMessage ?? 'Processing...',
                           style: theme.textTheme.bodyMedium,
                         ),
+                        // Allow cancellation during processing in case Razorpay
+                        // dismisses without triggering callback (e.g. iOS swipe)
+                        if (checkoutState.maybeWhen(
+                          processing: () => true,
+                          orElse: () => false,
+                        )) ...[
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () {
+                              ref.read(checkoutFlowProvider.notifier).reset();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Payment cancelled'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: theme.colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

@@ -70,6 +70,7 @@ GoRouter router(Ref ref) {
           location.startsWith('/programs') ||
           location.startsWith('/booking') ||
           location.startsWith('/my-bookings') ||
+          location.startsWith('/booking-details') ||
           location.startsWith('/messages') ||
           location.startsWith('/chat') ||
           location.startsWith('/profile') ||
@@ -255,6 +256,20 @@ GoRouter router(Ref ref) {
             path: '/my-bookings',
             name: 'myBookings',
             builder: (context, state) => const MyBookingsScreen(),
+          ),
+          // Booking Details
+          GoRoute(
+            path: '/booking-details/:bookingId',
+            name: 'bookingDetails',
+            builder: (context, state) {
+              final bookingId = state.pathParameters['bookingId']!;
+              final typeParam = state.uri.queryParameters['type'] ?? 'CONSULTATION';
+              final bookingType = BookingType.fromString(typeParam);
+              return MyBookingDetailsScreen(
+                bookingId: bookingId,
+                bookingType: bookingType,
+              );
+            },
           ),
         ],
       ),
