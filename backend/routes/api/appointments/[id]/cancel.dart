@@ -3,10 +3,8 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
-import 'package:backend/utils/logger.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-
-final logger = AppLogger('CancelAppointmentRoute');
 
 /// POST /api/appointments/:id/cancel
 ///
@@ -90,7 +88,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
       },
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in POST /api/appointments/$id/cancel', e, stackTrace);
+    SentryLogger.error(
+      'Error in POST /api/appointments/$id/cancel',
+      context: 'CancelAppointmentRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     final errorMessage = e.toString();
 

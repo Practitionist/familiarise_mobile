@@ -1108,8 +1108,11 @@ class AppointmentRepository extends BaseRepository {
         throw Exception('Consultation not found');
       }
 
+      // ORM returns flattened fields with prefix (e.g., consultationPlanTitle)
+      // instead of nested object. Handle both cases for compatibility.
       final plan = result['consultationPlan'] as Map<String, dynamic>?;
-      final consultantProfileId = plan?['consultantProfileId'] as String?;
+      final consultantProfileId = plan?['consultantProfileId'] as String? ??
+          result['consultationPlanConsultantProfileId'] as String?;
 
       // Fetch consultant profile and user separately to avoid nested include bug
       Map<String, dynamic>? profile;
@@ -1120,7 +1123,21 @@ class AppointmentRepository extends BaseRepository {
             .action(QueryAction.findUnique)
             .where({'id': consultantProfileId}).include({'user': true}).build();
         profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
+        
+        // Handle nested or flattened user fields
         user = profile?['user'] as Map<String, dynamic>?;
+        if (user == null && profile != null) {
+          // ORM may flatten user fields with prefix
+          final userName = profile['userName'] as String?;
+          final userImage = profile['userImage'] as String?;
+          if (userName != null || userImage != null) {
+            user = {
+              'id': profile['userId'],
+              'name': userName,
+              'image': userImage,
+            };
+          }
+        }
       }
 
       final booking = {
@@ -1130,29 +1147,39 @@ class AppointmentRepository extends BaseRepository {
         'message': result['requestNotes'],
         'createdAt': result['createdAt'],
         'updatedAt': result['updatedAt'],
-        'planId': plan?['id'],
-        'planTitle': plan?['title'],
-        'planPrice': plan?['price'],
-        'planCurrency': plan?['priceCurrency'],
-        'planDuration': plan?['durationInHours'],
+        // Handle both nested and flattened plan fields
+        'planId': plan?['id'] ?? result['consultationPlanId'],
+        'planTitle': plan?['title'] ?? result['consultationPlanTitle'],
+        'planPrice': plan?['price'] ?? result['consultationPlanPrice'],
+        'planCurrency': plan?['priceCurrency'] ?? result['consultationPlanPriceCurrency'],
+        'planDuration': plan?['durationInHours'] ?? result['consultationPlanDurationInHours'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
       };
 
-      // Get appointment and slots
+      // Get appointment (without include - ORM flattens relations incorrectly)
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
           .action(QueryAction.findFirst)
-          .where({'consultationId': id}).include({'slots': true}).build();
+          .where({'consultationId': id}).build();
 
       final appointment = await executeQueryAsSingleMap(appointmentQuery, txn: txn);
 
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
-        final slots = appointment['slots'] as List<dynamic>?;
-        if (slots != null) {
+        
+        // Fetch slots separately to avoid ORM flattening issue
+        final slotsQuery = JsonQueryBuilder()
+            .model('SlotOfAppointment')
+            .action(QueryAction.findMany)
+            .where({'appointmentId': appointment['id']})
+            .orderBy({'startsAt': 'asc'})
+            .build();
+        
+        final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
+        if (slots.isNotEmpty) {
           booking['slots'] = slots
               .map((s) => {
                     'id': s['id'],
@@ -1183,8 +1210,11 @@ class AppointmentRepository extends BaseRepository {
         throw Exception('Subscription not found');
       }
 
+      // ORM returns flattened fields with prefix (e.g., subscriptionPlanTitle)
+      // instead of nested object. Handle both cases for compatibility.
       final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-      final consultantProfileId = plan?['consultantProfileId'] as String?;
+      final consultantProfileId = plan?['consultantProfileId'] as String? ??
+          result['subscriptionPlanConsultantProfileId'] as String?;
 
       // Fetch consultant profile and user separately to avoid nested include bug
       Map<String, dynamic>? profile;
@@ -1195,7 +1225,21 @@ class AppointmentRepository extends BaseRepository {
             .action(QueryAction.findUnique)
             .where({'id': consultantProfileId}).include({'user': true}).build();
         profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
+        
+        // Handle nested or flattened user fields
         user = profile?['user'] as Map<String, dynamic>?;
+        if (user == null && profile != null) {
+          // ORM may flatten user fields with prefix
+          final userName = profile['userName'] as String?;
+          final userImage = profile['userImage'] as String?;
+          if (userName != null || userImage != null) {
+            user = {
+              'id': profile['userId'],
+              'name': userName,
+              'image': userImage,
+            };
+          }
+        }
       }
 
       return {
@@ -1208,12 +1252,13 @@ class AppointmentRepository extends BaseRepository {
         'schedulingTimezone': result['schedulingTimezone'],
         'createdAt': result['createdAt'],
         'updatedAt': result['updatedAt'],
-        'planId': plan?['id'],
-        'planTitle': plan?['title'],
-        'planPrice': plan?['price'],
-        'planCurrency': plan?['priceCurrency'],
-        'totalSessions': plan?['totalSessions'],
-        'sessionDurationInHours': plan?['sessionDurationInHours'],
+        // Handle both nested and flattened plan fields
+        'planId': plan?['id'] ?? result['subscriptionPlanId'],
+        'planTitle': plan?['title'] ?? result['subscriptionPlanTitle'],
+        'planPrice': plan?['price'] ?? result['subscriptionPlanPrice'],
+        'planCurrency': plan?['priceCurrency'] ?? result['subscriptionPlanPriceCurrency'],
+        'totalSessions': plan?['totalSessions'] ?? result['subscriptionPlanTotalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'] ?? result['subscriptionPlanSessionDurationInHours'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -1301,6 +1346,223 @@ class AppointmentRepository extends BaseRepository {
       await executeMutation(updateQuery);
     } else {
       throw Exception('Invalid booking type');
+    }
+  }
+
+  /// Reschedule a booking
+  ///
+  /// Marks slots as tentative and reverts status to PENDING.
+  /// For subscriptions, optionally reschedule only a specific slot.
+  ///
+  /// Throws if:
+  /// - Booking not found or user doesn't have permission
+  /// - Booking is in terminal state (CANCELLED, COMPLETED, REJECTED, EXPIRED)
+  /// - Appointment is within 24 hours
+  Future<Map<String, dynamic>> rescheduleBooking({
+    required String id,
+    required String type,
+    required String userId,
+    String? slotId, // For individual session reschedule
+  }) async {
+    // Get consultee profile ID
+    final profileQuery = JsonQueryBuilder()
+        .model('ConsulteeProfile')
+        .action(QueryAction.findFirst)
+        .where({'userId': userId}).build();
+
+    final profile = await executeQueryAsSingleMap(profileQuery);
+
+    if (profile == null) {
+      throw Exception('User profile not found');
+    }
+
+    final consulteeProfileId = profile['id'] as String;
+
+    // Terminal statuses that cannot be rescheduled
+    const terminalStatuses = ['CANCELLED', 'COMPLETED', 'REJECTED', 'EXPIRED'];
+
+    if (type == 'CONSULTATION') {
+      // Verify ownership and get booking
+      final verifyQuery = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.findFirst)
+          .where({
+        'id': id,
+        'requestedById': consulteeProfileId,
+      }).build();
+
+      final booking = await executeQueryAsSingleMap(verifyQuery);
+
+      if (booking == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+
+      final currentStatus = booking['requestStatus'] as String?;
+      if (currentStatus != null && terminalStatuses.contains(currentStatus)) {
+        throw Exception('Cannot reschedule a $currentStatus booking');
+      }
+
+      // Get appointment with slots
+      final appointmentQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findFirst)
+          .where({'consultationId': id}).include({'slots': true}).build();
+
+      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+
+      if (appointment != null) {
+        final slots = appointment['slots'] as List<dynamic>?;
+        if (slots != null && slots.isNotEmpty) {
+          // Check 24-hour restriction
+          _check24HourRestriction(slots);
+
+          // Mark all slots as tentative
+          final appointmentId = appointment['id'] as String;
+          await _markSlotsAsTentative(appointmentId, null);
+        }
+      }
+
+      // Revert status to PENDING
+      final now = nowIso8601;
+      final updateQuery = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.update)
+          .where({'id': id}).data({
+        'requestStatus': 'PENDING',
+        'updatedAt': now,
+      }).build();
+
+      await executeMutation(updateQuery);
+
+      return getBookingById(id, type: 'CONSULTATION');
+    } else if (type == 'SUBSCRIPTION') {
+      // Verify ownership and get booking
+      final verifyQuery = JsonQueryBuilder()
+          .model('Subscription')
+          .action(QueryAction.findFirst)
+          .where({
+        'id': id,
+        'requestedById': consulteeProfileId,
+      }).build();
+
+      final booking = await executeQueryAsSingleMap(verifyQuery);
+
+      if (booking == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+
+      final currentStatus = booking['requestStatus'] as String?;
+      if (currentStatus != null && terminalStatuses.contains(currentStatus)) {
+        throw Exception('Cannot reschedule a $currentStatus booking');
+      }
+
+      // Get appointment with slots
+      final appointmentQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findFirst)
+          .where({'subscriptionId': id}).include({'slots': true}).build();
+
+      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+
+      if (appointment != null) {
+        final slots = appointment['slots'] as List<dynamic>?;
+        if (slots != null && slots.isNotEmpty) {
+          if (slotId != null) {
+            // Individual session reschedule
+            final targetSlot = slots.firstWhere(
+              (s) => s['id'] == slotId,
+              orElse: () => null,
+            );
+
+            if (targetSlot == null) {
+              throw Exception('Slot not found in this booking');
+            }
+
+            // Check 24-hour restriction for this specific slot
+            _check24HourRestriction([targetSlot]);
+
+            // Mark only this slot as tentative
+            final appointmentId = appointment['id'] as String;
+            await _markSlotsAsTentative(appointmentId, slotId);
+          } else {
+            // Full reschedule - mark all slots as tentative
+            _check24HourRestriction(slots);
+
+            final appointmentId = appointment['id'] as String;
+            await _markSlotsAsTentative(appointmentId, null);
+
+            // Revert status to PENDING for full reschedule
+            final now = nowIso8601;
+            final updateQuery = JsonQueryBuilder()
+                .model('Subscription')
+                .action(QueryAction.update)
+                .where({'id': id}).data({
+              'requestStatus': 'PENDING',
+              'updatedAt': now,
+            }).build();
+
+            await executeMutation(updateQuery);
+          }
+        }
+      }
+
+      return getBookingById(id, type: 'SUBSCRIPTION');
+    } else {
+      throw Exception('Invalid booking type');
+    }
+  }
+
+  /// Check if any slot is within 24 hours
+  void _check24HourRestriction(List<dynamic> slots) {
+    final now = DateTime.now().toUtc();
+    for (final slot in slots) {
+      // Handle both DateTime and String types (ORM may return either)
+      final startsAtRaw = slot['startsAt'];
+      DateTime? startsAt;
+      if (startsAtRaw is DateTime) {
+        startsAt = startsAtRaw;
+      } else if (startsAtRaw is String) {
+        startsAt = DateTime.parse(startsAtRaw);
+      }
+      
+      if (startsAt != null) {
+        final hoursUntil = startsAt.difference(now).inHours;
+        if (hoursUntil < 24) {
+          throw Exception(
+            'Cannot reschedule within 24 hours of the appointment',
+          );
+        }
+      }
+    }
+  }
+
+  /// Mark slots as tentative
+  /// If slotId is provided, only mark that slot; otherwise mark all slots
+  Future<void> _markSlotsAsTentative(String appointmentId, String? slotId) async {
+    final now = nowIso8601;
+
+    if (slotId != null) {
+      // Update specific slot
+      final updateQuery = JsonQueryBuilder()
+          .model('SlotOfAppointment')
+          .action(QueryAction.update)
+          .where({'id': slotId}).data({
+        'isTentative': true,
+        'updatedAt': now,
+      }).build();
+
+      await executeMutation(updateQuery);
+    } else {
+      // Update all slots for this appointment
+      final updateQuery = JsonQueryBuilder()
+          .model('SlotOfAppointment')
+          .action(QueryAction.updateMany)
+          .where({'appointmentId': appointmentId}).data({
+        'isTentative': true,
+        'updatedAt': now,
+      }).build();
+
+      await executeMutation(updateQuery);
     }
   }
 
