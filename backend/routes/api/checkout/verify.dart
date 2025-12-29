@@ -3,11 +3,9 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
-import 'package:backend/utils/logger.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-
-final logger = AppLogger('CheckoutVerifyRoute');
 
 /// Checkout verification endpoint
 ///
@@ -169,7 +167,12 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
       }),
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in GET /api/checkout/verify', e, stackTrace);
+    SentryLogger.error(
+      'Error in GET /api/checkout/verify',
+      context: 'CheckoutVerifyRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

@@ -6,13 +6,10 @@ import 'package:backend/database/repositories/appointment_repository.dart';
 import 'package:backend/services/razorpay_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
-import 'package:backend/utils/logger.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-
-final logger = AppLogger('CheckoutRoute');
 
 /// Checkout endpoints
 ///
@@ -379,7 +376,10 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       final razorpayKeySecret = env['RAZORPAY_KEY_SECRET'];
 
       if (razorpayKeyId == null || razorpayKeySecret == null) {
-        logger.severe('Razorpay credentials not configured');
+        SentryLogger.error(
+          'Razorpay credentials not configured',
+          context: 'CheckoutRoute',
+        );
         return Response.json(
           statusCode: HttpStatus.internalServerError,
           body: {
@@ -413,8 +413,9 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
         razorpayOrderId = razorpayOrder.id;
 
-        logger.info(
+        SentryLogger.info(
           'Created Razorpay order: $razorpayOrderId for amount: $amountInPaise $currency',
+          context: 'CheckoutRoute',
         );
       } on RazorpayException catch (e, stackTrace) {
         await SentryLogger.error(
@@ -457,7 +458,12 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       }),
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in POST /api/checkout', e, stackTrace);
+    SentryLogger.error(
+      'Error in POST /api/checkout',
+      context: 'CheckoutRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     final errorMessage = e.toString();
 
