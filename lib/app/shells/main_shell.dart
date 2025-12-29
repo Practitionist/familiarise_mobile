@@ -57,6 +57,11 @@ class MainShell extends ConsumerWidget {
                 label: 'Explore',
               ),
               NavigationDestination(
+                icon: Icon(Icons.school_outlined),
+                selectedIcon: Icon(Icons.school),
+                label: 'Programs',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.dashboard_outlined),
                 selectedIcon: Icon(Icons.dashboard),
                 label: 'Dashboard',

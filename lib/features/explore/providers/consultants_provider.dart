@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/error_messages.dart';
 import '../../../data/repositories/consultant_repository_impl.dart';
 import '../../../domain/entities/common/paginated_result.dart';
 import '../../../core/utils/sentry_logger.dart';
@@ -82,7 +83,7 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier._loadInitial',
       );
-      state = ConsultantsState(error: e.toString());
+      state = ConsultantsState(error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 
@@ -109,7 +110,7 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier.refresh',
       );
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 
@@ -139,7 +140,7 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier.loadMore',
       );
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      state = state.copyWith(isLoadingMore: false, error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 }

@@ -8,6 +8,7 @@ import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../domain/entities/explore/consultation_plan.dart';
 import '../../../domain/entities/explore/subscription_plan.dart';
 import '../../../shared/widgets/timezone_indicator.dart';
+import '../../checkout/screens/checkout_screen.dart';
 import '../../explore/providers/consultant_detail_provider.dart';
 import '../providers/availability_provider.dart';
 import '../providers/booking_flow_provider.dart';
@@ -1021,27 +1022,72 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   void _handleConsultationBooking() {
     if (_selectedSlot == null) return;
 
-    ref.read(bookingFlowProvider.notifier).createConsultationBooking(
-          consultantProfileId: widget.consultantId,
-          planId: widget.planId,
-          slotStartTimes: [_selectedSlot!.startsAt],
-          message: _messageController.text.isEmpty
-              ? null
-              : _messageController.text,
-        );
+    // Get consultant and plan details for direct checkout
+    final consultantData = ref.read(consultantDetailsProvider(widget.consultantId));
+    final consultant = consultantData.valueOrNull;
+    if (consultant == null) return;
+
+    final plan = consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
+      (p) => p?.id == widget.planId,
+      orElse: () => null,
+    );
+    if (plan == null) return;
+
+    // Navigate to direct checkout
+    final params = DirectCheckoutParams(
+      consultantProfileId: widget.consultantId,
+      planId: widget.planId,
+      planType: 'consultation',
+      amount: plan.price,
+      currency: plan.priceCurrency,
+      consultantName: consultant.user?.name ?? consultant.user?.email,
+      consultantImage: consultant.user?.image,
+      planTitle: plan.title,
+      slotStartTime: _selectedSlot!.startsAt,
+      slotEndTime: _selectedSlot!.endsAt,
+      slotOfAvailabilityId: _selectedSlot!.id,
+      notes: _messageController.text.isEmpty ? null : _messageController.text,
+    );
+    context.pushNamed('checkoutDirect', extra: params);
   }
 
   void _handleSubscriptionBooking() {
     if (_periodStartDate == null) return;
 
-    ref.read(bookingFlowProvider.notifier).createSubscriptionBooking(
-          consultantProfileId: widget.consultantId,
-          planId: widget.planId,
-          schedulingPeriodStart: _periodStartDate!,
-          message: _messageController.text.isEmpty
-              ? null
-              : _messageController.text,
-        );
+    // Get consultant and plan details for direct checkout
+    final consultantData = ref.read(consultantDetailsProvider(widget.consultantId));
+    final consultant = consultantData.valueOrNull;
+    if (consultant == null) return;
+
+    final plan = consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
+      (p) => p?.id == widget.planId,
+      orElse: () => null,
+    );
+    if (plan == null) return;
+
+    // Calculate end date based on plan duration
+    final durationMonths = plan.durationInMonths ?? 1;
+    final periodEndDate = DateTime(
+      _periodStartDate!.year,
+      _periodStartDate!.month + durationMonths,
+      _periodStartDate!.day,
+    );
+
+    // Navigate to direct checkout
+    final params = DirectCheckoutParams(
+      consultantProfileId: widget.consultantId,
+      planId: widget.planId,
+      planType: 'subscription',
+      amount: plan.price,
+      currency: plan.priceCurrency,
+      consultantName: consultant.user?.name ?? consultant.user?.email,
+      consultantImage: consultant.user?.image,
+      planTitle: plan.title,
+      schedulingPeriodStart: _periodStartDate,
+      schedulingPeriodEnd: periodEndDate,
+      notes: _messageController.text.isEmpty ? null : _messageController.text,
+    );
+    context.pushNamed('checkoutDirect', extra: params);
   }
 
   /// Compares two dates to check if they represent the same day

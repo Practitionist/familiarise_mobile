@@ -32,6 +32,12 @@ abstract final class ApiEndpoints {
   static String appointmentById(String id) => '$appointments/$id';
   static String appointmentCancel(String id) => '$appointments/$id/cancel';
 
+  // Programs (Webinars & Classes)
+  static const String webinars = '$api/webinars';
+  static String webinarById(String id) => '$webinars/$id';
+  static const String classes = '$api/classes';
+  static String classById(String id) => '$classes/$id';
+
   // Slots & Availability
   static const String slots = '$api/slots';
   static const String slotsAvailability = '$slots/availability';

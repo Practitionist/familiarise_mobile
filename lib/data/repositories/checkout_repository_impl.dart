@@ -53,8 +53,17 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       return Right(response.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
+    } on SlotConflictException catch (e) {
+      return Left(Failure.slotConflict(
+        message: e.message,
+        conflictingSlots: e.conflictingSlots,
+      ));
     } on ServerException catch (e) {
-      return Left(Failure.server(message: e.message, statusCode: e.statusCode));
+      return Left(Failure.server(
+        message: e.message,
+        statusCode: e.statusCode,
+        errorCode: e.errorCode,
+      ));
     } on NotFoundException catch (e) {
       return Left(Failure.notFound(resource: e.resource));
     } catch (e, stackTrace) {
@@ -103,8 +112,17 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       return Right(response.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
+    } on SlotConflictException catch (e) {
+      return Left(Failure.slotConflict(
+        message: e.message,
+        conflictingSlots: e.conflictingSlots,
+      ));
     } on ServerException catch (e) {
-      return Left(Failure.server(message: e.message, statusCode: e.statusCode));
+      return Left(Failure.server(
+        message: e.message,
+        statusCode: e.statusCode,
+        errorCode: e.errorCode,
+      ));
     } on NotFoundException catch (e) {
       return Left(Failure.notFound(resource: e.resource));
     } catch (e, stackTrace) {
@@ -137,7 +155,11 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } on ServerException catch (e) {
-      return Left(Failure.server(message: e.message, statusCode: e.statusCode));
+      return Left(Failure.server(
+        message: e.message,
+        statusCode: e.statusCode,
+        errorCode: e.errorCode,
+      ));
     } catch (e, stackTrace) {
       SentryLogger.captureException(
         e,
@@ -175,7 +197,11 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
 
       return Right(discountInfo);
     } on ServerException catch (e) {
-      return Left(Failure.server(message: e.message, statusCode: e.statusCode));
+      return Left(Failure.server(
+        message: e.message,
+        statusCode: e.statusCode,
+        errorCode: e.errorCode,
+      ));
     } catch (e, stackTrace) {
       SentryLogger.captureException(
         e,

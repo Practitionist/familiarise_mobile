@@ -15,6 +15,9 @@ import '../features/chat/screens/messages_screen.dart';
 import '../features/checkout/screens/checkout_screens.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
 import '../features/explore/screens/explore_screen.dart';
+import '../features/programs/screens/programs_screen.dart';
+import '../features/programs/screens/webinar_detail_screen.dart';
+import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
@@ -64,6 +67,7 @@ GoRouter router(Ref ref) {
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
+          location.startsWith('/programs') ||
           location.startsWith('/booking') ||
           location.startsWith('/my-bookings') ||
           location.startsWith('/messages') ||
@@ -202,6 +206,28 @@ GoRouter router(Ref ref) {
                 name: 'consultantProfile',
                 builder: (context, state) => ConsultantProfileScreen(
                   consultantId: state.pathParameters['consultantId']!,
+                ),
+              ),
+            ],
+          ),
+          // Programs tab (Webinars & Classes)
+          GoRoute(
+            path: '/programs',
+            name: 'programs',
+            builder: (context, state) => const ProgramsScreen(),
+            routes: [
+              GoRoute(
+                path: 'webinar/:webinarPlanId',
+                name: 'webinarDetail',
+                builder: (context, state) => WebinarDetailScreen(
+                  webinarPlanId: state.pathParameters['webinarPlanId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'class/:classPlanId',
+                name: 'classDetail',
+                builder: (context, state) => ClassDetailScreen(
+                  classPlanId: state.pathParameters['classPlanId']!,
                 ),
               ),
             ],

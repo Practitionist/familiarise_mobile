@@ -198,26 +198,13 @@ class CheckoutPriceInfo extends ConsumerWidget {
     final finalPrice = originalPrice - discountAmount;
     final hasDiscount = discountAmount > 0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (hasDiscount) ...[
-          Text(
-            '$currencySymbol${originalPrice.toStringAsFixed(0)}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              decoration: TextDecoration.lineThrough,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-        Text(
-          '$currencySymbol${finalPrice.toStringAsFixed(0)}',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: theme.colorScheme.onPrimary,
-          ),
-        ),
-      ],
+    // Show price inline with button text
+    return Text(
+      '$currencySymbol${finalPrice.toStringAsFixed(0)}',
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        color: theme.colorScheme.onPrimary,
+      ),
     );
   }
 }

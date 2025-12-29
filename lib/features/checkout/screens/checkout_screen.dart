@@ -379,40 +379,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       orElse: () => false,
     );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+    return Material(
+      color: theme.colorScheme.surface,
+      elevation: 8,
       child: SafeArea(
-        child: FilledButton(
-          onPressed: canProceed ? () => _handlePayment(hasSession) : null,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(56),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                hasSession ? 'Complete Payment' : 'Proceed to Payment',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: canProceed ? () => _handlePayment(hasSession) : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    hasSession ? 'Complete Payment' : 'Proceed to Payment',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  CheckoutPriceInfo(
+                    originalPrice: _originalPrice,
+                    currency: _currency,
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              CheckoutPriceInfo(
-                originalPrice: _originalPrice,
-                currency: _currency,
-              ),
-            ],
+            ),
           ),
         ),
       ),
