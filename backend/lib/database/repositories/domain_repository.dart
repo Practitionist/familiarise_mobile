@@ -8,7 +8,7 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Uses the Prisma Flutter Connector's features:
 /// - findMany for list queries
 /// - include for relations (JOINs)
-/// - executeRaw as escape hatch for complex queries
+/// - computed fields for inline aggregations
 class DomainRepository extends BaseRepository {
   /// Create a domain repository with the given executor
   DomainRepository(super._executor);
@@ -130,21 +130,22 @@ class DomainRepository extends BaseRepository {
     return executeCount(query);
   }
 
-  /// Execute a custom raw SQL query
+  /// Get all domains with subdomain count using computed fields
   ///
-  /// Demonstrates the connector's raw SQL escape hatch for complex queries
-  /// that can't be expressed with the query builder.
-  Future<List<Map<String, dynamic>>> findDomainsWithSubDomainCountRaw() async {
-    return executor.executeRaw(
-      '''
-      SELECT d.id, d.name, d.description, d."createdAt", d."updatedAt",
-             COUNT(s.id) as "subDomainCount"
-      FROM "Domain" d
-      LEFT JOIN "SubDomain" s ON s."domainId" = d.id
-      GROUP BY d.id, d.name, d.description, d."createdAt", d."updatedAt"
-      ORDER BY d.name ASC
-      ''',
-      [],
-    );
+  /// Uses ComputedField.count() to generate a correlated subquery for counting.
+  Future<List<Map<String, dynamic>>> findDomainsWithSubDomainCount() async {
+    final query = JsonQueryBuilder()
+        .model('Domain')
+        .action(QueryAction.findMany)
+        .computed({
+          'subDomainCount': ComputedField.count(
+            from: 'SubDomain',
+            where: {'domainId': FieldRef('id')},
+          ),
+        })
+        .orderBy({'name': 'asc'})
+        .build();
+
+    return executeQueryAsMaps(query);
   }
 }
