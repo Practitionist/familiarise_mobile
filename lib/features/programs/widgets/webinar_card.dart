@@ -198,7 +198,7 @@ class WebinarCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _formatSessionDate(nextSession.scheduledAt),
+                  _formatSessionDate(nextSession.startsAt),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.w500,

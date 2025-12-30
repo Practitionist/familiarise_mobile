@@ -31,6 +31,41 @@ class ClassCurriculumItem with _$ClassCurriculumItem {
       _$ClassCurriculumItemFromJson(json);
 }
 
+/// Status of a class session
+enum ClassSessionStatus {
+  @JsonValue('SCHEDULED')
+  scheduled,
+  @JsonValue('IN_PROGRESS')
+  inProgress,
+  @JsonValue('COMPLETED')
+  completed,
+  @JsonValue('CANCELLED')
+  cancelled,
+}
+
+/// A single session of a class
+@freezed
+class ClassSession with _$ClassSession {
+  const factory ClassSession({
+    required String id,
+    required DateTime startsAt,
+    DateTime? endsAt,
+    @Default(ClassSessionStatus.scheduled) ClassSessionStatus status,
+    String? meetingLink,
+    String? classId,
+  }) = _ClassSession;
+
+  const ClassSession._();
+
+  factory ClassSession.fromJson(Map<String, dynamic> json) =>
+      _$ClassSessionFromJson(json);
+
+  /// Check if session is upcoming
+  bool get isUpcoming =>
+      status == ClassSessionStatus.scheduled &&
+      startsAt.isAfter(DateTime.now());
+}
+
 /// A class/course plan offered by a consultant
 @freezed
 class ClassPlan with _$ClassPlan {
@@ -53,6 +88,7 @@ class ClassPlan with _$ClassPlan {
     String? thumbnailUrl,
     ConsultantBrief? consultant,
     @Default([]) List<ClassCurriculumItem> curriculum,
+    @Default([]) List<ClassSession> upcomingSessions,
     DateTime? enrollmentStartDate,
     DateTime? enrollmentEndDate,
     DateTime? classStartDate,
@@ -101,4 +137,14 @@ class ClassPlan with _$ClassPlan {
   /// Check if class is full
   bool get isFull =>
       enrollmentStatus == ClassEnrollmentStatus.full || spotsRemaining == 0;
+
+  /// Get the next available session
+  ClassSession? get nextSession {
+    final upcoming = upcomingSessions.where((s) => s.isUpcoming).toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    return upcoming.isNotEmpty ? upcoming.first : null;
+  }
+
+  /// Check if any upcoming sessions are available
+  bool get hasUpcomingSessions => upcomingSessions.isNotEmpty;
 }

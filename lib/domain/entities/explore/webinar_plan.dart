@@ -7,8 +7,8 @@ part 'webinar_plan.g.dart';
 enum WebinarSessionStatus {
   @JsonValue('SCHEDULED')
   scheduled,
-  @JsonValue('LIVE')
-  live,
+  @JsonValue('IN_PROGRESS')
+  inProgress,
   @JsonValue('COMPLETED')
   completed,
   @JsonValue('CANCELLED')
@@ -20,11 +20,13 @@ enum WebinarSessionStatus {
 class WebinarSession with _$WebinarSession {
   const factory WebinarSession({
     required String id,
-    required DateTime scheduledAt,
+    required DateTime startsAt,
+    DateTime? endsAt,
     @Default(WebinarSessionStatus.scheduled) WebinarSessionStatus status,
     int? currentParticipants,
     int? maxParticipants,
     String? meetingLink,
+    String? webinarId,
   }) = _WebinarSession;
 
   const WebinarSession._();
@@ -35,7 +37,7 @@ class WebinarSession with _$WebinarSession {
   /// Check if session is upcoming
   bool get isUpcoming =>
       status == WebinarSessionStatus.scheduled &&
-      scheduledAt.isAfter(DateTime.now());
+      startsAt.isAfter(DateTime.now());
 
   /// Check if session is full
   bool get isFull {
@@ -112,7 +114,7 @@ class WebinarPlan with _$WebinarPlan {
     final upcoming = upcomingSessions
         .where((s) => s.isUpcoming && !s.isFull)
         .toList()
-      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     return upcoming.isNotEmpty ? upcoming.first : null;
   }
 
