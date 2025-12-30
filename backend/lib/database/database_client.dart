@@ -475,6 +475,8 @@ class DatabaseClient {
     _consultantExploreRepository = ConsultantExploreRepository(_executor);
     _slotRepository = SlotRepository(_executor);
     _appointmentRepository = AppointmentRepository(_executor);
+    _programsRepository = ProgramsRepository(_executor);
+    _checkoutRepository = CheckoutRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -495,6 +497,8 @@ class DatabaseClient {
   late final ConsultantExploreRepository _consultantExploreRepository;
   late final SlotRepository _slotRepository;
   late final AppointmentRepository _appointmentRepository;
+  late final ProgramsRepository _programsRepository;
+  late final CheckoutRepository _checkoutRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -576,6 +580,12 @@ class DatabaseClient {
 
   /// Appointment repository (for booking operations)
   AppointmentRepository get appointments => _appointmentRepository;
+
+  /// Programs repository (for webinars and classes)
+  ProgramsRepository get programs => _programsRepository;
+
+  /// Checkout repository (for payment operations)
+  CheckoutRepository get checkout => _checkoutRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all

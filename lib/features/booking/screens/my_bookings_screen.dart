@@ -394,14 +394,22 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
             child: BookingCard(
               booking: booking,
               onTap: () {
-                // Navigate to booking detail (when implemented)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Booking details: ${booking.id}'),
-                    duration: const Duration(seconds: 1),
-                  ),
+                // Navigate to booking detail screen
+                context.pushNamed(
+                  'bookingDetails',
+                  pathParameters: {'bookingId': booking.id},
+                  queryParameters: {'type': booking.bookingType.value},
                 );
               },
+              onPayNow: booking.status == RequestStatus.approvedPendingPayment
+                  ? () {
+                      // Navigate to checkout screen
+                      context.pushNamed(
+                        'checkout',
+                        extra: booking,
+                      );
+                    }
+                  : null,
             ),
           );
         },

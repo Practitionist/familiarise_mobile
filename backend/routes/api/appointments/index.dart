@@ -5,10 +5,8 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/appointment_repository.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
-import 'package:backend/utils/logger.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-
-final logger = AppLogger('AppointmentsRoute');
 
 /// Appointments endpoints
 ///
@@ -72,7 +70,12 @@ Future<Response> _handleGetBookings(RequestContext context) async {
       body: serializeForJson(result),
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in GET /api/appointments', e, stackTrace);
+    SentryLogger.error(
+      'Error in GET /api/appointments',
+      context: 'AppointmentsRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
@@ -259,7 +262,6 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     );
   } on DuplicateBookingException catch (e) {
     // 409 Conflict for duplicate bookings
-    logger.info('Duplicate booking attempt: $e');
     return Response.json(
       statusCode: HttpStatus.conflict,
       body: {
@@ -271,20 +273,23 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     );
   } on SlotConflictException catch (e) {
     // 409 Conflict for slot conflicts
-    logger.info('Slot conflict: $e');
     return Response.json(
       statusCode: HttpStatus.conflict,
       body: {
         'error': {
           'code': 'SLOT_CONFLICT',
           'message': e.message,
+          'conflictingSlots': e.conflictingSlotTimes,
         },
       },
     );
   } catch (e, stackTrace) {
-    // Log detailed error for debugging
-    logger.severe('Error in POST /api/appointments: $e');
-    logger.severe('Stack trace: $stackTrace');
+    SentryLogger.error(
+      'Error in POST /api/appointments',
+      context: 'AppointmentsRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     // Extract meaningful error message
     final errorMessage = e.toString();

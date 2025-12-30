@@ -2,10 +2,8 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/json_utils.dart';
-import 'package:backend/utils/logger.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-
-final logger = AppLogger('ConsultantsRoute');
 
 /// GET /api/consultants
 ///
@@ -71,7 +69,12 @@ Future<Response> onRequest(RequestContext context) async {
       },
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in GET /api/consultants', e, stackTrace);
+    SentryLogger.error(
+      'Error in GET /api/consultants',
+      context: 'ConsultantsRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,

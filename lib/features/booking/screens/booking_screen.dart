@@ -1,11 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../domain/entities/explore/consultant_details.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../domain/entities/explore/consultation_plan.dart';
 import '../../../domain/entities/explore/subscription_plan.dart';
 import '../../../shared/widgets/timezone_indicator.dart';
+import '../../checkout/screens/checkout_screen.dart';
 import '../../explore/providers/consultant_detail_provider.dart';
 import '../providers/availability_provider.dart';
 import '../providers/booking_flow_provider.dart';
@@ -17,12 +20,14 @@ class BookingScreen extends ConsumerStatefulWidget {
   final String consultantId;
   final String planId;
   final String planType; // 'consultation' or 'subscription'
+  final bool forceRefresh; // Force availability refresh (after booking failure)
 
   const BookingScreen({
     super.key,
     required this.consultantId,
     required this.planId,
     required this.planType,
+    this.forceRefresh = false,
   });
 
   @override
@@ -38,6 +43,37 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   DateTime? _periodStartDate;
   // Note: End date is calculated based on plan duration
   int _planDurationMonths = 1; // Default, will be updated from plan data
+
+  @override
+  void initState() {
+    super.initState();
+    // Force refresh availability data when coming back from failure/success
+    if (widget.forceRefresh) {
+      // Use addPostFrameCallback to invalidate after the widget is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _invalidateAvailability();
+      });
+    }
+  }
+
+  /// Invalidate all availability providers for this consultant to force refetch
+  void _invalidateAvailability() {
+    // Invalidate the availability provider to fetch fresh data
+    // This ensures slots that became unavailable are shown correctly
+    final startDate = _selectedDate;
+    final endDate = _selectedDate.add(const Duration(days: 14));
+    ref.invalidate(
+      consultantAvailabilityProvider(
+        AvailabilityParams(
+          consultantProfileId: widget.consultantId,
+          startDate: startDate,
+          endDate: endDate,
+          planId: widget.planId,
+          planType: widget.planType,
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -63,7 +99,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               extra: booking,
             );
           },
-          error: (message) {
+          error: (message, conflictingSlots) {
             // Navigate to failure screen with error details and retry info
             context.pushReplacementNamed(
               'bookingFailure',
@@ -72,6 +108,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 'consultantId': widget.consultantId,
                 'planId': widget.planId,
                 'planType': widget.planType,
+                'conflictingSlots': conflictingSlots,
               },
             );
           },
@@ -87,6 +124,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
         title: Text(isConsultation ? 'Book Consultation' : 'Book Subscription'),
         actions: const [
           Padding(
@@ -102,6 +143,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   Widget _buildConsultationBooking(ThemeData theme, bool isLoading) {
+    // Get consultant details
+    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+
     // Get availability for the selected date range
     final startDate = _selectedDate;
     final endDate = _selectedDate.add(const Duration(days: 14));
@@ -123,6 +167,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Consultant info card
+          consultantAsync.when(
+            data: (consultant) => consultant != null
+                ? _buildConsultantInfoCard(theme, consultant)
+                : const SizedBox.shrink(),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 12),
           // Plan info card
           _buildPlanInfoCard(theme),
           const SizedBox(height: 16),
@@ -190,6 +243,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   Widget _buildSubscriptionBooking(ThemeData theme, bool isLoading) {
+    // Get consultant details
+    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+
     // Calculate end date based on start date and plan duration
     final calculatedEndDate = _periodStartDate != null
         ? DateTime(
@@ -204,6 +260,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Consultant info card
+          consultantAsync.when(
+            data: (consultant) => consultant != null
+                ? _buildConsultantInfoCard(theme, consultant)
+                : const SizedBox.shrink(),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 12),
           // Plan info card
           _buildPlanInfoCard(theme),
           const SizedBox(height: 16),
@@ -731,6 +796,187 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
+  Widget _buildConsultantInfoCard(ThemeData theme, ConsultantDetails consultant) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Consultant info row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile image
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: consultant.imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: consultant.imageUrl!,
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          width: 72,
+                          height: 72,
+                          color: theme.colorScheme.primaryContainer,
+                          child: Icon(
+                            Icons.person,
+                            size: 36,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          width: 72,
+                          height: 72,
+                          color: theme.colorScheme.primaryContainer,
+                          child: Icon(
+                            Icons.person,
+                            size: 36,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 72,
+                        height: 72,
+                        color: theme.colorScheme.primaryContainer,
+                        child: Icon(
+                          Icons.person,
+                          size: 36,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 16),
+              // Name and headline
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            consultant.displayName,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (consultant.isVerified == true) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.verified,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (consultant.headline != null && consultant.headline!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        consultant.headline!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Rating and domain row
+          Row(
+            children: [
+              // Rating
+              if (consultant.rating != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: Colors.amber.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        consultant.formattedRating,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              // Experience
+              if (consultant.experience != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    consultant.formattedExperience,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              // Domain badge
+              if (consultant.domain != null) ...[
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      consultant.domain!.name,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onTertiaryContainer,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildError(ThemeData theme, String message) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -776,27 +1022,72 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   void _handleConsultationBooking() {
     if (_selectedSlot == null) return;
 
-    ref.read(bookingFlowProvider.notifier).createConsultationBooking(
-          consultantProfileId: widget.consultantId,
-          planId: widget.planId,
-          slotStartTimes: [_selectedSlot!.startsAt],
-          message: _messageController.text.isEmpty
-              ? null
-              : _messageController.text,
-        );
+    // Get consultant and plan details for direct checkout
+    final consultantData = ref.read(consultantDetailsProvider(widget.consultantId));
+    final consultant = consultantData.valueOrNull;
+    if (consultant == null) return;
+
+    final plan = consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
+      (p) => p?.id == widget.planId,
+      orElse: () => null,
+    );
+    if (plan == null) return;
+
+    // Navigate to direct checkout
+    final params = DirectCheckoutParams(
+      consultantProfileId: widget.consultantId,
+      planId: widget.planId,
+      planType: 'consultation',
+      amount: plan.price,
+      currency: plan.priceCurrency,
+      consultantName: consultant.user?.name ?? consultant.user?.email,
+      consultantImage: consultant.user?.image,
+      planTitle: plan.title,
+      slotStartTime: _selectedSlot!.startsAt,
+      slotEndTime: _selectedSlot!.endsAt,
+      slotOfAvailabilityId: _selectedSlot!.id,
+      notes: _messageController.text.isEmpty ? null : _messageController.text,
+    );
+    context.pushNamed('checkoutDirect', extra: params);
   }
 
   void _handleSubscriptionBooking() {
     if (_periodStartDate == null) return;
 
-    ref.read(bookingFlowProvider.notifier).createSubscriptionBooking(
-          consultantProfileId: widget.consultantId,
-          planId: widget.planId,
-          schedulingPeriodStart: _periodStartDate!,
-          message: _messageController.text.isEmpty
-              ? null
-              : _messageController.text,
-        );
+    // Get consultant and plan details for direct checkout
+    final consultantData = ref.read(consultantDetailsProvider(widget.consultantId));
+    final consultant = consultantData.valueOrNull;
+    if (consultant == null) return;
+
+    final plan = consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
+      (p) => p?.id == widget.planId,
+      orElse: () => null,
+    );
+    if (plan == null) return;
+
+    // Calculate end date based on plan duration
+    final durationMonths = plan.durationInMonths ?? 1;
+    final periodEndDate = DateTime(
+      _periodStartDate!.year,
+      _periodStartDate!.month + durationMonths,
+      _periodStartDate!.day,
+    );
+
+    // Navigate to direct checkout
+    final params = DirectCheckoutParams(
+      consultantProfileId: widget.consultantId,
+      planId: widget.planId,
+      planType: 'subscription',
+      amount: plan.price,
+      currency: plan.priceCurrency,
+      consultantName: consultant.user?.name ?? consultant.user?.email,
+      consultantImage: consultant.user?.image,
+      planTitle: plan.title,
+      schedulingPeriodStart: _periodStartDate,
+      schedulingPeriodEnd: periodEndDate,
+      notes: _messageController.text.isEmpty ? null : _messageController.text,
+    );
+    context.pushNamed('checkoutDirect', extra: params);
   }
 
   /// Compares two dates to check if they represent the same day

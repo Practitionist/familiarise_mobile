@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
-import 'package:backend/utils/logger.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-
-final logger = AppLogger('AppointmentDetailRoute');
 
 /// GET /api/appointments/:id
 ///
@@ -83,7 +81,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
       body: serializeForJson(booking),
     );
   } catch (e, stackTrace) {
-    logger.severe('Error in GET /api/appointments/$id', e, stackTrace);
+    SentryLogger.error(
+      'Error in GET /api/appointments/$id',
+      context: 'AppointmentDetailRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
 
     final errorMessage = e.toString();
     if (errorMessage.contains('not found')) {

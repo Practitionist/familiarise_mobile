@@ -110,7 +110,9 @@ class SlotRepository extends BaseRepository {
         FilterOperators.relationPath(
           'appointment.consultation',
           {
-            'consultationPlan': {'consultantProfileId': consultantProfileId},
+            'consultationPlan': FilterOperators.some({
+              'consultantProfileId': consultantProfileId,
+            }),
             'requestStatus': FilterOperators.in_(activeStatuses),
           },
         ),
@@ -118,7 +120,9 @@ class SlotRepository extends BaseRepository {
         FilterOperators.relationPath(
           'appointment.subscription',
           {
-            'subscriptionPlan': {'consultantProfileId': consultantProfileId},
+            'subscriptionPlan': FilterOperators.some({
+              'consultantProfileId': consultantProfileId,
+            }),
             'requestStatus': FilterOperators.in_(activeStatuses),
           },
         ),

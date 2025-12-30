@@ -2,16 +2,19 @@
 abstract class AppException implements Exception {
   final String message;
   final int? statusCode;
+  final String? errorCode;
   final dynamic originalError;
 
   const AppException({
     required this.message,
     this.statusCode,
+    this.errorCode,
     this.originalError,
   });
 
   @override
-  String toString() => 'AppException: $message (statusCode: $statusCode)';
+  String toString() =>
+      'AppException: $message (statusCode: $statusCode, code: $errorCode)';
 }
 
 /// Server/API exception
@@ -20,11 +23,13 @@ class ServerException extends AppException {
   const ServerException({
     required super.message,
     super.statusCode,
+    super.errorCode,
     super.originalError,
   });
 
   @override
-  String toString() => 'ServerException: $message (statusCode: $statusCode)';
+  String toString() =>
+      'ServerException: $message (statusCode: $statusCode, code: $errorCode)';
 }
 
 /// Network exception
@@ -94,4 +99,19 @@ class NotFoundException extends AppException {
 
   @override
   String toString() => 'NotFoundException: $resource not found';
+}
+
+/// Slot conflict exception
+/// Thrown when a time slot is no longer available (409 Conflict)
+class SlotConflictException extends AppException {
+  final List<String> conflictingSlots;
+
+  const SlotConflictException({
+    required super.message,
+    this.conflictingSlots = const [],
+    super.originalError,
+  }) : super(statusCode: 409);
+
+  @override
+  String toString() => 'SlotConflictException: $message';
 }

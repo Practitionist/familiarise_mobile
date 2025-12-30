@@ -7,11 +7,13 @@ import '../../../domain/entities/booking/booking_entities.dart';
 class BookingCard extends StatelessWidget {
   final Booking booking;
   final VoidCallback? onTap;
+  final VoidCallback? onPayNow;
 
   const BookingCard({
     super.key,
     required this.booking,
     this.onTap,
+    this.onPayNow,
   });
 
   @override
@@ -130,6 +132,25 @@ class BookingCard extends StatelessWidget {
                         ),
                       _buildPriceTag(theme),
                     ],
+                  ),
+                ],
+
+                // Pay Now button for pending payment bookings
+                if (booking.status == RequestStatus.approvedPendingPayment &&
+                    onPayNow != null) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onPayNow,
+                      icon: const Icon(Icons.payment, size: 18),
+                      label: const Text('Pay Now'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFC2185B),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
                   ),
                 ],
               ],

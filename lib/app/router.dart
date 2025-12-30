@@ -5,14 +5,19 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../domain/entities/booking/booking_entities.dart';
+import '../domain/entities/checkout/checkout_entities.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
 import '../features/booking/screens/booking_screens.dart';
 import '../features/chat/screens/messages_screen.dart';
+import '../features/checkout/screens/checkout_screens.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
 import '../features/explore/screens/explore_screen.dart';
+import '../features/programs/screens/programs_screen.dart';
+import '../features/programs/screens/webinar_detail_screen.dart';
+import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
@@ -62,11 +67,15 @@ GoRouter router(Ref ref) {
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
+          location.startsWith('/programs') ||
           location.startsWith('/booking') ||
           location.startsWith('/my-bookings') ||
+          location.startsWith('/booking-details') ||
           location.startsWith('/messages') ||
           location.startsWith('/chat') ||
           location.startsWith('/profile') ||
+          location.startsWith('/checkout') ||
+          location.startsWith('/payment') ||
           location == '/booking/failure' ||
           location == '/booking/success';
 
@@ -202,6 +211,28 @@ GoRouter router(Ref ref) {
               ),
             ],
           ),
+          // Programs tab (Webinars & Classes)
+          GoRoute(
+            path: '/programs',
+            name: 'programs',
+            builder: (context, state) => const ProgramsScreen(),
+            routes: [
+              GoRoute(
+                path: 'webinar/:webinarPlanId',
+                name: 'webinarDetail',
+                builder: (context, state) => WebinarDetailScreen(
+                  webinarPlanId: state.pathParameters['webinarPlanId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'class/:classPlanId',
+                name: 'classDetail',
+                builder: (context, state) => ClassDetailScreen(
+                  classPlanId: state.pathParameters['classPlanId']!,
+                ),
+              ),
+            ],
+          ),
           // Dashboard tab
           GoRoute(
             path: '/dashboard',
@@ -226,6 +257,20 @@ GoRouter router(Ref ref) {
             name: 'myBookings',
             builder: (context, state) => const MyBookingsScreen(),
           ),
+          // Booking Details
+          GoRoute(
+            path: '/booking-details/:bookingId',
+            name: 'bookingDetails',
+            builder: (context, state) {
+              final bookingId = state.pathParameters['bookingId']!;
+              final typeParam = state.uri.queryParameters['type'] ?? 'CONSULTATION';
+              final bookingType = BookingType.fromString(typeParam);
+              return MyBookingDetailsScreen(
+                bookingId: bookingId,
+                bookingType: bookingType,
+              );
+            },
+          ),
         ],
       ),
 
@@ -237,6 +282,7 @@ GoRouter router(Ref ref) {
           consultantId: state.pathParameters['consultantId']!,
           planId: state.pathParameters['planId']!,
           planType: state.uri.queryParameters['type'] ?? 'consultation',
+          forceRefresh: state.uri.queryParameters['refresh'] == 'true',
         ),
       ),
       GoRoute(
@@ -257,6 +303,46 @@ GoRouter router(Ref ref) {
             consultantId: extra?['consultantId'] as String?,
             planId: extra?['planId'] as String?,
             planType: extra?['planType'] as String?,
+            conflictingSlots: extra?['conflictingSlots'] as List<DateTime>?,
+          );
+        },
+      ),
+
+      // Checkout routes (Phase 6)
+      GoRoute(
+        path: '/checkout',
+        name: 'checkout',
+        builder: (context, state) {
+          final booking = state.extra as Booking?;
+          return CheckoutScreen(booking: booking);
+        },
+      ),
+      GoRoute(
+        path: '/checkout/direct',
+        name: 'checkoutDirect',
+        builder: (context, state) {
+          final params = state.extra as DirectCheckoutParams?;
+          return CheckoutScreen(directCheckoutParams: params);
+        },
+      ),
+      GoRoute(
+        path: '/payment/success',
+        name: 'paymentSuccess',
+        builder: (context, state) {
+          final verification = state.extra as PaymentVerification?;
+          return PaymentSuccessScreen(verification: verification);
+        },
+      ),
+      GoRoute(
+        path: '/payment/failure',
+        name: 'paymentFailure',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PaymentFailureScreen(
+            errorMessage: extra?['message'] as String?,
+            canRetry: extra?['canRetry'] as bool? ?? true,
+            booking: extra?['booking'] as Booking?,
+            directCheckoutParams: extra?['directCheckoutParams'] as DirectCheckoutParams?,
           );
         },
       ),

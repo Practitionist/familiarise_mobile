@@ -1,11 +1,9 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
-import 'package:backend/utils/logger.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-
-final logger = AppLogger('ConsultantAvailabilityRoute');
 
 /// GET /api/consultants/:id/availability
 ///
@@ -141,10 +139,11 @@ Future<Response> onRequest(RequestContext context, String id) async {
       },
     );
   } catch (e, stackTrace) {
-    logger.severe(
+    SentryLogger.error(
       'Error in GET /api/consultants/$id/availability',
-      e,
-      stackTrace,
+      context: 'ConsultantAvailabilityRoute',
+      error: e,
+      stackTrace: stackTrace,
     );
 
     return Response.json(
@@ -193,7 +192,10 @@ Future<int?> _getPlanDuration(
     // Convert hours to minutes
     return ((durationHours as num) * 60).round();
   } catch (e) {
-    logger.warning('Failed to fetch plan duration: $e');
+    SentryLogger.warning(
+      'Failed to fetch plan duration: $e',
+      context: 'ConsultantAvailabilityRoute',
+    );
     return null;
   }
 }

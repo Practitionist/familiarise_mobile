@@ -21,6 +21,7 @@ class ExploreScreen extends ConsumerWidget {
     final filters = ref.watch(exploreFiltersNotifierProvider);
 
     return Scaffold(
+      backgroundColor: theme.colorScheme.surfaceContainerLow,
       appBar: AppBar(
         title: const Text('Explore'),
         centerTitle: false,

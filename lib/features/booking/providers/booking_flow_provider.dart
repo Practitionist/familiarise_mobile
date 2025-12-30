@@ -16,7 +16,10 @@ class BookingFlowState with _$BookingFlowState {
   const factory BookingFlowState.initial() = _Initial;
   const factory BookingFlowState.loading() = _Loading;
   const factory BookingFlowState.success(Booking booking) = _Success;
-  const factory BookingFlowState.error(String message) = _Error;
+  const factory BookingFlowState.error(
+    String message, {
+    List<DateTime>? conflictingSlots,
+  }) = _Error;
 }
 
 /// Provider for managing the booking flow
@@ -51,11 +54,28 @@ class BookingFlow extends _$BookingFlow {
     } on DioException catch (e) {
       final data = e.response?.data;
       String message = 'Network error occurred';
+      List<DateTime>? conflictingSlots;
+
       if (data is Map<String, dynamic>) {
-        message =
-            data['error']?.toString() ?? data['message']?.toString() ?? message;
+        final error = data['error'];
+        if (error is Map<String, dynamic>) {
+          message = error['message']?.toString() ?? message;
+          // Parse conflicting slots from SLOT_CONFLICT error
+          final slots = error['conflictingSlots'];
+          if (slots is List) {
+            conflictingSlots = slots
+                .map((s) => DateTime.tryParse(s.toString()))
+                .whereType<DateTime>()
+                .toList();
+          }
+        } else {
+          message = error?.toString() ?? data['message']?.toString() ?? message;
+        }
       }
-      state = BookingFlowState.error(message);
+      state = BookingFlowState.error(
+        message,
+        conflictingSlots: conflictingSlots,
+      );
     } catch (e, stackTrace) {
       SentryLogger.captureException(
         e,
@@ -97,11 +117,28 @@ class BookingFlow extends _$BookingFlow {
     } on DioException catch (e) {
       final data = e.response?.data;
       String message = 'Network error occurred';
+      List<DateTime>? conflictingSlots;
+
       if (data is Map<String, dynamic>) {
-        message =
-            data['error']?.toString() ?? data['message']?.toString() ?? message;
+        final error = data['error'];
+        if (error is Map<String, dynamic>) {
+          message = error['message']?.toString() ?? message;
+          // Parse conflicting slots from SLOT_CONFLICT error
+          final slots = error['conflictingSlots'];
+          if (slots is List) {
+            conflictingSlots = slots
+                .map((s) => DateTime.tryParse(s.toString()))
+                .whereType<DateTime>()
+                .toList();
+          }
+        } else {
+          message = error?.toString() ?? data['message']?.toString() ?? message;
+        }
       }
-      state = BookingFlowState.error(message);
+      state = BookingFlowState.error(
+        message,
+        conflictingSlots: conflictingSlots,
+      );
     } catch (e, stackTrace) {
       SentryLogger.captureException(
         e,

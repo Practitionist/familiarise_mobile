@@ -82,4 +82,13 @@ class BookingRepositoryImpl implements BookingRepository {
   }) {
     return _remoteSource.cancelBooking(id: id, type: type, reason: reason);
   }
+
+  @override
+  Future<Booking> rescheduleBooking({
+    required String id,
+    required BookingType type,
+    String? slotId,
+  }) {
+    return _remoteSource.rescheduleBooking(id: id, type: type, slotId: slotId);
+  }
 }

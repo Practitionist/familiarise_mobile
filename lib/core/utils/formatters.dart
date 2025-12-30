@@ -28,6 +28,19 @@ abstract final class Formatters {
     decimalDigits: 2,
   );
 
+  // Currency symbols map
+  static const _currencySymbols = <String, String>{
+    'INR': '\u20B9', // ₹
+    'USD': '\$',
+    'EUR': '\u20AC', // €
+    'GBP': '\u00A3', // £
+    'AUD': 'A\$',
+    'CAD': 'C\$',
+    'JPY': '\u00A5', // ¥
+    'SGD': 'S\$',
+    'AED': 'AED',
+  };
+
   /// Format date as "Jan 15, 2024"
   /// Converts to local timezone before formatting
   static String date(DateTime dateTime) {
@@ -138,6 +151,48 @@ abstract final class Formatters {
   /// Format count with suffix (e.g., "124 reviews", "1 review")
   static String countWithLabel(int count, String singular, String plural) {
     return '$count ${count == 1 ? singular : plural}';
+  }
+
+  /// Get currency symbol for a currency code
+  /// Returns the currency code itself if not found in the map
+  static String currencySymbol(String currencyCode) {
+    return _currencySymbols[currencyCode.toUpperCase()] ?? currencyCode;
+  }
+
+  /// Format amount with currency symbol (e.g., "₹2,500" or "$100")
+  static String currency(num amount, String currencyCode) {
+    final symbol = currencySymbol(currencyCode);
+    final code = currencyCode.toUpperCase();
+
+    // Use appropriate formatter based on currency
+    if (code == 'INR') {
+      return _inrFormat.format(amount);
+    }
+
+    // For other currencies, use a generic format
+    final formatter = NumberFormat.currency(
+      symbol: symbol,
+      decimalDigits: code == 'JPY' ? 0 : 2,
+    );
+    return formatter.format(amount);
+  }
+
+  /// Format amount with currency symbol and decimals
+  static String currencyDecimal(num amount, String currencyCode) {
+    final symbol = currencySymbol(currencyCode);
+    final code = currencyCode.toUpperCase();
+
+    // Use appropriate formatter based on currency
+    if (code == 'INR') {
+      return _inrDecimalFormat.format(amount);
+    }
+
+    // For other currencies, use a generic format
+    final formatter = NumberFormat.currency(
+      symbol: symbol,
+      decimalDigits: code == 'JPY' ? 0 : 2,
+    );
+    return formatter.format(amount);
   }
 }
 
