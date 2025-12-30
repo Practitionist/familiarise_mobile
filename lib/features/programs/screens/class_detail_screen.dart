@@ -441,25 +441,29 @@ class _ClassDetailContent extends StatelessWidget {
     String label,
     Color accentColor,
   ) {
+    // Ensure text has good contrast by using a darker variant
+    final textColor = HSLColor.fromColor(accentColor).lightness > 0.5
+        ? HSLColor.fromColor(accentColor).withLightness(0.35).toColor()
+        : accentColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.1),
+        color: accentColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: accentColor.withValues(alpha: 0.2),
+          color: accentColor.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: accentColor),
+          Icon(icon, size: 18, color: textColor),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               label,
               style: theme.textTheme.labelLarge?.copyWith(
-                color: accentColor,
+                color: textColor,
                 fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,

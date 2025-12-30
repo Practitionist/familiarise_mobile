@@ -343,8 +343,6 @@ class ProgramsRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> _fetchWebinarSessions(
     String webinarPlanId,
   ) async {
-    print('[DEBUG] _fetchWebinarSessions: Fetching sessions for webinarPlanId=$webinarPlanId');
-    
     // Step 1: Get all Webinar records for this plan
     final webinarQuery = JsonQueryBuilder()
         .model('Webinar')
@@ -357,11 +355,7 @@ class ProgramsRepository extends BaseRepository {
     }).build();
 
     final webinars = await executeQueryAsMaps(webinarQuery);
-    print('[DEBUG] _fetchWebinarSessions: Found ${webinars.length} Webinar records with SCHEDULED/IN_PROGRESS status');
-    if (webinars.isEmpty) {
-      print('[DEBUG] _fetchWebinarSessions: No Webinar records found - returning empty sessions');
-      return [];
-    }
+    if (webinars.isEmpty) return [];
 
     // Create a map of webinarId -> webinar for lookup
     final webinarMap = <String, Map<String, dynamic>>{};
@@ -373,7 +367,6 @@ class ProgramsRepository extends BaseRepository {
     }
 
     // Step 2: Get all Appointments for these webinars
-    print('[DEBUG] _fetchWebinarSessions: Webinar IDs to query appointments: $webinarIds');
     final appointmentQuery = JsonQueryBuilder()
         .model('Appointment')
         .action(QueryAction.findMany)
@@ -385,7 +378,6 @@ class ProgramsRepository extends BaseRepository {
     }).build();
 
     final appointments = await executeQueryAsMaps(appointmentQuery);
-    print('[DEBUG] _fetchWebinarSessions: Found ${appointments.length} Appointment records');
 
     // Transform to session format
     final sessions = <Map<String, dynamic>>[];
@@ -427,7 +419,6 @@ class ProgramsRepository extends BaseRepository {
       return aTime.compareTo(bTime);
     });
 
-    print('[DEBUG] _fetchWebinarSessions: Built ${sessions.length} session records from slots');
     return sessions;
   }
 
@@ -437,8 +428,6 @@ class ProgramsRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> _fetchClassSessions(
     String classPlanId,
   ) async {
-    print('[DEBUG] _fetchClassSessions: Fetching sessions for classPlanId=$classPlanId');
-    
     // Step 1: Get all Class records for this plan
     final classQuery = JsonQueryBuilder()
         .model('Class')
@@ -451,11 +440,7 @@ class ProgramsRepository extends BaseRepository {
     }).build();
 
     final classes = await executeQueryAsMaps(classQuery);
-    print('[DEBUG] _fetchClassSessions: Found ${classes.length} Class records with SCHEDULED/IN_PROGRESS status');
-    if (classes.isEmpty) {
-      print('[DEBUG] _fetchClassSessions: No Class records found - returning empty sessions');
-      return [];
-    }
+    if (classes.isEmpty) return [];
 
     // Create a map of classId -> class for lookup
     final classMap = <String, Map<String, dynamic>>{};
@@ -467,7 +452,6 @@ class ProgramsRepository extends BaseRepository {
     }
 
     // Step 2: Get all Appointments for these classes
-    print('[DEBUG] _fetchClassSessions: Class IDs to query appointments: $classIds');
     final appointmentQuery = JsonQueryBuilder()
         .model('Appointment')
         .action(QueryAction.findMany)
@@ -479,7 +463,6 @@ class ProgramsRepository extends BaseRepository {
     }).build();
 
     final appointments = await executeQueryAsMaps(appointmentQuery);
-    print('[DEBUG] _fetchClassSessions: Found ${appointments.length} Appointment records');
 
     // Transform to session format
     final sessions = <Map<String, dynamic>>[];
@@ -520,7 +503,6 @@ class ProgramsRepository extends BaseRepository {
       return aTime.compareTo(bTime);
     });
 
-    print('[DEBUG] _fetchClassSessions: Built ${sessions.length} session records from slots');
     return sessions;
   }
 }

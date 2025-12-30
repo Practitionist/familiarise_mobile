@@ -1,6 +1,7 @@
-import 'dart:io';
+import 'dart:io' as io;
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/razorpay_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -15,7 +16,7 @@ Future<Response> onRequest(RequestContext context) async {
   if (method == HttpMethod.get) {
     return _handleVerifyPayment(context);
   }
-  return Response(statusCode: HttpStatus.methodNotAllowed);
+  return Response(statusCode: io.HttpStatus.methodNotAllowed);
 }
 
 /// GET /api/checkout/verify
@@ -24,8 +25,9 @@ Future<Response> onRequest(RequestContext context) async {
 ///
 /// Query Parameters:
 /// - payment_intent: The payment ID (required)
-/// - razorpay_payment_id: Razorpay payment ID (optional)
-/// - razorpay_signature: Razorpay signature for verification (optional)
+/// - razorpay_payment_id: Razorpay payment ID (required for Razorpay)
+/// - razorpay_order_id: Razorpay order ID (required for Razorpay)
+/// - razorpay_signature: Razorpay signature for verification (required for Razorpay)
 ///
 /// Response:
 /// ```json
@@ -46,7 +48,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     final userId = getUserIdFromToken(context);
     if (userId == null) {
       return Response.json(
-        statusCode: HttpStatus.unauthorized,
+        statusCode: io.HttpStatus.unauthorized,
         body: {'error': {'message': 'Unauthorized'}},
       );
     }
@@ -56,7 +58,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
 
     if (paymentIntent == null || paymentIntent.isEmpty) {
       return Response.json(
-        statusCode: HttpStatus.badRequest,
+        statusCode: io.HttpStatus.badRequest,
         body: {'error': {'message': 'payment_intent is required'}},
       );
     }
@@ -73,7 +75,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
 
     if (payment == null) {
       return Response.json(
-        statusCode: HttpStatus.notFound,
+        statusCode: io.HttpStatus.notFound,
         body: {
           'success': false,
           'paymentStatus': 'FAILED',
@@ -95,77 +97,114 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
       );
     }
 
-    // For Razorpay, verify signature
+    // For Razorpay, verify signature cryptographically
     final razorpayPaymentId = params['razorpay_payment_id'];
-    // TODO(payment): Implement Razorpay signature verification in production
-    // final razorpaySignature = params['razorpay_signature'];
+    final razorpayOrderId = params['razorpay_order_id'];
+    final razorpaySignature = params['razorpay_signature'];
 
-    // In production, verify the Razorpay signature here
-    // For now, we'll trust the callback and mark as succeeded
-    final isVerified = razorpayPaymentId != null;
-
-    if (isVerified) {
-      // Update payment status to SUCCEEDED
-      await db.checkout.updatePaymentStatus(
-        paymentId: paymentId,
-        status: 'SUCCEEDED',
+    // Validate required Razorpay params
+    if (razorpayPaymentId == null ||
+        razorpayOrderId == null ||
+        razorpaySignature == null) {
+      return Response.json(
+        statusCode: io.HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Missing Razorpay verification parameters '
+                '(razorpay_payment_id, razorpay_order_id, razorpay_signature)',
+          },
+        },
       );
-
-      // Update booking status based on type
-      if (appointmentId != null) {
-        // Get appointment to find booking
-        final appointmentQuery = JsonQueryBuilder()
-            .model('Appointment')
-            .action(QueryAction.findUnique)
-            .where({'id': appointmentId})
-            .build();
-        final appointment =
-            await db.executor.executeQueryAsSingleMap(appointmentQuery);
-
-        if (appointment != null) {
-          final consultationId = appointment['consultationId'] as String?;
-          final subscriptionId = appointment['subscriptionId'] as String?;
-
-          if (consultationId != null) {
-            // Update consultation status to SCHEDULED
-            await db.checkout.updateBookingStatus(
-              bookingId: consultationId,
-              bookingType: 'CONSULTATION',
-              status: 'SCHEDULED',
-            );
-
-            // Confirm slots (mark as non-tentative)
-            await db.checkout.confirmSlots(consultationId);
-          } else if (subscriptionId != null) {
-            // Update subscription status to SCHEDULED
-            await db.checkout.updateBookingStatus(
-              bookingId: subscriptionId,
-              bookingType: 'SUBSCRIPTION',
-              status: 'SCHEDULED',
-            );
-          }
-        }
-      }
-
-      // Refresh payment data
-      final updatedPayment = await db.checkout.getPaymentById(paymentId);
-
-      return _buildVerificationResponse(db, updatedPayment ?? payment, true);
     }
 
-    // Verification failed (razorpay_payment_id not provided)
-    await db.checkout.updatePaymentStatus(
-      paymentId: paymentId,
-      status: 'FAILED',
+    // Get Razorpay secret from environment
+    final env = io.Platform.environment;
+    final razorpayKeySecret = env['RAZORPAY_KEY_SECRET'];
+    if (razorpayKeySecret == null || razorpayKeySecret.isEmpty) {
+      SentryLogger.error(
+        'RAZORPAY_KEY_SECRET not configured',
+        context: 'CheckoutVerifyRoute',
+      );
+      return Response.json(
+        statusCode: io.HttpStatus.internalServerError,
+        body: {'error': {'message': 'Payment configuration error'}},
+      );
+    }
+
+    // Verify signature using HMAC-SHA256
+    final razorpayService = RazorpayService(
+      keyId: '', // Not needed for verification
+      keySecret: razorpayKeySecret,
+    );
+    final isVerified = razorpayService.verifyPaymentSignature(
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
     );
 
-    return Response.json(
-      body: serializeForJson({
-        'success': false,
-        'paymentStatus': 'FAILED',
-        'message': 'Payment verification failed',
-      }),
+    if (!isVerified) {
+      SentryLogger.warning(
+        'Razorpay signature verification failed for order=$razorpayOrderId',
+        context: 'CheckoutVerifyRoute',
+      );
+      // Mark payment as failed
+      await db.checkout.updatePaymentStatus(
+        paymentId: paymentId,
+        status: 'FAILED',
+      );
+      return Response.json(
+        statusCode: io.HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Payment signature verification failed'},
+        },
+      );
+    }
+
+    // Signature verified - update payment status to SUCCEEDED
+    await db.checkout.updatePaymentStatus(
+      paymentId: paymentId,
+      status: 'SUCCEEDED',
     );
+
+    // Update booking status based on type
+    if (appointmentId != null) {
+      // Get appointment to find booking
+      final appointmentQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findUnique)
+          .where({'id': appointmentId})
+          .build();
+      final appointment =
+          await db.executor.executeQueryAsSingleMap(appointmentQuery);
+
+      if (appointment != null) {
+        final consultationId = appointment['consultationId'] as String?;
+        final subscriptionId = appointment['subscriptionId'] as String?;
+
+        if (consultationId != null) {
+          // Update consultation status to SCHEDULED
+          await db.checkout.updateBookingStatus(
+            bookingId: consultationId,
+            bookingType: 'CONSULTATION',
+            status: 'SCHEDULED',
+          );
+
+          // Confirm slots (mark as non-tentative)
+          await db.checkout.confirmSlots(consultationId);
+        } else if (subscriptionId != null) {
+          // Update subscription status to SCHEDULED
+          await db.checkout.updateBookingStatus(
+            bookingId: subscriptionId,
+            bookingType: 'SUBSCRIPTION',
+            status: 'SCHEDULED',
+          );
+        }
+      }
+    }
+
+    // Refresh payment data and return success
+    final updatedPayment = await db.checkout.getPaymentById(paymentId);
+    return _buildVerificationResponse(db, updatedPayment ?? payment, true);
   } catch (e, stackTrace) {
     SentryLogger.error(
       'Error in GET /api/checkout/verify',
@@ -175,7 +214,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     );
 
     return Response.json(
-      statusCode: HttpStatus.internalServerError,
+      statusCode: io.HttpStatus.internalServerError,
       body: {
         'error': {
           'message': 'Failed to verify payment',
