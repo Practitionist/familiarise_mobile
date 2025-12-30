@@ -23,9 +23,12 @@ class ProgramsRepository extends BaseRepository {
     // Build where clause for filtering
     final where = <String, dynamic>{};
 
-    // Note: domainId filter requires relation traversal which is complex.
-    // For now, we filter on language and search only.
-    // TODO: Add domain filter using raw SQL or proper relation filter syntax.
+    // Domain filter via consultantProfile relation
+    if (domainId != null) {
+      where['consultantProfile'] = FilterOperators.some({
+        'domainId': domainId,
+      });
+    }
 
     if (language != null) {
       where['language'] = language;
@@ -143,7 +146,7 @@ class ProgramsRepository extends BaseRepository {
 
     final result = Map<String, dynamic>.from(webinar);
     result['consultant'] = consultant;
-    result['upcomingSessions'] = []; // TODO: Fetch webinar sessions
+    result['upcomingSessions'] = await _fetchWebinarSessions(id);
     return result;
   }
 
@@ -163,9 +166,12 @@ class ProgramsRepository extends BaseRepository {
     // Build where clause for filtering
     final where = <String, dynamic>{};
 
-    // Note: domainId filter requires relation traversal which is complex.
-    // For now, we filter on language, enrollmentOpen, and search only.
-    // TODO: Add domain filter using raw SQL or proper relation filter syntax.
+    // Domain filter via consultantProfile relation
+    if (domainId != null) {
+      where['consultantProfile'] = FilterOperators.some({
+        'domainId': domainId,
+      });
+    }
 
     if (language != null) {
       where['language'] = language;
@@ -289,7 +295,7 @@ class ProgramsRepository extends BaseRepository {
 
     final result = Map<String, dynamic>.from(classPlan);
     result['consultant'] = consultant;
-    result['curriculum'] = []; // TODO: Fetch class contents
+    result['upcomingSessions'] = await _fetchClassSessions(id);
     return result;
   }
 
@@ -328,5 +334,175 @@ class ProgramsRepository extends BaseRepository {
       };
     }
     return result;
+  }
+
+  /// Fetch upcoming sessions for a webinar plan
+  ///
+  /// Returns list of sessions with schedule info from the Webinar -> Appointment
+  /// -> SlotOfAppointment chain.
+  Future<List<Map<String, dynamic>>> _fetchWebinarSessions(
+    String webinarPlanId,
+  ) async {
+    // Step 1: Get all Webinar records for this plan
+    final webinarQuery = JsonQueryBuilder()
+        .model('Webinar')
+        .action(QueryAction.findMany)
+        .where({
+      'webinarPlanId': webinarPlanId,
+      'status': {
+        'in': ['SCHEDULED', 'IN_PROGRESS']
+      },
+    }).build();
+
+    final webinars = await executeQueryAsMaps(webinarQuery);
+    if (webinars.isEmpty) return [];
+
+    // Create a map of webinarId -> webinar for lookup
+    final webinarMap = <String, Map<String, dynamic>>{};
+    final webinarIds = <String>[];
+    for (final w in webinars) {
+      final id = w['id'] as String;
+      webinarIds.add(id);
+      webinarMap[id] = w;
+    }
+
+    // Step 2: Get all Appointments for these webinars
+    final appointmentQuery = JsonQueryBuilder()
+        .model('Appointment')
+        .action(QueryAction.findMany)
+        .where({
+      'webinarId': {'in': webinarIds},
+    }).include({
+      'slots': true,
+      'webinar': {'select': {'id': true}},
+    }).build();
+
+    final appointments = await executeQueryAsMaps(appointmentQuery);
+
+    // Transform to session format
+    final sessions = <Map<String, dynamic>>[];
+    for (final appt in appointments) {
+      // Get webinarId from response or from webinar relation
+      // (Prisma may not return nullable relation scalar fields directly)
+      var webinarId = appt['webinarId'] as String?;
+      if (webinarId == null) {
+        final webinarData = appt['webinar'] as Map<String, dynamic>?;
+        webinarId = webinarData?['id'] as String?;
+      }
+      // Fallback for single webinar case
+      if (webinarId == null && webinarIds.length == 1) {
+        webinarId = webinarIds.first;
+      }
+
+      final webinar = webinarId != null ? webinarMap[webinarId] : null;
+      if (webinar == null) continue;
+
+      final slots = appt['slots'] as List? ?? [];
+      for (final slot in slots) {
+        final slotMap = slot as Map<String, dynamic>;
+        sessions.add({
+          'id': slotMap['id'],
+          'webinarId': webinarId,
+          'startsAt': slotMap['startsAt'],
+          'endsAt': slotMap['endsAt'],
+          'status': webinar['status'],
+        });
+      }
+    }
+
+    // Sort by startsAt (handle both DateTime and String)
+    sessions.sort((a, b) {
+      final aVal = a['startsAt'];
+      final bVal = b['startsAt'];
+      final aTime = aVal is DateTime ? aVal.toIso8601String() : aVal?.toString() ?? '';
+      final bTime = bVal is DateTime ? bVal.toIso8601String() : bVal?.toString() ?? '';
+      return aTime.compareTo(bTime);
+    });
+
+    return sessions;
+  }
+
+  /// Fetch sessions for a class plan
+  ///
+  /// Returns list of sessions from the Class -> Appointment -> SlotOfAppointment chain.
+  Future<List<Map<String, dynamic>>> _fetchClassSessions(
+    String classPlanId,
+  ) async {
+    // Step 1: Get all Class records for this plan
+    final classQuery = JsonQueryBuilder()
+        .model('Class')
+        .action(QueryAction.findMany)
+        .where({
+      'classPlanId': classPlanId,
+      'status': {
+        'in': ['SCHEDULED', 'IN_PROGRESS']
+      },
+    }).build();
+
+    final classes = await executeQueryAsMaps(classQuery);
+    if (classes.isEmpty) return [];
+
+    // Create a map of classId -> class for lookup
+    final classMap = <String, Map<String, dynamic>>{};
+    final classIds = <String>[];
+    for (final c in classes) {
+      final id = c['id'] as String;
+      classIds.add(id);
+      classMap[id] = c;
+    }
+
+    // Step 2: Get all Appointments for these classes
+    final appointmentQuery = JsonQueryBuilder()
+        .model('Appointment')
+        .action(QueryAction.findMany)
+        .where({
+      'classId': {'in': classIds},
+    }).include({
+      'slots': true,
+      'class': {'select': {'id': true}},
+    }).build();
+
+    final appointments = await executeQueryAsMaps(appointmentQuery);
+
+    // Transform to session format
+    final sessions = <Map<String, dynamic>>[];
+    for (final appt in appointments) {
+      // Get classId from response or from class relation
+      var classId = appt['classId'] as String?;
+      if (classId == null) {
+        final classData = appt['class'] as Map<String, dynamic>?;
+        classId = classData?['id'] as String?;
+      }
+      // Fallback for single class case
+      if (classId == null && classIds.length == 1) {
+        classId = classIds.first;
+      }
+
+      final classRecord = classId != null ? classMap[classId] : null;
+      if (classRecord == null) continue;
+
+      final slots = appt['slots'] as List? ?? [];
+      for (final slot in slots) {
+        final slotMap = slot as Map<String, dynamic>;
+        sessions.add({
+          'id': slotMap['id'],
+          'classId': classId,
+          'startsAt': slotMap['startsAt'],
+          'endsAt': slotMap['endsAt'],
+          'status': classRecord['status'],
+        });
+      }
+    }
+
+    // Sort by startsAt (handle both DateTime and String)
+    sessions.sort((a, b) {
+      final aVal = a['startsAt'];
+      final bVal = b['startsAt'];
+      final aTime = aVal is DateTime ? aVal.toIso8601String() : aVal?.toString() ?? '';
+      final bTime = bVal is DateTime ? bVal.toIso8601String() : bVal?.toString() ?? '';
+      return aTime.compareTo(bTime);
+    });
+
+    return sessions;
   }
 }
