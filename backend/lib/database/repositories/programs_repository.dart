@@ -33,8 +33,12 @@ class ProgramsRepository extends BaseRepository {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       where['OR'] = [
-        {'title': {'contains': searchQuery, 'mode': 'insensitive'}},
-        {'description': {'contains': searchQuery, 'mode': 'insensitive'}},
+        {
+          'title': {'contains': searchQuery, 'mode': 'insensitive'}
+        },
+        {
+          'description': {'contains': searchQuery, 'mode': 'insensitive'}
+        },
       ];
     }
 
@@ -69,41 +73,23 @@ class ProgramsRepository extends BaseRepository {
 
     final webinars = await executeQueryAsMaps(listQuery);
 
-    // Fetch consultant details for each webinar
-    final transformedWebinars = <Map<String, dynamic>>[];
-    for (final w in webinars) {
-      final consultantProfileId = w['consultantProfileId'] as String?;
-      Map<String, dynamic>? consultant;
+    // Batch fetch all consultant profiles (fixes N+1 query issue)
+    final profileIds = webinars
+        .map((w) => w['consultantProfileId'] as String?)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    final consultantsMap = await _fetchConsultantsByIds(profileIds);
 
-      if (consultantProfileId != null) {
-        // Fetch consultant profile with user
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId})
-            .include({
-              'user': {
-                'select': {'name': true, 'image': true},
-              },
-            })
-            .build();
-        final profile = await executeQueryAsSingleMap(profileQuery);
-        if (profile != null) {
-          final user = profile['user'] as Map<String, dynamic>?;
-          consultant = {
-            'id': profile['id'],
-            'name': user?['name'],
-            'image': user?['image'],
-            'headline': profile['headline'],
-          };
-        }
-      }
-
+    // Map consultants to webinars
+    final transformedWebinars = webinars.map((w) {
       final result = Map<String, dynamic>.from(w);
-      result['consultant'] = consultant;
+      final profileId = w['consultantProfileId'] as String?;
+      result['consultant'] =
+          profileId != null ? consultantsMap[profileId] : null;
       result['upcomingSessions'] = []; // TODO: Fetch webinar sessions
-      transformedWebinars.add(result);
-    }
+      return result;
+    }).toList();
 
     return {
       'webinars': transformedWebinars,
@@ -122,8 +108,7 @@ class ProgramsRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('WebinarPlan')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
 
     final webinar = await executeQueryAsSingleMap(query);
     if (webinar == null) return null;
@@ -136,16 +121,14 @@ class ProgramsRepository extends BaseRepository {
       final profileQuery = JsonQueryBuilder()
           .model('ConsultantProfile')
           .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId})
-          .include({
-            'user': {
-              'select': {'name': true, 'image': true},
-            },
-            'domain': {
-              'select': {'id': true, 'name': true},
-            },
-          })
-          .build();
+          .where({'id': consultantProfileId}).include({
+        'user': {
+          'select': {'name': true, 'image': true},
+        },
+        'domain': {
+          'select': {'id': true, 'name': true},
+        },
+      }).build();
       final profile = await executeQueryAsSingleMap(profileQuery);
       if (profile != null) {
         final user = profile['user'] as Map<String, dynamic>?;
@@ -194,8 +177,12 @@ class ProgramsRepository extends BaseRepository {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       where['OR'] = [
-        {'title': {'contains': searchQuery, 'mode': 'insensitive'}},
-        {'description': {'contains': searchQuery, 'mode': 'insensitive'}},
+        {
+          'title': {'contains': searchQuery, 'mode': 'insensitive'}
+        },
+        {
+          'description': {'contains': searchQuery, 'mode': 'insensitive'}
+        },
       ];
     }
 
@@ -232,41 +219,23 @@ class ProgramsRepository extends BaseRepository {
 
     final classes = await executeQueryAsMaps(listQuery);
 
-    // Fetch consultant details for each class
-    final transformedClasses = <Map<String, dynamic>>[];
-    for (final c in classes) {
-      final consultantProfileId = c['consultantProfileId'] as String?;
-      Map<String, dynamic>? consultant;
+    // Batch fetch all consultant profiles (fixes N+1 query issue)
+    final profileIds = classes
+        .map((c) => c['consultantProfileId'] as String?)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    final consultantsMap = await _fetchConsultantsByIds(profileIds);
 
-      if (consultantProfileId != null) {
-        // Fetch consultant profile with user
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId})
-            .include({
-              'user': {
-                'select': {'name': true, 'image': true},
-              },
-            })
-            .build();
-        final profile = await executeQueryAsSingleMap(profileQuery);
-        if (profile != null) {
-          final user = profile['user'] as Map<String, dynamic>?;
-          consultant = {
-            'id': profile['id'],
-            'name': user?['name'],
-            'image': user?['image'],
-            'headline': profile['headline'],
-          };
-        }
-      }
-
+    // Map consultants to classes
+    final transformedClasses = classes.map((c) {
       final result = Map<String, dynamic>.from(c);
-      result['consultant'] = consultant;
+      final profileId = c['consultantProfileId'] as String?;
+      result['consultant'] =
+          profileId != null ? consultantsMap[profileId] : null;
       result['curriculum'] = []; // TODO: Fetch class contents
-      transformedClasses.add(result);
-    }
+      return result;
+    }).toList();
 
     return {
       'classes': transformedClasses,
@@ -285,8 +254,7 @@ class ProgramsRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ClassPlan')
         .action(QueryAction.findUnique)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
 
     final classPlan = await executeQueryAsSingleMap(query);
     if (classPlan == null) return null;
@@ -299,16 +267,14 @@ class ProgramsRepository extends BaseRepository {
       final profileQuery = JsonQueryBuilder()
           .model('ConsultantProfile')
           .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId})
-          .include({
-            'user': {
-              'select': {'name': true, 'image': true},
-            },
-            'domain': {
-              'select': {'id': true, 'name': true},
-            },
-          })
-          .build();
+          .where({'id': consultantProfileId}).include({
+        'user': {
+          'select': {'name': true, 'image': true},
+        },
+        'domain': {
+          'select': {'id': true, 'name': true},
+        },
+      }).build();
       final profile = await executeQueryAsSingleMap(profileQuery);
       if (profile != null) {
         final user = profile['user'] as Map<String, dynamic>?;
@@ -324,6 +290,43 @@ class ProgramsRepository extends BaseRepository {
     final result = Map<String, dynamic>.from(classPlan);
     result['consultant'] = consultant;
     result['curriculum'] = []; // TODO: Fetch class contents
+    return result;
+  }
+
+  /// Batch fetch consultant profiles by IDs
+  ///
+  /// Returns a map of profile ID to consultant info for efficient lookup.
+  /// This avoids N+1 query issues when fetching consultants for multiple items.
+  Future<Map<String, Map<String, dynamic>>> _fetchConsultantsByIds(
+    List<String> profileIds,
+  ) async {
+    if (profileIds.isEmpty) return {};
+
+    final query = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findMany)
+        .where({
+      'id': {'in': profileIds},
+    }).include({
+      'user': {
+        'select': {'name': true, 'image': true},
+      },
+    }).build();
+
+    final profiles = await executeQueryAsMaps(query);
+
+    // Create lookup map
+    final result = <String, Map<String, dynamic>>{};
+    for (final p in profiles) {
+      final id = p['id'] as String;
+      final user = p['user'] as Map<String, dynamic>?;
+      result[id] = {
+        'id': id,
+        'name': user?['name'],
+        'image': user?['image'],
+        'headline': p['headline'],
+      };
+    }
     return result;
   }
 }
