@@ -10,6 +10,7 @@ export 'checkout_repository.dart';
 export 'consultant_explore_repository.dart';
 export 'consultant_profile_repository.dart';
 export 'consultee_profile_repository.dart';
+export 'dispute_repository.dart';
 export 'domain_repository.dart';
 export 'programs_repository.dart';
 export 'refund_repository.dart';

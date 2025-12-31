@@ -13,8 +13,11 @@ import 'package:dart_frog/dart_frog.dart';
 ///
 /// Handles webhook events from Razorpay:
 /// - payment.captured: Payment successful
+/// - order.paid: Order paid
 /// - payment.failed: Payment failed
 /// - refund.processed: Refund completed
+/// - refund.created: Refund initiated
+/// - payment.dispute.created: Dispute created
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: io.HttpStatus.methodNotAllowed);
@@ -138,6 +141,32 @@ Future<Response> onRequest(RequestContext context) async {
             }
           }
 
+        case 'payment.dispute.created':
+          // Handle dispute creation
+          if (paymentEntity != null) {
+            final disputeData =
+                paymentEntity['dispute'] as Map<String, dynamic>?;
+            final orderId = paymentEntity['order_id'] as String?;
+
+            if (disputeData != null && orderId != null) {
+              await handlers.handleDisputeCreated(
+                paymentIntentOrOrderId: orderId,
+                disputeId: disputeData['id'] as String,
+                amount: disputeData['amount'] as int? ?? 0,
+                currency: disputeData['currency'] as String? ?? 'INR',
+                reason: disputeData['reason_code'] as String? ?? 'unknown',
+                status: _mapDisputeStatus(disputeData['status'] as String?),
+                gateway: 'RAZORPAY',
+                dueBy: disputeData['respond_by'] != null
+                    ? DateTime.fromMillisecondsSinceEpoch(
+                        (disputeData['respond_by'] as int) * 1000,
+                      )
+                    : null,
+              );
+              success = true;
+            }
+          }
+
         default:
           // Unhandled event type - acknowledge receipt
           SentryLogger.info(
@@ -187,4 +216,22 @@ bool _verifySignature(String body, String? signature, String secret) {
   final expectedSignature = digest.toString();
 
   return signature == expectedSignature;
+}
+
+/// Map Razorpay dispute status to internal status
+String _mapDisputeStatus(String? status) {
+  switch (status) {
+    case 'open':
+      return 'NEEDS_RESPONSE';
+    case 'under_review':
+      return 'UNDER_REVIEW';
+    case 'won':
+      return 'WON';
+    case 'lost':
+      return 'LOST';
+    case 'closed':
+      return 'CHARGE_REFUNDED';
+    default:
+      return 'NEEDS_RESPONSE';
+  }
 }

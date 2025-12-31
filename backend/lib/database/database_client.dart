@@ -479,6 +479,7 @@ class DatabaseClient {
     _checkoutRepository = CheckoutRepository(_executor);
     _webhookEventRepository = WebhookEventRepository(_executor);
     _refundRepository = RefundRepository(_executor);
+    _disputeRepository = DisputeRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -503,6 +504,7 @@ class DatabaseClient {
   late final CheckoutRepository _checkoutRepository;
   late final WebhookEventRepository _webhookEventRepository;
   late final RefundRepository _refundRepository;
+  late final DisputeRepository _disputeRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -596,6 +598,9 @@ class DatabaseClient {
 
   /// Refund repository (for refund tracking)
   RefundRepository get refunds => _refundRepository;
+
+  /// Dispute repository (for dispute visibility)
+  DisputeRepository get disputes => _disputeRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all

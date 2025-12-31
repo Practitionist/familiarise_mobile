@@ -154,6 +154,55 @@ class WebhookHandlers {
     );
   }
 
+  /// Handle dispute created from webhook
+  ///
+  /// Called by both Razorpay payment.dispute.created and Stripe charge.dispute.created
+  Future<void> handleDisputeCreated({
+    required String paymentIntentOrOrderId,
+    required String disputeId,
+    required int amount,
+    required String currency,
+    required String reason,
+    required String status,
+    required String gateway,
+    DateTime? dueBy,
+    bool isChargeRefundable = true,
+  }) async {
+    SentryLogger.info(
+      'Processing dispute created via webhook: $disputeId',
+      context: 'WebhookHandlers',
+    );
+
+    final payment = await _findPaymentByIntent(paymentIntentOrOrderId);
+    if (payment == null) {
+      SentryLogger.error(
+        'Payment not found for dispute webhook: $paymentIntentOrOrderId',
+        context: 'WebhookHandlers',
+      );
+      return;
+    }
+
+    final paymentId = payment['id'] as String;
+
+    // Create dispute record
+    await _db.disputes.createDispute(
+      disputeId: disputeId,
+      paymentId: paymentId,
+      amount: amount,
+      currency: currency,
+      reason: reason,
+      status: status,
+      paymentGateway: gateway,
+      dueBy: dueBy,
+      isChargeRefundable: isChargeRefundable,
+    );
+
+    SentryLogger.info(
+      'Dispute created: $disputeId for payment $paymentId',
+      context: 'WebhookHandlers',
+    );
+  }
+
   /// Find payment by paymentIntent field
   Future<Map<String, dynamic>?> _findPaymentByIntent(String paymentIntent) async {
     final query = JsonQueryBuilder()

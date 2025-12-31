@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -40,7 +38,7 @@ class WebhookEventRepository extends BaseRepository {
         'eventId': eventId,
         'provider': provider,
         'eventType': eventType,
-        'payload': jsonEncode(payload),
+        'payload': payload, // Json type - pass object directly
         'signature': signature,
         'processed': false,
         'receivedAt': nowIso8601,

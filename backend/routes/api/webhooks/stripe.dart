@@ -15,6 +15,7 @@ import 'package:dart_frog/dart_frog.dart';
 /// - payment_intent.succeeded: Payment successful
 /// - payment_intent.payment_failed: Payment failed
 /// - charge.refunded: Refund completed
+/// - charge.dispute.created: Dispute created
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: io.HttpStatus.methodNotAllowed);
@@ -134,6 +135,34 @@ Future<Response> onRequest(RequestContext context) async {
             success = true;
           }
 
+        case 'charge.dispute.created':
+          // Handle dispute creation
+          final disputePaymentIntentId =
+              dataObject?['payment_intent'] as String?;
+          final evidenceDetails =
+              dataObject?['evidence_details'] as Map<String, dynamic>?;
+
+          if (disputePaymentIntentId != null) {
+            await handlers.handleDisputeCreated(
+              paymentIntentOrOrderId: disputePaymentIntentId,
+              disputeId: dataObject?['id'] as String? ?? '',
+              amount: dataObject?['amount'] as int? ?? 0,
+              currency:
+                  (dataObject?['currency'] as String?)?.toUpperCase() ?? 'USD',
+              reason: dataObject?['reason'] as String? ?? 'unknown',
+              status: _mapDisputeStatus(dataObject?['status'] as String?),
+              gateway: 'STRIPE',
+              dueBy: evidenceDetails?['due_by'] != null
+                  ? DateTime.fromMillisecondsSinceEpoch(
+                      (evidenceDetails!['due_by'] as int) * 1000,
+                    )
+                  : null,
+              isChargeRefundable:
+                  dataObject?['is_charge_refundable'] as bool? ?? true,
+            );
+            success = true;
+          }
+
         default:
           // Unhandled event type - acknowledge receipt
           SentryLogger.info(
@@ -169,5 +198,25 @@ Future<Response> onRequest(RequestContext context) async {
       stackTrace: stackTrace,
     );
     return Response(statusCode: io.HttpStatus.internalServerError);
+  }
+}
+
+/// Map Stripe dispute status to internal status
+String _mapDisputeStatus(String? status) {
+  switch (status) {
+    case 'warning_needs_response':
+    case 'needs_response':
+      return 'NEEDS_RESPONSE';
+    case 'warning_under_review':
+    case 'under_review':
+      return 'UNDER_REVIEW';
+    case 'charge_refunded':
+      return 'CHARGE_REFUNDED';
+    case 'won':
+      return 'WON';
+    case 'lost':
+      return 'LOST';
+    default:
+      return 'NEEDS_RESPONSE';
   }
 }
