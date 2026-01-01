@@ -143,28 +143,27 @@ Future<Response> onRequest(RequestContext context) async {
 
         case 'payment.dispute.created':
           // Handle dispute creation
-          if (paymentEntity != null) {
-            final disputeData =
-                paymentEntity['dispute'] as Map<String, dynamic>?;
-            final orderId = paymentEntity['order_id'] as String?;
+          // Note: Razorpay sends dispute at payload.dispute.entity (sibling to payment)
+          final disputeEntity =
+              payload['payload']?['dispute']?['entity'] as Map<String, dynamic>?;
+          final disputeOrderId = paymentEntity?['order_id'] as String?;
 
-            if (disputeData != null && orderId != null) {
-              await handlers.handleDisputeCreated(
-                paymentIntentOrOrderId: orderId,
-                disputeId: disputeData['id'] as String,
-                amount: disputeData['amount'] as int? ?? 0,
-                currency: disputeData['currency'] as String? ?? 'INR',
-                reason: disputeData['reason_code'] as String? ?? 'unknown',
-                status: _mapDisputeStatus(disputeData['status'] as String?),
-                gateway: 'RAZORPAY',
-                dueBy: disputeData['respond_by'] != null
-                    ? DateTime.fromMillisecondsSinceEpoch(
-                        (disputeData['respond_by'] as int) * 1000,
-                      )
-                    : null,
-              );
-              success = true;
-            }
+          if (disputeEntity != null && disputeOrderId != null) {
+            await handlers.handleDisputeCreated(
+              paymentIntentOrOrderId: disputeOrderId,
+              disputeId: disputeEntity['id'] as String,
+              amount: disputeEntity['amount'] as int? ?? 0,
+              currency: disputeEntity['currency'] as String? ?? 'INR',
+              reason: disputeEntity['reason_code'] as String? ?? 'unknown',
+              status: _mapDisputeStatus(disputeEntity['status'] as String?),
+              gateway: 'RAZORPAY',
+              dueBy: disputeEntity['respond_by'] != null
+                  ? DateTime.fromMillisecondsSinceEpoch(
+                      (disputeEntity['respond_by'] as int) * 1000,
+                    )
+                  : null,
+            );
+            success = true;
           }
 
         default:

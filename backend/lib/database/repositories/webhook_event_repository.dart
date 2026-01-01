@@ -1,6 +1,7 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:uuid/uuid.dart';
 
 /// Repository for webhook event tracking and idempotency
 ///
@@ -32,10 +33,12 @@ class WebhookEventRepository extends BaseRepository {
     // Try to create the event record
     // If another process created it first, this will fail with unique constraint violation
     try {
+      const uuid = Uuid();
       final createQuery = JsonQueryBuilder()
           .model('WebhookEvent')
           .action(QueryAction.create)
           .data({
+        'id': uuid.v4(), // Generate UUID for id field
         'eventId': eventId,
         'provider': provider,
         'eventType': eventType,
