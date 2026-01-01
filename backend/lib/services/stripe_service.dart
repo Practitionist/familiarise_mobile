@@ -1,24 +1,22 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 
 /// Service for interacting with Stripe API
 ///
-/// Mirrors the RazorpayService pattern - HTTP-based API client without SDK.
+/// Uses package:http for HTTP requests - no manual lifecycle management needed.
 class StripeService {
   static const String _baseUrl = 'https://api.stripe.com/v1';
 
   final String _secretKey;
   final String? _webhookSecret;
-  final HttpClient _httpClient;
 
   StripeService({
     required String secretKey,
     String? webhookSecret,
   })  : _secretKey = secretKey,
-        _webhookSecret = webhookSecret,
-        _httpClient = HttpClient();
+        _webhookSecret = webhookSecret;
 
   /// Create a PaymentIntent for mobile checkout
   ///
@@ -44,28 +42,24 @@ class StripeService {
       }
     }
 
-    final request = await _httpClient.postUrl(uri);
-
-    // Bearer token authentication
-    request.headers.set('Authorization', 'Bearer $_secretKey');
-    request.headers.contentType =
-        ContentType('application', 'x-www-form-urlencoded', charset: 'utf-8');
-
-    // Write form-encoded body
-    request.write(_encodeFormData(body));
-
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $_secretKey',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body,
+    );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(responseBody) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       return StripePaymentIntent.fromJson(data);
     }
 
     throw StripeException(
       message: 'Failed to create Stripe PaymentIntent',
       statusCode: response.statusCode,
-      responseBody: responseBody,
+      responseBody: response.body,
     );
   }
 
@@ -125,20 +119,19 @@ class StripeService {
   Future<Map<String, dynamic>> getPaymentIntent(String paymentIntentId) async {
     final uri = Uri.parse('$_baseUrl/payment_intents/$paymentIntentId');
 
-    final request = await _httpClient.getUrl(uri);
-    request.headers.set('Authorization', 'Bearer $_secretKey');
-
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $_secretKey'},
+    );
 
     if (response.statusCode == 200) {
-      return jsonDecode(responseBody) as Map<String, dynamic>;
+      return jsonDecode(response.body) as Map<String, dynamic>;
     }
 
     throw StripeException(
       message: 'Failed to fetch PaymentIntent',
       statusCode: response.statusCode,
-      responseBody: responseBody,
+      responseBody: response.body,
     );
   }
 
@@ -146,33 +139,21 @@ class StripeService {
   Future<void> cancelPaymentIntent(String paymentIntentId) async {
     final uri = Uri.parse('$_baseUrl/payment_intents/$paymentIntentId/cancel');
 
-    final request = await _httpClient.postUrl(uri);
-    request.headers.set('Authorization', 'Bearer $_secretKey');
-    request.headers.contentType =
-        ContentType('application', 'x-www-form-urlencoded', charset: 'utf-8');
-
-    final response = await request.close();
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $_secretKey',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    );
 
     if (response.statusCode != 200) {
-      final responseBody = await response.transform(utf8.decoder).join();
       throw StripeException(
         message: 'Failed to cancel PaymentIntent',
         statusCode: response.statusCode,
-        responseBody: responseBody,
+        responseBody: response.body,
       );
     }
-  }
-
-  /// Encode form data for x-www-form-urlencoded
-  String _encodeFormData(Map<String, String> data) {
-    return data.entries
-        .map((e) =>
-            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-        .join('&');
-  }
-
-  void dispose() {
-    _httpClient.close();
   }
 }
 

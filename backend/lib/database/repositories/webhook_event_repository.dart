@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for webhook event tracking and idempotency
@@ -47,14 +48,18 @@ class WebhookEventRepository extends BaseRepository {
       await executeMutation(createQuery);
       return true; // New event, should be processed
     } catch (e) {
-      // Unique constraint violation - another process got there first
-      // This is expected behavior in a distributed system
+      // Log to help diagnose if this is NOT a unique constraint violation
+      // Unique constraint violations are expected in distributed systems
+      SentryLogger.warning(
+        'Error recording webhook event (possibly duplicate): $eventId - $e',
+        context: 'WebhookEventRepository',
+      );
       return false;
     }
   }
 
-  /// Check if an event has already been processed
-  Future<bool> isEventProcessed(String eventId) async {
+  /// Check if an event has been recorded in the database
+  Future<bool> isEventRecorded(String eventId) async {
     final event = await _findByEventId(eventId);
     return event != null;
   }

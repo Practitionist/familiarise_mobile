@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -65,7 +66,11 @@ class RefundRepository extends BaseRepository {
         'reason': reason,
       };
     } catch (e) {
-      // Unique constraint violation - already exists
+      // Log to help diagnose if this is NOT a unique constraint violation
+      SentryLogger.warning(
+        'Error creating refund (possibly duplicate): $refundId - $e',
+        context: 'RefundRepository',
+      );
       return getRefundByRefundId(refundId);
     }
   }

@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -135,7 +136,11 @@ class DisputeRepository extends BaseRepository {
         'isChargeRefundable': isChargeRefundable,
       };
     } catch (e) {
-      // Unique constraint violation - already exists
+      // Log to help diagnose if this is NOT a unique constraint violation
+      SentryLogger.warning(
+        'Error creating dispute (possibly duplicate): $disputeId - $e',
+        context: 'DisputeRepository',
+      );
       return getDisputeByDisputeId(disputeId);
     }
   }
