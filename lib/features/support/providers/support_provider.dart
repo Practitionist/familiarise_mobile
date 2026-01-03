@@ -146,8 +146,8 @@ class AddTicketResponse extends _$AddTicketResponse {
         message: message,
       );
 
-      // Invalidate the ticket detail to show the new response
-      ref.invalidate(ticketDetailProvider);
+      // Invalidate the specific ticket detail to show the new response
+      ref.invalidate(ticketDetailProvider(ticketId: ticketId));
 
       state = AsyncData(response);
       return response;

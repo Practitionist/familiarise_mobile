@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/database/repositories/support_ticket_repository.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -43,16 +44,13 @@ Future<Response> _handleGetTicket(
     return Response.json(
       body: serializeForJson(ticket),
     );
+  } on RecordNotFoundException {
+    return Response.json(
+      statusCode: HttpStatus.notFound,
+      body: {'error': {'message': 'Ticket not found'}},
+    );
   } on Exception catch (e) {
-    if (e.toString().contains('not found') ||
-        e.toString().contains('access denied')) {
-      return Response.json(
-        statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Ticket not found'}},
-      );
-    }
-
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/support/$ticketId',
       context: 'SupportRoute',
       error: e,

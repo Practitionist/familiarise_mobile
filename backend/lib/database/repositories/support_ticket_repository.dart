@@ -2,6 +2,15 @@ import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
+/// Exception thrown when a record is not found or access is denied
+class RecordNotFoundException implements Exception {
+  final String message;
+  const RecordNotFoundException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Repository for support ticket operations using Prisma ORM
 ///
 /// Handles creation, retrieval, and management of support tickets.
@@ -101,7 +110,7 @@ class SupportTicketRepository extends BaseRepository {
     final ticket = await executeQueryAsSingleMap(query);
 
     if (ticket == null) {
-      throw Exception('Ticket not found or access denied');
+      throw const RecordNotFoundException('Ticket not found or access denied');
     }
 
     return ticket;
@@ -189,7 +198,7 @@ class SupportTicketRepository extends BaseRepository {
     final ticket = await executeQueryAsSingleMap(ticketQuery);
 
     if (ticket == null) {
-      throw Exception('Ticket not found or access denied');
+      throw const RecordNotFoundException('Ticket not found or access denied');
     }
 
     final now = nowIso8601;
