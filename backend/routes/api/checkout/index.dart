@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/appointment_repository.dart';
 import 'package:backend/services/razorpay_service.dart';
+import 'package:backend/services/stripe_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -368,6 +369,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
     // Generate gateway-specific fields
     String? razorpayOrderId;
     String? stripeClientSecret;
+    String? stripePaymentIntentId;
 
     if (paymentGateway.toUpperCase() == 'RAZORPAY') {
       // Create a real Razorpay order via API
@@ -436,9 +438,82 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
           },
         );
       }
-    } else {
-      // For Stripe, return client secret
-      stripeClientSecret = paymentInfo['paymentIntent'] as String?;
+    } else if (paymentGateway.toUpperCase() == 'STRIPE') {
+      // Create a real Stripe PaymentIntent
+      final env = DotEnv(includePlatformEnvironment: true)..load();
+      final stripeSecretKey = env['STRIPE_SECRET_KEY'];
+
+      if (stripeSecretKey == null || stripeSecretKey.isEmpty) {
+        SentryLogger.error(
+          'Stripe credentials not configured',
+          context: 'CheckoutRoute',
+        );
+        return Response.json(
+          statusCode: HttpStatus.internalServerError,
+          body: {
+            'error': {
+              'code': 'STRIPE_NOT_CONFIGURED',
+              'message': 'Payment gateway not configured',
+              'hint': 'Add STRIPE_SECRET_KEY to .env',
+            },
+          },
+        );
+      }
+
+      try {
+        final stripeService = StripeService(secretKey: stripeSecretKey);
+
+        final amountInSmallestUnit = (amount * 100).round();
+        final paymentIdStr = paymentInfo['paymentId'] as String;
+
+        final paymentIntent = await stripeService.createPaymentIntent(
+          amountInSmallestUnit: amountInSmallestUnit,
+          currency: currency,
+          metadata: {
+            'payment_id': paymentIdStr,
+            'booking_id': finalBookingId,
+            'user_id': userId,
+          },
+        );
+
+        stripeClientSecret = paymentIntent.clientSecret;
+        stripePaymentIntentId = paymentIntent.id;
+
+        // Update payment record with Stripe payment intent ID
+        // We need to update the paymentIntent field to store the Stripe pi_ ID
+        final updateQuery = JsonQueryBuilder()
+            .model('Payment')
+            .action(QueryAction.update)
+            .where({'id': paymentIdStr}).data({
+          'paymentIntent': paymentIntent.id,
+          'updatedAt': DateTime.now().toUtc().toIso8601String(),
+        }).build();
+        await db.executor.executeMutation(updateQuery);
+
+        SentryLogger.info(
+          'Created Stripe PaymentIntent: ${paymentIntent.id} '
+          'for amount: $amountInSmallestUnit $currency',
+          context: 'CheckoutRoute',
+        );
+      } on StripeException catch (e, stackTrace) {
+        await SentryLogger.error(
+          'Failed to create Stripe PaymentIntent',
+          context: 'CheckoutRoute',
+          error: e,
+          stackTrace: stackTrace,
+        );
+
+        return Response.json(
+          statusCode: HttpStatus.badGateway,
+          body: {
+            'error': {
+              'code': 'STRIPE_PAYMENT_FAILED',
+              'message': 'Failed to create payment intent',
+              'details': e.message,
+            },
+          },
+        );
+      }
     }
 
     return Response.json(
@@ -451,6 +526,8 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         if (razorpayOrderId != null) 'razorpayOrderId': razorpayOrderId,
         if (stripeClientSecret != null)
           'stripeClientSecret': stripeClientSecret,
+        if (stripePaymentIntentId != null)
+          'stripePaymentIntentId': stripePaymentIntentId,
         if (discountAmount != null) 'discountAmount': discountAmount,
         if (discountCode != null) 'discountCode': discountCode,
         'bookingId': finalBookingId,

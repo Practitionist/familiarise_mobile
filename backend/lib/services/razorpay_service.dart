@@ -1,22 +1,22 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 
 /// Service for interacting with Razorpay API
+///
+/// Uses package:http for HTTP requests - no manual lifecycle management needed.
 class RazorpayService {
   static const String _baseUrl = 'https://api.razorpay.com/v1';
 
   final String _keyId;
   final String _keySecret;
-  final HttpClient _httpClient;
 
   RazorpayService({
     required String keyId,
     required String keySecret,
   })  : _keyId = keyId,
-        _keySecret = keySecret,
-        _httpClient = HttpClient();
+        _keySecret = keySecret;
 
   /// Create a new Razorpay order
   ///
@@ -41,28 +41,27 @@ class RazorpayService {
       if (notes != null) 'notes': notes,
     };
 
-    final request = await _httpClient.postUrl(uri);
-
-    // Add Basic Auth header
+    // Basic Auth header
     final credentials = base64Encode(utf8.encode('$_keyId:$_keySecret'));
-    request.headers.set('Authorization', 'Basic $credentials');
-    request.headers.contentType = ContentType.json;
 
-    // Write body
-    request.write(jsonEncode(body));
-
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Basic $credentials',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(responseBody) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       return RazorpayOrder.fromJson(data);
     }
 
     throw RazorpayException(
       message: 'Failed to create Razorpay order',
       statusCode: response.statusCode,
-      responseBody: responseBody,
+      responseBody: response.body,
     );
   }
 
@@ -89,28 +88,23 @@ class RazorpayService {
   Future<Map<String, dynamic>> getPayment(String paymentId) async {
     final uri = Uri.parse('$_baseUrl/payments/$paymentId');
 
-    final request = await _httpClient.getUrl(uri);
-
-    // Add Basic Auth header
+    // Basic Auth header
     final credentials = base64Encode(utf8.encode('$_keyId:$_keySecret'));
-    request.headers.set('Authorization', 'Basic $credentials');
 
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Basic $credentials'},
+    );
 
     if (response.statusCode == 200) {
-      return jsonDecode(responseBody) as Map<String, dynamic>;
+      return jsonDecode(response.body) as Map<String, dynamic>;
     }
 
     throw RazorpayException(
       message: 'Failed to fetch payment',
       statusCode: response.statusCode,
-      responseBody: responseBody,
+      responseBody: response.body,
     );
-  }
-
-  void dispose() {
-    _httpClient.close();
   }
 }
 
