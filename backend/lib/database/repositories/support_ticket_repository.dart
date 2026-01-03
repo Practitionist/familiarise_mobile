@@ -51,17 +51,11 @@ class SupportTicketRepository extends BaseRepository {
 
     final totalCount = await executeCount(countQuery);
 
-    // Fetch tickets with non-internal responses
+    // Fetch tickets (without includes for now - relations not in schema registry)
     final query = JsonQueryBuilder()
         .model('SupportTicket')
         .action(QueryAction.findMany)
         .where(where)
-        .include({
-          'responses': {
-            'where': {'isInternal': false},
-            'orderBy': {'createdAt': 'asc'},
-          },
-        })
         .orderBy({'createdAt': 'desc'})
         .skip(offset)
         .take(effectivePageSize)
@@ -88,22 +82,13 @@ class SupportTicketRepository extends BaseRepository {
     required String ticketId,
     required String userId,
   }) async {
+    // Fetch ticket
     final query = JsonQueryBuilder()
         .model('SupportTicket')
         .action(QueryAction.findFirst)
         .where({
           'id': ticketId,
           'userId': userId,
-        })
-        .include({
-          'responses': {
-            'where': {'isInternal': false},
-            'orderBy': {'createdAt': 'asc'},
-            'include': {
-              'user': true,
-            },
-          },
-          'attachments': true,
         })
         .build();
 
@@ -113,7 +98,33 @@ class SupportTicketRepository extends BaseRepository {
       throw const RecordNotFoundException('Ticket not found or access denied');
     }
 
-    return ticket;
+    // Fetch responses separately
+    final responsesQuery = JsonQueryBuilder()
+        .model('SupportResponse')
+        .action(QueryAction.findMany)
+        .where({
+          'supportTicketId': ticketId,
+          'isInternal': false,
+        })
+        .orderBy({'createdAt': 'asc'})
+        .build();
+
+    final responses = await executeQueryAsMaps(responsesQuery);
+
+    // Fetch attachments separately
+    final attachmentsQuery = JsonQueryBuilder()
+        .model('SupportTicketAttachment')
+        .action(QueryAction.findMany)
+        .where({'ticketId': ticketId})
+        .build();
+
+    final attachments = await executeQueryAsMaps(attachmentsQuery);
+
+    return {
+      ...ticket,
+      'responses': responses,
+      'attachments': attachments,
+    };
   }
 
   /// Create a new support ticket
