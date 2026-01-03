@@ -698,6 +698,31 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
       );
     }
 
+    // Report Issue button - always visible for active/completed bookings
+    if (_booking!.status != RequestStatus.cancelled &&
+        _booking!.status != RequestStatus.rejected &&
+        _booking!.status != RequestStatus.expired) {
+      actions.add(
+        SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: () => _handleReportIssue(),
+            icon: Icon(
+              Icons.report_problem_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            label: Text(
+              'Report an Issue',
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+      );
+    }
+
     // Show info message if actions are disabled due to 24h restriction
     if (!_booking!.canReschedule &&
         _booking!.status != RequestStatus.cancelled &&
@@ -823,6 +848,14 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
           type: _booking!.bookingType,
           reason: reason.isEmpty ? null : reason,
         );
+  }
+
+  void _handleReportIssue() {
+    // Navigate to create ticket screen with booking context
+    final bookingTypeStr = _booking!.bookingType == BookingType.consultation
+        ? 'CONSULTATION'
+        : 'SUBSCRIPTION';
+    context.push('/support/create?bookingId=${_booking!.id}&bookingType=$bookingTypeStr');
   }
 
   (Color, Color) _getStatusColors(RequestStatus status) {

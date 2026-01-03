@@ -94,13 +94,18 @@ class ProfileScreen extends ConsumerWidget {
             ),
             _buildMenuItem(
               context,
-              icon: Icons.help_outline,
-              title: 'Help & Support',
+              icon: Icons.support_agent_outlined,
+              title: 'Support Tickets',
               onTap: () {
-                // TODO: Navigate to help
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon')),
-                );
+                context.push('/support');
+              },
+            ),
+            _buildMenuItem(
+              context,
+              icon: Icons.feedback_outlined,
+              title: 'Send Feedback',
+              onTap: () {
+                context.push('/feedback');
               },
             ),
             _buildMenuItem(
