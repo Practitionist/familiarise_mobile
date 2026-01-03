@@ -480,6 +480,9 @@ class DatabaseClient {
     _webhookEventRepository = WebhookEventRepository(_executor);
     _refundRepository = RefundRepository(_executor);
     _disputeRepository = DisputeRepository(_executor);
+    _supportTicketRepository = SupportTicketRepository(_executor);
+    _reviewRepository = ReviewRepository(_executor);
+    _feedbackRepository = FeedbackRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -505,6 +508,9 @@ class DatabaseClient {
   late final WebhookEventRepository _webhookEventRepository;
   late final RefundRepository _refundRepository;
   late final DisputeRepository _disputeRepository;
+  late final SupportTicketRepository _supportTicketRepository;
+  late final ReviewRepository _reviewRepository;
+  late final FeedbackRepository _feedbackRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -601,6 +607,15 @@ class DatabaseClient {
 
   /// Dispute repository (for dispute visibility)
   DisputeRepository get disputes => _disputeRepository;
+
+  /// Support ticket repository (for user support)
+  SupportTicketRepository get supportTickets => _supportTicketRepository;
+
+  /// Review repository (for consultant reviews)
+  ReviewRepository get reviews => _reviewRepository;
+
+  /// Feedback repository (for app feedback)
+  FeedbackRepository get feedback => _feedbackRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all

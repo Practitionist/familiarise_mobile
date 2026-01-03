@@ -400,13 +400,17 @@ class AuthService {
 
   /// Remove sensitive fields from user data
   Map<String, dynamic> _sanitizeUser(Map<String, dynamic> user) {
+    // emailVerified is a DateTime? in the database (when verified), convert to bool
+    final emailVerifiedValue = user['emailVerified'];
+    final isEmailVerified = emailVerifiedValue != null;
+
     return {
       'id': user['id'],
       'email': user['email'],
       'name': user['name'],
       'image': user['image'],
       'role': user['role'],
-      'emailVerified': user['emailVerified'] as bool? ?? false,
+      'emailVerified': isEmailVerified,
       'onboardingCompleted': user['onboardingCompleted'] as bool? ?? false,
       'createdAt': user['createdAt']?.toString(),
       'updatedAt': user['updatedAt']?.toString(),
