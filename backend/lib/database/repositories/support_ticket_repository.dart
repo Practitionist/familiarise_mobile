@@ -242,12 +242,11 @@ class SupportTicketRepository extends BaseRepository {
 
     await executeMutation(updateQuery);
 
-    // Return the created response
+    // Return the created response (without user include - not in schema registry)
     final resultQuery = JsonQueryBuilder()
         .model('SupportResponse')
         .action(QueryAction.findUnique)
         .where({'id': responseId})
-        .include({'user': true})
         .build();
 
     final result = await executeQueryAsSingleMap(resultQuery);
