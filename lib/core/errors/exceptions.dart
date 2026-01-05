@@ -101,6 +101,21 @@ class NotFoundException extends AppException {
   String toString() => 'NotFoundException: $resource not found';
 }
 
+/// Already exists exception
+/// Thrown when trying to create a resource that already exists (409 Conflict)
+class AlreadyExistsException extends AppException {
+  final String resource;
+
+  const AlreadyExistsException({
+    required this.resource,
+    super.message = 'Resource already exists',
+    super.originalError,
+  }) : super(statusCode: 409);
+
+  @override
+  String toString() => 'AlreadyExistsException: $resource already exists';
+}
+
 /// Slot conflict exception
 /// Thrown when a time slot is no longer available (409 Conflict)
 class SlotConflictException extends AppException {

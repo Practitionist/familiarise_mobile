@@ -76,7 +76,8 @@ class ReviewStep extends ConsumerWidget {
             children: [
               _ReviewItem(
                 label: 'Role',
-                value: isConsultee ? 'Consultee (Learner)' : 'Consultant (Expert)',
+                value:
+                    isConsultee ? 'Consultee (Learner)' : 'Consultant (Expert)',
               ),
             ],
           ),
@@ -146,7 +147,8 @@ class ReviewStep extends ConsumerWidget {
                 if (state.consulteeProfile?.careerStage != null)
                   _ReviewItem(
                     label: 'Career Stage',
-                    value: _careerStageLabel(state.consulteeProfile!.careerStage!),
+                    value:
+                        _careerStageLabel(state.consulteeProfile!.careerStage!),
                   ),
                 if (state.consulteeProfile!.skillsToDevelop.isNotEmpty)
                   _ReviewItem(
@@ -308,9 +310,8 @@ class _ConsultantProfileReview extends ConsumerWidget {
           value: domainsAsync.when(
             data: (domains) {
               if (profile?.domainId == null) return 'Not selected';
-              final domain = domains
-                  .where((d) => d.id == profile!.domainId)
-                  .firstOrNull;
+              final domain =
+                  domains.where((d) => d.id == profile!.domainId).firstOrNull;
               return domain?.name ?? 'Unknown';
             },
             loading: () => 'Loading...',
@@ -369,7 +370,8 @@ class _ReviewSection extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withAlpha(50),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [
@@ -434,9 +436,11 @@ class _ReviewItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
+          // Use Flexible with flex factor for responsive label width
+          Flexible(
+            flex: 2,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
                   child: Text(
@@ -459,7 +463,8 @@ class _ReviewItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          Flexible(
+            flex: 3,
             child: Text(
               value,
               style: theme.textTheme.bodyMedium?.copyWith(

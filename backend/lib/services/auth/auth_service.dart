@@ -212,8 +212,7 @@ class AuthService {
     } else if (accessToken != null && accessToken.isNotEmpty) {
       // Web: Use access token to fetch user info from Google's userinfo
       // endpoint
-      googleUser =
-          await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
+      googleUser = await _tokenVerifier.getUserInfoFromAccessToken(accessToken);
     } else {
       throw AuthException(
         'Either idToken or accessToken is required',
@@ -301,7 +300,8 @@ class AuthService {
   /// Sign in with GitHub OAuth
   ///
   /// Exchanges the authorization code for user info and creates/updates the user.
-  Future<Map<String, dynamic>> signInWithGitHub(GitHubUserInfo githubUser) async {
+  Future<Map<String, dynamic>> signInWithGitHub(
+      GitHubUserInfo githubUser) async {
     final email = githubUser.email;
     if (email == null || email.isEmpty) {
       throw AuthException(
@@ -400,14 +400,23 @@ class AuthService {
 
   /// Remove sensitive fields from user data
   Map<String, dynamic> _sanitizeUser(Map<String, dynamic> user) {
+    // emailVerified is a DateTime? in the database (when verified), convert to bool
+    final emailVerifiedValue = user['emailVerified'];
+    final isEmailVerified = emailVerifiedValue != null;
+
+    // onboardingCompleted can be bool, DateTime, or null - convert to bool
+    final onboardingValue = user['onboardingCompleted'];
+    final isOnboardingCompleted =
+        onboardingValue is bool ? onboardingValue : onboardingValue != null;
+
     return {
       'id': user['id'],
       'email': user['email'],
       'name': user['name'],
       'image': user['image'],
       'role': user['role'],
-      'emailVerified': user['emailVerified'] as bool? ?? false,
-      'onboardingCompleted': user['onboardingCompleted'] as bool? ?? false,
+      'emailVerified': isEmailVerified,
+      'onboardingCompleted': isOnboardingCompleted,
       'createdAt': user['createdAt']?.toString(),
       'updatedAt': user['updatedAt']?.toString(),
     };

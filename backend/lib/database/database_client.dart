@@ -448,6 +448,123 @@ SchemaRegistry _buildSchemaRegistry() {
     },
   ));
 
+  // ==================== Support Models ====================
+
+  // SupportTicket model
+  schema.registerModel(ModelSchema(
+    name: 'SupportTicket',
+    tableName: 'SupportTicket',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'title':
+          const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'priority': const FieldInfo(
+          name: 'priority', columnName: 'priority', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
+      'category': const FieldInfo(
+          name: 'category', columnName: 'category', type: 'String'),
+      'issueType': const FieldInfo(
+          name: 'issueType', columnName: 'issueType', type: 'String'),
+      'userId':
+          const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'consultationId': const FieldInfo(
+          name: 'consultationId', columnName: 'consultationId', type: 'String'),
+      'subscriptionId': const FieldInfo(
+          name: 'subscriptionId', columnName: 'subscriptionId', type: 'String'),
+      'paymentId': const FieldInfo(
+          name: 'paymentId', columnName: 'paymentId', type: 'String'),
+      'refundId': const FieldInfo(
+          name: 'refundId', columnName: 'refundId', type: 'String'),
+      'assignedToId': const FieldInfo(
+          name: 'assignedToId', columnName: 'assignedToId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // SupportResponse model
+  schema.registerModel(ModelSchema(
+    name: 'SupportResponse',
+    tableName: 'SupportResponse',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'supportTicketId': const FieldInfo(
+          name: 'supportTicketId',
+          columnName: 'supportTicketId',
+          type: 'String'),
+      'userId':
+          const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'message': const FieldInfo(
+          name: 'message', columnName: 'message', type: 'String'),
+      'isInternal': const FieldInfo(
+          name: 'isInternal', columnName: 'isInternal', type: 'Boolean'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'supportTicket': RelationInfo.oneToOne(
+        name: 'supportTicket',
+        targetModel: 'SupportTicket',
+        foreignKey: 'supportTicketId',
+        isOwner: true,
+      ),
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // SupportTicketAttachment model
+  schema.registerModel(ModelSchema(
+    name: 'SupportTicketAttachment',
+    tableName: 'SupportTicketAttachment',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'fileName': const FieldInfo(
+          name: 'fileName', columnName: 'fileName', type: 'String'),
+      'originalName': const FieldInfo(
+          name: 'originalName', columnName: 'originalName', type: 'String'),
+      'fileSize': const FieldInfo(
+          name: 'fileSize', columnName: 'fileSize', type: 'Int'),
+      'mimeType': const FieldInfo(
+          name: 'mimeType', columnName: 'mimeType', type: 'String'),
+      'fileUrl': const FieldInfo(
+          name: 'fileUrl', columnName: 'fileUrl', type: 'String'),
+      'storagePath': const FieldInfo(
+          name: 'storagePath', columnName: 'storagePath', type: 'String'),
+      'ticketId': const FieldInfo(
+          name: 'ticketId', columnName: 'ticketId', type: 'String'),
+      'uploadedAt': const FieldInfo(
+          name: 'uploadedAt', columnName: 'uploadedAt', type: 'DateTime'),
+    },
+    relations: {
+      'ticket': RelationInfo.oneToOne(
+        name: 'ticket',
+        targetModel: 'SupportTicket',
+        foreignKey: 'ticketId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   return schema;
 }
 
@@ -480,6 +597,9 @@ class DatabaseClient {
     _webhookEventRepository = WebhookEventRepository(_executor);
     _refundRepository = RefundRepository(_executor);
     _disputeRepository = DisputeRepository(_executor);
+    _supportTicketRepository = SupportTicketRepository(_executor);
+    _reviewRepository = ReviewRepository(_executor);
+    _feedbackRepository = FeedbackRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -505,6 +625,9 @@ class DatabaseClient {
   late final WebhookEventRepository _webhookEventRepository;
   late final RefundRepository _refundRepository;
   late final DisputeRepository _disputeRepository;
+  late final SupportTicketRepository _supportTicketRepository;
+  late final ReviewRepository _reviewRepository;
+  late final FeedbackRepository _feedbackRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -601,6 +724,15 @@ class DatabaseClient {
 
   /// Dispute repository (for dispute visibility)
   DisputeRepository get disputes => _disputeRepository;
+
+  /// Support ticket repository (for user support)
+  SupportTicketRepository get supportTickets => _supportTicketRepository;
+
+  /// Review repository (for consultant reviews)
+  ReviewRepository get reviews => _reviewRepository;
+
+  /// Feedback repository (for app feedback)
+  FeedbackRepository get feedback => _feedbackRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all

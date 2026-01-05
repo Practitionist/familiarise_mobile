@@ -21,6 +21,10 @@ import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/support/screens/support_tickets_screen.dart';
+import '../features/support/screens/support_ticket_detail_screen.dart';
+import '../features/support/screens/create_ticket_screen.dart';
+import '../features/feedback/screens/feedback_screen.dart';
 import 'providers/navigation_provider.dart';
 import 'shells/main_shell.dart';
 
@@ -76,6 +80,8 @@ GoRouter router(Ref ref) {
           location.startsWith('/profile') ||
           location.startsWith('/checkout') ||
           location.startsWith('/payment') ||
+          location.startsWith('/support') ||
+          location.startsWith('/feedback') ||
           location == '/booking/failure' ||
           location == '/booking/success';
 
@@ -345,6 +351,41 @@ GoRouter router(Ref ref) {
             directCheckoutParams: extra?['directCheckoutParams'] as DirectCheckoutParams?,
           );
         },
+      ),
+
+      // Support routes (PR#15)
+      GoRoute(
+        path: '/support',
+        name: 'support',
+        builder: (context, state) => const SupportTicketsScreen(),
+        routes: [
+          GoRoute(
+            path: 'create',
+            name: 'createTicket',
+            builder: (context, state) {
+              final bookingId = state.uri.queryParameters['bookingId'];
+              final bookingType = state.uri.queryParameters['bookingType'];
+              return CreateTicketScreen(
+                bookingId: bookingId,
+                bookingType: bookingType,
+              );
+            },
+          ),
+          GoRoute(
+            path: ':ticketId',
+            name: 'ticketDetail',
+            builder: (context, state) => SupportTicketDetailScreen(
+              ticketId: state.pathParameters['ticketId']!,
+            ),
+          ),
+        ],
+      ),
+
+      // Feedback route (PR#15)
+      GoRoute(
+        path: '/feedback',
+        name: 'feedback',
+        builder: (context, state) => const FeedbackScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
