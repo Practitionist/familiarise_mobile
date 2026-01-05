@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/exceptions.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -108,6 +109,16 @@ Future<Response> _handleCreateReview(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: serializeForJson(review),
     );
+  } on AlreadyExistsException catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.conflict,
+      body: {
+        'error': {
+          'code': 'ALREADY_REVIEWED',
+          'message': e.message,
+        },
+      },
+    );
   } catch (e, stackTrace) {
     SentryLogger.error(
       'Error in POST /api/reviews',
@@ -131,10 +142,12 @@ Future<Response> _handleCreateReview(RequestContext context) async {
 /// - consultantProfileId: Required - ID of the consultant
 /// - page: Page number (0-indexed, default: 0)
 /// - pageSize: Items per page (default: 20, max: 50)
+/// - checkOwn: If true, returns whether current user has reviewed (requires auth)
 Future<Response> _handleGetReviews(RequestContext context) async {
   try {
     final params = context.request.uri.queryParameters;
     final consultantProfileId = params['consultantProfileId'];
+    final checkOwn = params['checkOwn'] == 'true';
 
     if (consultantProfileId == null) {
       return Response.json(
@@ -143,10 +156,43 @@ Future<Response> _handleGetReviews(RequestContext context) async {
       );
     }
 
+    final db = context.read<DatabaseClient>();
+
+    // If checkOwn is true, return whether the current user has reviewed
+    if (checkOwn) {
+      final userId = getUserIdFromToken(context);
+      if (userId == null) {
+        return Response.json(
+          statusCode: HttpStatus.unauthorized,
+          body: {'error': {'message': 'Unauthorized'}},
+        );
+      }
+
+      // Get user's consultee profile
+      final consulteeProfile =
+          await db.consulteeProfiles.findByUserId(userId);
+
+      if (consulteeProfile == null) {
+        // User doesn't have a consultee profile, so they haven't reviewed
+        return Response.json(
+          body: {'hasReviewed': false},
+        );
+      }
+
+      final consulteeProfileId = consulteeProfile['id'] as String;
+      final hasReviewed = await db.reviews.hasUserReviewedConsultant(
+        consulteeProfileId: consulteeProfileId,
+        consultantProfileId: consultantProfileId,
+      );
+
+      return Response.json(
+        body: {'hasReviewed': hasReviewed},
+      );
+    }
+
+    // Otherwise, return paginated reviews
     final page = int.tryParse(params['page'] ?? '0') ?? 0;
     final pageSize = int.tryParse(params['pageSize'] ?? '20') ?? 20;
-
-    final db = context.read<DatabaseClient>();
 
     final result = await db.reviews.getReviewsForConsultant(
       consultantProfileId: consultantProfileId,

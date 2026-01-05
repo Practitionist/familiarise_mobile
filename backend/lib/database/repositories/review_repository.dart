@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/exceptions.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -35,7 +36,10 @@ class ReviewRepository extends BaseRepository {
     final existing = await executeQueryAsSingleMap(existingQuery);
 
     if (existing != null) {
-      throw Exception('You have already reviewed this consultant');
+      throw const AlreadyExistsException(
+        resource: 'Review',
+        message: 'You have already reviewed this consultant',
+      );
     }
 
     final now = nowIso8601;
