@@ -2,6 +2,15 @@
     <!-- Required for network access (Google Sign-In, API calls) -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Required for video calls (Phase 7 - Meetings) -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
     <!--
     Google Sign-In Setup for Android:
     1. Get SHA-1 fingerprint: cd android && ./gradlew signingReport

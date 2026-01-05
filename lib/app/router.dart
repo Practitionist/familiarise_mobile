@@ -25,6 +25,7 @@ import '../features/support/screens/support_tickets_screen.dart';
 import '../features/support/screens/support_ticket_detail_screen.dart';
 import '../features/support/screens/create_ticket_screen.dart';
 import '../features/feedback/screens/feedback_screen.dart';
+import '../features/meetings/screens/meeting_screen.dart';
 import 'providers/navigation_provider.dart';
 import 'shells/main_shell.dart';
 
@@ -82,6 +83,7 @@ GoRouter router(Ref ref) {
           location.startsWith('/payment') ||
           location.startsWith('/support') ||
           location.startsWith('/feedback') ||
+          location.startsWith('/meeting') ||
           location == '/booking/failure' ||
           location == '/booking/success';
 
@@ -386,6 +388,15 @@ GoRouter router(Ref ref) {
         path: '/feedback',
         name: 'feedback',
         builder: (context, state) => const FeedbackScreen(),
+      ),
+
+      // Meeting route (Phase 7)
+      GoRoute(
+        path: '/meeting/:appointmentId',
+        name: 'meeting',
+        builder: (context, state) => MeetingScreen(
+          appointmentId: state.pathParameters['appointmentId']!,
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
