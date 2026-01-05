@@ -89,8 +89,8 @@ Future<Response> _handleGetMeeting(
       'consulteeImage': meeting['consulteeImage'],
       'passcode': meeting['passcode'],
       'status': _determineMeetingStatus(
-        meeting['scheduledAt'] as DateTime?,
-        meeting['endsAt'] as DateTime?,
+        _parseDateTime(meeting['scheduledAt']),
+        _parseDateTime(meeting['endsAt']),
       ),
     };
 
@@ -108,6 +108,15 @@ Future<Response> _handleGetMeeting(
       body: {'error': {'message': 'Failed to get meeting details'}},
     );
   }
+}
+
+/// Safely parse a dynamic value to DateTime
+///
+/// Handles both DateTime objects and ISO8601 strings from the ORM.
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  return DateTime.tryParse(value.toString());
 }
 
 /// Determine meeting status based on scheduled time

@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 /// Service for Stream Video API integration
 ///
@@ -88,30 +86,10 @@ class StreamService {
     return _createJwt(header, payload);
   }
 
-  /// Create a JWT token from header and payload
+  /// Create a JWT token from header and payload using dart_jsonwebtoken library
   String _createJwt(Map<String, dynamic> header, Map<String, dynamic> payload) {
-    final headerBase64 = _base64UrlEncode(jsonEncode(header));
-    final payloadBase64 = _base64UrlEncode(jsonEncode(payload));
-    final dataToSign = '$headerBase64.$payloadBase64';
-
-    final key = utf8.encode(_apiSecret);
-    final bytes = utf8.encode(dataToSign);
-    final hmac = Hmac(sha256, key);
-    final digest = hmac.convert(bytes);
-
-    final signature = _base64UrlEncodeBytes(Uint8List.fromList(digest.bytes));
-
-    return '$dataToSign.$signature';
-  }
-
-  /// Base64 URL encode a string
-  String _base64UrlEncode(String input) {
-    return _base64UrlEncodeBytes(utf8.encode(input));
-  }
-
-  /// Base64 URL encode bytes
-  String _base64UrlEncodeBytes(Uint8List bytes) {
-    return base64Url.encode(bytes).replaceAll('=', '');
+    final jwt = JWT(payload, header: header);
+    return jwt.sign(SecretKey(_apiSecret));
   }
 }
 

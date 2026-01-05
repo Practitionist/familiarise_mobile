@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:stream_video_flutter/stream_video_flutter.dart';
 
 import '../../../data/repositories/meeting_repository_impl.dart';
@@ -53,7 +54,7 @@ class MeetingController extends _$MeetingController {
       state = state.copyWith(
         isLoading: false,
         permissionsGranted: false,
-        error: 'Failed to request permissions: $e',
+        error: 'Failed to request permissions. Please try again.',
       );
       return false;
     }
@@ -104,7 +105,7 @@ class MeetingController extends _$MeetingController {
       state = state.copyWith(
         isLoading: false,
         isInitialized: false,
-        error: 'Failed to initialize meeting: $e',
+        error: 'Failed to initialize meeting. Please try again.',
       );
       return false;
     }
@@ -146,7 +147,7 @@ class MeetingController extends _$MeetingController {
       state = state.copyWith(
         isJoining: false,
         isInCall: false,
-        error: 'Failed to join call: $e',
+        error: 'Failed to join call. Please check your connection.',
       );
       return null;
     }
@@ -165,7 +166,7 @@ class MeetingController extends _$MeetingController {
         callId: null,
       );
     } catch (e) {
-      state = state.copyWith(error: 'Failed to leave call: $e');
+      state = state.copyWith(error: 'Failed to leave call properly.');
     }
   }
 
@@ -221,8 +222,9 @@ class MeetingController extends _$MeetingController {
     try {
       final repository = ref.read(meetingRepositoryProvider);
       await repository.startMeeting(appointmentId);
-    } catch (e) {
-      // Non-critical, log but don't show error
+    } catch (e, stackTrace) {
+      // Non-critical for user, but log for monitoring
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 
@@ -231,8 +233,9 @@ class MeetingController extends _$MeetingController {
     try {
       final repository = ref.read(meetingRepositoryProvider);
       await repository.endMeeting(appointmentId);
-    } catch (e) {
-      // Non-critical, log but don't show error
+    } catch (e, stackTrace) {
+      // Non-critical for user, but log for monitoring
+      Sentry.captureException(e, stackTrace: stackTrace);
     }
   }
 }

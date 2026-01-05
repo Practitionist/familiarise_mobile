@@ -774,10 +774,13 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
   }
 
   void _handleJoinMeeting() {
-    // TODO: Implement join meeting
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Join meeting coming soon')),
-    );
+    if (_booking?.appointmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Meeting not available')),
+      );
+      return;
+    }
+    context.push('/meeting/${_booking!.appointmentId}');
   }
 
   void _handlePayNow() {
