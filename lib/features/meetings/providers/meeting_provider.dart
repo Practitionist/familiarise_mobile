@@ -29,11 +29,16 @@ class MeetingController extends _$MeetingController {
   }
 
   /// Clean up Stream resources
-  void _cleanup() {
+  Future<void> _cleanup() async {
     _activeCall?.leave();
     _activeCall = null;
     _streamVideo?.disconnect();
     _streamVideo = null;
+
+    // Reset the singleton so it can be re-initialized
+    if (StreamVideo.isInitialized()) {
+      await StreamVideo.reset();
+    }
   }
 
   /// Request camera and microphone permissions
@@ -91,6 +96,11 @@ class MeetingController extends _$MeetingController {
       // Get meeting token from backend
       final repository = ref.read(meetingRepositoryProvider);
       final meetingToken = await repository.getMeetingToken(appointmentId);
+
+      // Defensive: Reset any stale singleton before creating new instance
+      if (StreamVideo.isInitialized()) {
+        await StreamVideo.reset();
+      }
 
       // Initialize Stream Video SDK
       _streamVideo = StreamVideo(
