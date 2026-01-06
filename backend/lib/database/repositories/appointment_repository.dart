@@ -1329,12 +1329,15 @@ class AppointmentRepository extends BaseRepository {
         throw Exception('Booking not found or you do not have permission');
       }
 
-      // Update status to cancelled
+      // Update status to cancelled with metadata
       final updateQuery = JsonQueryBuilder()
           .model('Consultation')
           .action(QueryAction.update)
           .where({'id': id}).data({
         'requestStatus': 'CANCELLED',
+        'cancellationReason': reason,
+        'cancelledAt': now,
+        'cancelledBy': consulteeProfileId,
         'updatedAt': now,
       }).build();
 
@@ -1355,12 +1358,15 @@ class AppointmentRepository extends BaseRepository {
         throw Exception('Booking not found or you do not have permission');
       }
 
-      // Update status to cancelled
+      // Update status to cancelled with metadata
       final updateQuery = JsonQueryBuilder()
           .model('Subscription')
           .action(QueryAction.update)
           .where({'id': id}).data({
         'requestStatus': 'CANCELLED',
+        'cancellationReason': reason,
+        'cancelledAt': now,
+        'cancelledBy': consulteeProfileId,
         'updatedAt': now,
       }).build();
 
