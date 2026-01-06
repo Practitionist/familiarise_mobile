@@ -77,7 +77,7 @@ class BookingFlow extends _$BookingFlow {
         conflictingSlots: conflictingSlots,
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'BookingFlowNotifier.createBooking',
@@ -140,7 +140,7 @@ class BookingFlow extends _$BookingFlow {
         conflictingSlots: conflictingSlots,
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'BookingFlowNotifier.createBooking',

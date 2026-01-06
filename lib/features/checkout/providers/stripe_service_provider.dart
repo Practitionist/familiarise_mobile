@@ -174,7 +174,7 @@ class StripeService extends _$StripeService {
         return const StripeCancelled();
       }
 
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: StackTrace.current,
         context: 'StripeService.handlePaymentSheet',
@@ -189,7 +189,7 @@ class StripeService extends _$StripeService {
         message: e.error.localizedMessage ?? 'Payment failed',
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'StripeService.handlePaymentSheet',
@@ -223,7 +223,7 @@ class StripeService extends _$StripeService {
         message: 'Cannot open payment page. Please try again.',
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'StripeService.handleHostedCheckout',

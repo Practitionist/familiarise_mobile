@@ -34,7 +34,7 @@ class SubmitReview extends _$SubmitReview {
       state = AsyncData(review);
       return review;
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'SubmitReview.submit',
@@ -102,7 +102,7 @@ class ConsultantReviews extends _$ConsultantReviews {
       final newReviews = await _fetchReviews();
       state = AsyncData([...previousReviews, ...newReviews]);
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'ConsultantReviews.loadMore',

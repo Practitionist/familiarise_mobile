@@ -67,7 +67,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     } on NotFoundException catch (e) {
       return Left(Failure.notFound(resource: e.resource));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'CheckoutRepository.createCheckout',
@@ -126,7 +126,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     } on NotFoundException catch (e) {
       return Left(Failure.notFound(resource: e.resource));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'CheckoutRepository.createDirectCheckout',
@@ -161,7 +161,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
         errorCode: e.errorCode,
       ));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'CheckoutRepository.verifyPayment',
@@ -205,7 +205,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
         errorCode: e.errorCode,
       ));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'CheckoutRepository.validateDiscountCode',

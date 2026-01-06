@@ -53,7 +53,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on ServerException catch (e) {
       return Left(Failure.server(message: e.message, statusCode: e.statusCode));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -79,7 +79,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on ServerException catch (e) {
       return Left(Failure.server(message: e.message, statusCode: e.statusCode));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -98,7 +98,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -117,7 +117,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -130,7 +130,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await localSource.clearAll();
       return const Right(null);
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -145,7 +145,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -163,7 +163,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }
@@ -204,7 +204,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRepository');
       return Left(Failure.unknown(message: e.toString()));
     }

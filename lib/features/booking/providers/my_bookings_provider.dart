@@ -47,7 +47,7 @@ class MyBookings extends _$MyBookings {
       state = AsyncData([...previousBookings, ...newBookings]);
     } catch (e, stack) {
       // Keep previous data on error
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'MyBookings.loadMore',
@@ -67,7 +67,7 @@ class MyBookings extends _$MyBookings {
       final bookings = await _fetchBookings();
       state = AsyncData(bookings);
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'MyBookings.filterByStatus',

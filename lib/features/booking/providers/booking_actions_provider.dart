@@ -54,7 +54,7 @@ class BookingActions extends _$BookingActions {
     state = const BookingActionLoading();
 
     // Add breadcrumb for user action tracking
-    SentryLogger.addBreadcrumb(
+    AppSentryLogger.addBreadcrumb(
       message: 'User initiated reschedule',
       category: 'booking.action',
       data: {
@@ -83,7 +83,7 @@ class BookingActions extends _$BookingActions {
       );
       return true;
     } catch (e, stackTrace) {
-      await SentryLogger.captureException(
+      await AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'BookingActions.rescheduleBooking',
@@ -109,7 +109,7 @@ class BookingActions extends _$BookingActions {
     state = const BookingActionLoading();
 
     // Add breadcrumb for user action tracking
-    SentryLogger.addBreadcrumb(
+    AppSentryLogger.addBreadcrumb(
       message: 'User initiated cancellation',
       category: 'booking.action',
       data: {
@@ -133,7 +133,7 @@ class BookingActions extends _$BookingActions {
       );
       return true;
     } catch (e, stackTrace) {
-      await SentryLogger.captureException(
+      await AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'BookingActions.cancelBooking',

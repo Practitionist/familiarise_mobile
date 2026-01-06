@@ -106,7 +106,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
@@ -150,7 +150,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
@@ -202,7 +202,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
@@ -279,7 +279,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
@@ -296,7 +296,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       // Even if sign out fails, still clear local auth
       await _clearLocalAuth();
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource.signOut');
     }
   }
@@ -464,7 +464,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
@@ -501,7 +501,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
@@ -556,7 +556,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e,
+      AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }

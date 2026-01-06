@@ -42,7 +42,7 @@ class DeviceUtils {
       return _isEmulatorCached!;
     } catch (e, stackTrace) {
       // Log to Sentry but don't crash - assume physical device
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'DeviceUtils.isEmulator',

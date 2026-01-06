@@ -54,7 +54,7 @@ class MeetingController extends _$MeetingController {
 
       return granted;
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'MeetingController.requestPermissions',
@@ -128,7 +128,7 @@ class MeetingController extends _$MeetingController {
 
       return true;
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'MeetingController.initialize',
@@ -173,7 +173,7 @@ class MeetingController extends _$MeetingController {
 
       return _activeCall;
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'MeetingController.joinCall',
@@ -201,7 +201,7 @@ class MeetingController extends _$MeetingController {
         callId: null,
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'MeetingController.leaveCall',

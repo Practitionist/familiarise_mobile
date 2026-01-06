@@ -132,7 +132,7 @@ class AuthInterceptor extends Interceptor {
       }
     } catch (e, stackTrace) {
       // SecureStorage failed (common on Android emulators), continue to fallback
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'AuthInterceptor._getToken',
@@ -161,7 +161,7 @@ class AuthInterceptor extends Interceptor {
       try {
         await _secureStorage.write(key: StorageKeys.authToken, value: token);
       } catch (e, stackTrace) {
-        SentryLogger.captureException(
+        AppSentryLogger.captureException(
           e,
           stackTrace: stackTrace,
           context: 'AuthInterceptor.saveToken',
@@ -186,7 +186,7 @@ class AuthInterceptor extends Interceptor {
       try {
         await _secureStorage.delete(key: StorageKeys.authToken);
       } catch (e, stackTrace) {
-        SentryLogger.captureException(
+        AppSentryLogger.captureException(
           e,
           stackTrace: stackTrace,
           context: 'AuthInterceptor.clearToken',
@@ -210,7 +210,7 @@ class ErrorInterceptor extends Interceptor {
     final exception = _mapDioExceptionToAppException(err);
 
     // Report to Sentry with network context
-    SentryLogger.captureException(
+    AppSentryLogger.captureException(
       exception,
       stackTrace: err.stackTrace,
       context: 'ErrorInterceptor.onError',
