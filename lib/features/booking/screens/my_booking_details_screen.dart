@@ -481,9 +481,12 @@ class _MyBookingDetailsScreenState
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    slot.formattedDate,
-                    style: theme.textTheme.bodyMedium,
+                  Flexible(
+                    child: Text(
+                      slot.formattedDate,
+                      style: theme.textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Icon(
@@ -492,9 +495,12 @@ class _MyBookingDetailsScreenState
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    slot.formattedTimeRange,
-                    style: theme.textTheme.bodyMedium,
+                  Flexible(
+                    child: Text(
+                      slot.formattedTimeRange,
+                      style: theme.textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   if (slot.isTentative) ...[
                     const Spacer(),

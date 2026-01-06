@@ -33,6 +33,9 @@ class MeetingState with _$MeetingState {
     /// Whether using front camera (true) or rear camera (false)
     @Default(true) bool isFrontCamera,
 
+    /// Whether running on an emulator/simulator (video preview unavailable)
+    @Default(false) bool isEmulator,
+
     /// Current call ID if in a call
     String? callId,
 

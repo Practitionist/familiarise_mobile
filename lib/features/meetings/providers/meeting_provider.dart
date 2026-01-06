@@ -8,6 +8,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:stream_video_flutter/stream_video_flutter.dart';
 
+import '../../../core/utils/device_utils.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/meeting_repository_impl.dart';
 import '../../../domain/entities/meeting/meeting_entities.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -51,7 +53,12 @@ class MeetingController extends _$MeetingController {
       );
 
       return granted;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MeetingController.requestPermissions',
+      );
       state = state.copyWith(
         isLoading: false,
         permissionsGranted: false,
@@ -68,6 +75,9 @@ class MeetingController extends _$MeetingController {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
+      // Detect if running on emulator/simulator
+      final isEmulator = await DeviceUtils.isEmulator();
+
       // Get current user
       final user = ref.read(currentUserProvider);
       if (user == null) {
@@ -112,11 +122,18 @@ class MeetingController extends _$MeetingController {
       state = state.copyWith(
         isLoading: false,
         isInitialized: true,
+        isEmulator: isEmulator,
         callId: meetingToken.callId,
       );
 
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MeetingController.initialize',
+        extras: {'appointmentId': appointmentId},
+      );
       state = state.copyWith(
         isLoading: false,
         isInitialized: false,
@@ -155,7 +172,13 @@ class MeetingController extends _$MeetingController {
       );
 
       return _activeCall;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MeetingController.joinCall',
+        extras: {'callId': state.callId},
+      );
       state = state.copyWith(
         isJoining: false,
         isInCall: false,
@@ -177,7 +200,12 @@ class MeetingController extends _$MeetingController {
         isInCall: false,
         callId: null,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      SentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MeetingController.leaveCall',
+      );
       state = state.copyWith(error: 'Failed to leave call properly.');
     }
   }

@@ -138,6 +138,7 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
       return _InCallView(
         call: controller.activeCall!,
         meetingState: meetingState,
+        isEmulator: meetingState.isEmulator,
         onMicrophoneToggle: controller.toggleMicrophone,
         onCameraToggle: controller.toggleCamera,
         onFlipCamera: controller.flipCamera,
@@ -151,6 +152,7 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
         call: controller.activeCall!,
         meetingState: meetingState,
         isJoining: meetingState.isJoining,
+        isEmulator: meetingState.isEmulator,
         onMicrophoneToggle: controller.toggleMicrophone,
         onCameraToggle: controller.toggleCamera,
         onFlipCamera: controller.flipCamera,
@@ -270,6 +272,7 @@ class _PreJoinView extends StatelessWidget {
     required this.call,
     required this.meetingState,
     required this.isJoining,
+    required this.isEmulator,
     required this.onMicrophoneToggle,
     required this.onCameraToggle,
     required this.onFlipCamera,
@@ -280,6 +283,7 @@ class _PreJoinView extends StatelessWidget {
   final Call call;
   final MeetingState meetingState;
   final bool isJoining;
+  final bool isEmulator;
   final VoidCallback onMicrophoneToggle;
   final VoidCallback onCameraToggle;
   final VoidCallback onFlipCamera;
@@ -313,14 +317,16 @@ class _PreJoinView extends StatelessWidget {
             ),
           ),
 
-          // Camera preview
+          // Camera preview or emulator placeholder
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: CameraPreview(
-                call: call,
-                isCameraEnabled: meetingState.isCameraEnabled,
-              ),
+              child: isEmulator
+                  ? const _EmulatorPlaceholder()
+                  : CameraPreview(
+                      call: call,
+                      isCameraEnabled: meetingState.isCameraEnabled,
+                    ),
             ),
           ),
 
@@ -404,6 +410,7 @@ class _InCallView extends StatelessWidget {
   const _InCallView({
     required this.call,
     required this.meetingState,
+    required this.isEmulator,
     required this.onMicrophoneToggle,
     required this.onCameraToggle,
     required this.onFlipCamera,
@@ -412,6 +419,7 @@ class _InCallView extends StatelessWidget {
 
   final Call call;
   final MeetingState meetingState;
+  final bool isEmulator;
   final VoidCallback onMicrophoneToggle;
   final VoidCallback onCameraToggle;
   final VoidCallback onFlipCamera;
@@ -421,15 +429,25 @@ class _InCallView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Video content from Stream SDK
-        StreamCallContent(
-          call: call,
-          onLeaveCallTap: onLeave,
-          // Hide default controls as we use custom ones
-          callControlsWidgetBuilder: (context, call) {
-            return const SizedBox.shrink();
-          },
-        ),
+        // Video content - show placeholder on emulator, real video on device
+        if (isEmulator)
+          const _EmulatorInCallPlaceholder()
+        else
+          StreamCallContent(
+            call: call,
+            // Hide default app bar to avoid SDK layout bug with LeaveCallOption
+            // (BoxConstraints infinite width issue)
+            callAppBarWidgetBuilder: (context, call) {
+              return const PreferredSize(
+                preferredSize: Size.zero,
+                child: SizedBox.shrink(),
+              );
+            },
+            // Hide default controls as we use custom ones
+            callControlsWidgetBuilder: (context, call) {
+              return const SizedBox.shrink();
+            },
+          ),
 
         // Bottom controls overlay
         Positioned(
@@ -495,6 +513,140 @@ class _SimulatorModeView extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder widget shown on emulator during pre-join
+class _EmulatorPlaceholder extends StatelessWidget {
+  const _EmulatorPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey[800],
+                border: Border.all(color: Colors.white24, width: 2),
+              ),
+              child: const Icon(
+                Icons.person,
+                size: 64,
+                color: Colors.white54,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Camera Preview',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Text(
+                'Camera preview unavailable on emulator.\n'
+                'Video will work on physical devices.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder widget shown on emulator during active call
+class _EmulatorInCallPlaceholder extends StatelessWidget {
+  const _EmulatorInCallPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey[900],
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey[800],
+                border: Border.all(color: AppTheme.success, width: 3),
+              ),
+              child: const Icon(
+                Icons.videocam,
+                size: 72,
+                color: AppTheme.success,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Meeting in Progress',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.success,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Connected',
+                  style: TextStyle(
+                    color: AppTheme.success,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Text(
+                'Video preview unavailable on emulator.\n'
+                'Audio and call features are fully functional.\n'
+                'Test on a physical device for video.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
