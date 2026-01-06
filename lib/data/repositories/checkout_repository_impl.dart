@@ -191,7 +191,9 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
 
       if (!discountInfo.isValid) {
         return Left(Failure.validation(errors: {
-          'discountCode': [discountInfo.errorMessage ?? 'Invalid discount code'],
+          'discountCode': [
+            discountInfo.errorMessage ?? 'Invalid discount code'
+          ],
         }));
       }
 

@@ -344,10 +344,8 @@ class ProgramsRepository extends BaseRepository {
     String webinarPlanId,
   ) async {
     // Step 1: Get all Webinar records for this plan
-    final webinarQuery = JsonQueryBuilder()
-        .model('Webinar')
-        .action(QueryAction.findMany)
-        .where({
+    final webinarQuery =
+        JsonQueryBuilder().model('Webinar').action(QueryAction.findMany).where({
       'webinarPlanId': webinarPlanId,
       'status': {
         'in': ['SCHEDULED', 'IN_PROGRESS']
@@ -374,7 +372,9 @@ class ProgramsRepository extends BaseRepository {
       'webinarId': {'in': webinarIds},
     }).include({
       'slots': true,
-      'webinar': {'select': {'id': true}},
+      'webinar': {
+        'select': {'id': true}
+      },
     }).build();
 
     final appointments = await executeQueryAsMaps(appointmentQuery);
@@ -414,8 +414,10 @@ class ProgramsRepository extends BaseRepository {
     sessions.sort((a, b) {
       final aVal = a['startsAt'];
       final bVal = b['startsAt'];
-      final aTime = aVal is DateTime ? aVal.toIso8601String() : aVal?.toString() ?? '';
-      final bTime = bVal is DateTime ? bVal.toIso8601String() : bVal?.toString() ?? '';
+      final aTime =
+          aVal is DateTime ? aVal.toIso8601String() : aVal?.toString() ?? '';
+      final bTime =
+          bVal is DateTime ? bVal.toIso8601String() : bVal?.toString() ?? '';
       return aTime.compareTo(bTime);
     });
 
@@ -429,10 +431,8 @@ class ProgramsRepository extends BaseRepository {
     String classPlanId,
   ) async {
     // Step 1: Get all Class records for this plan
-    final classQuery = JsonQueryBuilder()
-        .model('Class')
-        .action(QueryAction.findMany)
-        .where({
+    final classQuery =
+        JsonQueryBuilder().model('Class').action(QueryAction.findMany).where({
       'classPlanId': classPlanId,
       'status': {
         'in': ['SCHEDULED', 'IN_PROGRESS']
@@ -459,7 +459,9 @@ class ProgramsRepository extends BaseRepository {
       'classId': {'in': classIds},
     }).include({
       'slots': true,
-      'class': {'select': {'id': true}},
+      'class': {
+        'select': {'id': true}
+      },
     }).build();
 
     final appointments = await executeQueryAsMaps(appointmentQuery);
@@ -498,8 +500,10 @@ class ProgramsRepository extends BaseRepository {
     sessions.sort((a, b) {
       final aVal = a['startsAt'];
       final bVal = b['startsAt'];
-      final aTime = aVal is DateTime ? aVal.toIso8601String() : aVal?.toString() ?? '';
-      final bTime = bVal is DateTime ? bVal.toIso8601String() : bVal?.toString() ?? '';
+      final aTime =
+          aVal is DateTime ? aVal.toIso8601String() : aVal?.toString() ?? '';
+      final bTime =
+          bVal is DateTime ? bVal.toIso8601String() : bVal?.toString() ?? '';
       return aTime.compareTo(bTime);
     });
 

@@ -35,9 +35,9 @@ class Auth extends _$Auth {
       final repository = ref.read(authRepositoryProvider);
       // Add timeout to prevent hanging on web/network issues
       final result = await repository.getCurrentUser().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => throw TimeoutException('Auth check timed out'),
-      );
+            const Duration(seconds: 5),
+            onTimeout: () => throw TimeoutException('Auth check timed out'),
+          );
 
       result.fold(
         (failure) {
@@ -230,7 +230,7 @@ bool needsOnboarding(Ref ref) {
 @riverpod
 String? authErrorMessage(Ref ref) {
   return ref.watch(authProvider).maybeMap(
-    unauthenticated: (s) => s.message,
-    orElse: () => null,
-  );
+        unauthenticated: (s) => s.message,
+        orElse: () => null,
+      );
 }

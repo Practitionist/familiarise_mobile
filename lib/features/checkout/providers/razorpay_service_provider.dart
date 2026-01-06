@@ -163,7 +163,8 @@ class RazorpayService extends _$RazorpayService {
   }
 
   void _handleError(PaymentFailureResponse response) {
-    debugPrint('Razorpay payment error: ${response.code} - ${response.message}');
+    debugPrint(
+        'Razorpay payment error: ${response.code} - ${response.message}');
 
     final code = response.code ?? 0;
     final message = response.message ?? 'Payment failed';

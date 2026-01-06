@@ -25,7 +25,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
           'error': {
             'message': 'Class not found',
             'details': 'No class plan exists with ID: $id',
-            'hint': 'Verify the class ID is correct and the class has not been deleted.',
+            'hint':
+                'Verify the class ID is correct and the class has not been deleted.',
           },
         },
       );

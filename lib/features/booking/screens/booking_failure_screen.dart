@@ -191,7 +191,8 @@ class BookingFailureScreen extends StatelessWidget {
             Text(
               'If this issue persists, please contact support.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onErrorContainer.withValues(alpha: 0.7),
+                color:
+                    theme.colorScheme.onErrorContainer.withValues(alpha: 0.7),
               ),
             ),
           ],

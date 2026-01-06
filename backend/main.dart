@@ -4,6 +4,7 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
@@ -53,6 +54,10 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   // Create services
   final jwtService = JwtService(jwtSecret);
   final authService = AuthService(db, jwtService);
+  final streamService = StreamService(
+    apiKey: env['STREAM_API_KEY'],
+    apiSecret: env['STREAM_API_SECRET'],
+  );
 
   // Create GitHub OAuth service if configured
   final GitHubOAuthService? githubOAuthService = hasGitHubOAuth
@@ -67,7 +72,8 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   var handlerWithProviders = handler
       .use(provider<DatabaseClient>((_) => db))
       .use(provider<JwtService>((_) => jwtService))
-      .use(provider<AuthService>((_) => authService));
+      .use(provider<AuthService>((_) => authService))
+      .use(provider<StreamService>((_) => streamService));
 
   // Add GitHub OAuth service if configured
   if (githubOAuthService != null) {

@@ -23,7 +23,9 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
     if (userId == null) {
       return Response.json(
         statusCode: io.HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -34,14 +36,18 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
     if (payment == null) {
       return Response.json(
         statusCode: io.HttpStatus.notFound,
-        body: {'error': {'message': 'Payment not found'}},
+        body: {
+          'error': {'message': 'Payment not found'}
+        },
       );
     }
 
     if (payment['userId'] != userId) {
       return Response.json(
         statusCode: io.HttpStatus.forbidden,
-        body: {'error': {'message': 'Access denied'}},
+        body: {
+          'error': {'message': 'Access denied'}
+        },
       );
     }
 
@@ -49,25 +55,29 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
     final disputes = await db.disputes.getDisputesByPaymentId(paymentId);
 
     // Format response
-    final formattedDisputes = disputes.map((d) => {
-          'id': d['id'],
-          'disputeId': d['disputeId'],
-          'amount': d['amount'],
-          'currency': d['currency'],
-          'reason': d['reason'],
-          'status': d['status'],
-          'paymentGateway': d['paymentGateway'],
-          'dueBy': d['dueBy'],
-          'isChargeRefundable': d['isChargeRefundable'],
-          'createdAt': d['createdAt'],
-        }).toList();
+    final formattedDisputes = disputes
+        .map((d) => {
+              'id': d['id'],
+              'disputeId': d['disputeId'],
+              'amount': d['amount'],
+              'currency': d['currency'],
+              'reason': d['reason'],
+              'status': d['status'],
+              'paymentGateway': d['paymentGateway'],
+              'dueBy': d['dueBy'],
+              'isChargeRefundable': d['isChargeRefundable'],
+              'createdAt': d['createdAt'],
+            })
+        .toList();
 
     return Response.json(
-      body: serializeForJson({
-        'paymentId': paymentId,
-        'disputes': formattedDisputes,
-        'count': formattedDisputes.length,
-      },),
+      body: serializeForJson(
+        {
+          'paymentId': paymentId,
+          'disputes': formattedDisputes,
+          'count': formattedDisputes.length,
+        },
+      ),
     );
   } catch (e, stackTrace) {
     await SentryLogger.error(

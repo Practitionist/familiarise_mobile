@@ -49,7 +49,8 @@ class DomainRepositoryImpl implements DomainRepository {
     } on NetworkException catch (e) {
       return Left(Failure.network(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'DomainRepository.getAllDomains');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'DomainRepository.getAllDomains');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -73,7 +74,8 @@ class DomainRepositoryImpl implements DomainRepository {
     } on NetworkException catch (e) {
       return Left(Failure.network(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'DomainRepository.getDomainById');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'DomainRepository.getDomainById');
       return Left(Failure.unknown(message: e.toString()));
     }
   }

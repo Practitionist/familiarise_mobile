@@ -71,7 +71,8 @@ class StripeService extends _$StripeService {
     try {
       Stripe.publishableKey = EnvConfig.stripePublishableKey;
       _isInitialized = true;
-      debugPrint('Stripe initialized with key: ${EnvConfig.stripePublishableKey.substring(0, 20)}...');
+      debugPrint(
+          'Stripe initialized with key: ${EnvConfig.stripePublishableKey.substring(0, 20)}...');
     } catch (e) {
       debugPrint('Failed to initialize Stripe: $e');
     }

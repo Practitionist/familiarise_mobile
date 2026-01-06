@@ -43,7 +43,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to generate OAuth URL'}},
+      body: {
+        'error': {'message': 'Failed to generate OAuth URL'}
+      },
     );
   }
 }

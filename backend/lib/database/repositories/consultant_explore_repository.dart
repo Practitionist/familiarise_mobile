@@ -424,9 +424,8 @@ class ConsultantExploreRepository extends BaseRepository {
     final usersQuery = JsonQueryBuilder()
         .model('users')
         .action(QueryAction.findMany)
-        .selectFields(['id', 'name', 'image'])
-        .where({'id': FilterOperators.in_(userIds)})
-        .build();
+        .selectFields(['id', 'name', 'image']).where(
+            {'id': FilterOperators.in_(userIds)}).build();
     final users = await executeQueryAsMaps(usersQuery);
 
     // Map userId -> user data

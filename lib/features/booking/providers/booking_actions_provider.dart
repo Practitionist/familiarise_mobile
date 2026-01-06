@@ -128,7 +128,8 @@ class BookingActions extends _$BookingActions {
       );
 
       state = const BookingActionSuccess(
-        message: 'Booking cancelled successfully. Refund will be processed within 5-7 business days.',
+        message:
+            'Booking cancelled successfully. Refund will be processed within 5-7 business days.',
       );
       return true;
     } catch (e, stackTrace) {
@@ -162,7 +163,8 @@ class BookingActions extends _$BookingActions {
     if (errorStr.contains('not found') || errorStr.contains('NotFound')) {
       return 'Booking not found. It may have been deleted.';
     }
-    if (errorStr.contains('unauthorized') || errorStr.contains('Unauthorized')) {
+    if (errorStr.contains('unauthorized') ||
+        errorStr.contains('Unauthorized')) {
       return 'You are not authorized to modify this booking.';
     }
     if (errorStr.contains('network') || errorStr.contains('connection')) {

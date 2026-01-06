@@ -45,7 +45,9 @@ Future<Response> _handleGetBookings(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -79,7 +81,9 @@ Future<Response> _handleGetBookings(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch bookings'}},
+      body: {
+        'error': {'message': 'Failed to fetch bookings'}
+      },
     );
   }
 }
@@ -118,7 +122,9 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -146,8 +152,7 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     final db = context.read<DatabaseClient>();
 
     // Get the consultee profile for the current user
-    final consulteeProfile =
-        await db.consulteeProfiles.findByUserId(userId);
+    final consulteeProfile = await db.consulteeProfiles.findByUserId(userId);
     if (consulteeProfile == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -298,7 +303,9 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
     if (errorMessage.contains('not found')) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': errorMessage}},
+        body: {
+          'error': {'message': errorMessage}
+        },
       );
     }
 
@@ -306,7 +313,9 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
         errorMessage.contains('unauthorized')) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': errorMessage}},
+        body: {
+          'error': {'message': errorMessage}
+        },
       );
     }
 

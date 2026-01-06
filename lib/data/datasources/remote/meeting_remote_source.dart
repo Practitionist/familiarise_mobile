@@ -116,8 +116,8 @@ class MeetingRemoteSourceImpl implements MeetingRemoteSource {
         throw e.error as AppException;
       }
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to start meeting',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to start meeting',
         statusCode: e.response?.statusCode,
         originalError: e,
       );
@@ -142,8 +142,8 @@ class MeetingRemoteSourceImpl implements MeetingRemoteSource {
         throw e.error as AppException;
       }
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to end meeting',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to end meeting',
         statusCode: e.response?.statusCode,
         originalError: e,
       );

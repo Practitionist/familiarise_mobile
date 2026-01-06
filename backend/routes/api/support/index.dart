@@ -35,7 +35,9 @@ Future<Response> _handleListTickets(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -66,7 +68,9 @@ Future<Response> _handleListTickets(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch tickets'}},
+      body: {
+        'error': {'message': 'Failed to fetch tickets'}
+      },
     );
   }
 }
@@ -93,7 +97,9 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -107,14 +113,18 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
     if (title == null || title.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Title is required'}},
+        body: {
+          'error': {'message': 'Title is required'}
+        },
       );
     }
 
     if (description == null || description.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Description is required'}},
+        body: {
+          'error': {'message': 'Description is required'}
+        },
       );
     }
 
@@ -146,7 +156,9 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create ticket'}},
+      body: {
+        'error': {'message': 'Failed to create ticket'}
+      },
     );
   }
 }

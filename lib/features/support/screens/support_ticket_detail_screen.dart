@@ -281,7 +281,8 @@ class _SupportTicketDetailScreenState
                   ticket.paymentId != null) ...[
                 const SizedBox(height: 12),
                 Divider(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  color:
+                      theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: 8),
                 Text(

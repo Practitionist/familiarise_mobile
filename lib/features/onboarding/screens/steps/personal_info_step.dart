@@ -60,12 +60,15 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
           : _phoneController.text.trim(),
       dateOfBirth: _selectedDate,
       gender: _selectedGender,
-      city:
-          _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+      city: _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
       country: _countryController.text.trim().isEmpty
           ? null
           : _countryController.text.trim(),
-      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+      bio: _bioController.text.trim().isEmpty
+          ? null
+          : _bioController.text.trim(),
       image: ref.read(onboardingProvider).personalInfo?.image,
     );
 
@@ -108,7 +111,9 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
               onImagePicked: (bytes, fileName, mimeType) async {
                 setState(() => _isUploadingImage = true);
                 try {
-                  await ref.read(onboardingProvider.notifier).uploadProfileImage(
+                  await ref
+                      .read(onboardingProvider.notifier)
+                      .uploadProfileImage(
                         imageBytes: bytes,
                         fileName: fileName,
                         contentType: mimeType,

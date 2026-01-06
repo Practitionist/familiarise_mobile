@@ -60,8 +60,7 @@ extension FailureX on Failure {
   /// Get user-friendly error message for display
   String get displayMessage => switch (this) {
         ServerFailure(:final statusCode, :final errorCode) =>
-          _getErrorCodeMessage(errorCode) ??
-              _getServerErrorMessage(statusCode),
+          _getErrorCodeMessage(errorCode) ?? _getServerErrorMessage(statusCode),
         NetworkFailure() =>
           'Unable to connect. Please check your internet connection.',
         AuthFailure() => 'Your session has expired. Please sign in again.',

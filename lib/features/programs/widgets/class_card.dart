@@ -170,7 +170,8 @@ class ClassCard extends StatelessWidget {
                         classPlan.consultant!.name.isNotEmpty
                             ? classPlan.consultant!.name[0].toUpperCase()
                             : '?',
-                        style: theme.textTheme.labelSmall?.copyWith(fontSize: 8),
+                        style:
+                            theme.textTheme.labelSmall?.copyWith(fontSize: 8),
                       )
                     : null,
               ),
@@ -241,7 +242,8 @@ class ClassCard extends StatelessWidget {
       spacing: 12,
       runSpacing: 4,
       children: [
-        _buildInfoChip(theme, Icons.calendar_month, classPlan.formattedDuration),
+        _buildInfoChip(
+            theme, Icons.calendar_month, classPlan.formattedDuration),
         _buildInfoChip(
             theme, Icons.schedule, '${classPlan.meetingsPerWeek}x/week'),
         _buildInfoChip(

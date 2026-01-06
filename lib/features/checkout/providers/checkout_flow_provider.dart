@@ -109,7 +109,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'gateway': gateway.value,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
     }
   }
 
@@ -173,7 +174,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'gateway': gateway.value,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
     }
   }
 
@@ -207,7 +209,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'paymentId': _currentSession?.paymentId,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Payment processing failed: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Payment processing failed: $e');
     }
   }
 
@@ -318,7 +321,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'paymentId': _currentSession?.paymentId,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
     }
   }
 
@@ -351,7 +355,8 @@ class CheckoutFlow extends _$CheckoutFlow {
         stackTrace: stack,
         context: 'CheckoutFlow.verifyPaymentExternal',
       );
-      state = CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
     }
   }
 

@@ -64,7 +64,8 @@ class JsonMapConversionInterceptor extends Interceptor {
     if (value is Map) {
       // Convert _JsonMap to Map<String, dynamic>
       return Map<String, dynamic>.fromEntries(
-        value.entries.map((e) => MapEntry(e.key.toString(), _deepConvertMap(e.value))),
+        value.entries
+            .map((e) => MapEntry(e.key.toString(), _deepConvertMap(e.value))),
       );
     }
     if (value is List) {

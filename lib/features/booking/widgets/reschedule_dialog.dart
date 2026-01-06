@@ -106,8 +106,7 @@ class _RescheduleOptionsSheet extends StatelessWidget {
               title: 'Reschedule Entire Subscription',
               description:
                   'Release all scheduled sessions and select new times for the entire subscription period.',
-              onTap: () =>
-                  Navigator.of(context).pop(const RescheduleEntire()),
+              onTap: () => Navigator.of(context).pop(const RescheduleEntire()),
             ),
             const SizedBox(height: 12),
 
@@ -118,8 +117,7 @@ class _RescheduleOptionsSheet extends StatelessWidget {
               title: 'Reschedule One Session',
               description:
                   'Change the time for a specific session while keeping other sessions unchanged.',
-              onTap: () =>
-                  Navigator.of(context).pop(const RescheduleSession()),
+              onTap: () => Navigator.of(context).pop(const RescheduleSession()),
             ),
             const SizedBox(height: 16),
 

@@ -140,13 +140,11 @@ class DomainRepository extends BaseRepository {
         .model('Domain')
         .action(QueryAction.findMany)
         .computed({
-          'subDomainCount': ComputedField.count(
-            from: 'SubDomain',
-            where: {'domainId': FieldRef('id')},
-          ),
-        })
-        .orderBy({'name': 'asc'})
-        .build();
+      'subDomainCount': ComputedField.count(
+        from: 'SubDomain',
+        where: {'domainId': FieldRef('id')},
+      ),
+    }).orderBy({'name': 'asc'}).build();
 
     return executeQueryAsMaps(query);
   }

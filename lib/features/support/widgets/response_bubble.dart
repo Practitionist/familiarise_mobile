@@ -111,11 +111,13 @@ class ResponseBubble extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      _formatTimestamp(response.createdAt!, timeFormat, dateFormat),
+                      _formatTimestamp(
+                          response.createdAt!, timeFormat, dateFormat),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: isStaff
                             ? colorScheme.onSurfaceVariant
-                            : colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                            : colorScheme.onPrimaryContainer
+                                .withValues(alpha: 0.7),
                         fontSize: 10,
                       ),
                     ),

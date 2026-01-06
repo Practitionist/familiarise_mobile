@@ -16,21 +16,25 @@ abstract class EnvConfig {
   static String directUrl = _EnvConfig.directUrl;
 
   // Supabase
-  @EnviedField(varName: 'SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co')
+  @EnviedField(
+      varName: 'SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co')
   static String supabaseUrl = _EnvConfig.supabaseUrl;
 
-  @EnviedField(varName: 'SUPABASE_ANON_KEY', defaultValue: 'placeholder-anon-key')
+  @EnviedField(
+      varName: 'SUPABASE_ANON_KEY', defaultValue: 'placeholder-anon-key')
   static String supabaseAnonKey = _EnvConfig.supabaseAnonKey;
 
   // Stream
-  @EnviedField(varName: 'STREAM_API_KEY', defaultValue: 'placeholder-stream-key')
+  @EnviedField(
+      varName: 'STREAM_API_KEY', defaultValue: 'placeholder-stream-key')
   static String streamApiKey = _EnvConfig.streamApiKey;
 
   // Payments
   @EnviedField(varName: 'RAZORPAY_KEY_ID', defaultValue: 'rzp_test_placeholder')
   static String razorpayKeyId = _EnvConfig.razorpayKeyId;
 
-  @EnviedField(varName: 'STRIPE_PUBLISHABLE_KEY', defaultValue: 'pk_test_placeholder')
+  @EnviedField(
+      varName: 'STRIPE_PUBLISHABLE_KEY', defaultValue: 'pk_test_placeholder')
   static String stripePublishableKey = _EnvConfig.stripePublishableKey;
 
   // API
@@ -46,8 +50,11 @@ abstract class EnvConfig {
     if (kIsWeb) return url;
 
     // On Android, replace localhost with 10.0.2.2 for emulator support
-    if (Platform.isAndroid && (url.contains('localhost') || url.contains('127.0.0.1'))) {
-      return url.replaceFirst('localhost', '10.0.2.2').replaceFirst('127.0.0.1', '10.0.2.2');
+    if (Platform.isAndroid &&
+        (url.contains('localhost') || url.contains('127.0.0.1'))) {
+      return url
+          .replaceFirst('localhost', '10.0.2.2')
+          .replaceFirst('127.0.0.1', '10.0.2.2');
     }
 
     return url;

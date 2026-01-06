@@ -21,7 +21,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
         'error': {
           'code': 'METHOD_NOT_ALLOWED',
           'message': 'Only GET requests are allowed',
-          'details': {'allowedMethods': ['GET']},
+          'details': {
+            'allowedMethods': ['GET']
+          },
         },
       },
     );

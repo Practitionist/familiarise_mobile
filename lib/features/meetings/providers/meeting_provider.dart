@@ -40,8 +40,7 @@ class MeetingController extends _$MeetingController {
       final cameraStatus = await Permission.camera.request();
       final microphoneStatus = await Permission.microphone.request();
 
-      final granted =
-          cameraStatus.isGranted && microphoneStatus.isGranted;
+      final granted = cameraStatus.isGranted && microphoneStatus.isGranted;
 
       state = state.copyWith(
         isLoading: false,
@@ -94,6 +93,15 @@ class MeetingController extends _$MeetingController {
 
       await _streamVideo!.connect();
 
+      // Create the call (but don't join yet - that happens in joinCall())
+      _activeCall = _streamVideo!.makeCall(
+        callType: StreamCallType.defaultType(),
+        id: meetingToken.callId,
+      );
+
+      // Get or create the call on Stream's servers (required for camera preview)
+      await _activeCall!.getOrCreate();
+
       state = state.copyWith(
         isLoading: false,
         isInitialized: true,
@@ -125,16 +133,13 @@ class MeetingController extends _$MeetingController {
     state = state.copyWith(isJoining: true, error: null);
 
     try {
-      _activeCall = _streamVideo!.makeCall(
-        callType: StreamCallType.defaultType(),
-        id: state.callId!,
-      );
-
-      await _activeCall!.getOrCreate();
+      // _activeCall was already created in initialize()
+      // Just join the existing call
       await _activeCall!.join();
 
       // Apply initial settings
-      await _activeCall!.setMicrophoneEnabled(enabled: state.isMicrophoneEnabled);
+      await _activeCall!
+          .setMicrophoneEnabled(enabled: state.isMicrophoneEnabled);
       await _activeCall!.setCameraEnabled(enabled: state.isCameraEnabled);
 
       state = state.copyWith(

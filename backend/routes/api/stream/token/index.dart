@@ -45,7 +45,9 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -57,7 +59,9 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
     if (appointmentId == null || appointmentId.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'appointmentId is required'}},
+        body: {
+          'error': {'message': 'appointmentId is required'}
+        },
       );
     }
 
@@ -72,7 +76,9 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
     if (!hasAccess) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'You do not have access to this meeting'}},
+        body: {
+          'error': {'message': 'You do not have access to this meeting'}
+        },
       );
     }
 
@@ -83,8 +89,8 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
 
     final streamCallId = meeting['streamCallId'] as String;
 
-    // Initialize Stream service and generate token
-    final streamService = StreamService();
+    // Get Stream service from provider
+    final streamService = context.read<StreamService>();
 
     if (!streamService.isConfigured) {
       SentryLogger.error(
@@ -120,7 +126,9 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to generate Stream token'}},
+      body: {
+        'error': {'message': 'Failed to generate Stream token'}
+      },
     );
   }
 }

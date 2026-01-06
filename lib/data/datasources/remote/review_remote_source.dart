@@ -140,8 +140,9 @@ class ReviewRemoteSourceImpl implements ReviewRemoteSource {
     final paginationJson =
         json['pagination'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
-    final reviews =
-        reviewsJson.map((r) => _parseReview(r as Map<String, dynamic>)).toList();
+    final reviews = reviewsJson
+        .map((r) => _parseReview(r as Map<String, dynamic>))
+        .toList();
 
     final pagination = ReviewsPagination(
       page: paginationJson['page'] as int? ?? 0,

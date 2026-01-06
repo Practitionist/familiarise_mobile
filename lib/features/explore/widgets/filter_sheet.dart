@@ -24,7 +24,9 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
   }
 
   void _applyFilters() {
-    ref.read(exploreFiltersNotifierProvider.notifier).updateFilters(_tempFilters);
+    ref
+        .read(exploreFiltersNotifierProvider.notifier)
+        .updateFilters(_tempFilters);
     Navigator.pop(context);
   }
 
@@ -152,9 +154,8 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
               onSelected: (_) {
                 setState(() {
                   _tempFilters = _tempFilters.copyWith(
-                    domainId: _tempFilters.domainId == domain.id
-                        ? null
-                        : domain.id,
+                    domainId:
+                        _tempFilters.domainId == domain.id ? null : domain.id,
                     subDomainId: null,
                   );
                 });
@@ -202,9 +203,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
           min: 0,
           max: 50000,
           divisions: 50,
-          label: maxPrice == 50000
-              ? 'Any'
-              : '₹${maxPrice.toInt()}',
+          label: maxPrice == 50000 ? 'Any' : '₹${maxPrice.toInt()}',
           onChanged: (value) {
             setState(() {
               _tempFilters = _tempFilters.copyWith(
@@ -231,8 +230,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
       children: [
         ChoiceChip(
           label: const Text('Rating ↓'),
-          selected:
-              _tempFilters.sortBy == 'rating' && _tempFilters.sortDesc,
+          selected: _tempFilters.sortBy == 'rating' && _tempFilters.sortDesc,
           onSelected: (_) {
             setState(() {
               _tempFilters = _tempFilters.copyWith(
@@ -244,8 +242,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
         ),
         ChoiceChip(
           label: const Text('Rating ↑'),
-          selected:
-              _tempFilters.sortBy == 'rating' && !_tempFilters.sortDesc,
+          selected: _tempFilters.sortBy == 'rating' && !_tempFilters.sortDesc,
           onSelected: (_) {
             setState(() {
               _tempFilters = _tempFilters.copyWith(
@@ -257,8 +254,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
         ),
         ChoiceChip(
           label: const Text('Price ↓'),
-          selected:
-              _tempFilters.sortBy == 'price' && _tempFilters.sortDesc,
+          selected: _tempFilters.sortBy == 'price' && _tempFilters.sortDesc,
           onSelected: (_) {
             setState(() {
               _tempFilters = _tempFilters.copyWith(
@@ -270,8 +266,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
         ),
         ChoiceChip(
           label: const Text('Price ↑'),
-          selected:
-              _tempFilters.sortBy == 'price' && !_tempFilters.sortDesc,
+          selected: _tempFilters.sortBy == 'price' && !_tempFilters.sortDesc,
           onSelected: (_) {
             setState(() {
               _tempFilters = _tempFilters.copyWith(

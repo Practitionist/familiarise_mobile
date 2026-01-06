@@ -55,7 +55,9 @@ Future<Response> onRequest(RequestContext context) async {
   } on AuthException catch (e) {
     return Response.json(
       statusCode: e.statusCode,
-      body: {'error': {'message': e.message}},
+      body: {
+        'error': {'message': e.message}
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -66,7 +68,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'An unexpected error occurred'}},
+      body: {
+        'error': {'message': 'An unexpected error occurred'}
+      },
     );
   }
 }

@@ -52,7 +52,6 @@ class CheckoutSession with _$CheckoutSession {
     return (finalAmount * 100).round();
   }
 
-
   /// Has discount applied
   bool get hasDiscount => discountAmount != null && discountAmount! > 0;
 

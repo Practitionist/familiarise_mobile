@@ -99,8 +99,7 @@ class SlotRepository extends BaseRepository {
         .model('SlotOfAppointment')
         .action(QueryAction.findMany)
         .distinct()
-        .selectFields(['startsAt', 'endsAt', 'isTentative'])
-        .where({
+        .selectFields(['startsAt', 'endsAt', 'isTentative']).where({
       'AND': [
         {'startsAt': FilterOperators.gte(startDate.toIso8601String())},
         {'startsAt': FilterOperators.lt(endDate.toIso8601String())},
@@ -148,20 +147,17 @@ class SlotRepository extends BaseRepository {
         .model('SlotOfAvailabilityCustom')
         .action(QueryAction.findMany)
         .where({
-          'consultantProfileId': consultantProfileId,
-          'AND': [
-            {
-              'availabilityStartsAt':
-                  FilterOperators.gte(startDate.toIso8601String()),
-            },
-            {
-              'availabilityStartsAt':
-                  FilterOperators.lt(endDate.toIso8601String()),
-            },
-          ],
-        })
-        .orderBy({'availabilityStartsAt': 'asc'})
-        .build();
+      'consultantProfileId': consultantProfileId,
+      'AND': [
+        {
+          'availabilityStartsAt':
+              FilterOperators.gte(startDate.toIso8601String()),
+        },
+        {
+          'availabilityStartsAt': FilterOperators.lt(endDate.toIso8601String()),
+        },
+      ],
+    }).orderBy({'availabilityStartsAt': 'asc'}).build();
 
     final results = await executeQueryAsMaps(query);
 
@@ -170,7 +166,8 @@ class SlotRepository extends BaseRepository {
 
     // Generate slots at 30-minute increments within each merged window
     final expandedSlots = <Map<String, dynamic>>[];
-    final now = DateTime.now().toUtc(); // Use UTC for consistent timezone handling
+    final now =
+        DateTime.now().toUtc(); // Use UTC for consistent timezone handling
     final slotDuration = Duration(minutes: durationMinutes);
     const slotIncrement = Duration(minutes: 30);
 
@@ -180,7 +177,7 @@ class SlotRepository extends BaseRepository {
 
       var slotStart = windowStart;
       while (slotStart.add(slotDuration).isBefore(windowEnd) ||
-             slotStart.add(slotDuration).isAtSameMomentAs(windowEnd)) {
+          slotStart.add(slotDuration).isAtSameMomentAs(windowEnd)) {
         final slotEnd = slotStart.add(slotDuration);
 
         // Check if slot is in the past
@@ -220,9 +217,9 @@ class SlotRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('SlotOfAvailabilityWeekly')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .orderBy({'dayOfWeekForStartsAt': 'asc'},)
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).orderBy(
+      {'dayOfWeekForStartsAt': 'asc'},
+    ).build();
 
     final weeklySlots = await executeQueryAsMaps(query);
 
@@ -233,7 +230,8 @@ class SlotRepository extends BaseRepository {
     // Expand weekly pattern into specific date slots with plan duration
     final expandedSlots = <Map<String, dynamic>>[];
     var currentDate = startDate;
-    final now = DateTime.now().toUtc(); // Use UTC for consistent timezone handling
+    final now =
+        DateTime.now().toUtc(); // Use UTC for consistent timezone handling
     final slotDuration = Duration(minutes: durationMinutes);
     const slotIncrement = Duration(minutes: 30); // 30-min increments
 
@@ -283,7 +281,8 @@ class SlotRepository extends BaseRepository {
             final isBooked = _isSlotBooked(slotStart, slotEnd, bookedSlots);
 
             expandedSlots.add({
-              'id': '${crossDaySlot['id']}_crossday_${slotStart.toIso8601String()}',
+              'id':
+                  '${crossDaySlot['id']}_crossday_${slotStart.toIso8601String()}',
               'startsAt': slotStart,
               'endsAt': slotEnd,
               'isBooked': isBooked,
@@ -320,7 +319,7 @@ class SlotRepository extends BaseRepository {
         // Generate slots at 30-minute increments within the merged window
         var slotStart = windowStart;
         while (slotStart.add(slotDuration).isBefore(windowEnd) ||
-               slotStart.add(slotDuration).isAtSameMomentAs(windowEnd)) {
+            slotStart.add(slotDuration).isAtSameMomentAs(windowEnd)) {
           final slotEnd = slotStart.add(slotDuration);
 
           // Check if slot is in the past

@@ -204,12 +204,12 @@ class WebhookHandlers {
   }
 
   /// Find payment by paymentIntent field
-  Future<Map<String, dynamic>?> _findPaymentByIntent(String paymentIntent) async {
+  Future<Map<String, dynamic>?> _findPaymentByIntent(
+      String paymentIntent) async {
     final query = JsonQueryBuilder()
         .model('Payment')
         .action(QueryAction.findFirst)
-        .where({'paymentIntent': paymentIntent})
-        .build();
+        .where({'paymentIntent': paymentIntent}).build();
 
     return _db.executor.executeQueryAsSingleMap(query);
   }
@@ -220,8 +220,7 @@ class WebhookHandlers {
     final appointmentQuery = JsonQueryBuilder()
         .model('Appointment')
         .action(QueryAction.findUnique)
-        .where({'id': appointmentId})
-        .build();
+        .where({'id': appointmentId}).build();
     final appointment =
         await _db.executor.executeQueryAsSingleMap(appointmentQuery);
 

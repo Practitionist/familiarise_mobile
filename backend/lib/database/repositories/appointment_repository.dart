@@ -32,8 +32,18 @@ class SlotConflictException implements Exception {
 class AppointmentRepository extends BaseRepository {
   /// Month abbreviations for date formatting
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   /// Create an appointment repository with the given executor
@@ -129,7 +139,8 @@ class AppointmentRepository extends BaseRepository {
   }) async {
     // Step 1: Get all appointment IDs for this consultant
     // This avoids the complex nested relation filter that causes SQL errors
-    final appointmentIds = await _getConsultantAppointmentIds(consultantProfileId);
+    final appointmentIds =
+        await _getConsultantAppointmentIds(consultantProfileId);
 
     if (appointmentIds.isEmpty) {
       // No existing appointments for this consultant, so no conflicts possible
@@ -158,7 +169,9 @@ class AppointmentRepository extends BaseRepository {
           {
             'AND': [
               {'isTentative': true},
-              {'createdAt': {'gte': tentativeCutoff}},
+              {
+                'createdAt': {'gte': tentativeCutoff}
+              },
             ],
           },
         ],
@@ -176,48 +189,50 @@ class AppointmentRepository extends BaseRepository {
   }
 
   /// Get all appointment IDs for a consultant (from both consultations and subscriptions)
-  Future<List<String>> _getConsultantAppointmentIds(String consultantProfileId) async {
+  Future<List<String>> _getConsultantAppointmentIds(
+      String consultantProfileId) async {
     final appointmentIds = <String>[];
 
     // Get consultation plan IDs for this consultant
     final consultationPlansQuery = JsonQueryBuilder()
         .model('ConsultationPlan')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true}).build();
     final consultationPlans = await executeQueryAsMaps(consultationPlansQuery);
-    final consultationPlanIds = consultationPlans.map((p) => p['id'] as String).toList();
+    final consultationPlanIds =
+        consultationPlans.map((p) => p['id'] as String).toList();
 
     // Get subscription plan IDs for this consultant
     final subscriptionPlansQuery = JsonQueryBuilder()
         .model('SubscriptionPlan')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true}).build();
     final subscriptionPlans = await executeQueryAsMaps(subscriptionPlansQuery);
-    final subscriptionPlanIds = subscriptionPlans.map((p) => p['id'] as String).toList();
+    final subscriptionPlanIds =
+        subscriptionPlans.map((p) => p['id'] as String).toList();
 
     // Get consultation IDs for those plans
     if (consultationPlanIds.isNotEmpty) {
       final consultationsQuery = JsonQueryBuilder()
           .model('Consultation')
           .action(QueryAction.findMany)
-          .where({'consultationPlanId': FilterOperators.in_(consultationPlanIds)})
-          .select({'id': true})
-          .build();
+          .where({
+        'consultationPlanId': FilterOperators.in_(consultationPlanIds)
+      }).select({'id': true}).build();
       final consultations = await executeQueryAsMaps(consultationsQuery);
-      final consultationIds = consultations.map((c) => c['id'] as String).toList();
+      final consultationIds =
+          consultations.map((c) => c['id'] as String).toList();
 
       // Get appointment IDs for those consultations
       if (consultationIds.isNotEmpty) {
         final appointmentsQuery = JsonQueryBuilder()
             .model('Appointment')
             .action(QueryAction.findMany)
-            .where({'consultationId': FilterOperators.in_(consultationIds)})
-            .select({'id': true})
-            .build();
+            .where({
+          'consultationId': FilterOperators.in_(consultationIds)
+        }).select({'id': true}).build();
         final appointments = await executeQueryAsMaps(appointmentsQuery);
         appointmentIds.addAll(appointments.map((a) => a['id'] as String));
       }
@@ -228,20 +243,21 @@ class AppointmentRepository extends BaseRepository {
       final subscriptionsQuery = JsonQueryBuilder()
           .model('Subscription')
           .action(QueryAction.findMany)
-          .where({'subscriptionPlanId': FilterOperators.in_(subscriptionPlanIds)})
-          .select({'id': true})
-          .build();
+          .where({
+        'subscriptionPlanId': FilterOperators.in_(subscriptionPlanIds)
+      }).select({'id': true}).build();
       final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
-      final subscriptionIds = subscriptions.map((s) => s['id'] as String).toList();
+      final subscriptionIds =
+          subscriptions.map((s) => s['id'] as String).toList();
 
       // Get appointment IDs for those subscriptions
       if (subscriptionIds.isNotEmpty) {
         final appointmentsQuery = JsonQueryBuilder()
             .model('Appointment')
             .action(QueryAction.findMany)
-            .where({'subscriptionId': FilterOperators.in_(subscriptionIds)})
-            .select({'id': true})
-            .build();
+            .where({
+          'subscriptionId': FilterOperators.in_(subscriptionIds)
+        }).select({'id': true}).build();
         final appointments = await executeQueryAsMaps(appointmentsQuery);
         appointmentIds.addAll(appointments.map((a) => a['id'] as String));
       }
@@ -323,9 +339,8 @@ class AppointmentRepository extends BaseRepository {
 
       if (conflicts.isNotEmpty) {
         // Return ISO8601 times for client-side formatting in local timezone
-        final conflictTimes = conflicts
-            .map((d) => d.toUtc().toIso8601String())
-            .toList();
+        final conflictTimes =
+            conflicts.map((d) => d.toUtc().toIso8601String()).toList();
 
         throw SlotConflictException(
           'The following time slots are no longer available. '
@@ -338,90 +353,90 @@ class AppointmentRepository extends BaseRepository {
 
       // Create the booking within a transaction
       return await executeInTransaction((txn) async {
-      // Create Consultation record
-      final consultationId = _uuid.v4();
-      final consultationQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.create)
-          .data({
-        'id': consultationId,
-        'consultationPlanId': planId,
-        'requestedById': requestedById,
-        'requestStatus': 'PENDING',
-        'requestNotes': message,
-        'bookingSource': 'REQUEST_SUBMITTED',
-        'requestedAt': now,
-        'createdAt': now,
-        'updatedAt': now,
-      }).build();
-      await txn.executeMutation(consultationQuery);
-
-      // Create Appointment record
-      final appointmentId = _uuid.v4();
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.create)
-          .data({
-        'id': appointmentId,
-        'appointmentType': 'CONSULTATION',
-        'consultationId': consultationId,
-        'createdAt': now,
-        'updatedAt': now,
-      }).build();
-      await txn.executeMutation(appointmentQuery);
-
-      // Create SlotOfAppointment records using createMany
-      final slotsData = slotStartTimes.map((slotStart) {
-        final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
-        return {
-          'id': _uuid.v4(),
-          'appointmentId': appointmentId,
-          'startsAt': slotStart.toUtc().toIso8601String(),
-          'endsAt': slotEnd.toUtc().toIso8601String(),
-          'isTentative': true,
+        // Create Consultation record
+        final consultationId = _uuid.v4();
+        final consultationQuery = JsonQueryBuilder()
+            .model('Consultation')
+            .action(QueryAction.create)
+            .data({
+          'id': consultationId,
+          'consultationPlanId': planId,
+          'requestedById': requestedById,
+          'requestStatus': 'PENDING',
+          'requestNotes': message,
+          'bookingSource': 'REQUEST_SUBMITTED',
+          'requestedAt': now,
           'createdAt': now,
           'updatedAt': now,
+        }).build();
+        await txn.executeMutation(consultationQuery);
+
+        // Create Appointment record
+        final appointmentId = _uuid.v4();
+        final appointmentQuery = JsonQueryBuilder()
+            .model('Appointment')
+            .action(QueryAction.create)
+            .data({
+          'id': appointmentId,
+          'appointmentType': 'CONSULTATION',
+          'consultationId': consultationId,
+          'createdAt': now,
+          'updatedAt': now,
+        }).build();
+        await txn.executeMutation(appointmentQuery);
+
+        // Create SlotOfAppointment records using createMany
+        final slotsData = slotStartTimes.map((slotStart) {
+          final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
+          return {
+            'id': _uuid.v4(),
+            'appointmentId': appointmentId,
+            'startsAt': slotStart.toUtc().toIso8601String(),
+            'endsAt': slotEnd.toUtc().toIso8601String(),
+            'isTentative': true,
+            'createdAt': now,
+            'updatedAt': now,
+          };
+        }).toList();
+
+        final slotsQuery = JsonQueryBuilder()
+            .model('SlotOfAppointment')
+            .action(QueryAction.createMany)
+            .data({'data': slotsData}).build();
+        await txn.executeMutation(slotsQuery);
+
+        // Link users to slots via junction table
+        // Note: For bulk operations with createMany, raw SQL is more efficient.
+        // For single-record operations, use the v0.3.0 connect API:
+        //   JsonQueryBuilder().model('SlotOfAppointment').action(QueryAction.create)
+        //     .data({'id': slotId, 'users': {'connect': [{'id': userId}]}}).build()
+        // Column B references users.id, so we use userId (not consulteeProfileId)
+        for (final slotData in slotsData) {
+          await txn.executeMutationRaw(
+            r'INSERT INTO "_SlotOfAppointmentToUser" ("A", "B") VALUES ($1, $2)',
+            [slotData['id'], userId],
+          );
+        }
+
+        // Fetch and return the created booking
+        final resultQuery = JsonQueryBuilder()
+            .model('Consultation')
+            .action(QueryAction.findUnique)
+            .where({'id': consultationId}).build();
+
+        final result = await txn.executeQueryAsSingleMap(resultQuery);
+        if (result == null) {
+          throw Exception('Failed to create consultation');
+        }
+
+        return {
+          'id': result['id'],
+          'bookingType': 'CONSULTATION',
+          'status': result['requestStatus'],
+          'message': result['requestNotes'],
+          'createdAt': result['createdAt'],
         };
-      }).toList();
-
-      final slotsQuery = JsonQueryBuilder()
-          .model('SlotOfAppointment')
-          .action(QueryAction.createMany)
-          .data({'data': slotsData}).build();
-      await txn.executeMutation(slotsQuery);
-
-      // Link users to slots via junction table
-      // Note: For bulk operations with createMany, raw SQL is more efficient.
-      // For single-record operations, use the v0.3.0 connect API:
-      //   JsonQueryBuilder().model('SlotOfAppointment').action(QueryAction.create)
-      //     .data({'id': slotId, 'users': {'connect': [{'id': userId}]}}).build()
-      // Column B references users.id, so we use userId (not consulteeProfileId)
-      for (final slotData in slotsData) {
-        await txn.executeMutationRaw(
-          r'INSERT INTO "_SlotOfAppointmentToUser" ("A", "B") VALUES ($1, $2)',
-          [slotData['id'], userId],
-        );
-      }
-
-      // Fetch and return the created booking
-      final resultQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findUnique)
-          .where({'id': consultationId}).build();
-
-      final result = await txn.executeQueryAsSingleMap(resultQuery);
-      if (result == null) {
-        throw Exception('Failed to create consultation');
-      }
-
-      return {
-        'id': result['id'],
-        'bookingType': 'CONSULTATION',
-        'status': result['requestStatus'],
-        'message': result['requestNotes'],
-        'createdAt': result['createdAt'],
-      };
-    });
+      });
     } finally {
       // Always release locks, even if transaction fails
       await SlotLock.releaseMultipleLocks(consultantProfileId, locks);
@@ -481,7 +496,8 @@ class AppointmentRepository extends BaseRepository {
       1,
     );
     // Get the last valid day of the target month
-    final lastDayOfMonth = DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
+    final lastDayOfMonth =
+        DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
     // Use the original day if valid, otherwise use the last day of the month
     final targetDay = schedulingPeriodStart.day > lastDayOfMonth
         ? lastDayOfMonth
@@ -1123,7 +1139,7 @@ class AppointmentRepository extends BaseRepository {
             .action(QueryAction.findUnique)
             .where({'id': consultantProfileId}).include({'user': true}).build();
         profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
-        
+
         // Handle nested or flattened user fields
         user = profile?['user'] as Map<String, dynamic>?;
         if (user == null && profile != null) {
@@ -1151,8 +1167,10 @@ class AppointmentRepository extends BaseRepository {
         'planId': plan?['id'] ?? result['consultationPlanId'],
         'planTitle': plan?['title'] ?? result['consultationPlanTitle'],
         'planPrice': plan?['price'] ?? result['consultationPlanPrice'],
-        'planCurrency': plan?['priceCurrency'] ?? result['consultationPlanPriceCurrency'],
-        'planDuration': plan?['durationInHours'] ?? result['consultationPlanDurationInHours'],
+        'planCurrency':
+            plan?['priceCurrency'] ?? result['consultationPlanPriceCurrency'],
+        'planDuration': plan?['durationInHours'] ??
+            result['consultationPlanDurationInHours'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -1165,19 +1183,19 @@ class AppointmentRepository extends BaseRepository {
           .action(QueryAction.findFirst)
           .where({'consultationId': id}).build();
 
-      final appointment = await executeQueryAsSingleMap(appointmentQuery, txn: txn);
+      final appointment =
+          await executeQueryAsSingleMap(appointmentQuery, txn: txn);
 
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
-        
+
         // Fetch slots separately to avoid ORM flattening issue
         final slotsQuery = JsonQueryBuilder()
             .model('SlotOfAppointment')
             .action(QueryAction.findMany)
-            .where({'appointmentId': appointment['id']})
-            .orderBy({'startsAt': 'asc'})
-            .build();
-        
+            .where({'appointmentId': appointment['id']}).orderBy(
+                {'startsAt': 'asc'}).build();
+
         final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
         if (slots.isNotEmpty) {
           booking['slots'] = slots
@@ -1225,7 +1243,7 @@ class AppointmentRepository extends BaseRepository {
             .action(QueryAction.findUnique)
             .where({'id': consultantProfileId}).include({'user': true}).build();
         profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
-        
+
         // Handle nested or flattened user fields
         user = profile?['user'] as Map<String, dynamic>?;
         if (user == null && profile != null) {
@@ -1256,9 +1274,12 @@ class AppointmentRepository extends BaseRepository {
         'planId': plan?['id'] ?? result['subscriptionPlanId'],
         'planTitle': plan?['title'] ?? result['subscriptionPlanTitle'],
         'planPrice': plan?['price'] ?? result['subscriptionPlanPrice'],
-        'planCurrency': plan?['priceCurrency'] ?? result['subscriptionPlanPriceCurrency'],
-        'totalSessions': plan?['totalSessions'] ?? result['subscriptionPlanTotalSessions'],
-        'sessionDurationInHours': plan?['sessionDurationInHours'] ?? result['subscriptionPlanSessionDurationInHours'],
+        'planCurrency':
+            plan?['priceCurrency'] ?? result['subscriptionPlanPriceCurrency'],
+        'totalSessions':
+            plan?['totalSessions'] ?? result['subscriptionPlanTotalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'] ??
+            result['subscriptionPlanSessionDurationInHours'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -1524,7 +1545,7 @@ class AppointmentRepository extends BaseRepository {
       } else if (startsAtRaw is String) {
         startsAt = DateTime.parse(startsAtRaw);
       }
-      
+
       if (startsAt != null) {
         final hoursUntil = startsAt.difference(now).inHours;
         if (hoursUntil < 24) {
@@ -1538,7 +1559,8 @@ class AppointmentRepository extends BaseRepository {
 
   /// Mark slots as tentative
   /// If slotId is provided, only mark that slot; otherwise mark all slots
-  Future<void> _markSlotsAsTentative(String appointmentId, String? slotId) async {
+  Future<void> _markSlotsAsTentative(
+      String appointmentId, String? slotId) async {
     final now = nowIso8601;
 
     if (slotId != null) {

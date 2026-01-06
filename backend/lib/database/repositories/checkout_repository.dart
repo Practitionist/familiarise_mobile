@@ -27,10 +27,8 @@ class CheckoutRepository extends BaseRepository {
     final now = nowIso8601;
 
     // Create payment record
-    final createQuery = JsonQueryBuilder()
-        .model('Payment')
-        .action(QueryAction.create)
-        .data({
+    final createQuery =
+        JsonQueryBuilder().model('Payment').action(QueryAction.create).data({
       'id': paymentId,
       'amount': amount,
       'currency': currency,
@@ -43,7 +41,10 @@ class CheckoutRepository extends BaseRepository {
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (discountCodeId != null) 'discountCodeId': discountCodeId,
       if (description != null) 'description': description,
-      'expiresAt': DateTime.now().add(const Duration(hours: 1)).toUtc().toIso8601String(),
+      'expiresAt': DateTime.now()
+          .add(const Duration(hours: 1))
+          .toUtc()
+          .toIso8601String(),
       'createdAt': now,
       'updatedAt': now,
     }).build();
@@ -166,7 +167,9 @@ class CheckoutRepository extends BaseRepository {
       'isActive': true,
       'OR': [
         {'expiresAt': null},
-        {'expiresAt': {'gt': nowIso8601}},
+        {
+          'expiresAt': {'gt': nowIso8601}
+        },
       ],
     }).build();
 

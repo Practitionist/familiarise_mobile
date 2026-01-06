@@ -127,7 +127,8 @@ class BookingCard extends StatelessWidget {
                         Text(
                           'Requested ${_formatRelativeDate(booking.createdAt!)}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            color:
+                                colorScheme.onSurfaceVariant.withOpacity(0.7),
                           ),
                         ),
                       _buildPriceTag(theme),

@@ -30,8 +30,8 @@ Future<Response> onRequest(RequestContext context) async {
     final language = params['language'];
     final searchQuery = params['search'];
     final page = int.tryParse(params['page'] ?? '0') ?? 0;
-    final pageSize = (int.tryParse(params['pageSize'] ?? '20') ?? 20)
-        .clamp(1, 50);
+    final pageSize =
+        (int.tryParse(params['pageSize'] ?? '20') ?? 20).clamp(1, 50);
     final sortBy = params['sortBy'] ?? 'date';
     final sortOrder = params['sortOrder'] ?? 'asc';
 

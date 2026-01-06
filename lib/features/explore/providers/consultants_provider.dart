@@ -110,7 +110,8 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier.refresh',
       );
-      state = state.copyWith(isLoading: false, error: ErrorMessages.getConsultantsLoadError(e));
+      state = state.copyWith(
+          isLoading: false, error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 
@@ -140,7 +141,9 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier.loadMore',
       );
-      state = state.copyWith(isLoadingMore: false, error: ErrorMessages.getConsultantsLoadError(e));
+      state = state.copyWith(
+          isLoadingMore: false,
+          error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 }

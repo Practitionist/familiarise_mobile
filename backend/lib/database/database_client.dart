@@ -395,6 +395,14 @@ SchemaRegistry _buildSchemaRegistry() {
         foreignKey: 'appointmentId',
         isOwner: true,
       ),
+      // M2M relation to users via _SlotOfAppointmentToUser join table
+      'user': RelationInfo.manyToMany(
+        name: 'user',
+        targetModel: 'users',
+        joinTable: '_SlotOfAppointmentToUser',
+        joinColumn: 'A',
+        inverseJoinColumn: 'B',
+      ),
     },
   ));
 
@@ -560,6 +568,37 @@ SchemaRegistry _buildSchemaRegistry() {
         name: 'ticket',
         targetModel: 'SupportTicket',
         foreignKey: 'ticketId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // MeetingSession model
+  schema.registerModel(ModelSchema(
+    name: 'MeetingSession',
+    tableName: 'MeetingSession',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'streamCallId': const FieldInfo(
+          name: 'streamCallId', columnName: 'streamCallId', type: 'String'),
+      'platform': const FieldInfo(
+          name: 'platform', columnName: 'platform', type: 'String'),
+      'passcode': const FieldInfo(
+          name: 'passcode', columnName: 'passcode', type: 'String'),
+      'slotOfAppointmentId': const FieldInfo(
+          name: 'slotOfAppointmentId',
+          columnName: 'slotOfAppointmentId',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'slotOfAppointment': RelationInfo.oneToOne(
+        name: 'slotOfAppointment',
+        targetModel: 'SlotOfAppointment',
+        foreignKey: 'slotOfAppointmentId',
         isOwner: true,
       ),
     },

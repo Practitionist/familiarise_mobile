@@ -51,11 +51,14 @@ class _CreateTicketScreenState extends ConsumerState<CreateTicketScreen> {
       description: _descriptionController.text.trim(),
       issueType: _selectedIssueType?.value,
       priority: _selectedPriority.value,
-      consultationId: widget.bookingType == 'CONSULTATION' ? widget.bookingId : null,
-      subscriptionId: widget.bookingType == 'SUBSCRIPTION' ? widget.bookingId : null,
+      consultationId:
+          widget.bookingType == 'CONSULTATION' ? widget.bookingId : null,
+      subscriptionId:
+          widget.bookingType == 'SUBSCRIPTION' ? widget.bookingId : null,
     );
 
-    final ticket = await ref.read(createTicketProvider.notifier).submit(request);
+    final ticket =
+        await ref.read(createTicketProvider.notifier).submit(request);
 
     setState(() => _isSubmitting = false);
 
@@ -285,7 +288,8 @@ class _CreateTicketScreenState extends ConsumerState<CreateTicketScreen> {
           label: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.flag, size: 14, color: isSelected ? Colors.white : color),
+              Icon(Icons.flag,
+                  size: 14, color: isSelected ? Colors.white : color),
               const SizedBox(width: 4),
               Text(priority.displayName),
             ],

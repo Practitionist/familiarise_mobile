@@ -144,7 +144,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   Widget _buildConsultationBooking(ThemeData theme, bool isLoading) {
     // Get consultant details
-    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+    final consultantAsync =
+        ref.watch(consultantDetailsProvider(widget.consultantId));
 
     // Get availability for the selected date range
     final startDate = _selectedDate;
@@ -244,7 +245,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   Widget _buildSubscriptionBooking(ThemeData theme, bool isLoading) {
     // Get consultant details
-    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+    final consultantAsync =
+        ref.watch(consultantDetailsProvider(widget.consultantId));
 
     // Calculate end date based on start date and plan duration
     final calculatedEndDate = _periodStartDate != null
@@ -422,8 +424,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         itemBuilder: (context, index) {
           final date = dates[index];
           final isSelected = _isSameDay(date, _selectedDate);
-          final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-              [date.weekday - 1];
+          final weekday = [
+            'Mon',
+            'Tue',
+            'Wed',
+            'Thu',
+            'Fri',
+            'Sat',
+            'Sun'
+          ][date.weekday - 1];
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -571,7 +580,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   slot.formattedTimeRange,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: textColor,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
@@ -677,7 +687,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   Widget _buildPlanInfoCard(ThemeData theme) {
-    final consultantAsync = ref.watch(consultantDetailsProvider(widget.consultantId));
+    final consultantAsync =
+        ref.watch(consultantDetailsProvider(widget.consultantId));
 
     return consultantAsync.when(
       data: (consultant) {
@@ -690,10 +701,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         String? price;
 
         if (isConsultation) {
-          final plan = consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
-            (p) => p?.id == widget.planId,
-            orElse: () => null,
-          );
+          final plan =
+              consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
+                    (p) => p?.id == widget.planId,
+                    orElse: () => null,
+                  );
           if (plan != null) {
             title = plan.title;
             description = plan.description;
@@ -701,10 +713,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             price = plan.formattedPrice;
           }
         } else {
-          final plan = consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
-            (p) => p?.id == widget.planId,
-            orElse: () => null,
-          );
+          final plan =
+              consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
+                    (p) => p?.id == widget.planId,
+                    orElse: () => null,
+                  );
           if (plan != null) {
             title = plan.title;
             description = plan.description;
@@ -739,7 +752,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary,
                       borderRadius: BorderRadius.circular(8),
@@ -796,7 +810,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
-  Widget _buildConsultantInfoCard(ThemeData theme, ConsultantDetails consultant) {
+  Widget _buildConsultantInfoCard(
+      ThemeData theme, ConsultantDetails consultant) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -883,7 +898,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                         ],
                       ],
                     ),
-                    if (consultant.headline != null && consultant.headline!.isNotEmpty) ...[
+                    if (consultant.headline != null &&
+                        consultant.headline!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         consultant.headline!,
@@ -906,7 +922,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               // Rating
               if (consultant.rating != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -936,9 +953,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               // Experience
               if (consultant.experience != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                    color: theme.colorScheme.secondaryContainer
+                        .withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -954,9 +973,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               if (consultant.domain != null) ...[
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                      color: theme.colorScheme.tertiaryContainer
+                          .withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -1023,14 +1044,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (_selectedSlot == null) return;
 
     // Get consultant and plan details for direct checkout
-    final consultantData = ref.read(consultantDetailsProvider(widget.consultantId));
+    final consultantData =
+        ref.read(consultantDetailsProvider(widget.consultantId));
     final consultant = consultantData.valueOrNull;
     if (consultant == null) return;
 
-    final plan = consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
-      (p) => p?.id == widget.planId,
-      orElse: () => null,
-    );
+    final plan =
+        consultant.consultationPlans.cast<ConsultationPlan?>().firstWhere(
+              (p) => p?.id == widget.planId,
+              orElse: () => null,
+            );
     if (plan == null) return;
 
     // Navigate to direct checkout
@@ -1055,14 +1078,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (_periodStartDate == null) return;
 
     // Get consultant and plan details for direct checkout
-    final consultantData = ref.read(consultantDetailsProvider(widget.consultantId));
+    final consultantData =
+        ref.read(consultantDetailsProvider(widget.consultantId));
     final consultant = consultantData.valueOrNull;
     if (consultant == null) return;
 
-    final plan = consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
-      (p) => p?.id == widget.planId,
-      orElse: () => null,
-    );
+    final plan =
+        consultant.subscriptionPlans.cast<SubscriptionPlan?>().firstWhere(
+              (p) => p?.id == widget.planId,
+              orElse: () => null,
+            );
     if (plan == null) return;
 
     // Calculate end date based on plan duration

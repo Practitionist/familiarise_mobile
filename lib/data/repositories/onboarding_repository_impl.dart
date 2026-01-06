@@ -101,7 +101,9 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.submitOnboarding');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace,
+          context: 'OnboardingRepository.submitOnboarding');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -115,7 +117,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
     } on CacheException catch (e) {
       return Left(Failure.unknown(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.saveDraft');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'OnboardingRepository.saveDraft');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -129,7 +132,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
     } on CacheException catch (e) {
       return Left(Failure.unknown(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.loadDraft');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'OnboardingRepository.loadDraft');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -142,7 +146,8 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
     } on CacheException catch (e) {
       return Left(Failure.unknown(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.clearDraft');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'OnboardingRepository.clearDraft');
       return Left(Failure.unknown(message: e.toString()));
     }
   }
@@ -177,7 +182,9 @@ class OnboardingRepositoryImpl implements OnboardingRepositoryExtended {
     } on NetworkException catch (e) {
       return Left(Failure.network(message: e.message));
     } catch (e, stackTrace) {
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'OnboardingRepository.uploadProfileImage');
+      SentryLogger.captureException(e,
+          stackTrace: stackTrace,
+          context: 'OnboardingRepository.uploadProfileImage');
       return Left(Failure.unknown(message: e.toString()));
     }
   }

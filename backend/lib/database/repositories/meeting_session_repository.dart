@@ -15,21 +15,20 @@ class MeetingSessionRepository extends BaseRepository {
   /// Check if user has access to an appointment
   ///
   /// Returns true if the user is a participant in any of the appointment's slots.
-  /// Uses the many-to-many relation between SlotOfAppointment and User.
+  /// Uses ORM with relation filter to check M2M relationship.
   Future<bool> userHasAccessToAppointment({
     required String appointmentId,
     required String userId,
   }) async {
-    final count = await executeCount(
-      JsonQueryBuilder()
-          .model('SlotOfAppointment')
-          .action(QueryAction.count)
-          .where({
-            'appointmentId': appointmentId,
-            'user': FilterOperators.some({'id': userId}),
-          })
-          .build(),
-    );
+    // Use relation filter to check if any slot has this user
+    final countQuery = JsonQueryBuilder()
+        .model('SlotOfAppointment')
+        .action(QueryAction.count)
+        .where({
+      'appointmentId': appointmentId,
+      'user': FilterOperators.some({'id': userId}),
+    }).build();
+    final count = await executeCount(countQuery);
     return count > 0;
   }
 
@@ -44,10 +43,8 @@ class MeetingSessionRepository extends BaseRepository {
     final slotsQuery = JsonQueryBuilder()
         .model('SlotOfAppointment')
         .action(QueryAction.findMany)
-        .where({'appointmentId': appointmentId})
-        .select({'id': true})
-        .orderBy({'startsAt': 'asc'})
-        .build();
+        .where({'appointmentId': appointmentId}).select({'id': true}).orderBy(
+            {'startsAt': 'asc'}).build();
     final slots = await executeQueryAsMaps(slotsQuery);
     if (slots.isEmpty) return null;
 
@@ -57,9 +54,8 @@ class MeetingSessionRepository extends BaseRepository {
     final meetingQuery = JsonQueryBuilder()
         .model('MeetingSession')
         .action(QueryAction.findFirst)
-        .where({'slotOfAppointmentId': FilterOperators.in_(slotIds)})
-        .include({'slotOfAppointment': true})
-        .build();
+        .where({'slotOfAppointmentId': FilterOperators.in_(slotIds)}).include(
+            {'slotOfAppointment': true}).build();
     return executeQueryAsSingleMap(meetingQuery);
   }
 
@@ -80,25 +76,23 @@ class MeetingSessionRepository extends BaseRepository {
     final slotQuery = JsonQueryBuilder()
         .model('SlotOfAppointment')
         .action(QueryAction.findUnique)
-        .where({'id': slotId})
-        .include({
-          'user': {
-            'select': {'id': true, 'name': true, 'image': true, 'role': true}
-          }
-        })
-        .build();
+        .where({'id': slotId}).include({
+      'user': {
+        'select': {'id': true, 'name': true, 'image': true, 'role': true}
+      }
+    }).build();
     final slot = await executeQueryAsSingleMap(slotQuery);
 
     // Step 3: Extract consultant and consultee from users
     final users = slot?['user'] as List<dynamic>? ?? [];
     final consultant = users.cast<Map<String, dynamic>>().firstWhere(
-      (u) => u['role'] == 'CONSULTANT',
-      orElse: () => <String, dynamic>{},
-    );
+          (u) => u['role'] == 'CONSULTANT',
+          orElse: () => <String, dynamic>{},
+        );
     final consultee = users.cast<Map<String, dynamic>>().firstWhere(
-      (u) => u['role'] == 'CONSULTEE',
-      orElse: () => <String, dynamic>{},
-    );
+          (u) => u['role'] == 'CONSULTEE',
+          orElse: () => <String, dynamic>{},
+        );
 
     return {
       'id': meeting['id'],
@@ -130,10 +124,8 @@ class MeetingSessionRepository extends BaseRepository {
     final slotQuery = JsonQueryBuilder()
         .model('SlotOfAppointment')
         .action(QueryAction.findFirst)
-        .where({'appointmentId': appointmentId})
-        .orderBy({'startsAt': 'asc'})
-        .select({'id': true})
-        .build();
+        .where({'appointmentId': appointmentId}).orderBy(
+            {'startsAt': 'asc'}).select({'id': true}).build();
     final slot = await executeQueryAsSingleMap(slotQuery);
 
     if (slot == null) {
@@ -150,14 +142,13 @@ class MeetingSessionRepository extends BaseRepository {
         .model('MeetingSession')
         .action(QueryAction.create)
         .data({
-          'id': meetingId,
-          'streamCallId': streamCallId,
-          'platform': 'STREAM',
-          'slotOfAppointmentId': slotId,
-          'createdAt': now,
-          'updatedAt': now,
-        })
-        .build();
+      'id': meetingId,
+      'streamCallId': streamCallId,
+      'platform': 'STREAM',
+      'slotOfAppointmentId': slotId,
+      'createdAt': now,
+      'updatedAt': now,
+    }).build();
     await executeMutation(createQuery);
 
     return (await getMeetingByAppointmentId(appointmentId))!;
@@ -185,9 +176,8 @@ class MeetingSessionRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('MeetingSession')
         .action(QueryAction.findFirst)
-        .where({'streamCallId': streamCallId})
-        .include({'slotOfAppointment': true})
-        .build();
+        .where({'streamCallId': streamCallId}).include(
+            {'slotOfAppointment': true}).build();
     return executeQueryAsSingleMap(query);
   }
 }

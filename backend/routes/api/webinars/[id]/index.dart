@@ -25,7 +25,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
           'error': {
             'message': 'Webinar not found',
             'details': 'No webinar plan exists with ID: $id',
-            'hint': 'Verify the webinar ID is correct and the webinar has not been deleted.',
+            'hint':
+                'Verify the webinar ID is correct and the webinar has not been deleted.',
           },
         },
       );

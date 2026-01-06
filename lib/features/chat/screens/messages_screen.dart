@@ -55,7 +55,8 @@ class MessagesPlaceholderScreen extends StatelessWidget {
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          color: colorScheme.primaryContainer
+                              .withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(28),
                         ),
                         child: Icon(

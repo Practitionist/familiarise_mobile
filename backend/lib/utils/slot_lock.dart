@@ -10,7 +10,6 @@ import 'package:http/http.dart' as http;
 ///
 /// Lock key format: `slot-lock:{consultantProfileId}:{slotStartTimeISO}`
 class SlotLock {
-
   /// Lock TTL in milliseconds (60 seconds - matches web app)
   static const int _lockTtlMs = 60000;
 
@@ -104,8 +103,7 @@ class SlotLock {
       // Use Upstash EVAL to run Lua script for atomic check-and-delete
       // Script: if redis.call("get", KEYS[1]) == ARGV[1]
       //         then return redis.call("del", KEYS[1]) else return 0 end
-      const luaScript =
-          'if redis.call("get", KEYS[1]) == ARGV[1] '
+      const luaScript = 'if redis.call("get", KEYS[1]) == ARGV[1] '
           'then return redis.call("del", KEYS[1]) else return 0 end';
       final encodedScript = Uri.encodeComponent(luaScript);
       final url = '$_upstashUrl/eval/$encodedScript/1/$lockKey/$lockValue';

@@ -87,10 +87,9 @@ class SupportTicketRepository extends BaseRepository {
         .model('SupportTicket')
         .action(QueryAction.findFirst)
         .where({
-          'id': ticketId,
-          'userId': userId,
-        })
-        .build();
+      'id': ticketId,
+      'userId': userId,
+    }).build();
 
     final ticket = await executeQueryAsSingleMap(query);
 
@@ -103,11 +102,9 @@ class SupportTicketRepository extends BaseRepository {
         .model('SupportResponse')
         .action(QueryAction.findMany)
         .where({
-          'supportTicketId': ticketId,
-          'isInternal': false,
-        })
-        .orderBy({'createdAt': 'asc'})
-        .build();
+      'supportTicketId': ticketId,
+      'isInternal': false,
+    }).orderBy({'createdAt': 'asc'}).build();
 
     final responses = await executeQueryAsMaps(responsesQuery);
 
@@ -115,8 +112,7 @@ class SupportTicketRepository extends BaseRepository {
     final attachmentsQuery = JsonQueryBuilder()
         .model('SupportTicketAttachment')
         .action(QueryAction.findMany)
-        .where({'ticketId': ticketId})
-        .build();
+        .where({'ticketId': ticketId}).build();
 
     final attachments = await executeQueryAsMaps(attachmentsQuery);
 
@@ -175,8 +171,7 @@ class SupportTicketRepository extends BaseRepository {
     final resultQuery = JsonQueryBuilder()
         .model('SupportTicket')
         .action(QueryAction.findUnique)
-        .where({'id': ticketId})
-        .build();
+        .where({'id': ticketId}).build();
 
     final result = await executeQueryAsSingleMap(resultQuery);
 
@@ -201,10 +196,9 @@ class SupportTicketRepository extends BaseRepository {
         .model('SupportTicket')
         .action(QueryAction.findFirst)
         .where({
-          'id': ticketId,
-          'userId': userId,
-        })
-        .build();
+      'id': ticketId,
+      'userId': userId,
+    }).build();
 
     final ticket = await executeQueryAsSingleMap(ticketQuery);
 
@@ -220,15 +214,14 @@ class SupportTicketRepository extends BaseRepository {
         .model('SupportResponse')
         .action(QueryAction.create)
         .data({
-          'id': responseId,
-          'supportTicketId': ticketId,
-          'userId': userId,
-          'message': message,
-          'isInternal': false, // User responses are never internal
-          'createdAt': now,
-          'updatedAt': now,
-        })
-        .build();
+      'id': responseId,
+      'supportTicketId': ticketId,
+      'userId': userId,
+      'message': message,
+      'isInternal': false, // User responses are never internal
+      'createdAt': now,
+      'updatedAt': now,
+    }).build();
 
     await executeMutation(createQuery);
 
@@ -236,9 +229,7 @@ class SupportTicketRepository extends BaseRepository {
     final updateQuery = JsonQueryBuilder()
         .model('SupportTicket')
         .action(QueryAction.update)
-        .where({'id': ticketId})
-        .data({'updatedAt': now})
-        .build();
+        .where({'id': ticketId}).data({'updatedAt': now}).build();
 
     await executeMutation(updateQuery);
 
@@ -246,8 +237,7 @@ class SupportTicketRepository extends BaseRepository {
     final resultQuery = JsonQueryBuilder()
         .model('SupportResponse')
         .action(QueryAction.findUnique)
-        .where({'id': responseId})
-        .build();
+        .where({'id': responseId}).build();
 
     final result = await executeQueryAsSingleMap(resultQuery);
 
@@ -270,10 +260,9 @@ class SupportTicketRepository extends BaseRepository {
           .model('SupportTicket')
           .action(QueryAction.count)
           .where({
-            'userId': userId,
-            'status': status,
-          })
-          .build();
+        'userId': userId,
+        'status': status,
+      }).build();
 
       counts[status.toLowerCase()] = await executeCount(query);
     }
@@ -282,8 +271,7 @@ class SupportTicketRepository extends BaseRepository {
     final totalQuery = JsonQueryBuilder()
         .model('SupportTicket')
         .action(QueryAction.count)
-        .where({'userId': userId})
-        .build();
+        .where({'userId': userId}).build();
 
     counts['total'] = await executeCount(totalQuery);
 

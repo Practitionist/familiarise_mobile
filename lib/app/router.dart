@@ -64,7 +64,8 @@ GoRouter router(Ref ref) {
       final location = state.matchedLocation;
 
       // Debug logging
-      debugPrint('🔀 Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
+      debugPrint(
+          '🔀 Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
       final isAuthRoute = location.startsWith('/auth');
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
@@ -198,7 +199,9 @@ GoRouter router(Ref ref) {
             final currentTab = NavigationTab.fromPath(currentPath);
             final currentIndex = container.read(navigationIndexProvider);
             if (currentIndex != currentTab.index) {
-              container.read(navigationIndexProvider.notifier).setIndex(currentTab.index);
+              container
+                  .read(navigationIndexProvider.notifier)
+                  .setIndex(currentTab.index);
             }
           });
           return MainShell(child: child);
@@ -271,7 +274,8 @@ GoRouter router(Ref ref) {
             name: 'bookingDetails',
             builder: (context, state) {
               final bookingId = state.pathParameters['bookingId']!;
-              final typeParam = state.uri.queryParameters['type'] ?? 'CONSULTATION';
+              final typeParam =
+                  state.uri.queryParameters['type'] ?? 'CONSULTATION';
               final bookingType = BookingType.fromString(typeParam);
               return MyBookingDetailsScreen(
                 bookingId: bookingId,
@@ -350,7 +354,8 @@ GoRouter router(Ref ref) {
             errorMessage: extra?['message'] as String?,
             canRetry: extra?['canRetry'] as bool? ?? true,
             booking: extra?['booking'] as Booking?,
-            directCheckoutParams: extra?['directCheckoutParams'] as DirectCheckoutParams?,
+            directCheckoutParams:
+                extra?['directCheckoutParams'] as DirectCheckoutParams?,
           );
         },
       ),

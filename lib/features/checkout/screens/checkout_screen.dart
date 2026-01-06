@@ -37,13 +37,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   bool _checkoutInitialized = false;
   bool _wasInProcessing = false;
 
-  String get _currency => widget.booking?.planCurrency ??
+  String get _currency =>
+      widget.booking?.planCurrency ??
       widget.directCheckoutParams?.currency ??
       'INR';
 
-  double get _originalPrice => widget.booking?.planPrice ??
-      widget.directCheckoutParams?.amount ??
-      0;
+  double get _originalPrice =>
+      widget.booking?.planPrice ?? widget.directCheckoutParams?.amount ?? 0;
 
   String get _bookingId => widget.booking?.id ?? '';
 
@@ -202,19 +202,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 ),
                 const SizedBox(height: 8),
                 DiscountCodeInput(
-                  bookingId: _discountValidationId, // Use planId as fallback for direct checkout
+                  bookingId:
+                      _discountValidationId, // Use planId as fallback for direct checkout
                   originalAmount: _originalPrice,
                   currency: _currency,
                   onDiscountApplied: (code) {
                     setState(() {
                       _discountCode = code;
-                      _checkoutInitialized = false; // Reset session on discount change
+                      _checkoutInitialized =
+                          false; // Reset session on discount change
                     });
                   },
                   onDiscountRemoved: () {
                     setState(() {
                       _discountCode = null;
-                      _checkoutInitialized = false; // Reset session on discount removal
+                      _checkoutInitialized =
+                          false; // Reset session on discount removal
                     });
                   },
                 ),
@@ -234,7 +237,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   onGatewaySelected: (gateway) {
                     setState(() {
                       _selectedGateway = gateway;
-                      _checkoutInitialized = false; // Reset session on gateway change
+                      _checkoutInitialized =
+                          false; // Reset session on gateway change
                     });
                   },
                 ),
@@ -537,7 +541,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       await checkoutNotifier.processPayment();
     }
   }
-
 }
 
 /// Parameters for direct checkout flow (without pre-created booking)

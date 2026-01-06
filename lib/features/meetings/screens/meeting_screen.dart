@@ -233,8 +233,9 @@ class _ErrorView extends StatelessWidget {
                 style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: AppSpacing.xl),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                spacing: AppSpacing.md,
+                alignment: WrapAlignment.center,
                 children: [
                   OutlinedButton(
                     onPressed: onBack,
@@ -244,7 +245,6 @@ class _ErrorView extends StatelessWidget {
                     ),
                     child: const Text('Go Back'),
                   ),
-                  const SizedBox(width: AppSpacing.md),
                   ElevatedButton(
                     onPressed: onRetry,
                     child: const Text('Retry'),

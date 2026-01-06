@@ -47,21 +47,17 @@ class OnboardingDraftModel with _$OnboardingDraftModel {
         (r) => r.name == selectedRole,
         orElse: () => UserRole.consultee,
       ),
-      personalInfo: personalInfo != null
-          ? PersonalInfo.fromJson(personalInfo!)
-          : null,
+      personalInfo:
+          personalInfo != null ? PersonalInfo.fromJson(personalInfo!) : null,
       consulteeProfile: consulteeProfile != null
           ? ConsulteeProfileData.fromJson(consulteeProfile!)
           : null,
       consultantProfile: consultantProfile != null
           ? ConsultantProfileData.fromJson(consultantProfile!)
           : null,
-      preferences: preferences != null
-          ? PreferencesData.fromJson(preferences!)
-          : null,
-      agreement: agreement != null
-          ? AgreementData.fromJson(agreement!)
-          : null,
+      preferences:
+          preferences != null ? PreferencesData.fromJson(preferences!) : null,
+      agreement: agreement != null ? AgreementData.fromJson(agreement!) : null,
       isDraft: true,
     );
   }

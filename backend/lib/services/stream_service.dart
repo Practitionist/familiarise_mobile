@@ -44,6 +44,7 @@ class StreamService {
 
     final payload = {
       'user_id': userId,
+      'iss': _apiKey, // Required by Stream Video SDK
       'iat': now.millisecondsSinceEpoch ~/ 1000,
       'exp': exp.millisecondsSinceEpoch ~/ 1000,
     };
@@ -74,6 +75,7 @@ class StreamService {
 
     final payload = {
       'user_id': userId,
+      'iss': _apiKey, // Required by Stream Video SDK
       'iat': now.millisecondsSinceEpoch ~/ 1000,
       'exp': exp.millisecondsSinceEpoch ~/ 1000,
       'call_cids': ['default:$callId'],

@@ -158,7 +158,8 @@ class WebinarCard extends StatelessWidget {
                         webinar.consultant!.name.isNotEmpty
                             ? webinar.consultant!.name[0].toUpperCase()
                             : '?',
-                        style: theme.textTheme.labelSmall?.copyWith(fontSize: 8),
+                        style:
+                            theme.textTheme.labelSmall?.copyWith(fontSize: 8),
                       )
                     : null,
               ),

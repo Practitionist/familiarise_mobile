@@ -193,8 +193,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       style: theme.textTheme.bodyMedium,
                     ),
                     TextButton(
-                      onPressed:
-                          isLoading ? null : () => context.push('/auth/sign-up'),
+                      onPressed: isLoading
+                          ? null
+                          : () => context.push('/auth/sign-up'),
                       child: const Text('Sign Up'),
                     ),
                   ],

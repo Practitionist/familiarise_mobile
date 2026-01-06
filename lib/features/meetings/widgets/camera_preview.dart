@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:stream_video_flutter/stream_video_flutter.dart';
 
@@ -22,11 +23,15 @@ class CameraPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Skip StreamLobbyVideo in debug mode (crashes on iOS simulator)
+    // WebRTC video rendering doesn't work reliably on simulators
+    final showVideoPreview = isCameraEnabled && !kDebugMode;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: Container(
         color: theme.colorScheme.surface,
-        child: isCameraEnabled
+        child: showVideoPreview
             ? StreamLobbyVideo(call: call)
             : _CameraOffPlaceholder(
                 icon: placeholderIcon,
@@ -140,7 +145,8 @@ class PreJoinPreviewCard extends StatelessWidget {
                       Icon(
                         Icons.schedule,
                         size: 16,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(

@@ -49,7 +49,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: BookingCategory.values.length, vsync: this);
+    _tabController =
+        TabController(length: BookingCategory.values.length, vsync: this);
     _tabController.addListener(_onTabChanged);
   }
 
@@ -106,7 +107,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                         if (filteredBookings.isEmpty) {
                           return _buildEmptyState(theme, category);
                         }
-                        return _buildBookingsList(context, ref, filteredBookings, category);
+                        return _buildBookingsList(
+                            context, ref, filteredBookings, category);
                       },
                       loading: () => _buildLoadingState(),
                       error: (error, _) => _buildError(theme, error.toString()),
@@ -292,7 +294,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    color: theme.colorScheme.primaryContainer
+                        .withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(icon, size: 40, color: theme.colorScheme.primary),
@@ -431,7 +434,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                    color:
+                        theme.colorScheme.errorContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(
@@ -517,7 +521,9 @@ class _ShimmerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Container(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+          Container(
+              height: 1,
+              color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -531,7 +537,8 @@ class _ShimmerCard extends StatelessWidget {
     );
   }
 
-  Widget _shimmerBox(double width, double height, double radius, ColorScheme colorScheme) {
+  Widget _shimmerBox(
+      double width, double height, double radius, ColorScheme colorScheme) {
     return Container(
       width: width,
       height: height,

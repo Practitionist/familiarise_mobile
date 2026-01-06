@@ -125,7 +125,8 @@ class MeetingControlsBar extends StatelessWidget {
               icon: isMicrophoneEnabled ? Icons.mic : Icons.mic_off,
               isEnabled: isMicrophoneEnabled,
               onPressed: onMicrophoneToggle,
-              label: showLabels ? (isMicrophoneEnabled ? 'Mute' : 'Unmute') : null,
+              label:
+                  showLabels ? (isMicrophoneEnabled ? 'Mute' : 'Unmute') : null,
             ),
             MeetingControlButton(
               icon: isCameraEnabled ? Icons.videocam : Icons.videocam_off,

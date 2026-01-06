@@ -35,10 +35,8 @@ class RefundRepository extends BaseRepository {
     final id = _uuid.v4();
     final now = nowIso8601;
 
-    final createQuery = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.create)
-        .data({
+    final createQuery =
+        JsonQueryBuilder().model('Refund').action(QueryAction.create).data({
       'id': id,
       'refundId': refundId,
       'paymentId': paymentId,
@@ -92,9 +90,7 @@ class RefundRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('Refund')
         .action(QueryAction.findMany)
-        .where({'paymentId': paymentId})
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        .where({'paymentId': paymentId}).orderBy({'createdAt': 'desc'}).build();
 
     return executeQueryAsMaps(query);
   }

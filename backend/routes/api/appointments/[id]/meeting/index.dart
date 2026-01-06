@@ -46,7 +46,9 @@ Future<Response> _handleGetMeeting(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -61,7 +63,9 @@ Future<Response> _handleGetMeeting(
     if (!hasAccess) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'You do not have access to this meeting'}},
+        body: {
+          'error': {'message': 'You do not have access to this meeting'}
+        },
       );
     }
 
@@ -73,7 +77,9 @@ Future<Response> _handleGetMeeting(
     if (meeting == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Meeting not found for this appointment'}},
+        body: {
+          'error': {'message': 'Meeting not found for this appointment'}
+        },
       );
     }
 
@@ -105,7 +111,9 @@ Future<Response> _handleGetMeeting(
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get meeting details'}},
+      body: {
+        'error': {'message': 'Failed to get meeting details'}
+      },
     );
   }
 }

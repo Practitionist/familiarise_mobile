@@ -120,16 +120,16 @@ class SentryLogger {
   static SentryLevel _levelFor(dynamic exception) {
     // Network issues are warnings (transient)
     if (exception is NetworkException) return SentryLevel.warning;
-    
+
     // Auth issues are warnings (often user-recoverable)
     if (exception is AuthException) return SentryLevel.warning;
-    
+
     // Not found is info level (often expected)
     if (exception is NotFoundException) return SentryLevel.info;
-    
+
     // Server errors are errors
     if (exception is ServerException) return SentryLevel.error;
-    
+
     // Cache errors are warnings
     if (exception is CacheException) return SentryLevel.warning;
 
