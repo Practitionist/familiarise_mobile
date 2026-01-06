@@ -164,6 +164,11 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
       );
     }
 
+    // iOS Simulator mode (Stream SDK disabled)
+    if (meetingState.isInitialized && controller.activeCall == null) {
+      return _SimulatorModeView(onBack: () => context.pop());
+    }
+
     // Waiting for initialization
     return const _LoadingView(message: 'Connecting...');
   }
@@ -441,6 +446,57 @@ class _InCallView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Simulator mode view (Stream SDK disabled)
+class _SimulatorModeView extends StatelessWidget {
+  const _SimulatorModeView({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.phone_iphone,
+                size: 64,
+                color: Colors.white54,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'iOS Simulator',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Video calls are not supported on iOS Simulator.\n'
+                'Please test on a physical device or use macOS/Android.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              OutlinedButton(
+                onPressed: onBack,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white54),
+                ),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

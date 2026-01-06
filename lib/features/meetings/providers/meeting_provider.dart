@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -91,16 +93,21 @@ class MeetingController extends _$MeetingController {
         userToken: meetingToken.token,
       );
 
-      await _streamVideo!.connect();
+      // Skip Stream SDK on iOS simulator (WebRTC crashes)
+      final isIOSSimulator = kDebugMode && Platform.isIOS;
 
-      // Create the call (but don't join yet - that happens in joinCall())
-      _activeCall = _streamVideo!.makeCall(
-        callType: StreamCallType.defaultType(),
-        id: meetingToken.callId,
-      );
+      if (!isIOSSimulator) {
+        await _streamVideo!.connect();
 
-      // Get or create the call on Stream's servers (required for camera preview)
-      await _activeCall!.getOrCreate();
+        // Create the call (but don't join yet - that happens in joinCall())
+        _activeCall = _streamVideo!.makeCall(
+          callType: StreamCallType.defaultType(),
+          id: meetingToken.callId,
+        );
+
+        // Get or create the call on Stream's servers (required for camera preview)
+        await _activeCall!.getOrCreate();
+      }
 
       state = state.copyWith(
         isLoading: false,
