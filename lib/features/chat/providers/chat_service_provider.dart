@@ -20,6 +20,7 @@ part 'chat_service_provider.g.dart';
 @Riverpod(keepAlive: true)
 class ChatService extends _$ChatService {
   StreamChatClient? _chatClient;
+  StreamSubscription<User?>? _unreadCountSubscription;
 
   @override
   ChatState build() {
@@ -32,6 +33,8 @@ class ChatService extends _$ChatService {
 
   /// Clean up resources when provider is disposed
   Future<void> _cleanup() async {
+    await _unreadCountSubscription?.cancel();
+    _unreadCountSubscription = null;
     await _chatClient?.disconnectUser();
     _chatClient?.dispose();
     _chatClient = null;
@@ -88,7 +91,8 @@ class ChatService extends _$ChatService {
       );
 
       // Listen for unread count changes
-      _chatClient!.state.currentUserStream.listen((user) {
+      _unreadCountSubscription =
+          _chatClient!.state.currentUserStream.listen((user) {
         if (user != null) {
           state = state.copyWith(
             totalUnreadCount: user.totalUnreadCount,

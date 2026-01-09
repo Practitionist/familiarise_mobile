@@ -13,7 +13,8 @@ class FamiliariseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final chatService = ref.watch(chatServiceProvider.notifier);
+    // Watch the state to rebuild when chat initialization completes
+    final chatState = ref.watch(chatServiceProvider);
 
     return MaterialApp.router(
       title: 'Familiarise',
@@ -23,9 +24,11 @@ class FamiliariseApp extends ConsumerWidget {
       themeMode: ThemeMode.system,
       routerConfig: router,
       builder: (context, child) {
-        // Wrap with StreamChat when client is available
-        final chatClient = chatService.client;
-        if (chatClient != null) {
+        // Read the notifier to get the client instance
+        final chatClient = ref.read(chatServiceProvider.notifier).client;
+
+        // Wrap with StreamChat when client is available and initialized
+        if (chatState.isInitialized && chatClient != null) {
           return StreamChat(
             client: chatClient,
             streamChatThemeData: buildChatTheme(context),

@@ -5,6 +5,7 @@ import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/extensions/string_extensions.dart';
 import '../../../domain/entities/chat/chat_entities.dart';
 import '../providers/chat_service_provider.dart';
 
@@ -632,7 +633,7 @@ class _ChatChannelTile extends StatelessWidget {
             : null,
         child: otherMember?.user?.image == null
             ? Text(
-                _getInitials(otherMember?.user?.name),
+                (otherMember?.user?.name).getInitials(),
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: colorScheme.onPrimaryContainer,
                   fontWeight: FontWeight.w600,
@@ -702,15 +703,6 @@ class _ChatChannelTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _getInitials(String? name) {
-    if (name == null || name.isEmpty) return '?';
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name[0].toUpperCase();
   }
 
   String _getLastMessagePreview(Message? message) {

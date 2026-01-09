@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
+import '../../../core/extensions/string_extensions.dart';
 import '../providers/chat_service_provider.dart';
-import '../theme/chat_theme.dart';
 
 /// Screen for displaying a chat conversation
 class ChatRoomScreen extends ConsumerStatefulWidget {
@@ -132,9 +132,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
 
     return StreamChannel(
       channel: _channel!,
-      child: StreamChatTheme(
-        data: buildChatTheme(context),
-        child: Scaffold(
+      child: Scaffold(
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -150,7 +148,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                       : null,
                   child: otherMember?.user?.image == null
                       ? Text(
-                          _getInitials(otherMember?.user?.name),
+                          (otherMember?.user?.name).getInitials(),
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: colorScheme.onPrimaryContainer,
                             fontWeight: FontWeight.w600,
@@ -217,16 +215,6 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
             ],
           ),
         ),
-      ),
     );
-  }
-
-  String _getInitials(String? name) {
-    if (name == null || name.isEmpty) return '?';
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name[0].toUpperCase();
   }
 }

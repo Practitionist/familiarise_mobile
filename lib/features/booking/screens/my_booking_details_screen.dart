@@ -853,11 +853,8 @@ class _MyBookingDetailsScreenState
 
     if (channel != null && mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      context.pushNamed(
-        'chatRoom',
-        pathParameters: {'channelId': channel.id!},
-        extra: channel,
-      );
+      // Use go() to navigate within the shell (shows Messages tab)
+      context.go('/messages/${channel.id}');
     } else if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
