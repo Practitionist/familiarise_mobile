@@ -127,16 +127,15 @@ class ConsultantProfileRepository extends BaseRepository {
           .model('_ConsultantProfileToSubDomain')
           .action(QueryAction.createMany)
           .data({
-            'data': subDomainIds
-                .map(
-                  (subDomainId) => {
-                    'A': profileId,
-                    'B': subDomainId,
-                  },
-                )
-                .toList(),
-          })
-          .build();
+        'data': subDomainIds
+            .map(
+              (subDomainId) => {
+                'A': profileId,
+                'B': subDomainId,
+              },
+            )
+            .toList(),
+      }).build();
 
       await executeMutation(insertQuery, txn: txn);
     }

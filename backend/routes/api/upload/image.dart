@@ -38,7 +38,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -53,7 +55,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (fileName == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'fileName is required'}},
+        body: {
+          'error': {'message': 'fileName is required'}
+        },
       );
     }
 
@@ -100,7 +104,9 @@ Future<Response> onRequest(RequestContext context) async {
       );
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed to generate signed URL'}},
+        body: {
+          'error': {'message': 'Failed to generate signed URL'}
+        },
       );
     }
 
@@ -147,7 +153,9 @@ Future<Response> onRequest(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to generate upload URL'}},
+      body: {
+        'error': {'message': 'Failed to generate upload URL'}
+      },
     );
   }
 }

@@ -29,14 +29,18 @@ Future<Response> onRequest(RequestContext context) async {
     if (code == null || code.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Authorization code is required'}},
+        body: {
+          'error': {'message': 'Authorization code is required'}
+        },
       );
     }
 
     if (state == null || state.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'State parameter is required'}},
+        body: {
+          'error': {'message': 'State parameter is required'}
+        },
       );
     }
 
@@ -66,12 +70,16 @@ Future<Response> onRequest(RequestContext context) async {
   } on GitHubOAuthException catch (e) {
     return Response.json(
       statusCode: e.statusCode,
-      body: {'error': {'message': e.message}},
+      body: {
+        'error': {'message': e.message}
+      },
     );
   } on AuthException catch (e) {
     return Response.json(
       statusCode: e.statusCode,
-      body: {'error': {'message': e.message}},
+      body: {
+        'error': {'message': e.message}
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -82,7 +90,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'An unexpected error occurred'}},
+      body: {
+        'error': {'message': 'An unexpected error occurred'}
+      },
     );
   }
 }

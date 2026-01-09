@@ -11,8 +11,11 @@ import '../errors/failures.dart';
 /// - Severity level mapping based on exception type
 /// - Context and extras support for debugging
 /// - Breadcrumb support for user journey tracking
-class SentryLogger {
-  SentryLogger._();
+///
+/// Note: Named `AppSentryLogger` to avoid conflict with Sentry SDK's internal
+/// `SentryLogger` class exported via `sentry_flutter`.
+class AppSentryLogger {
+  AppSentryLogger._();
 
   /// Report an exception to Sentry with context.
   ///
@@ -29,7 +32,7 @@ class SentryLogger {
     // Skip validation errors - these are expected user input errors
     if (_shouldSkip(exception)) {
       if (kDebugMode) {
-        debugPrint('[SentryLogger] Skipped expected error: $exception');
+        debugPrint('[AppSentryLogger] Skipped expected error: $exception');
       }
       return;
     }
@@ -51,7 +54,7 @@ class SentryLogger {
     );
 
     if (kDebugMode) {
-      debugPrint('[SentryLogger] Captured: $exception (context: $context)');
+      debugPrint('[AppSentryLogger] Captured: $exception (context: $context)');
     }
   }
 
@@ -120,16 +123,16 @@ class SentryLogger {
   static SentryLevel _levelFor(dynamic exception) {
     // Network issues are warnings (transient)
     if (exception is NetworkException) return SentryLevel.warning;
-    
+
     // Auth issues are warnings (often user-recoverable)
     if (exception is AuthException) return SentryLevel.warning;
-    
+
     // Not found is info level (often expected)
     if (exception is NotFoundException) return SentryLevel.info;
-    
+
     // Server errors are errors
     if (exception is ServerException) return SentryLevel.error;
-    
+
     // Cache errors are warnings
     if (exception is CacheException) return SentryLevel.warning;
 

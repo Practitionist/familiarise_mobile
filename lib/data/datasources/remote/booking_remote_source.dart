@@ -341,7 +341,9 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
         final errorMessage = _extractErrorMessage(e) ??
             'Cannot reschedule within 24 hours of appointment';
         throw ValidationException(
-          errors: {'reschedule': [errorMessage]},
+          errors: {
+            'reschedule': [errorMessage]
+          },
           message: errorMessage,
         );
       }
@@ -367,6 +369,7 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       message: json['message'] as String?,
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
+      appointmentId: json['appointmentId'] as String?,
       planId: json['planId'] as String?,
       planTitle: json['planTitle'] as String?,
       planPrice: (json['planPrice'] as num?)?.toDouble(),

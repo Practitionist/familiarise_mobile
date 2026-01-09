@@ -73,7 +73,9 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -346,8 +348,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
           .action(QueryAction.findFirst)
-          .where({'consultationId': finalBookingId})
-          .build();
+          .where({'consultationId': finalBookingId}).build();
       final appointmentResult =
           await db.executor.executeQueryAsSingleMap(appointmentQuery);
       if (appointmentResult != null) {

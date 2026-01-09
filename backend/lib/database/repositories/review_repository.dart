@@ -28,10 +28,9 @@ class ReviewRepository extends BaseRepository {
         .model('ConsultantReview')
         .action(QueryAction.findFirst)
         .where({
-          'consulteeProfileId': consulteeProfileId,
-          'consultantProfileId': consultantProfileId,
-        })
-        .build();
+      'consulteeProfileId': consulteeProfileId,
+      'consultantProfileId': consultantProfileId,
+    }).build();
 
     final existing = await executeQueryAsSingleMap(existingQuery);
 
@@ -52,15 +51,14 @@ class ReviewRepository extends BaseRepository {
         .model('ConsultantReview')
         .action(QueryAction.create)
         .data({
-          'id': reviewId,
-          'consulteeProfileId': consulteeProfileId,
-          'consultantProfileId': consultantProfileId,
-          'rating': validRating,
-          'reviewDescription': reviewDescription,
-          'createdAt': now,
-          'updatedAt': now,
-        })
-        .build();
+      'id': reviewId,
+      'consulteeProfileId': consulteeProfileId,
+      'consultantProfileId': consultantProfileId,
+      'rating': validRating,
+      'reviewDescription': reviewDescription,
+      'createdAt': now,
+      'updatedAt': now,
+    }).build();
 
     await executeMutation(createQuery);
 
@@ -71,8 +69,7 @@ class ReviewRepository extends BaseRepository {
     final resultQuery = JsonQueryBuilder()
         .model('ConsultantReview')
         .action(QueryAction.findUnique)
-        .where({'id': reviewId})
-        .build();
+        .where({'id': reviewId}).build();
 
     final result = await executeQueryAsSingleMap(resultQuery);
 
@@ -92,10 +89,9 @@ class ReviewRepository extends BaseRepository {
         .model('ConsultantReview')
         .action(QueryAction.count)
         .where({
-          'consulteeProfileId': consulteeProfileId,
-          'consultantProfileId': consultantProfileId,
-        })
-        .build();
+      'consulteeProfileId': consulteeProfileId,
+      'consultantProfileId': consultantProfileId,
+    }).build();
 
     final count = await executeCount(query);
     return count > 0;
@@ -114,8 +110,7 @@ class ReviewRepository extends BaseRepository {
     final countQuery = JsonQueryBuilder()
         .model('ConsultantReview')
         .action(QueryAction.count)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).build();
 
     final totalCount = await executeCount(countQuery);
 
@@ -155,9 +150,8 @@ class ReviewRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('ConsultantReview')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'rating': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'rating': true}).build();
 
     final reviews = await executeQueryAsMaps(query);
 
@@ -174,12 +168,10 @@ class ReviewRepository extends BaseRepository {
     final updateQuery = JsonQueryBuilder()
         .model('ConsultantProfile')
         .action(QueryAction.update)
-        .where({'id': consultantProfileId})
-        .data({
-          'rating': averageRating,
-          'updatedAt': nowIso8601,
-        })
-        .build();
+        .where({'id': consultantProfileId}).data({
+      'rating': averageRating,
+      'updatedAt': nowIso8601,
+    }).build();
 
     await executeMutation(updateQuery);
   }
@@ -193,10 +185,9 @@ class ReviewRepository extends BaseRepository {
         .model('ConsultantReview')
         .action(QueryAction.findFirst)
         .where({
-          'consulteeProfileId': consulteeProfileId,
-          'consultantProfileId': consultantProfileId,
-        })
-        .build();
+      'consulteeProfileId': consulteeProfileId,
+      'consultantProfileId': consultantProfileId,
+    }).build();
 
     return executeQueryAsSingleMap(query);
   }

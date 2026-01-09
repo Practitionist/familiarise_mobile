@@ -86,8 +86,9 @@ class _DiscountCodeInputState extends ConsumerState<DiscountCodeInput> {
             SizedBox(
               height: 48,
               child: FilledButton.tonal(
-                onPressed:
-                    _isApplied || discountState.isLoading ? null : _applyDiscount,
+                onPressed: _isApplied || discountState.isLoading
+                    ? null
+                    : _applyDiscount,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),

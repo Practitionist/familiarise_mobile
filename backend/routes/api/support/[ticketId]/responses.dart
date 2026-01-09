@@ -38,7 +38,9 @@ Future<Response> _handleAddResponse(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -49,7 +51,9 @@ Future<Response> _handleAddResponse(
     if (message == null || message.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Message is required'}},
+        body: {
+          'error': {'message': 'Message is required'}
+        },
       );
     }
 
@@ -68,7 +72,9 @@ Future<Response> _handleAddResponse(
   } on RecordNotFoundException {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Ticket not found'}},
+      body: {
+        'error': {'message': 'Ticket not found'}
+      },
     );
   } on Exception catch (e) {
     await SentryLogger.error(
@@ -79,7 +85,9 @@ Future<Response> _handleAddResponse(
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to add response'}},
+      body: {
+        'error': {'message': 'Failed to add response'}
+      },
     );
   }
 }

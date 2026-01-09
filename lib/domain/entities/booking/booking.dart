@@ -55,6 +55,8 @@ class Booking with _$Booking {
     String? message,
     DateTime? createdAt,
     DateTime? updatedAt,
+    // Appointment ID for joining meetings
+    String? appointmentId,
     // Plan info
     String? planId,
     String? planTitle,

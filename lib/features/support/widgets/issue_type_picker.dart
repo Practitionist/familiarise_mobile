@@ -175,8 +175,9 @@ class _IssueTypePickerSheet extends StatelessWidget {
                           title: Text(
                             type.displayName,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight:
-                                  isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                           ),
                           trailing: isSelected

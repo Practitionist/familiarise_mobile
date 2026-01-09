@@ -395,6 +395,14 @@ SchemaRegistry _buildSchemaRegistry() {
         foreignKey: 'appointmentId',
         isOwner: true,
       ),
+      // M2M relation to users via _SlotOfAppointmentToUser join table
+      'user': RelationInfo.manyToMany(
+        name: 'user',
+        targetModel: 'users',
+        joinTable: '_SlotOfAppointmentToUser',
+        joinColumn: 'A',
+        inverseJoinColumn: 'B',
+      ),
     },
   ));
 
@@ -565,6 +573,37 @@ SchemaRegistry _buildSchemaRegistry() {
     },
   ));
 
+  // MeetingSession model
+  schema.registerModel(ModelSchema(
+    name: 'MeetingSession',
+    tableName: 'MeetingSession',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'streamCallId': const FieldInfo(
+          name: 'streamCallId', columnName: 'streamCallId', type: 'String'),
+      'platform': const FieldInfo(
+          name: 'platform', columnName: 'platform', type: 'String'),
+      'passcode': const FieldInfo(
+          name: 'passcode', columnName: 'passcode', type: 'String'),
+      'slotOfAppointmentId': const FieldInfo(
+          name: 'slotOfAppointmentId',
+          columnName: 'slotOfAppointmentId',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'slotOfAppointment': RelationInfo.oneToOne(
+        name: 'slotOfAppointment',
+        targetModel: 'SlotOfAppointment',
+        foreignKey: 'slotOfAppointmentId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   return schema;
 }
 
@@ -600,6 +639,7 @@ class DatabaseClient {
     _supportTicketRepository = SupportTicketRepository(_executor);
     _reviewRepository = ReviewRepository(_executor);
     _feedbackRepository = FeedbackRepository(_executor);
+    _meetingSessionRepository = MeetingSessionRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -628,6 +668,7 @@ class DatabaseClient {
   late final SupportTicketRepository _supportTicketRepository;
   late final ReviewRepository _reviewRepository;
   late final FeedbackRepository _feedbackRepository;
+  late final MeetingSessionRepository _meetingSessionRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -733,6 +774,9 @@ class DatabaseClient {
 
   /// Feedback repository (for app feedback)
   FeedbackRepository get feedback => _feedbackRepository;
+
+  /// Meeting session repository (for video meetings)
+  MeetingSessionRepository get meetingSessions => _meetingSessionRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all

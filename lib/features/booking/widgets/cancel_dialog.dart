@@ -84,7 +84,8 @@ class _CancelDialogState extends State<_CancelDialog> {
 
             // Warning for non-refundable cases
             if (!isPaid &&
-                widget.booking.status == RequestStatus.approvedPendingPayment) ...[
+                widget.booking.status ==
+                    RequestStatus.approvedPendingPayment) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

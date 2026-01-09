@@ -184,8 +184,9 @@ class SupportRemoteSourceImpl implements SupportRemoteSource {
     final paginationJson =
         json['pagination'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
-    final tickets =
-        ticketsJson.map((t) => _parseTicket(t as Map<String, dynamic>)).toList();
+    final tickets = ticketsJson
+        .map((t) => _parseTicket(t as Map<String, dynamic>))
+        .toList();
 
     final pagination = SupportPagination(
       page: paginationJson['page'] as int? ?? 0,

@@ -133,8 +133,10 @@ abstract final class Formatters {
 
   /// Format remaining time for meeting "45:23"
   static String meetingTimer(Duration remaining) {
-    final minutes = remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final minutes =
+        remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds =
+        remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
   }
 

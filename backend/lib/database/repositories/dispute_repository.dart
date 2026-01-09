@@ -29,9 +29,7 @@ class DisputeRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('Dispute')
         .action(QueryAction.findMany)
-        .where({'paymentId': paymentId})
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        .where({'paymentId': paymentId}).orderBy({'createdAt': 'desc'}).build();
 
     return executeQueryAsMaps(query);
   }
@@ -49,25 +47,20 @@ class DisputeRepository extends BaseRepository {
   /// Get all disputes for a user (via their payments)
   /// Useful for "My Disputes" screen
   Future<List<Map<String, dynamic>>> getDisputesByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('Dispute')
-        .action(QueryAction.findMany)
-        .where({
-          'payment': {
-            'userId': userId,
-          },
-        })
-        .include({
-          'payment': {
-            'select': {
-              'id': true,
-              'amount': true,
-              'currency': true,
-            },
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
+    final query =
+        JsonQueryBuilder().model('Dispute').action(QueryAction.findMany).where({
+      'payment': {
+        'userId': userId,
+      },
+    }).include({
+      'payment': {
+        'select': {
+          'id': true,
+          'amount': true,
+          'currency': true,
+        },
+      },
+    }).orderBy({'createdAt': 'desc'}).build();
 
     return executeQueryAsMaps(query);
   }
@@ -101,10 +94,8 @@ class DisputeRepository extends BaseRepository {
     final id = _uuid.v4();
     final now = nowIso8601;
 
-    final createQuery = JsonQueryBuilder()
-        .model('Dispute')
-        .action(QueryAction.create)
-        .data({
+    final createQuery =
+        JsonQueryBuilder().model('Dispute').action(QueryAction.create).data({
       'id': id,
       'disputeId': disputeId,
       'paymentId': paymentId,
@@ -115,7 +106,8 @@ class DisputeRepository extends BaseRepository {
       'paymentGateway': paymentGateway,
       if (dueBy != null) 'dueBy': dueBy.toIso8601String(),
       'isChargeRefundable': isChargeRefundable,
-      if (evidence != null) 'evidence': evidence, // Json type - pass object directly
+      if (evidence != null)
+        'evidence': evidence, // Json type - pass object directly
       'createdAt': now,
       'updatedAt': now,
     }).build();

@@ -140,8 +140,7 @@ class _AgreementStepState extends ConsumerState<AgreementStep> {
                 _BulletPoint(text: 'We never sell your personal information'),
                 _BulletPoint(
                     text: 'You control your profile visibility settings'),
-                _BulletPoint(
-                    text: 'You can request data deletion at any time'),
+                _BulletPoint(text: 'You can request data deletion at any time'),
                 const SizedBox(height: 12),
                 TextButton.icon(
                   onPressed: () => _openUrl('https://familiarise.io/privacy'),
@@ -180,8 +179,8 @@ class _AgreementStepState extends ConsumerState<AgreementStep> {
                             fontWeight: FontWeight.w600,
                           ),
                           recognizer: TapGestureRecognizer()
-                            ..onTap = () =>
-                                _openUrl('https://familiarise.io/terms'),
+                            ..onTap =
+                                () => _openUrl('https://familiarise.io/terms'),
                         ),
                         const TextSpan(text: ' *'),
                       ],

@@ -84,7 +84,7 @@ class CheckoutFlow extends _$CheckoutFlow {
 
       result.fold(
         (failure) {
-          SentryLogger.captureMessage(
+          AppSentryLogger.captureMessage(
             'Checkout creation failed',
             extras: {
               'bookingId': booking.id,
@@ -100,7 +100,7 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'CheckoutFlow.initializeCheckout',
@@ -109,7 +109,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'gateway': gateway.value,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
     }
   }
 
@@ -148,7 +149,7 @@ class CheckoutFlow extends _$CheckoutFlow {
 
       result.fold(
         (failure) {
-          SentryLogger.captureMessage(
+          AppSentryLogger.captureMessage(
             'Direct checkout creation failed',
             extras: {
               'planId': planId,
@@ -164,7 +165,7 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'CheckoutFlow.initializeDirectCheckout',
@@ -173,7 +174,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'gateway': gateway.value,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
     }
   }
 
@@ -198,7 +200,7 @@ class CheckoutFlow extends _$CheckoutFlow {
         await _processStripePayment(session);
       }
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'CheckoutFlow.processPayment',
@@ -207,7 +209,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'paymentId': _currentSession?.paymentId,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Payment processing failed: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Payment processing failed: $e');
     }
   }
 
@@ -290,7 +293,7 @@ class CheckoutFlow extends _$CheckoutFlow {
 
       result.fold(
         (failure) {
-          SentryLogger.captureMessage(
+          AppSentryLogger.captureMessage(
             'Payment verification failed',
             extras: {
               'paymentId': _currentSession!.paymentId,
@@ -310,7 +313,7 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'CheckoutFlow.verifyPayment',
@@ -318,7 +321,8 @@ class CheckoutFlow extends _$CheckoutFlow {
           'paymentId': _currentSession?.paymentId,
         },
       );
-      state = CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
     }
   }
 
@@ -346,12 +350,13 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'CheckoutFlow.verifyPaymentExternal',
       );
-      state = CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
+      state =
+          CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
     }
   }
 

@@ -40,7 +40,9 @@ Future<Response> _handleCreateReview(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -54,27 +56,32 @@ Future<Response> _handleCreateReview(RequestContext context) async {
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'consultantProfileId is required'}},
+        body: {
+          'error': {'message': 'consultantProfileId is required'}
+        },
       );
     }
 
     if (rating == null || rating < 1 || rating > 5) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Rating must be between 1 and 5'}},
+        body: {
+          'error': {'message': 'Rating must be between 1 and 5'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
 
     // Get user's consultee profile
-    final consulteeProfile =
-        await db.consulteeProfiles.findByUserId(userId);
+    final consulteeProfile = await db.consulteeProfiles.findByUserId(userId);
 
     if (consulteeProfile == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Consultee profile not found'}},
+        body: {
+          'error': {'message': 'Consultee profile not found'}
+        },
       );
     }
 
@@ -129,7 +136,9 @@ Future<Response> _handleCreateReview(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create review'}},
+      body: {
+        'error': {'message': 'Failed to create review'}
+      },
     );
   }
 }
@@ -152,7 +161,9 @@ Future<Response> _handleGetReviews(RequestContext context) async {
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'consultantProfileId is required'}},
+        body: {
+          'error': {'message': 'consultantProfileId is required'}
+        },
       );
     }
 
@@ -164,13 +175,14 @@ Future<Response> _handleGetReviews(RequestContext context) async {
       if (userId == null) {
         return Response.json(
           statusCode: HttpStatus.unauthorized,
-          body: {'error': {'message': 'Unauthorized'}},
+          body: {
+            'error': {'message': 'Unauthorized'}
+          },
         );
       }
 
       // Get user's consultee profile
-      final consulteeProfile =
-          await db.consulteeProfiles.findByUserId(userId);
+      final consulteeProfile = await db.consulteeProfiles.findByUserId(userId);
 
       if (consulteeProfile == null) {
         // User doesn't have a consultee profile, so they haven't reviewed
@@ -213,7 +225,9 @@ Future<Response> _handleGetReviews(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch reviews'}},
+      body: {
+        'error': {'message': 'Failed to fetch reviews'}
+      },
     );
   }
 }

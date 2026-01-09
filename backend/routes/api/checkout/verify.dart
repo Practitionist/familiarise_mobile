@@ -49,7 +49,9 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: io.HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -59,7 +61,9 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     if (paymentIntent == null || paymentIntent.isEmpty) {
       return Response.json(
         statusCode: io.HttpStatus.badRequest,
-        body: {'error': {'message': 'payment_intent is required'}},
+        body: {
+          'error': {'message': 'payment_intent is required'}
+        },
       );
     }
 
@@ -69,8 +73,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     final paymentQuery = JsonQueryBuilder()
         .model('Payment')
         .action(QueryAction.findFirst)
-        .where({'paymentIntent': paymentIntent})
-        .build();
+        .where({'paymentIntent': paymentIntent}).build();
     final payment = await db.executor.executeQueryAsSingleMap(paymentQuery);
 
     if (payment == null) {
@@ -127,7 +130,9 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
       );
       return Response.json(
         statusCode: io.HttpStatus.internalServerError,
-        body: {'error': {'message': 'Payment configuration error'}},
+        body: {
+          'error': {'message': 'Payment configuration error'}
+        },
       );
     }
 
@@ -172,8 +177,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
           .action(QueryAction.findUnique)
-          .where({'id': appointmentId})
-          .build();
+          .where({'id': appointmentId}).build();
       final appointment =
           await db.executor.executeQueryAsSingleMap(appointmentQuery);
 
@@ -242,8 +246,7 @@ Future<Response> _buildVerificationResponse(
     final appointmentQuery = JsonQueryBuilder()
         .model('Appointment')
         .action(QueryAction.findUnique)
-        .where({'id': appointmentId})
-        .build();
+        .where({'id': appointmentId}).build();
     final appointment =
         await db.executor.executeQueryAsSingleMap(appointmentQuery);
 
@@ -274,9 +277,8 @@ Future<Response> _buildVerificationResponse(
         final slotsQuery = JsonQueryBuilder()
             .model('SlotOfAppointment')
             .action(QueryAction.findFirst)
-            .where({'appointmentId': appointmentId})
-            .orderBy({'startsAt': 'asc'})
-            .build();
+            .where({'appointmentId': appointmentId}).orderBy(
+                {'startsAt': 'asc'}).build();
         final slot = await db.executor.executeQueryAsSingleMap(slotsQuery);
         if (slot != null) {
           scheduledAt = slot['startsAt']?.toString();

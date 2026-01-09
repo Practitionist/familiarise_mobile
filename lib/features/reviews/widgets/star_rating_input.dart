@@ -83,7 +83,9 @@ class StarRatingDisplay extends StatelessWidget {
           return Icon(
             icon,
             size: size,
-            color: rating >= starValue - 0.5 ? starColor : theme.colorScheme.outlineVariant,
+            color: rating >= starValue - 0.5
+                ? starColor
+                : theme.colorScheme.outlineVariant,
           );
         }),
         if (showValue) ...[

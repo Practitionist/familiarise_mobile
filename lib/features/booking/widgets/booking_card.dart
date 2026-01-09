@@ -127,7 +127,8 @@ class BookingCard extends StatelessWidget {
                         Text(
                           'Requested ${_formatRelativeDate(booking.createdAt!)}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            color:
+                                colorScheme.onSurfaceVariant.withOpacity(0.7),
                           ),
                         ),
                       _buildPriceTag(theme),
@@ -353,11 +354,14 @@ class BookingCard extends StatelessWidget {
               color: theme.colorScheme.primary,
             ),
             const SizedBox(width: 4),
-            Text(
-              slot.formattedDate,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                slot.formattedDate,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -372,10 +376,13 @@ class BookingCard extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 4),
-            Text(
-              slot.formattedTimeRange,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            Flexible(
+              child: Text(
+                slot.formattedTimeRange,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

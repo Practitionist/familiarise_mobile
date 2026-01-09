@@ -177,9 +177,7 @@ Future<int?> _getPlanDuration(
     final query = JsonQueryBuilder()
         .model(modelName)
         .action(QueryAction.findUnique)
-        .selectFields([durationField])
-        .where({'id': planId})
-        .build();
+        .selectFields([durationField]).where({'id': planId}).build();
 
     final result = await executor.executeQueryAsSingleMap(query);
     if (result == null) {

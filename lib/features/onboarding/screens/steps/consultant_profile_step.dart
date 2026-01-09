@@ -74,8 +74,8 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
     _headlineController = TextEditingController(text: profile?.headline ?? '');
     _descriptionController =
         TextEditingController(text: profile?.description ?? '');
-    _experienceController = TextEditingController(
-        text: profile?.experience?.toString() ?? '');
+    _experienceController =
+        TextEditingController(text: profile?.experience?.toString() ?? '');
     _websiteController = TextEditingController(text: profile?.websiteUrl ?? '');
     _twitterController = TextEditingController(text: profile?.twitterUrl ?? '');
     _githubController = TextEditingController(text: profile?.githubUrl ?? '');
@@ -142,7 +142,8 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
         children: [
           const SectionHeader(
             title: 'Professional Profile',
-            subtitle: 'Share your expertise and experience with potential mentees',
+            subtitle:
+                'Share your expertise and experience with potential mentees',
           ),
           // Headline
           AppTextField(

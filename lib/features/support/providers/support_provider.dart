@@ -46,7 +46,7 @@ class SupportTickets extends _$SupportTickets {
       final newTickets = await _fetchTickets();
       state = AsyncData([...previousTickets, ...newTickets]);
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'SupportTickets.loadMore',
@@ -66,7 +66,7 @@ class SupportTickets extends _$SupportTickets {
       final tickets = await _fetchTickets();
       state = AsyncData(tickets);
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'SupportTickets.filterByStatus',
@@ -112,7 +112,7 @@ class CreateTicket extends _$CreateTicket {
       state = AsyncData(ticket);
       return ticket;
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'CreateTicket.submit',
@@ -152,7 +152,7 @@ class AddTicketResponse extends _$AddTicketResponse {
       state = AsyncData(response);
       return response;
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'AddTicketResponse.submit',

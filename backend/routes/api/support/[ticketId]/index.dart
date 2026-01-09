@@ -30,7 +30,9 @@ Future<Response> _handleGetTicket(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -47,7 +49,9 @@ Future<Response> _handleGetTicket(
   } on RecordNotFoundException {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Ticket not found'}},
+      body: {
+        'error': {'message': 'Ticket not found'}
+      },
     );
   } on Exception catch (e) {
     await SentryLogger.error(
@@ -58,7 +62,9 @@ Future<Response> _handleGetTicket(
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch ticket'}},
+      body: {
+        'error': {'message': 'Failed to fetch ticket'}
+      },
     );
   }
 }

@@ -129,7 +129,8 @@ class _TagInputState extends State<TagInput> {
     final trimmed = tag.trim();
     if (trimmed.isEmpty) return;
     // Case-insensitive duplicate check to prevent "React" and "react" as separate tags
-    if (widget.tags.any((t) => t.toLowerCase() == trimmed.toLowerCase())) return;
+    if (widget.tags.any((t) => t.toLowerCase() == trimmed.toLowerCase()))
+      return;
     if (widget.maxTags != null && widget.tags.length >= widget.maxTags!) return;
 
     widget.onChanged([...widget.tags, trimmed]);
@@ -209,7 +210,8 @@ class _TagInputState extends State<TagInput> {
                           onDeleted: () => _removeTag(tag),
                           deleteIcon: const Icon(Icons.close, size: 18),
                           backgroundColor: colorScheme.primaryContainer,
-                          labelStyle: TextStyle(color: colorScheme.onPrimaryContainer),
+                          labelStyle:
+                              TextStyle(color: colorScheme.onPrimaryContainer),
                         );
                       }).toList(),
                     ),
@@ -245,7 +247,8 @@ class _TagInputState extends State<TagInput> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 itemCount: _filteredSuggestions.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: colorScheme.outlineVariant),
+                separatorBuilder: (_, __) =>
+                    Divider(height: 1, color: colorScheme.outlineVariant),
                 itemBuilder: (context, index) {
                   final suggestion = _filteredSuggestions[index];
                   // Use GestureDetector with onTapDown for immediate response
@@ -256,7 +259,8 @@ class _TagInputState extends State<TagInput> {
                       _addTag(suggestion);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       child: Text(
                         suggestion,
                         style: theme.textTheme.bodyMedium,

@@ -39,7 +39,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -70,7 +72,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (!isParticipant) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Booking not found'}},
+        body: {
+          'error': {'message': 'Booking not found'}
+        },
       );
     }
 
@@ -92,13 +96,17 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (errorMessage.contains('not found')) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Booking not found'}},
+        body: {
+          'error': {'message': 'Booking not found'}
+        },
       );
     }
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch booking'}},
+      body: {
+        'error': {'message': 'Failed to fetch booking'}
+      },
     );
   }
 }

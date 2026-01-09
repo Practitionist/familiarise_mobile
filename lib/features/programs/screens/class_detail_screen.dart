@@ -690,7 +690,8 @@ class _ClassDetailContent extends StatelessWidget {
             Text(
               '— Enroll soon!',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onErrorContainer.withValues(alpha: 0.8),
+                color:
+                    theme.colorScheme.onErrorContainer.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -740,8 +741,9 @@ class _ClassDetailContent extends StatelessWidget {
                 // Enroll button
                 Expanded(
                   child: FilledButton(
-                    onPressed:
-                        classPlan.canEnroll ? () => _handleEnroll(context) : null,
+                    onPressed: classPlan.canEnroll
+                        ? () => _handleEnroll(context)
+                        : null,
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(

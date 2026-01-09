@@ -22,10 +22,12 @@ class MyBookingDetailsScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MyBookingDetailsScreen> createState() => _MyBookingDetailsScreenState();
+  ConsumerState<MyBookingDetailsScreen> createState() =>
+      _MyBookingDetailsScreenState();
 }
 
-class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen> {
+class _MyBookingDetailsScreenState
+    extends ConsumerState<MyBookingDetailsScreen> {
   Booking? _booking;
   bool _isLoading = true;
   String? _error;
@@ -436,7 +438,9 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _booking!.slots.length == 1 ? 'Scheduled Time' : 'Scheduled Sessions',
+            _booking!.slots.length == 1
+                ? 'Scheduled Time'
+                : 'Scheduled Sessions',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -477,9 +481,12 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    slot.formattedDate,
-                    style: theme.textTheme.bodyMedium,
+                  Flexible(
+                    child: Text(
+                      slot.formattedDate,
+                      style: theme.textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Icon(
@@ -488,9 +495,12 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    slot.formattedTimeRange,
-                    style: theme.textTheme.bodyMedium,
+                  Flexible(
+                    child: Text(
+                      slot.formattedTimeRange,
+                      style: theme.textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   if (slot.isTentative) ...[
                     const Spacer(),
@@ -774,10 +784,13 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
   }
 
   void _handleJoinMeeting() {
-    // TODO: Implement join meeting
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Join meeting coming soon')),
-    );
+    if (_booking?.appointmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Meeting not available')),
+      );
+      return;
+    }
+    context.push('/meeting/${_booking!.appointmentId}');
   }
 
   void _handlePayNow() {
@@ -855,7 +868,8 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
     final bookingTypeStr = _booking!.bookingType == BookingType.consultation
         ? 'CONSULTATION'
         : 'SUBSCRIPTION';
-    context.push('/support/create?bookingId=${_booking!.id}&bookingType=$bookingTypeStr');
+    context.push(
+        '/support/create?bookingId=${_booking!.id}&bookingType=$bookingTypeStr');
   }
 
   (Color, Color) _getStatusColors(RequestStatus status) {
@@ -901,8 +915,18 @@ class _MyBookingDetailsScreenState extends ConsumerState<MyBookingDetailsScreen>
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }

@@ -78,7 +78,7 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         pagination: result.pagination,
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier._loadInitial',
@@ -105,12 +105,13 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         pagination: result.pagination,
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier.refresh',
       );
-      state = state.copyWith(isLoading: false, error: ErrorMessages.getConsultantsLoadError(e));
+      state = state.copyWith(
+          isLoading: false, error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 
@@ -135,12 +136,14 @@ class ConsultantsNotifier extends _$ConsultantsNotifier {
         isLoadingMore: false,
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'ConsultantsNotifier.loadMore',
       );
-      state = state.copyWith(isLoadingMore: false, error: ErrorMessages.getConsultantsLoadError(e));
+      state = state.copyWith(
+          isLoadingMore: false,
+          error: ErrorMessages.getConsultantsLoadError(e));
     }
   }
 }

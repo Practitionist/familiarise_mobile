@@ -134,7 +134,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 return FilterChip(
                   label: Text(category.displayName),
                   selected: isSelected,
-                  onSelected: (_) => setState(() => _selectedCategory = category),
+                  onSelected: (_) =>
+                      setState(() => _selectedCategory = category),
                   selectedColor: colorScheme.primaryContainer,
                   checkmarkColor: colorScheme.primary,
                   shape: RoundedRectangleBorder(

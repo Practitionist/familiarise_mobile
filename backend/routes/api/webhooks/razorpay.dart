@@ -144,8 +144,8 @@ Future<Response> onRequest(RequestContext context) async {
         case 'payment.dispute.created':
           // Handle dispute creation
           // Note: Razorpay sends dispute at payload.dispute.entity (sibling to payment)
-          final disputeEntity =
-              payload['payload']?['dispute']?['entity'] as Map<String, dynamic>?;
+          final disputeEntity = payload['payload']?['dispute']?['entity']
+              as Map<String, dynamic>?;
           final disputeOrderId = paymentEntity?['order_id'] as String?;
 
           if (disputeEntity != null && disputeOrderId != null) {

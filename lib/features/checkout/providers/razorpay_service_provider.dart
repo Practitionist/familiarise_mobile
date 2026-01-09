@@ -132,7 +132,7 @@ class RazorpayService extends _$RazorpayService {
       _razorpay!.open(options);
       return await _paymentCompleter!.future;
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'RazorpayService.openCheckout',
@@ -163,7 +163,8 @@ class RazorpayService extends _$RazorpayService {
   }
 
   void _handleError(PaymentFailureResponse response) {
-    debugPrint('Razorpay payment error: ${response.code} - ${response.message}');
+    debugPrint(
+        'Razorpay payment error: ${response.code} - ${response.message}');
 
     final code = response.code ?? 0;
     final message = response.message ?? 'Payment failed';
@@ -173,7 +174,7 @@ class RazorpayService extends _$RazorpayService {
     if (code == 2 || message.toLowerCase().contains('cancel')) {
       _paymentCompleter?.complete(const RazorpayCancelled());
     } else {
-      SentryLogger.captureMessage(
+      AppSentryLogger.captureMessage(
         'Razorpay payment failed',
         extras: {
           'code': code,

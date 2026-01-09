@@ -52,8 +52,7 @@ class FeedbackRepository extends BaseRepository {
     final resultQuery = JsonQueryBuilder()
         .model('Feedback')
         .action(QueryAction.findUnique)
-        .where({'id': feedbackId})
-        .build();
+        .where({'id': feedbackId}).build();
 
     final result = await executeQueryAsSingleMap(resultQuery);
 
@@ -69,9 +68,7 @@ class FeedbackRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('Feedback')
         .action(QueryAction.findMany)
-        .where({'userId': userId})
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        .where({'userId': userId}).orderBy({'createdAt': 'desc'}).build();
 
     return executeQueryAsMaps(query);
   }

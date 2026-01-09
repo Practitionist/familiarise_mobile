@@ -1,5 +1,5 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '13.0'
+# Define global platform for iOS deployment target
+platform :ios, '14.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -42,6 +42,13 @@ post_install do |installer|
     # Remove arm64 from excluded architectures for simulator (Apple Silicon support)
     target.build_configurations.each do |config|
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+
+      # Enable permission_handler for camera and microphone
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_MICROPHONE=1',
+      ]
     end
   end
 

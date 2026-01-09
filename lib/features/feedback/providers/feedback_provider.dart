@@ -36,7 +36,7 @@ class SubmitFeedback extends _$SubmitFeedback {
       state = AsyncData(feedback);
       return feedback;
     } catch (e, stack) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stack,
         context: 'SubmitFeedback.submit',

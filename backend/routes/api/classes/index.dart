@@ -32,8 +32,8 @@ Future<Response> onRequest(RequestContext context) async {
     final enrollmentOpen = params['enrollmentOpen'] == 'true';
     final searchQuery = params['search'];
     final page = int.tryParse(params['page'] ?? '0') ?? 0;
-    final pageSize = (int.tryParse(params['pageSize'] ?? '20') ?? 20)
-        .clamp(1, 50);
+    final pageSize =
+        (int.tryParse(params['pageSize'] ?? '20') ?? 20).clamp(1, 50);
     final sortBy = params['sortBy'] ?? 'startDate';
     final sortOrder = params['sortOrder'] ?? 'asc';
 

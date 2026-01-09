@@ -95,7 +95,8 @@ class OnboardingShellScreen extends ConsumerWidget {
             ),
           // Navigation buttons
           OnboardingStepNavigation(
-            onBack: state.currentStep > 0 ? () => notifier.previousStep() : null,
+            onBack:
+                state.currentStep > 0 ? () => notifier.previousStep() : null,
             onNext: () => _handleNext(context, ref),
             canProceed: state.canProceed,
             isLoading: state.isSubmitting,

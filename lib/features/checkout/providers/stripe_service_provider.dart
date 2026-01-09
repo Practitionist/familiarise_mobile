@@ -71,7 +71,8 @@ class StripeService extends _$StripeService {
     try {
       Stripe.publishableKey = EnvConfig.stripePublishableKey;
       _isInitialized = true;
-      debugPrint('Stripe initialized with key: ${EnvConfig.stripePublishableKey.substring(0, 20)}...');
+      debugPrint(
+          'Stripe initialized with key: ${EnvConfig.stripePublishableKey.substring(0, 20)}...');
     } catch (e) {
       debugPrint('Failed to initialize Stripe: $e');
     }
@@ -173,7 +174,7 @@ class StripeService extends _$StripeService {
         return const StripeCancelled();
       }
 
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: StackTrace.current,
         context: 'StripeService.handlePaymentSheet',
@@ -188,7 +189,7 @@ class StripeService extends _$StripeService {
         message: e.error.localizedMessage ?? 'Payment failed',
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'StripeService.handlePaymentSheet',
@@ -222,7 +223,7 @@ class StripeService extends _$StripeService {
         message: 'Cannot open payment page. Please try again.',
       );
     } catch (e, stackTrace) {
-      SentryLogger.captureException(
+      AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'StripeService.handleHostedCheckout',

@@ -82,7 +82,8 @@ class PaymentFailureScreen extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Actions
-              if (canRetry && (booking != null || directCheckoutParams != null)) ...[
+              if (canRetry &&
+                  (booking != null || directCheckoutParams != null)) ...[
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -197,7 +198,8 @@ class PaymentFailureScreen extends StatelessWidget {
             Text(
               'If this issue persists, please contact support.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onErrorContainer.withValues(alpha: 0.7),
+                color:
+                    theme.colorScheme.onErrorContainer.withValues(alpha: 0.7),
               ),
             ),
           ],

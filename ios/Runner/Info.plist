@@ -45,6 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Camera and Microphone permissions for video calls -->
+	<key>NSCameraUsageDescription</key>
+	<string>Familiarise needs camera access for video consultations with experts</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Familiarise needs microphone access for video consultations with experts</string>
 	<!-- URL schemes for OAuth callbacks and deep links -->
 	<key>CFBundleURLTypes</key>
 	<array>

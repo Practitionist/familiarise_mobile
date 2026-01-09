@@ -106,7 +106,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -149,7 +150,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -200,7 +202,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -219,7 +222,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (urlResponse.statusCode != 200) {
         final error = jsonDecode(urlResponse.body);
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to get GitHub auth URL',
+          message:
+              error['error']?['message'] ?? 'Failed to get GitHub auth URL',
         );
       }
 
@@ -275,7 +279,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -291,7 +296,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       // Even if sign out fails, still clear local auth
       await _clearLocalAuth();
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource.signOut');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource.signOut');
     }
   }
 
@@ -458,7 +464,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -494,7 +501,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }
@@ -548,7 +556,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
-      SentryLogger.captureException(e, stackTrace: stackTrace, context: 'AuthRemoteSource');
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource');
       throw AuthException(message: e.toString());
     }
   }

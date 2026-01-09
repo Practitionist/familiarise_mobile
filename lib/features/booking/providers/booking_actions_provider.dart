@@ -54,7 +54,7 @@ class BookingActions extends _$BookingActions {
     state = const BookingActionLoading();
 
     // Add breadcrumb for user action tracking
-    SentryLogger.addBreadcrumb(
+    AppSentryLogger.addBreadcrumb(
       message: 'User initiated reschedule',
       category: 'booking.action',
       data: {
@@ -83,7 +83,7 @@ class BookingActions extends _$BookingActions {
       );
       return true;
     } catch (e, stackTrace) {
-      await SentryLogger.captureException(
+      await AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'BookingActions.rescheduleBooking',
@@ -109,7 +109,7 @@ class BookingActions extends _$BookingActions {
     state = const BookingActionLoading();
 
     // Add breadcrumb for user action tracking
-    SentryLogger.addBreadcrumb(
+    AppSentryLogger.addBreadcrumb(
       message: 'User initiated cancellation',
       category: 'booking.action',
       data: {
@@ -128,11 +128,12 @@ class BookingActions extends _$BookingActions {
       );
 
       state = const BookingActionSuccess(
-        message: 'Booking cancelled successfully. Refund will be processed within 5-7 business days.',
+        message:
+            'Booking cancelled successfully. Refund will be processed within 5-7 business days.',
       );
       return true;
     } catch (e, stackTrace) {
-      await SentryLogger.captureException(
+      await AppSentryLogger.captureException(
         e,
         stackTrace: stackTrace,
         context: 'BookingActions.cancelBooking',
@@ -162,7 +163,8 @@ class BookingActions extends _$BookingActions {
     if (errorStr.contains('not found') || errorStr.contains('NotFound')) {
       return 'Booking not found. It may have been deleted.';
     }
-    if (errorStr.contains('unauthorized') || errorStr.contains('Unauthorized')) {
+    if (errorStr.contains('unauthorized') ||
+        errorStr.contains('Unauthorized')) {
       return 'You are not authorized to modify this booking.';
     }
     if (errorStr.contains('network') || errorStr.contains('connection')) {

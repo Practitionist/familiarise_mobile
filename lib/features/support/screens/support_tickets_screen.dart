@@ -228,8 +228,8 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color:
-                        theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    color: theme.colorScheme.primaryContainer
+                        .withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(

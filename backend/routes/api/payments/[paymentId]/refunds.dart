@@ -23,7 +23,9 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
     if (userId == null) {
       return Response.json(
         statusCode: io.HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -34,14 +36,18 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
     if (payment == null) {
       return Response.json(
         statusCode: io.HttpStatus.notFound,
-        body: {'error': {'message': 'Payment not found'}},
+        body: {
+          'error': {'message': 'Payment not found'}
+        },
       );
     }
 
     if (payment['userId'] != userId) {
       return Response.json(
         statusCode: io.HttpStatus.forbidden,
-        body: {'error': {'message': 'Access denied'}},
+        body: {
+          'error': {'message': 'Access denied'}
+        },
       );
     }
 
@@ -49,16 +55,18 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
     final refunds = await db.refunds.getRefundsByPaymentId(paymentId);
 
     // Format response
-    final formattedRefunds = refunds.map((r) => {
-      'id': r['id'],
-      'refundId': r['refundId'],
-      'amount': r['amount'],
-      'currency': r['currency'],
-      'status': r['status'],
-      'reason': r['reason'],
-      'paymentGateway': r['paymentGateway'],
-      'createdAt': r['createdAt'],
-    }).toList();
+    final formattedRefunds = refunds
+        .map((r) => {
+              'id': r['id'],
+              'refundId': r['refundId'],
+              'amount': r['amount'],
+              'currency': r['currency'],
+              'status': r['status'],
+              'reason': r['reason'],
+              'paymentGateway': r['paymentGateway'],
+              'createdAt': r['createdAt'],
+            })
+        .toList();
 
     return Response.json(
       body: serializeForJson({

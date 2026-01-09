@@ -13,6 +13,7 @@ export 'consultee_profile_repository.dart';
 export 'dispute_repository.dart';
 export 'domain_repository.dart';
 export 'feedback_repository.dart';
+export 'meeting_session_repository.dart';
 export 'programs_repository.dart';
 export 'refund_repository.dart';
 export 'review_repository.dart';

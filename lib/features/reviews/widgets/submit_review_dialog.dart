@@ -208,8 +208,9 @@ class _SubmitReviewDialogState extends ConsumerState<SubmitReviewDialog> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed:
-                        _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.of(context).pop(false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(

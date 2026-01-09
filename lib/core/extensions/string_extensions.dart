@@ -88,8 +88,7 @@ extension StringX on String {
   String get toCamelCase {
     final parts = split('_');
     if (parts.length == 1) return this;
-    return parts.first +
-        parts.skip(1).map((part) => part.capitalize).join();
+    return parts.first + parts.skip(1).map((part) => part.capitalize).join();
   }
 
   /// Convert camelCase to snake_case
@@ -110,6 +109,5 @@ extension NullableStringX on String? {
   bool get isNotNullOrEmpty => this != null && this!.isNotEmpty;
 
   /// Return the string or a default value if null/empty
-  String orDefault(String defaultValue) =>
-      isNullOrEmpty ? defaultValue : this!;
+  String orDefault(String defaultValue) => isNullOrEmpty ? defaultValue : this!;
 }

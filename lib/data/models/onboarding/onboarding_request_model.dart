@@ -64,9 +64,10 @@ class OnboardingRequestModel with _$OnboardingRequestModel {
               currentCompany: state.consulteeProfile!.currentCompany,
               industry: state.consulteeProfile!.industry,
               skillsToDevelop: state.consulteeProfile!.skillsToDevelop,
-              budgetPreference: _toDbEnum(state.preferences?.budgetPreference?.name),
-              preferredCommunicationMethod:
-                  _toDbEnum(state.preferences?.preferredCommunicationMethod.name),
+              budgetPreference:
+                  _toDbEnum(state.preferences?.budgetPreference?.name),
+              preferredCommunicationMethod: _toDbEnum(
+                  state.preferences?.preferredCommunicationMethod.name),
               preferredLanguage: state.preferences?.preferredLanguage,
               linkedinUrl: state.consulteeProfile!.linkedinUrl,
             )
@@ -79,7 +80,8 @@ class OnboardingRequestModel with _$OnboardingRequestModel {
               subDomainIds: state.consultantProfile!.subDomainIds,
               headline: state.consultantProfile!.headline,
               languages: state.consultantProfile!.languages,
-              toolsAndTechnologies: state.consultantProfile!.toolsAndTechnologies,
+              toolsAndTechnologies:
+                  state.consultantProfile!.toolsAndTechnologies,
               mentoringStyle: state.consultantProfile!.mentoringStyle,
               sessionTypes: state.consultantProfile!.sessionTypes,
               websiteUrl: state.consultantProfile!.websiteUrl,

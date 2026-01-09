@@ -221,7 +221,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         onTap: isLoading
                             ? null
                             : () {
-                                setState(() => _acceptedTerms = !_acceptedTerms);
+                                setState(
+                                    () => _acceptedTerms = !_acceptedTerms);
                               },
                         child: Padding(
                           padding: const EdgeInsets.only(top: 12),

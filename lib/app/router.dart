@@ -25,6 +25,7 @@ import '../features/support/screens/support_tickets_screen.dart';
 import '../features/support/screens/support_ticket_detail_screen.dart';
 import '../features/support/screens/create_ticket_screen.dart';
 import '../features/feedback/screens/feedback_screen.dart';
+import '../features/meetings/screens/meeting_screen.dart';
 import 'providers/navigation_provider.dart';
 import 'shells/main_shell.dart';
 
@@ -63,7 +64,8 @@ GoRouter router(Ref ref) {
       final location = state.matchedLocation;
 
       // Debug logging
-      debugPrint('🔀 Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
+      debugPrint(
+          '🔀 Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
       final isAuthRoute = location.startsWith('/auth');
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
@@ -82,6 +84,7 @@ GoRouter router(Ref ref) {
           location.startsWith('/payment') ||
           location.startsWith('/support') ||
           location.startsWith('/feedback') ||
+          location.startsWith('/meeting') ||
           location == '/booking/failure' ||
           location == '/booking/success';
 
@@ -196,7 +199,9 @@ GoRouter router(Ref ref) {
             final currentTab = NavigationTab.fromPath(currentPath);
             final currentIndex = container.read(navigationIndexProvider);
             if (currentIndex != currentTab.index) {
-              container.read(navigationIndexProvider.notifier).setIndex(currentTab.index);
+              container
+                  .read(navigationIndexProvider.notifier)
+                  .setIndex(currentTab.index);
             }
           });
           return MainShell(child: child);
@@ -269,7 +274,8 @@ GoRouter router(Ref ref) {
             name: 'bookingDetails',
             builder: (context, state) {
               final bookingId = state.pathParameters['bookingId']!;
-              final typeParam = state.uri.queryParameters['type'] ?? 'CONSULTATION';
+              final typeParam =
+                  state.uri.queryParameters['type'] ?? 'CONSULTATION';
               final bookingType = BookingType.fromString(typeParam);
               return MyBookingDetailsScreen(
                 bookingId: bookingId,
@@ -348,7 +354,8 @@ GoRouter router(Ref ref) {
             errorMessage: extra?['message'] as String?,
             canRetry: extra?['canRetry'] as bool? ?? true,
             booking: extra?['booking'] as Booking?,
-            directCheckoutParams: extra?['directCheckoutParams'] as DirectCheckoutParams?,
+            directCheckoutParams:
+                extra?['directCheckoutParams'] as DirectCheckoutParams?,
           );
         },
       ),
@@ -386,6 +393,15 @@ GoRouter router(Ref ref) {
         path: '/feedback',
         name: 'feedback',
         builder: (context, state) => const FeedbackScreen(),
+      ),
+
+      // Meeting route (Phase 7)
+      GoRoute(
+        path: '/meeting/:appointmentId',
+        name: 'meeting',
+        builder: (context, state) => MeetingScreen(
+          appointmentId: state.pathParameters['appointmentId']!,
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
