@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stream_chat_flutter/stream_chat_flutter.dart';
+
 import 'package:familiarise_mobile/app/router.dart';
 import 'package:familiarise_mobile/app/theme/app_theme.dart';
+import 'package:familiarise_mobile/features/chat/providers/chat_service_provider.dart';
+import 'package:familiarise_mobile/features/chat/theme/chat_theme.dart';
 
 class FamiliariseApp extends ConsumerWidget {
   const FamiliariseApp({super.key});
@@ -9,6 +13,7 @@ class FamiliariseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final chatService = ref.watch(chatServiceProvider.notifier);
 
     return MaterialApp.router(
       title: 'Familiarise',
@@ -17,6 +22,18 @@ class FamiliariseApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       routerConfig: router,
+      builder: (context, child) {
+        // Wrap with StreamChat when client is available
+        final chatClient = chatService.client;
+        if (chatClient != null) {
+          return StreamChat(
+            client: chatClient,
+            streamChatThemeData: buildChatTheme(context),
+            child: child ?? const SizedBox.shrink(),
+          );
+        }
+        return child ?? const SizedBox.shrink();
+      },
     );
   }
 }
