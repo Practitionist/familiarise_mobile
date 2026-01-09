@@ -17,14 +17,66 @@ class ChatListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
-    _initializeChat();
+    // Defer initialization to avoid modifying provider state during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeChat();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeChat() async {
     await ref.read(chatServiceProvider.notifier).initialize();
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query.toLowerCase().trim();
+    });
+  }
+
+  Future<void> _onConsultantTap(AppointmentConsultant consultant) async {
+    final chatService = ref.read(chatServiceProvider.notifier);
+
+    // Ensure chat is initialized
+    final chatState = ref.read(chatServiceProvider);
+    if (!chatState.isInitialized) {
+      final success = await chatService.initialize();
+      if (!success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to connect to chat')),
+          );
+        }
+        return;
+      }
+    }
+
+    // Create or get the channel
+    final channel =
+        await chatService.getOrCreateDirectChannel(consultant.consultantUserId);
+
+    if (channel != null && mounted) {
+      context.pushNamed(
+        'chatRoom',
+        pathParameters: {'channelId': channel.id!},
+        extra: channel,
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to open chat')),
+      );
+    }
   }
 
   @override
@@ -33,6 +85,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final colorScheme = theme.colorScheme;
     final chatState = ref.watch(chatServiceProvider);
     final channelsAsync = ref.watch(chatChannelsProvider);
+    final consultantsAsync = ref.watch(appointmentConsultantsProvider);
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -68,11 +121,47 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               ),
             ),
 
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'Search consultants...',
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHigh,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+
             // Content
             Expanded(
               child: _buildContent(
                 chatState,
                 channelsAsync,
+                consultantsAsync,
                 theme,
                 colorScheme,
               ),
@@ -86,6 +175,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   Widget _buildContent(
     ChatState chatState,
     AsyncValue<List<Channel>> channelsAsync,
+    AsyncValue<List<AppointmentConsultant>> consultantsAsync,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
@@ -133,25 +223,231 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       );
     }
 
-    // Show loading state while initializing
-    if (!chatState.isInitialized) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    // Build the main content
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(appointmentConsultantsProvider);
+        await _initializeChat();
+      },
+      child: CustomScrollView(
+        slivers: [
+          // Linked Consultants Section
+          _buildConsultantsSection(consultantsAsync, theme, colorScheme),
 
-    // Show channels
-    return channelsAsync.when(
-      data: (channels) {
-        if (channels.isEmpty) {
-          return _buildEmptyState(theme, colorScheme);
+          // Conversations Section
+          _buildConversationsSection(
+            chatState,
+            channelsAsync,
+            consultantsAsync,
+            theme,
+            colorScheme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsultantsSection(
+    AsyncValue<List<AppointmentConsultant>> consultantsAsync,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    return consultantsAsync.when(
+      data: (consultants) {
+        // Filter by search query
+        final filtered = _searchQuery.isEmpty
+            ? consultants
+            : consultants
+                .where((c) =>
+                    c.consultantName.toLowerCase().contains(_searchQuery))
+                .toList();
+
+        if (filtered.isEmpty && _searchQuery.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
 
-        return RefreshIndicator(
-          onRefresh: _initializeChat,
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: channels.length,
-            itemBuilder: (context, index) {
-              final channel = channels[index];
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'LINKED CONSULTANTS',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        filtered.length.toString(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (filtered.isEmpty && _searchQuery.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  child: Text(
+                    'No consultants found matching "$_searchQuery"',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                )
+              else
+                ...filtered.map((consultant) => _ConsultantTile(
+                      consultant: consultant,
+                      onTap: () => _onConsultantTap(consultant),
+                    )),
+            ],
+          ),
+        );
+      },
+      loading: () => const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      error: (error, _) => SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            'Failed to load consultants',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.error,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConversationsSection(
+    ChatState chatState,
+    AsyncValue<List<Channel>> channelsAsync,
+    AsyncValue<List<AppointmentConsultant>> consultantsAsync,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    // Show loading state while initializing
+    if (!chatState.isInitialized) {
+      return const SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    return channelsAsync.when(
+      data: (channels) {
+        // Filter channels by search query (match other member's name)
+        final currentUserId =
+            ref.read(chatServiceProvider.notifier).client?.state.currentUser?.id;
+
+        final filtered = _searchQuery.isEmpty
+            ? channels
+            : channels.where((channel) {
+                final otherMembers = channel.state?.members
+                        .where((m) => m.userId != currentUserId)
+                        .toList() ??
+                    [];
+                final otherMember =
+                    otherMembers.isNotEmpty ? otherMembers.first : null;
+                final name = otherMember?.user?.name.toLowerCase() ?? '';
+                return name.contains(_searchQuery);
+              }).toList();
+
+        if (filtered.isEmpty) {
+          if (_searchQuery.isNotEmpty) {
+            return SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'No conversations found',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            );
+          }
+          // Only show empty state if there are no linked consultants
+          final hasConsultants = consultantsAsync.valueOrNull?.isNotEmpty ?? false;
+          if (!hasConsultants) {
+            return SliverToBoxAdapter(
+              child: _buildEmptyConversationsState(theme, colorScheme),
+            );
+          }
+          // If we have consultants but no conversations, just show nothing
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'CONVERSATIONS',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          filtered.length.toString(),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final channel = filtered[index - 1];
               return _ChatChannelTile(
                 channel: channel,
                 onTap: () {
@@ -163,11 +459,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 },
               );
             },
+            childCount: filtered.length + 1, // +1 for header
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
+      loading: () => const SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ),
+      error: (error, _) => SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -189,43 +493,101 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme, ColorScheme colorScheme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: Icon(
-                Icons.chat_bubble_outline,
-                size: 48,
-                color: colorScheme.primary,
-              ),
+  Widget _buildEmptyConversationsState(ThemeData theme, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'No conversations yet',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            child: Icon(
+              Icons.chat_bubble_outline,
+              size: 36,
+              color: colorScheme.primary,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Start a conversation by booking a\nconsultation with an expert.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No conversations yet',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-          ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap a consultant above to start chatting',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tile widget for displaying a consultant in the linked consultants list
+class _ConsultantTile extends StatelessWidget {
+  const _ConsultantTile({
+    required this.consultant,
+    required this.onTap,
+  });
+
+  final AppointmentConsultant consultant;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 4,
+      ),
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: colorScheme.primaryContainer,
+        backgroundImage: consultant.consultantImage != null
+            ? NetworkImage(consultant.consultantImage!)
+            : null,
+        child: consultant.consultantImage == null
+            ? Text(
+                consultant.initials,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            : null,
+      ),
+      title: Text(
+        consultant.consultantName,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w500,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        consultant.appointmentTypeText,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chat_bubble_outline,
+        color: colorScheme.primary,
+        size: 20,
       ),
     );
   }
@@ -356,9 +718,9 @@ class _ChatChannelTile extends StatelessWidget {
     if (message.isDeleted) return 'Message deleted';
     if (message.attachments.isNotEmpty) {
       final attachment = message.attachments.first;
-      if (attachment.type == 'image') return '📷 Photo';
-      if (attachment.type == 'file') return '📎 File';
-      return '📎 Attachment';
+      if (attachment.type == 'image') return 'Photo';
+      if (attachment.type == 'file') return 'File';
+      return 'Attachment';
     }
     return message.text ?? '';
   }

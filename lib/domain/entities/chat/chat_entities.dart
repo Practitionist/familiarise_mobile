@@ -5,5 +5,6 @@
 /// state management types.
 library;
 
+export 'appointment_consultant.dart';
 export 'chat.dart';
 export 'chat_state.dart';

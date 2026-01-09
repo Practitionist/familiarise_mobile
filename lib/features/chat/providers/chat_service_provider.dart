@@ -6,6 +6,7 @@ import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 
 import '../../../core/utils/sentry_logger.dart';
+import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../data/repositories/chat_repository_impl.dart';
 import '../../../domain/entities/chat/chat_entities.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -204,4 +205,14 @@ Stream<List<Channel>> chatChannels(Ref ref) async* {
 int totalUnreadCount(Ref ref) {
   final chatState = ref.watch(chatServiceProvider);
   return chatState.totalUnreadCount;
+}
+
+/// Provider for fetching consultants from user's appointments
+///
+/// Returns a deduplicated list of consultants the user has appointments with,
+/// sorted by most recent appointment date.
+@riverpod
+Future<List<AppointmentConsultant>> appointmentConsultants(Ref ref) async {
+  final repository = ref.watch(bookingRepositoryProvider);
+  return repository.getAllMyConsultants();
 }

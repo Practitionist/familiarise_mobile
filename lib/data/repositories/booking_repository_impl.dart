@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../domain/entities/booking/booking_entities.dart';
+import '../../domain/entities/chat/chat_entities.dart';
 import '../../domain/repositories/booking_repository.dart';
 import '../datasources/remote/booking_remote_source.dart';
 
@@ -90,5 +91,48 @@ class BookingRepositoryImpl implements BookingRepository {
     String? slotId,
   }) {
     return _remoteSource.rescheduleBooking(id: id, type: type, slotId: slotId);
+  }
+
+  @override
+  Future<List<AppointmentConsultant>> getAllMyConsultants() async {
+    // Fetch all bookings (large page size to get all consultants)
+    // We fetch without status filter to include all appointment types
+    final response = await _remoteSource.getMyBookings(pageSize: 100);
+
+    // Extract unique consultants by consultantUserId
+    final consultantsMap = <String, AppointmentConsultant>{};
+
+    for (final booking in response.bookings) {
+      // Skip bookings without consultant info
+      if (booking.consultantUserId == null) continue;
+
+      final userId = booking.consultantUserId!;
+
+      // Keep the most recent appointment for each consultant
+      if (!consultantsMap.containsKey(userId)) {
+        consultantsMap[userId] = AppointmentConsultant.fromBooking(booking);
+      } else {
+        // Update if this booking is more recent
+        final existing = consultantsMap[userId]!;
+        if (booking.createdAt != null &&
+            (existing.lastAppointmentDate == null ||
+                booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
+          consultantsMap[userId] = AppointmentConsultant.fromBooking(booking);
+        }
+      }
+    }
+
+    // Sort by most recent appointment date (descending)
+    final consultants = consultantsMap.values.toList()
+      ..sort((a, b) {
+        if (a.lastAppointmentDate == null && b.lastAppointmentDate == null) {
+          return 0;
+        }
+        if (a.lastAppointmentDate == null) return 1;
+        if (b.lastAppointmentDate == null) return -1;
+        return b.lastAppointmentDate!.compareTo(a.lastAppointmentDate!);
+      });
+
+    return consultants;
   }
 }
