@@ -20,3 +20,18 @@ class ChatToken with _$ChatToken {
   factory ChatToken.fromJson(Map<String, dynamic> json) =>
       _$ChatTokenFromJson(json);
 }
+
+/// Result from creating a group channel
+@freezed
+class GroupChannelResult with _$GroupChannelResult {
+  const factory GroupChannelResult({
+    /// The channel ID
+    required String channelId,
+
+    /// The channel type (usually 'team')
+    required String channelType,
+  }) = _GroupChannelResult;
+
+  factory GroupChannelResult.fromJson(Map<String, dynamic> json) =>
+      _$GroupChannelResultFromJson(json);
+}

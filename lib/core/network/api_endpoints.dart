@@ -52,6 +52,11 @@ abstract final class ApiEndpoints {
   static const String streamVideoToken = '$api/stream/video-token';
   static const String streamChatToken = '$api/stream/chat-token';
   static const String streamUpsertUser = '$api/stream/upsert-user';
+  static const String streamCreateGroupChannel =
+      '$api/stream/create-group-channel';
+  static const String streamAddMember = '$api/stream/add-member';
+  static const String streamSetMemberRole = '$api/stream/set-member-role';
+  static const String streamToggleArchive = '$api/stream/toggle-archive';
 
   // Meetings
   static String meetingByAppointmentId(String appointmentId) =>

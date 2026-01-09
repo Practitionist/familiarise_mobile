@@ -374,7 +374,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         final currentUserId =
             ref.read(chatServiceProvider.notifier).client?.state.currentUser?.id;
 
-        final filtered = _searchQuery.isEmpty
+        final searchFiltered = _searchQuery.isEmpty
             ? channels
             : channels.where((channel) {
                 final otherMembers = channel.state?.members
@@ -383,9 +383,30 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     [];
                 final otherMember =
                     otherMembers.isNotEmpty ? otherMembers.first : null;
-                final name = otherMember?.user?.name.toLowerCase() ?? '';
+                final name =
+                    (otherMember?.user?.name ?? '').toLowerCase();
                 return name.contains(_searchQuery);
               }).toList();
+
+        // Filter out channels with no valid other member (deleted/unknown users)
+        // This handles orphaned channels where the other member was deleted
+        final filtered = searchFiltered.where((channel) {
+          // For group channels (team type), check channel name instead
+          if (channel.type == 'team') {
+            final name = channel.name;
+            return name != null && name.isNotEmpty;
+          }
+          // For direct messages, check the other member has valid user data
+          final otherMembers = channel.state?.members
+                  .where((m) => m.userId != currentUserId)
+                  .toList() ??
+              [];
+          if (otherMembers.isEmpty) return false;
+          final otherUser = otherMembers.first.user;
+          // Filter out if user is null or has no name
+          if (otherUser == null) return false;
+          return otherUser.name.isNotEmpty;
+        }).toList();
 
         if (filtered.isEmpty) {
           if (_searchQuery.isNotEmpty) {
@@ -607,12 +628,15 @@ class _ChatChannelTile extends StatelessWidget {
   final Channel channel;
   final VoidCallback onTap;
 
+  /// Check if this is a group channel (team type)
+  bool get isGroupChannel => channel.type == 'team';
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Get the other member in the channel
+    // For group channels, use channel name; for DMs, get the other member
     final currentUserId = channel.client.state.currentUser?.id;
     final otherMembers = channel.state?.members
             .where((m) => m.userId != currentUserId)
@@ -622,33 +646,39 @@ class _ChatChannelTile extends StatelessWidget {
     final lastMessage = channel.state?.lastMessage;
     final unreadCount = channel.state?.unreadCount ?? 0;
 
+    // Get display name and subtitle based on channel type
+    final displayName = isGroupChannel
+        ? (channel.name ?? 'Group Chat')
+        : (otherMember?.user?.name ?? 'Unknown');
+    final memberCount = channel.state?.members.length ?? 0;
+    final isArchived = channel.extraData['isArchived'] == true;
+
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 8,
       ),
-      leading: CircleAvatar(
-        radius: 26,
-        backgroundColor: colorScheme.primaryContainer,
-        backgroundImage: otherMember?.user?.image != null
-            ? NetworkImage(otherMember!.user!.image!)
-            : null,
-        child: otherMember?.user?.image == null
-            ? Text(
-                (otherMember?.user?.name).getInitials(),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            : null,
+      leading: _buildAvatar(
+        context,
+        theme,
+        colorScheme,
+        otherMember,
       ),
       title: Row(
         children: [
+          if (isGroupChannel)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Icon(
+                Icons.group,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           Expanded(
             child: Text(
-              otherMember?.user?.name ?? 'Unknown',
+              displayName,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight:
                     unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
@@ -657,6 +687,15 @@ class _ChatChannelTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (isArchived)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                Icons.archive_outlined,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           if (lastMessage?.createdAt != null)
             Text(
               _formatMessageTime(lastMessage!.createdAt.toLocal()),
@@ -672,7 +711,9 @@ class _ChatChannelTile extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              _getLastMessagePreview(lastMessage),
+              isGroupChannel
+                  ? _getGroupSubtitle(lastMessage, memberCount)
+                  : _getLastMessagePreview(lastMessage),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: unreadCount > 0
                     ? colorScheme.onSurface
@@ -706,6 +747,52 @@ class _ChatChannelTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildAvatar(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    Member? otherMember,
+  ) {
+    if (isGroupChannel) {
+      // Group avatar with group icon
+      return CircleAvatar(
+        radius: 26,
+        backgroundColor: colorScheme.secondaryContainer,
+        child: Icon(
+          Icons.groups,
+          color: colorScheme.onSecondaryContainer,
+          size: 28,
+        ),
+      );
+    }
+
+    // Direct message avatar
+    return CircleAvatar(
+      radius: 26,
+      backgroundColor: colorScheme.primaryContainer,
+      backgroundImage: otherMember?.user?.image != null
+          ? NetworkImage(otherMember!.user!.image!)
+          : null,
+      child: otherMember?.user?.image == null
+          ? Text(
+              (otherMember?.user?.name).getInitials(),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          : null,
+    );
+  }
+
+  String _getGroupSubtitle(Message? lastMessage, int memberCount) {
+    final membersText = '$memberCount member${memberCount == 1 ? '' : 's'}';
+    if (lastMessage == null) return membersText;
+
+    final preview = _getLastMessagePreview(lastMessage);
+    return '$membersText \u2022 $preview';
   }
 
   String _getLastMessagePreview(Message? message) {

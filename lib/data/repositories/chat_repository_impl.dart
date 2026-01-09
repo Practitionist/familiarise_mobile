@@ -39,4 +39,67 @@ class ChatRepositoryImpl implements ChatRepository {
       image: image,
     );
   }
+
+  @override
+  Future<GroupChannelResult> createGroupChannel({
+    required String channelId,
+    required String channelName,
+    required List<String> memberIds,
+    String? programType,
+    String? programId,
+    String? instructorId,
+  }) {
+    final extraData = <String, dynamic>{};
+    if (programType != null) extraData['programType'] = programType;
+    if (programId != null) extraData['programId'] = programId;
+    if (instructorId != null) extraData['instructorId'] = instructorId;
+
+    return _remoteSource.createGroupChannel(
+      channelId: channelId,
+      channelName: channelName,
+      memberIds: memberIds,
+      extraData: extraData.isNotEmpty ? extraData : null,
+    );
+  }
+
+  @override
+  Future<void> addChannelMembers({
+    required String channelId,
+    required List<String> memberIds,
+    String channelType = 'team',
+  }) {
+    return _remoteSource.addChannelMembers(
+      channelType: channelType,
+      channelId: channelId,
+      memberIds: memberIds,
+    );
+  }
+
+  @override
+  Future<void> setMemberRole({
+    required String channelId,
+    required String userId,
+    required String role,
+    String channelType = 'team',
+  }) {
+    return _remoteSource.setMemberRole(
+      channelType: channelType,
+      channelId: channelId,
+      userId: userId,
+      role: role,
+    );
+  }
+
+  @override
+  Future<void> toggleArchive({
+    required String channelId,
+    required bool archived,
+    String channelType = 'team',
+  }) {
+    return _remoteSource.toggleArchive(
+      channelType: channelType,
+      channelId: channelId,
+      archived: archived,
+    );
+  }
 }

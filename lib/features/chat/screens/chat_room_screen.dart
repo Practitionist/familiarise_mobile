@@ -246,13 +246,26 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       );
     }
 
-    // Get the other member for the app bar
+    // Check if this is a group channel
+    final isGroupChannel = _channel!.type == 'team';
     final currentUserId = _channel!.client.state.currentUser?.id;
+    final memberCount = _channel!.state?.members.length ?? 0;
+    final isArchived = _channel!.extraData['isArchived'] == true;
+
+    // For DMs, get the other member for the app bar
     final otherMembers = _channel!.state?.members
             .where((m) => m.userId != currentUserId)
             .toList() ??
         [];
     final otherMember = otherMembers.isNotEmpty ? otherMembers.first : null;
+
+    // Display name and subtitle based on channel type
+    final displayName = isGroupChannel
+        ? (_channel!.name ?? 'Group Chat')
+        : (otherMember?.user?.name ?? 'Chat');
+    final subtitle = isGroupChannel
+        ? '$memberCount member${memberCount == 1 ? '' : 's'}'
+        : (otherMember?.user?.online == true ? 'Online' : null);
 
     return StreamChannel(
       channel: _channel!,
@@ -270,40 +283,47 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
             ],
             title: Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: colorScheme.primaryContainer,
-                  backgroundImage: otherMember?.user?.image != null
-                      ? NetworkImage(otherMember!.user!.image!)
-                      : null,
-                  child: otherMember?.user?.image == null
-                      ? Text(
-                          (otherMember?.user?.name).getInitials(),
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        )
-                      : null,
+                _buildAppBarAvatar(
+                  theme,
+                  colorScheme,
+                  isGroupChannel,
+                  otherMember,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        otherMember?.user?.name ?? 'Chat',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          if (isArchived)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(
+                                Icons.archive_outlined,
+                                size: 14,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (otherMember?.user?.online == true)
+                      if (subtitle != null)
                         Text(
-                          'Online',
+                          subtitle,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.green,
+                            color: subtitle == 'Online'
+                                ? Colors.green
+                                : colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -314,37 +334,105 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
           ),
           body: Column(
             children: [
+              // Archived banner
+              if (isArchived)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  color: colorScheme.surfaceContainerHighest,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.archive_outlined,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'This chat is archived',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Message list
               Expanded(
                 child: StreamMessageListView(
                   messageBuilder: (context, details, messages, defaultWidget) {
+                    // Show avatars in group chats, hide in DMs
                     return defaultWidget.copyWith(
-                      showUserAvatar: DisplayWidget.gone,
+                      showUserAvatar: isGroupChannel
+                          ? DisplayWidget.show
+                          : DisplayWidget.gone,
                     );
                   },
                 ),
               ),
 
-              // Message input
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  border: Border(
-                    top: BorderSide(
-                      color: colorScheme.outlineVariant,
+              // Message input (hidden if archived)
+              if (!isArchived)
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
+                  child: SafeArea(
+                    child: StreamMessageInput(
+                      disableAttachments: false,
+                      sendButtonLocation: SendButtonLocation.inside,
                     ),
                   ),
                 ),
-                child: SafeArea(
-                  child: StreamMessageInput(
-                    disableAttachments: false,
-                    sendButtonLocation: SendButtonLocation.inside,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
+    );
+  }
+
+  Widget _buildAppBarAvatar(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    bool isGroupChannel,
+    Member? otherMember,
+  ) {
+    if (isGroupChannel) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: colorScheme.secondaryContainer,
+        child: Icon(
+          Icons.groups,
+          color: colorScheme.onSecondaryContainer,
+          size: 20,
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: colorScheme.primaryContainer,
+      backgroundImage: otherMember?.user?.image != null
+          ? NetworkImage(otherMember!.user!.image!)
+          : null,
+      child: otherMember?.user?.image == null
+          ? Text(
+              (otherMember?.user?.name).getInitials(),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          : null,
     );
   }
 }

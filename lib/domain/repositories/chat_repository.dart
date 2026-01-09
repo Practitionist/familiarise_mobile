@@ -19,4 +19,44 @@ abstract class ChatRepository {
     String? name,
     String? image,
   });
+
+  /// Create a group channel for a class or webinar
+  ///
+  /// Creates a team-type channel with all specified members.
+  /// Returns the channel ID and type on success.
+  Future<GroupChannelResult> createGroupChannel({
+    required String channelId,
+    required String channelName,
+    required List<String> memberIds,
+    String? programType, // 'CLASS' or 'WEBINAR'
+    String? programId,
+    String? instructorId,
+  });
+
+  /// Add members to an existing group channel
+  Future<void> addChannelMembers({
+    required String channelId,
+    required List<String> memberIds,
+    String channelType = 'team',
+  });
+
+  /// Update a member's role in a channel
+  ///
+  /// Use 'channel_member' for read-only access (cancelled participants).
+  /// Use 'owner' for instructors with full control.
+  Future<void> setMemberRole({
+    required String channelId,
+    required String userId,
+    required String role, // 'owner', 'channel_moderator', 'channel_member'
+    String channelType = 'team',
+  });
+
+  /// Toggle archive status of a channel
+  ///
+  /// Archived channels are frozen (no new messages allowed).
+  Future<void> toggleArchive({
+    required String channelId,
+    required bool archived,
+    String channelType = 'team',
+  });
 }
