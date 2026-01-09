@@ -19,6 +19,13 @@ ChatRemoteSource chatRemoteSource(Ref ref) {
 abstract class ChatRemoteSource {
   /// Get chat token for connecting to Stream Chat
   Future<ChatToken> getChatToken();
+
+  /// Upsert a user in Stream Chat
+  Future<void> upsertChatUser({
+    required String userId,
+    String? name,
+    String? image,
+  });
 }
 
 /// Implementation of ChatRemoteSource
@@ -50,6 +57,36 @@ class ChatRemoteSourceImpl implements ChatRemoteSource {
       throw ServerException(
         message: e.response?.data?['error']?['message'] ??
             'Failed to get chat token',
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
+    }
+  }
+
+  @override
+  Future<void> upsertChatUser({
+    required String userId,
+    String? name,
+    String? image,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'userId': userId,
+      };
+      if (name != null) data['name'] = name;
+      if (image != null) data['image'] = image;
+
+      await _dio.post(
+        ApiEndpoints.streamUpsertUser,
+        data: data,
+      );
+    } on DioException catch (e) {
+      if (e.error is AppException) {
+        throw e.error as AppException;
+      }
+      throw ServerException(
+        message: e.response?.data?['error']?['message'] ??
+            'Failed to upsert chat user',
         statusCode: e.response?.statusCode,
         originalError: e,
       );

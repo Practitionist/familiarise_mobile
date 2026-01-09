@@ -64,8 +64,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }
 
     // Create or get the channel
-    final channel =
-        await chatService.getOrCreateDirectChannel(consultant.consultantUserId);
+    final channel = await chatService.getOrCreateDirectChannel(
+      consultant.consultantUserId,
+      otherUserName: consultant.consultantName,
+      otherUserImage: consultant.consultantImage,
+    );
 
     if (channel != null && mounted) {
       context.pushNamed(

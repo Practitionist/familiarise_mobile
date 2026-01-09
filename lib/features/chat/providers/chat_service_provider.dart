@@ -137,7 +137,14 @@ class ChatService extends _$ChatService {
   ///
   /// Creates a 1-on-1 messaging channel between the current user
   /// and the specified user.
-  Future<Channel?> getOrCreateDirectChannel(String otherUserId) async {
+  ///
+  /// [otherUserName] and [otherUserImage] are optional but recommended
+  /// as they'll be used to create the user in Stream Chat if they don't exist.
+  Future<Channel?> getOrCreateDirectChannel(
+    String otherUserId, {
+    String? otherUserName,
+    String? otherUserImage,
+  }) async {
     if (_chatClient == null) {
       return null;
     }
@@ -147,6 +154,15 @@ class ChatService extends _$ChatService {
       if (currentUserId == null) {
         return null;
       }
+
+      // Upsert the other user in Stream Chat (server-side)
+      // This ensures the user exists before creating a channel with them
+      final chatRepository = ref.read(chatRepositoryProvider);
+      await chatRepository.upsertChatUser(
+        userId: otherUserId,
+        name: otherUserName,
+        image: otherUserImage,
+      );
 
       // Create a unique channel ID for the two users (sorted to ensure consistency)
       final members = [currentUserId, otherUserId]..sort();

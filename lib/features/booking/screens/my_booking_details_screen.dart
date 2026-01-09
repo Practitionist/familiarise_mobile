@@ -848,8 +848,11 @@ class _MyBookingDetailsScreenState
     }
 
     // Create or get the channel
-    final channel =
-        await chatService.getOrCreateDirectChannel(_booking!.consultantUserId!);
+    final channel = await chatService.getOrCreateDirectChannel(
+      _booking!.consultantUserId!,
+      otherUserName: _booking!.consultantName,
+      otherUserImage: _booking!.consultantImage,
+    );
 
     if (channel != null && mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();

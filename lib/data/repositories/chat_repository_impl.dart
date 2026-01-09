@@ -26,4 +26,17 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<ChatToken> getChatToken() {
     return _remoteSource.getChatToken();
   }
+
+  @override
+  Future<void> upsertChatUser({
+    required String userId,
+    String? name,
+    String? image,
+  }) {
+    return _remoteSource.upsertChatUser(
+      userId: userId,
+      name: name,
+      image: image,
+    );
+  }
 }
