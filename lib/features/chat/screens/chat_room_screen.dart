@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 import '../../../core/extensions/string_extensions.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../providers/chat_service_provider.dart';
+import '../widgets/chat_actions_sheet.dart';
 
 /// Screen for displaying a chat conversation
 class ChatRoomScreen extends ConsumerStatefulWidget {
@@ -73,6 +75,128 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     }
   }
 
+  Future<void> _showChatActionsSheet() async {
+    if (_channel == null) return;
+
+    final result = await showChatActionsSheet(
+      context: context,
+      channel: _channel!,
+    );
+
+    if (result == null || !mounted) return;
+
+    switch (result) {
+      case MuteToggleAction():
+        await _handleMuteToggle();
+      case ClearChatAction():
+        await _handleClearChat();
+      case DeleteConversationAction():
+        await _handleDeleteConversation();
+    }
+  }
+
+  Future<void> _handleMuteToggle() async {
+    if (_channel == null) return;
+
+    try {
+      if (_channel!.isMuted) {
+        await _channel!.unmute();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notifications unmuted')),
+          );
+        }
+      } else {
+        await _channel!.mute();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notifications muted')),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ChatRoomScreen._handleMuteToggle',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update notification settings')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleClearChat() async {
+    if (_channel == null) return;
+
+    final confirmed = await showDestructiveActionDialog(
+      context: context,
+      title: 'Clear chat?',
+      message:
+          'This will delete all messages in this conversation. This action cannot be undone.',
+      confirmText: 'Clear',
+    );
+
+    if (!confirmed || !mounted) return;
+
+    try {
+      await _channel!.truncate();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chat cleared')),
+        );
+      }
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ChatRoomScreen._handleClearChat',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to clear chat')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeleteConversation() async {
+    if (_channel == null) return;
+
+    final confirmed = await showDestructiveActionDialog(
+      context: context,
+      title: 'Delete conversation?',
+      message:
+          'This will permanently delete this conversation and all its messages. This action cannot be undone.',
+      confirmText: 'Delete',
+    );
+
+    if (!confirmed || !mounted) return;
+
+    try {
+      await _channel!.delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Conversation deleted')),
+        );
+        context.pop();
+      }
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ChatRoomScreen._handleDeleteConversation',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to delete conversation')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -138,6 +262,12 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
               icon: const Icon(Icons.arrow_back),
               onPressed: () => context.pop(),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: _showChatActionsSheet,
+              ),
+            ],
             title: Row(
               children: [
                 CircleAvatar(
