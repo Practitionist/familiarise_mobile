@@ -11,6 +11,9 @@ import 'shared/providers/core_providers.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize device detection for API URL selection (emulator vs physical device)
+  await EnvConfig.initializeDeviceDetection();
+
   // Initialize SharedPreferences before running the app
   final sharedPreferences = await SharedPreferences.getInstance();
 

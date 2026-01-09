@@ -123,9 +123,43 @@ flutter run -d <ios_simulator_id>
 
 ### Physical Android Device
 
-Physical devices cannot reach `localhost` or `10.0.2.2`. You have several options:
+Physical devices cannot reach `localhost` or `10.0.2.2`. The app has **automatic device detection** with a dedicated environment variable.
 
-#### Option 1: ngrok Tunnel (Recommended)
+#### Recommended: PHYSICAL_DEVICE_API_URL (Auto-Detection)
+
+The app automatically detects if running on a physical device and uses a separate URL.
+
+1. Find your Mac's IP:
+```bash
+ifconfig | grep "inet " | grep -v 127.0.0.1
+# Example output: inet 192.168.0.121
+```
+
+2. Set `PHYSICAL_DEVICE_API_URL` in `.env`:
+```bash
+API_BASE_URL=http://localhost:8080
+PHYSICAL_DEVICE_API_URL=http://192.168.0.121:8080
+```
+
+3. Rebuild and run:
+```bash
+flutter run -d <physical_device_id>
+```
+
+**How it works:**
+- App startup calls `EnvConfig.initializeDeviceDetection()`
+- Uses `device_info_plus` to detect emulator vs physical device
+- Physical device → uses `PHYSICAL_DEVICE_API_URL`
+- Emulator → uses `API_BASE_URL` (with localhost → 10.0.2.2 conversion)
+
+**Debug log output:**
+```
+[EnvConfig] Device detection initialized: isPhysicalDevice=true, apiBaseUrl=http://192.168.0.121:8080
+```
+
+> **Benefit:** No need to change `API_BASE_URL` when switching between emulator and physical device!
+
+#### Alternative: ngrok Tunnel
 
 Creates a public URL that tunnels to your local server.
 
@@ -143,33 +177,13 @@ Forwarding  https://abc123.ngrok.io -> http://localhost:8080
 ```
 
 Update `.env`:
-```
-API_BASE_URL=https://abc123.ngrok.io
+```bash
+PHYSICAL_DEVICE_API_URL=https://abc123.ngrok.io
 ```
 
 > **Free Tier:** 500 requests/month, sufficient for testing
 
-#### Option 2: Mac's IP Address
-
-1. Find your Mac's IP:
-```bash
-ifconfig | grep "inet " | grep -v 127.0.0.1
-# Example output: inet 192.168.0.121
-```
-
-2. Update `.env`:
-```
-API_BASE_URL=http://192.168.0.121:8080
-```
-
-3. Rebuild the app:
-```bash
-flutter run -d <physical_device_id>
-```
-
-> **Note:** IP may change when reconnecting to WiFi
-
-#### Option 3: mDNS Hostname (Limited Support)
+#### Alternative: mDNS Hostname (Limited Support)
 
 ```bash
 # Get Mac's local hostname
@@ -177,7 +191,7 @@ scutil --get LocalHostName
 # Example: MyMacBook
 ```
 
-Use `http://MyMacBook.local:8080`
+Use `http://MyMacBook.local:8080` in `PHYSICAL_DEVICE_API_URL`
 
 > **Warning:** Android has unreliable mDNS support. Not recommended.
 
@@ -345,23 +359,24 @@ ngrok http 8080
 
 **File:** `.env`
 ```bash
-# For emulator (default)
+# For emulators/simulators (always keep this as localhost)
 API_BASE_URL=http://localhost:8080
 
-# For physical device via ngrok
-API_BASE_URL=https://your-tunnel.ngrok.io
-
-# For physical device via IP
-API_BASE_URL=http://192.168.x.x:8080
+# For physical devices (Mac IP or ngrok URL)
+# Leave empty to fallback to API_BASE_URL
+PHYSICAL_DEVICE_API_URL=http://192.168.x.x:8080
 ```
 
-### Device-Specific API URLs
+### Device-Specific API URL Resolution
 
-| Device | API_BASE_URL | Notes |
-|--------|--------------|-------|
-| Android Emulator | `http://localhost:8080` | Auto-converted to 10.0.2.2 |
-| iOS Simulator | `http://localhost:8080` | Direct connection |
-| Physical Device | `https://xxx.ngrok.io` | Or Mac IP address |
+| Device Type | Detection | URL Used |
+|-------------|-----------|----------|
+| Android Emulator | `isPhysicalDevice=false` | `API_BASE_URL` → 10.0.2.2 |
+| iOS Simulator | `isPhysicalDevice=false` | `API_BASE_URL` |
+| Physical Android | `isPhysicalDevice=true` | `PHYSICAL_DEVICE_API_URL` |
+| Physical iOS | `isPhysicalDevice=true` | `PHYSICAL_DEVICE_API_URL` |
+
+> **Note:** If `PHYSICAL_DEVICE_API_URL` is empty, physical devices fall back to `API_BASE_URL`
 
 ---
 

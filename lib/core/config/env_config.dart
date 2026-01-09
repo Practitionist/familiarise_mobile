@@ -1,6 +1,8 @@
 import 'package:envied/envied.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'dart:io' show Platform;
+
+import '../utils/device_utils.dart';
 
 part 'env_config.g.dart';
 
@@ -41,9 +43,45 @@ abstract class EnvConfig {
   @EnviedField(varName: 'API_BASE_URL', defaultValue: 'http://localhost:3000')
   static String _apiBaseUrlRaw = _EnvConfig._apiBaseUrlRaw;
 
+  @EnviedField(varName: 'PHYSICAL_DEVICE_API_URL', defaultValue: '')
+  static String _physicalDeviceApiUrl = _EnvConfig._physicalDeviceApiUrl;
+
+  // Device type flag (set at startup via initializeDeviceDetection)
+  static bool _isPhysicalDevice = false;
+  static bool _deviceDetectionInitialized = false;
+
+  /// Initialize device detection - call this at app startup before using apiBaseUrl
+  /// This determines whether to use PHYSICAL_DEVICE_API_URL or API_BASE_URL
+  static Future<void> initializeDeviceDetection() async {
+    if (_deviceDetectionInitialized) return;
+
+    try {
+      _isPhysicalDevice = !(await DeviceUtils.isEmulator());
+      _deviceDetectionInitialized = true;
+
+      debugPrint(
+        '[EnvConfig] Device detection initialized: '
+        'isPhysicalDevice=$_isPhysicalDevice, '
+        'apiBaseUrl=$apiBaseUrl',
+      );
+    } catch (e) {
+      debugPrint('[EnvConfig] Device detection failed: $e');
+      _isPhysicalDevice = false;
+      _deviceDetectionInitialized = true;
+    }
+  }
+
   /// Get platform-aware API base URL
-  /// On Android emulator, localhost maps to the emulator - use 10.0.2.2 to reach host
+  /// - Physical device with PHYSICAL_DEVICE_API_URL configured: uses that URL
+  /// - Android emulator: localhost → 10.0.2.2 replacement
+  /// - iOS simulator/web: uses API_BASE_URL as-is
   static String get apiBaseUrl {
+    // If physical device and URL is configured, use it
+    if (_isPhysicalDevice && _physicalDeviceApiUrl.isNotEmpty) {
+      return _physicalDeviceApiUrl;
+    }
+
+    // Otherwise use default URL with emulator handling
     final url = _apiBaseUrlRaw;
 
     // On web, use as-is
