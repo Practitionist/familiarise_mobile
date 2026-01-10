@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 
@@ -395,65 +396,89 @@ class StreamService {
       throw StateError('Stream API key and secret must be configured');
     }
 
-    // Ensure both users exist in Stream Chat
-    await upsertUser(
-      userId: instructorUserId,
-      name: instructorName,
-      image: instructorImage,
-    );
-    await upsertUser(
-      userId: participantUserId,
-      name: participantName,
-      image: participantImage,
-    );
-
-    // Try to create or update the channel
-    // The /query endpoint is idempotent - it creates if not exists
-    final url = Uri.parse(
-      'https://chat.stream-io-api.com/channels/team/$channelId/query',
-    );
-
-    final serverToken = _createServerToken();
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': serverToken,
-        'Stream-Auth-Type': 'jwt',
-        'api_key': _apiKey,
-      },
-      body: jsonEncode({
-        'data': {
-          'name': channelName,
-          'members': [instructorUserId, participantUserId],
-          'created_by_id': instructorUserId,
-          'programType': programType,
-          'programId': programId,
-          'instructorId': instructorUserId,
-        },
-        'state': true,
-        'watch': false,
-      }),
-    );
-
-    if (response.statusCode != 201 && response.statusCode != 200) {
-      throw Exception(
-        'Failed to create/update group channel: ${response.statusCode} - ${response.body}',
-      );
-    }
-
-    // If channel already exists, ensure the participant is a member
-    // The /query endpoint with members list will add new members
-    // But to be safe, explicitly add if needed
     try {
+      // Ensure both users exist in Stream Chat first
+      await Future.wait([
+        upsertUser(
+          userId: instructorUserId,
+          name: instructorName,
+          image: instructorImage,
+        ),
+        upsertUser(
+          userId: participantUserId,
+          name: participantName,
+          image: participantImage,
+        ),
+      ]);
+
+      SentryLogger.debug(
+        'Users upserted: $instructorUserId, $participantUserId',
+        context: 'StreamService.getOrCreateGroupChannelAndAddMember',
+      );
+
+      // Create or get the channel using /query endpoint
+      // Note: The /query endpoint creates the channel if it doesn't exist,
+      // but it does NOT reliably set members from the data payload.
+      final url = Uri.parse(
+        'https://chat.stream-io-api.com/channels/team/$channelId/query',
+      );
+
+      final serverToken = _createServerToken();
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': serverToken,
+          'Stream-Auth-Type': 'jwt',
+          'api_key': _apiKey,
+        },
+        body: jsonEncode({
+          'data': {
+            'name': channelName,
+            'created_by_id': instructorUserId,
+            'programType': programType,
+            'programId': programId,
+            'instructorId': instructorUserId,
+          },
+          'state': true,
+          'watch': false,
+        }),
+      );
+
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        throw Exception(
+          'Failed to create/update group channel: ${response.statusCode} - ${response.body}',
+        );
+      }
+
+      SentryLogger.info(
+        'Channel created/queried: $channelId',
+        context: 'StreamService.getOrCreateGroupChannelAndAddMember',
+      );
+
+      // IMPORTANT: The /query endpoint does NOT set members reliably.
+      // We MUST use the dedicated addChannelMembers endpoint to add both
+      // the instructor and participant to the channel.
+      // This is an idempotent operation - adding existing members is a no-op.
       await addChannelMembers(
         channelType: 'team',
         channelId: channelId,
-        memberIds: [participantUserId],
+        memberIds: [instructorUserId, participantUserId],
       );
-    } catch (e) {
-      // User might already be a member, ignore this error
+
+      SentryLogger.info(
+        'Members added to channel $channelId: $instructorUserId, $participantUserId',
+        context: 'StreamService.getOrCreateGroupChannelAndAddMember',
+      );
+    } catch (e, stackTrace) {
+      await SentryLogger.error(
+        'Failed to create/update group channel: $channelId',
+        context: 'StreamService.getOrCreateGroupChannelAndAddMember',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 }
