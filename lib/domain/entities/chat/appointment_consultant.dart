@@ -30,6 +30,14 @@ class AppointmentConsultant with _$AppointmentConsultant {
 
     /// The date of the most recent appointment
     DateTime? lastAppointmentDate,
+
+    /// The program ID (webinarId or classId) for group channel lookup
+    /// Only set for webinar/class appointments
+    String? programId,
+
+    /// The program name (webinar/class title) for display
+    /// Only set for webinar/class appointments
+    String? programName,
   }) = _AppointmentConsultant;
 
   const AppointmentConsultant._();
@@ -39,6 +47,11 @@ class AppointmentConsultant with _$AppointmentConsultant {
 
   /// Create from a Booking entity
   factory AppointmentConsultant.fromBooking(Booking booking) {
+    // For webinar/class bookings, the booking.id is the webinarId/classId
+    // which we use for group channel lookup
+    final isGroupProgram = booking.bookingType == BookingType.webinar ||
+        booking.bookingType == BookingType.classes;
+
     return AppointmentConsultant(
       consultantUserId: booking.consultantUserId!,
       consultantName: booking.consultantName ?? 'Unknown',
@@ -46,6 +59,8 @@ class AppointmentConsultant with _$AppointmentConsultant {
       consultantProfileId: booking.consultantProfileId,
       lastAppointmentType: booking.bookingType,
       lastAppointmentDate: booking.createdAt,
+      programId: isGroupProgram ? booking.id : null,
+      programName: isGroupProgram ? booking.planTitle : null,
     );
   }
 
@@ -73,4 +88,9 @@ class AppointmentConsultant with _$AppointmentConsultant {
         return 'Appointment';
     }
   }
+
+  /// Whether this is a group program (webinar or class) that uses group channels
+  bool get isGroupProgram =>
+      lastAppointmentType == BookingType.webinar ||
+      lastAppointmentType == BookingType.classes;
 }

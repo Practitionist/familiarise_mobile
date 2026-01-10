@@ -6,6 +6,7 @@ import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 import '../../../core/extensions/string_extensions.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../providers/chat_service_provider.dart';
+import '../widgets/channel_members_sheet.dart';
 import '../widgets/chat_actions_sheet.dart';
 
 /// Screen for displaying a chat conversation
@@ -60,8 +61,18 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         return;
       }
 
-      final channel = client.channel('messaging', id: widget.channelId);
-      await channel.watch();
+      // Detect channel type from ID pattern
+      // Group channels (webinar/class) use 'team' type, DMs use 'messaging'
+      final isGroupChannel = widget.channelId.startsWith('webinar_') ||
+          widget.channelId.startsWith('class_');
+      final channelType = isGroupChannel ? 'team' : 'messaging';
+
+      final channel = client.channel(channelType, id: widget.channelId);
+      await channel.query(
+        state: true,
+        watch: true,
+        messagesPagination: const PaginationParams(limit: 30),
+      );
 
       setState(() {
         _channel = channel;
@@ -281,55 +292,76 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                 onPressed: _showChatActionsSheet,
               ),
             ],
-            title: Row(
-              children: [
-                _buildAppBarAvatar(
-                  theme,
-                  colorScheme,
-                  isGroupChannel,
-                  otherMember,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (isArchived)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: Icon(
-                                Icons.archive_outlined,
-                                size: 14,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              displayName,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (subtitle != null)
-                        Text(
-                          subtitle,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: subtitle == 'Online'
-                                ? Colors.green
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
+            title: GestureDetector(
+              onTap: isGroupChannel
+                  ? () => showChannelMembersSheet(
+                        context: context,
+                        channel: _channel!,
+                      )
+                  : null,
+              child: Row(
+                children: [
+                  _buildAppBarAvatar(
+                    theme,
+                    colorScheme,
+                    isGroupChannel,
+                    otherMember,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            if (isArchived)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(
+                                  Icons.archive_outlined,
+                                  size: 14,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                displayName,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (subtitle != null)
+                          Row(
+                            children: [
+                              Text(
+                                subtitle,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: subtitle == 'Online'
+                                      ? Colors.green
+                                      : colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              // Show dropdown arrow for group channels
+                              if (isGroupChannel) ...[
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.keyboard_arrow_down,
+                                  size: 16,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ],
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           body: Column(

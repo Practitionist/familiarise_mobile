@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../app/theme/app_theme.dart';
-import '../../../core/extensions/string_extensions.dart';
 import '../../../domain/entities/chat/chat_entities.dart';
 import '../providers/chat_service_provider.dart';
 
@@ -63,12 +60,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       }
     }
 
-    // Create or get the channel
-    final channel = await chatService.getOrCreateDirectChannel(
-      consultant.consultantUserId,
-      otherUserName: consultant.consultantName,
-      otherUserImage: consultant.consultantImage,
-    );
+    // Get or create the appropriate channel based on appointment type
+    Channel? channel;
+
+    if (consultant.isGroupProgram && consultant.programId != null) {
+      // For webinar/class: open existing group channel
+      final channelId =
+          '${consultant.lastAppointmentType?.value.toLowerCase()}_${consultant.programId}';
+      channel = await chatService.getGroupChannel(channelId);
+
+      if (channel == null && mounted) {
+        // Group channel might not exist yet (backend hasn't created it)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Group chat is not available yet. '
+                'Please wait for the booking to be confirmed.'),
+          ),
+        );
+        return;
+      }
+    } else {
+      // For consultation/subscription: create or get 1:1 DM channel
+      channel = await chatService.getOrCreateDirectChannel(
+        consultant.consultantUserId,
+        otherUserName: consultant.consultantName,
+        otherUserImage: consultant.consultantImage,
+      );
+    }
 
     if (channel != null && mounted) {
       context.pushNamed(
@@ -88,7 +106,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final chatState = ref.watch(chatServiceProvider);
-    final channelsAsync = ref.watch(chatChannelsProvider);
     final consultantsAsync = ref.watch(appointmentConsultantsProvider);
 
     return Scaffold(
@@ -132,7 +149,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 controller: _searchController,
                 onChanged: _onSearchChanged,
                 decoration: InputDecoration(
-                  hintText: 'Search consultants...',
+                  hintText: 'Search channels...',
                   prefixIcon: Icon(
                     Icons.search,
                     color: colorScheme.onSurfaceVariant,
@@ -164,7 +181,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             Expanded(
               child: _buildContent(
                 chatState,
-                channelsAsync,
                 consultantsAsync,
                 theme,
                 colorScheme,
@@ -178,7 +194,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   Widget _buildContent(
     ChatState chatState,
-    AsyncValue<List<Channel>> channelsAsync,
     AsyncValue<List<AppointmentConsultant>> consultantsAsync,
     ThemeData theme,
     ColorScheme colorScheme,
@@ -227,7 +242,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       );
     }
 
-    // Build the main content
+    // Build the main content with two sections
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(appointmentConsultantsProvider);
@@ -235,38 +250,37 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       },
       child: CustomScrollView(
         slivers: [
-          // Linked Consultants Section
-          _buildConsultantsSection(consultantsAsync, theme, colorScheme),
+          // 1:1 DM Channels Section (Consultation, Subscription)
+          _buildChannelsSection(consultantsAsync, theme, colorScheme),
 
-          // Conversations Section
-          _buildConversationsSection(
-            chatState,
-            channelsAsync,
-            consultantsAsync,
-            theme,
-            colorScheme,
-          ),
+          // Group Event Channels Section (Webinar, Class)
+          _buildEventChannelsSection(consultantsAsync, theme, colorScheme),
         ],
       ),
     );
   }
 
-  Widget _buildConsultantsSection(
+  /// Build the CHANNELS section for 1:1 DMs (Consultation, Subscription)
+  Widget _buildChannelsSection(
     AsyncValue<List<AppointmentConsultant>> consultantsAsync,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
     return consultantsAsync.when(
       data: (consultants) {
-        // Filter by search query
-        final filtered = _searchQuery.isEmpty
-            ? consultants
-            : consultants
-                .where((c) =>
-                    c.consultantName.toLowerCase().contains(_searchQuery))
-                .toList();
+        // Filter for 1:1 channels (not group programs)
+        var dmConsultants =
+            consultants.where((c) => !c.isGroupProgram).toList();
 
-        if (filtered.isEmpty && _searchQuery.isEmpty) {
+        // Apply search filter
+        if (_searchQuery.isNotEmpty) {
+          dmConsultants = dmConsultants
+              .where((c) =>
+                  c.consultantName.toLowerCase().contains(_searchQuery))
+              .toList();
+        }
+
+        if (dmConsultants.isEmpty && _searchQuery.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
 
@@ -279,7 +293,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 child: Row(
                   children: [
                     Text(
-                      'LINKED CONSULTANTS',
+                      'CHANNELS',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -297,7 +311,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        filtered.length.toString(),
+                        dmConsultants.length.toString(),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.w600,
@@ -307,21 +321,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   ],
                 ),
               ),
-              if (filtered.isEmpty && _searchQuery.isNotEmpty)
+              if (dmConsultants.isEmpty && _searchQuery.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 16,
                   ),
                   child: Text(
-                    'No consultants found matching "$_searchQuery"',
+                    'No channels found matching "$_searchQuery"',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 )
               else
-                ...filtered.map((consultant) => _ConsultantTile(
+                ...dmConsultants.map((consultant) => _ConsultantTile(
                       consultant: consultant,
                       onTap: () => _onConsultantTap(consultant),
                     )),
@@ -339,7 +353,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
-            'Failed to load consultants',
+            'Failed to load channels',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.error,
             ),
@@ -349,213 +363,83 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
-  Widget _buildConversationsSection(
-    ChatState chatState,
-    AsyncValue<List<Channel>> channelsAsync,
+  /// Build the EVENT CHANNELS section for group chats (Webinar, Class)
+  Widget _buildEventChannelsSection(
     AsyncValue<List<AppointmentConsultant>> consultantsAsync,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
-    // Show loading state while initializing
-    if (!chatState.isInitialized) {
-      return const SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      );
-    }
+    return consultantsAsync.when(
+      data: (consultants) {
+        // Filter for group programs (webinars and classes)
+        var eventConsultants =
+            consultants.where((c) => c.isGroupProgram).toList();
 
-    return channelsAsync.when(
-      data: (channels) {
-        // Filter channels by search query (match other member's name)
-        final currentUserId =
-            ref.read(chatServiceProvider.notifier).client?.state.currentUser?.id;
+        // Apply search filter (search by program name or consultant name)
+        if (_searchQuery.isNotEmpty) {
+          eventConsultants = eventConsultants
+              .where((c) =>
+                  c.consultantName.toLowerCase().contains(_searchQuery) ||
+                  (c.programName?.toLowerCase().contains(_searchQuery) ??
+                      false))
+              .toList();
+        }
 
-        final searchFiltered = _searchQuery.isEmpty
-            ? channels
-            : channels.where((channel) {
-                final otherMembers = channel.state?.members
-                        .where((m) => m.userId != currentUserId)
-                        .toList() ??
-                    [];
-                final otherMember =
-                    otherMembers.isNotEmpty ? otherMembers.first : null;
-                final name =
-                    (otherMember?.user?.name ?? '').toLowerCase();
-                return name.contains(_searchQuery);
-              }).toList();
-
-        // Filter out channels with no valid other member (deleted/unknown users)
-        // This handles orphaned channels where the other member was deleted
-        final filtered = searchFiltered.where((channel) {
-          // For group channels (team type), check channel name instead
-          if (channel.type == 'team') {
-            final name = channel.name;
-            return name != null && name.isNotEmpty;
-          }
-          // For direct messages, check the other member has valid user data
-          final otherMembers = channel.state?.members
-                  .where((m) => m.userId != currentUserId)
-                  .toList() ??
-              [];
-          if (otherMembers.isEmpty) return false;
-          final otherUser = otherMembers.first.user;
-          // Filter out if user is null or has no name
-          if (otherUser == null) return false;
-          return otherUser.name.isNotEmpty;
-        }).toList();
-
-        if (filtered.isEmpty) {
-          if (_searchQuery.isNotEmpty) {
-            return SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  'No conversations found',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            );
-          }
-          // Only show empty state if there are no linked consultants
-          final hasConsultants = consultantsAsync.valueOrNull?.isNotEmpty ?? false;
-          if (!hasConsultants) {
-            return SliverToBoxAdapter(
-              child: _buildEmptyConversationsState(theme, colorScheme),
-            );
-          }
-          // If we have consultants but no conversations, just show nothing
+        if (eventConsultants.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
 
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  child: Row(
-                    children: [
-                      Text(
-                        'CONVERSATIONS',
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'EVENT CHANNELS',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        eventConsultants.length.toString(),
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: colorScheme.onSecondaryContainer,
                           fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          filtered.length.toString(),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              final channel = filtered[index - 1];
-              return _ChatChannelTile(
-                channel: channel,
-                onTap: () {
-                  context.pushNamed(
-                    'chatRoom',
-                    pathParameters: {'channelId': channel.id!},
-                    extra: channel,
-                  );
-                },
-              );
-            },
-            childCount: filtered.length + 1, // +1 for header
+                    ),
+                  ],
+                ),
+              ),
+              ...eventConsultants.map((consultant) => _EventChannelTile(
+                    consultant: consultant,
+                    onTap: () => _onConsultantTap(consultant),
+                    chatService: ref.read(chatServiceProvider.notifier),
+                  )),
+            ],
           ),
         );
       },
-      loading: () => const SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ),
-      error: (error, _) => SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Failed to load conversations',
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _initializeChat,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+      error: (error, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
     );
   }
 
-  Widget _buildEmptyConversationsState(ThemeData theme, ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.chat_bubble_outline,
-              size: 36,
-              color: colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No conversations yet',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap a consultant above to start chatting',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Tile widget for displaying a consultant in the linked consultants list
@@ -618,213 +502,240 @@ class _ConsultantTile extends StatelessWidget {
   }
 }
 
-/// Tile widget for displaying a chat channel in the list
-class _ChatChannelTile extends StatelessWidget {
-  const _ChatChannelTile({
-    required this.channel,
+/// Tile widget for displaying an event channel (webinar/class group) in the list
+class _EventChannelTile extends StatefulWidget {
+  const _EventChannelTile({
+    required this.consultant,
     required this.onTap,
+    required this.chatService,
   });
 
-  final Channel channel;
+  final AppointmentConsultant consultant;
   final VoidCallback onTap;
+  final ChatService chatService;
 
-  /// Check if this is a group channel (team type)
-  bool get isGroupChannel => channel.type == 'team';
+  @override
+  State<_EventChannelTile> createState() => _EventChannelTileState();
+}
+
+class _EventChannelTileState extends State<_EventChannelTile> {
+  Channel? _channel;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChannel();
+  }
+
+  Future<void> _loadChannel() async {
+    if (widget.consultant.programId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final channelId =
+        '${widget.consultant.lastAppointmentType?.value.toLowerCase()}_${widget.consultant.programId}';
+
+    try {
+      final channel = await widget.chatService.getGroupChannel(channelId);
+      if (mounted) {
+        setState(() {
+          _channel = channel;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // For group channels, use channel name; for DMs, get the other member
-    final currentUserId = channel.client.state.currentUser?.id;
-    final otherMembers = channel.state?.members
-            .where((m) => m.userId != currentUserId)
-            .toList() ??
-        [];
-    final otherMember = otherMembers.isNotEmpty ? otherMembers.first : null;
-    final lastMessage = channel.state?.lastMessage;
-    final unreadCount = channel.state?.unreadCount ?? 0;
+    final programName = widget.consultant.programName ?? 'Event';
+    final appointmentType = widget.consultant.appointmentTypeText;
+    final consultantName = widget.consultant.consultantName;
 
-    // Get display name and subtitle based on channel type
-    final displayName = isGroupChannel
-        ? (channel.name ?? 'Group Chat')
-        : (otherMember?.user?.name ?? 'Unknown');
-    final memberCount = channel.state?.members.length ?? 0;
-    final isArchived = channel.extraData['isArchived'] == true;
+    // Get member data from channel if available
+    final members = _channel?.state?.members ?? [];
+    final memberCount = members.length;
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 8,
-      ),
-      leading: _buildAvatar(
-        context,
-        theme,
-        colorScheme,
-        otherMember,
-      ),
-      title: Row(
-        children: [
-          if (isGroupChannel)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
+    return InkWell(
+      onTap: widget.onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Group icon
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: colorScheme.secondaryContainer,
               child: Icon(
-                Icons.group,
-                size: 16,
-                color: colorScheme.onSurfaceVariant,
+                Icons.groups,
+                color: colorScheme.onSecondaryContainer,
+                size: 28,
               ),
             ),
-          Expanded(
-            child: Text(
-              displayName,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight:
-                    unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+            const SizedBox(width: 12),
+
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Program name (title)
+                  Text(
+                    programName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+
+                  // Subtitle: "Class • with Dean Sanford"
+                  Text(
+                    '$appointmentType • with $consultantName',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Member avatars and count
+                  Row(
+                    children: [
+                      if (_isLoading)
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.primary,
+                          ),
+                        )
+                      else if (members.isNotEmpty) ...[
+                        _buildMemberAvatars(members, colorScheme),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _isLoading
+                            ? 'Loading...'
+                            : memberCount > 0
+                                ? '$memberCount member${memberCount == 1 ? '' : 's'}'
+                                : 'Tap to join',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          if (isArchived)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.archive_outlined,
-                size: 16,
-                color: colorScheme.onSurfaceVariant,
-              ),
+
+            // Chevron icon
+            Icon(
+              Icons.chevron_right,
+              color: colorScheme.onSurfaceVariant,
             ),
-          if (lastMessage?.createdAt != null)
-            Text(
-              _formatMessageTime(lastMessage!.createdAt.toLocal()),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: unreadCount > 0
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
-      subtitle: Row(
+    );
+  }
+
+  /// Build stacked member avatar widget
+  Widget _buildMemberAvatars(List<Member> members, ColorScheme colorScheme) {
+    final displayMembers = members.take(3).toList();
+    final remaining = members.length - 3;
+
+    // Calculate width: each avatar is 24px diameter, overlapping by 8px
+    // First avatar: 24px, additional: 16px each
+    final avatarCount = displayMembers.length + (remaining > 0 ? 1 : 0);
+    final width = 24.0 + (avatarCount - 1) * 16.0;
+
+    return SizedBox(
+      width: width,
+      height: 24,
+      child: Stack(
         children: [
-          Expanded(
-            child: Text(
-              isGroupChannel
-                  ? _getGroupSubtitle(lastMessage, memberCount)
-                  : _getLastMessagePreview(lastMessage),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: unreadCount > 0
-                    ? colorScheme.onSurface
-                    : colorScheme.onSurfaceVariant,
-                fontWeight:
-                    unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
+          ...displayMembers.indexed.map((entry) {
+            final (index, member) = entry;
+            final user = member.user;
+            final imageUrl = user?.image ?? '';
+            final hasImage = imageUrl.isNotEmpty;
+            final name = user?.name ?? '';
+            final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+            return Positioned(
+              left: index * 16.0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 10,
+                  backgroundColor: colorScheme.primaryContainer,
+                  backgroundImage:
+                      hasImage ? NetworkImage(imageUrl) : null,
+                  child: hasImage
+                      ? null
+                      : Text(
+                          initial,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (unreadCount > 0)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.success,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                unreadCount > 99 ? '99+' : unreadCount.toString(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+            );
+          }),
+          if (remaining > 0)
+            Positioned(
+              left: displayMembers.length * 16.0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.tertiaryContainer,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '+$remaining',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onTertiaryContainer,
+                    ),
+                  ),
                 ),
               ),
             ),
         ],
       ),
     );
-  }
-
-  Widget _buildAvatar(
-    BuildContext context,
-    ThemeData theme,
-    ColorScheme colorScheme,
-    Member? otherMember,
-  ) {
-    if (isGroupChannel) {
-      // Group avatar with group icon
-      return CircleAvatar(
-        radius: 26,
-        backgroundColor: colorScheme.secondaryContainer,
-        child: Icon(
-          Icons.groups,
-          color: colorScheme.onSecondaryContainer,
-          size: 28,
-        ),
-      );
-    }
-
-    // Direct message avatar
-    return CircleAvatar(
-      radius: 26,
-      backgroundColor: colorScheme.primaryContainer,
-      backgroundImage: otherMember?.user?.image != null
-          ? NetworkImage(otherMember!.user!.image!)
-          : null,
-      child: otherMember?.user?.image == null
-          ? Text(
-              (otherMember?.user?.name).getInitials(),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w600,
-              ),
-            )
-          : null,
-    );
-  }
-
-  String _getGroupSubtitle(Message? lastMessage, int memberCount) {
-    final membersText = '$memberCount member${memberCount == 1 ? '' : 's'}';
-    if (lastMessage == null) return membersText;
-
-    final preview = _getLastMessagePreview(lastMessage);
-    return '$membersText \u2022 $preview';
-  }
-
-  String _getLastMessagePreview(Message? message) {
-    if (message == null) return 'No messages yet';
-    if (message.isDeleted) return 'Message deleted';
-    if (message.attachments.isNotEmpty) {
-      final attachment = message.attachments.first;
-      if (attachment.type == 'image') return 'Photo';
-      if (attachment.type == 'file') return 'File';
-      return 'Attachment';
-    }
-    return message.text ?? '';
-  }
-
-  String _formatMessageTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
-
-    if (diff.inDays == 0) {
-      // Today - show time
-      final hour = dateTime.hour;
-      final minute = dateTime.minute.toString().padLeft(2, '0');
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-      return '$displayHour:$minute $period';
-    } else if (diff.inDays == 1) {
-      return 'Yesterday';
-    } else if (diff.inDays < 7) {
-      return timeago.format(dateTime);
-    } else {
-      // Show date
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    }
   }
 }

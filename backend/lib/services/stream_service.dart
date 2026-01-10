@@ -368,6 +368,94 @@ class StreamService {
       setData: {'frozen': frozen},
     );
   }
+
+  /// Get or create a group channel and add a participant
+  ///
+  /// This is an idempotent operation designed for webinar/class bookings:
+  /// - If the channel doesn't exist, creates it with instructor + participant
+  /// - If the channel exists, adds the participant as a member
+  ///
+  /// [channelId] should be in format 'webinar_{id}' or 'class_{id}'
+  /// [channelName] is the display name (e.g., "Introduction to Flutter Webinar")
+  /// [instructorUserId] is the consultant/instructor who owns the channel
+  /// [participantUserId] is the user enrolling in the webinar/class
+  Future<void> getOrCreateGroupChannelAndAddMember({
+    required String channelId,
+    required String channelName,
+    required String instructorUserId,
+    required String participantUserId,
+    required String programType, // 'WEBINAR' or 'CLASS'
+    required String programId,
+    String? instructorName,
+    String? instructorImage,
+    String? participantName,
+    String? participantImage,
+  }) async {
+    if (!isConfigured) {
+      throw StateError('Stream API key and secret must be configured');
+    }
+
+    // Ensure both users exist in Stream Chat
+    await upsertUser(
+      userId: instructorUserId,
+      name: instructorName,
+      image: instructorImage,
+    );
+    await upsertUser(
+      userId: participantUserId,
+      name: participantName,
+      image: participantImage,
+    );
+
+    // Try to create or update the channel
+    // The /query endpoint is idempotent - it creates if not exists
+    final url = Uri.parse(
+      'https://chat.stream-io-api.com/channels/team/$channelId/query',
+    );
+
+    final serverToken = _createServerToken();
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': serverToken,
+        'Stream-Auth-Type': 'jwt',
+        'api_key': _apiKey,
+      },
+      body: jsonEncode({
+        'data': {
+          'name': channelName,
+          'members': [instructorUserId, participantUserId],
+          'created_by_id': instructorUserId,
+          'programType': programType,
+          'programId': programId,
+          'instructorId': instructorUserId,
+        },
+        'state': true,
+        'watch': false,
+      }),
+    );
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(
+        'Failed to create/update group channel: ${response.statusCode} - ${response.body}',
+      );
+    }
+
+    // If channel already exists, ensure the participant is a member
+    // The /query endpoint with members list will add new members
+    // But to be safe, explicitly add if needed
+    try {
+      await addChannelMembers(
+        channelType: 'team',
+        channelId: channelId,
+        memberIds: [participantUserId],
+      );
+    } catch (e) {
+      // User might already be a member, ignore this error
+    }
+  }
 }
 
 /// Data class for Stream token response

@@ -189,6 +189,42 @@ class ChatService extends _$ChatService {
     }
   }
 
+  /// Get an existing group channel (webinar/class) by ID
+  ///
+  /// Opens a team-type channel for group programs. Unlike direct channels,
+  /// group channels are created by the backend when bookings are confirmed.
+  ///
+  /// [channelId] should be in the format 'webinar_{id}' or 'class_{id}'
+  Future<Channel?> getGroupChannel(String channelId) async {
+    if (_chatClient == null) {
+      return null;
+    }
+
+    try {
+      final channel = _chatClient!.channel(
+        'team',
+        id: channelId,
+      );
+
+      // Query with state=true to ensure members are loaded properly
+      await channel.query(
+        state: true,
+        watch: true,
+        messagesPagination: const PaginationParams(limit: 30),
+      );
+
+      return channel;
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'ChatService.getGroupChannel',
+        extras: {'channelId': channelId},
+      );
+      return null;
+    }
+  }
+
   /// Clear any error message
   void clearError() {
     state = state.copyWith(error: null);
