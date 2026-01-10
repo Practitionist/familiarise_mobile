@@ -343,6 +343,10 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'consultationId', columnName: 'consultationId', type: 'String'),
       'subscriptionId': const FieldInfo(
           name: 'subscriptionId', columnName: 'subscriptionId', type: 'String'),
+      'webinarId': const FieldInfo(
+          name: 'webinarId', columnName: 'webinarId', type: 'String'),
+      'classId': const FieldInfo(
+          name: 'classId', columnName: 'classId', type: 'String'),
       'createdAt': const FieldInfo(
           name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
@@ -359,6 +363,18 @@ SchemaRegistry _buildSchemaRegistry() {
         name: 'subscription',
         targetModel: 'Subscription',
         foreignKey: 'subscriptionId',
+        isOwner: true,
+      ),
+      'webinar': RelationInfo.oneToOne(
+        name: 'webinar',
+        targetModel: 'Webinar',
+        foreignKey: 'webinarId',
+        isOwner: true,
+      ),
+      'class': RelationInfo.oneToOne(
+        name: 'class',
+        targetModel: 'Class',
+        foreignKey: 'classId',
         isOwner: true,
       ),
       'slots': RelationInfo.oneToMany(
@@ -600,6 +616,213 @@ SchemaRegistry _buildSchemaRegistry() {
         targetModel: 'SlotOfAppointment',
         foreignKey: 'slotOfAppointmentId',
         isOwner: true,
+      ),
+    },
+  ));
+
+  // WebinarPlan model
+  schema.registerModel(ModelSchema(
+    name: 'WebinarPlan',
+    tableName: 'WebinarPlan',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'title':
+          const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'price': const FieldInfo(name: 'price', columnName: 'price', type: 'Int'),
+      'priceCurrency': const FieldInfo(
+          name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
+      'certificateProvided': const FieldInfo(
+          name: 'certificateProvided',
+          columnName: 'certificateProvided',
+          type: 'Boolean'),
+      'durationInHours': const FieldInfo(
+          name: 'durationInHours',
+          columnName: 'durationInHours',
+          type: 'Float'),
+      'maxParticipants': const FieldInfo(
+          name: 'maxParticipants', columnName: 'maxParticipants', type: 'Int'),
+      'language': const FieldInfo(
+          name: 'language', columnName: 'language', type: 'String'),
+      'level':
+          const FieldInfo(name: 'level', columnName: 'level', type: 'String'),
+      'prerequisites': const FieldInfo(
+          name: 'prerequisites', columnName: 'prerequisites', type: 'String'),
+      'materialProvided': const FieldInfo(
+          name: 'materialProvided',
+          columnName: 'materialProvided',
+          type: 'String'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
+      'webinars': RelationInfo.oneToMany(
+        name: 'webinars',
+        targetModel: 'Webinar',
+        foreignKey: 'webinarPlanId',
+      ),
+    },
+  ));
+
+  // Webinar model
+  schema.registerModel(ModelSchema(
+    name: 'Webinar',
+    tableName: 'Webinar',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
+      'feedbackSummary': const FieldInfo(
+          name: 'feedbackSummary',
+          columnName: 'feedbackSummary',
+          type: 'String'),
+      'webinarPlanId': const FieldInfo(
+          name: 'webinarPlanId', columnName: 'webinarPlanId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'webinarPlan': RelationInfo.oneToOne(
+        name: 'webinarPlan',
+        targetModel: 'WebinarPlan',
+        foreignKey: 'webinarPlanId',
+        isOwner: true,
+      ),
+      'appointment': RelationInfo.oneToOne(
+        name: 'appointment',
+        targetModel: 'Appointment',
+        foreignKey: 'webinarId',
+        isOwner: false,
+      ),
+    },
+  ));
+
+  // ClassPlan model
+  schema.registerModel(ModelSchema(
+    name: 'ClassPlan',
+    tableName: 'ClassPlan',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'title':
+          const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'price': const FieldInfo(name: 'price', columnName: 'price', type: 'Int'),
+      'priceCurrency': const FieldInfo(
+          name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
+      'certificateProvided': const FieldInfo(
+          name: 'certificateProvided',
+          columnName: 'certificateProvided',
+          type: 'Boolean'),
+      'durationInMonths': const FieldInfo(
+          name: 'durationInMonths',
+          columnName: 'durationInMonths',
+          type: 'Int'),
+      'meetingsPerWeek': const FieldInfo(
+          name: 'meetingsPerWeek', columnName: 'meetingsPerWeek', type: 'Int'),
+      'sessionDurationInHours': const FieldInfo(
+          name: 'sessionDurationInHours',
+          columnName: 'sessionDurationInHours',
+          type: 'Float'),
+      'totalSessions': const FieldInfo(
+          name: 'totalSessions', columnName: 'totalSessions', type: 'Int'),
+      'totalHours': const FieldInfo(
+          name: 'totalHours', columnName: 'totalHours', type: 'Float'),
+      'emailSupport': const FieldInfo(
+          name: 'emailSupport', columnName: 'emailSupport', type: 'String'),
+      'maxParticipants': const FieldInfo(
+          name: 'maxParticipants', columnName: 'maxParticipants', type: 'Int'),
+      'language': const FieldInfo(
+          name: 'language', columnName: 'language', type: 'String'),
+      'level':
+          const FieldInfo(name: 'level', columnName: 'level', type: 'String'),
+      'prerequisites': const FieldInfo(
+          name: 'prerequisites', columnName: 'prerequisites', type: 'String'),
+      'materialProvided': const FieldInfo(
+          name: 'materialProvided',
+          columnName: 'materialProvided',
+          type: 'String'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
+      'classes': RelationInfo.oneToMany(
+        name: 'classes',
+        targetModel: 'Class',
+        foreignKey: 'classPlanId',
+      ),
+    },
+  ));
+
+  // Class model
+  schema.registerModel(ModelSchema(
+    name: 'Class',
+    tableName: 'Class',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'schedulingPeriodStartsAt': const FieldInfo(
+          name: 'schedulingPeriodStartsAt',
+          columnName: 'schedulingPeriodStartsAt',
+          type: 'DateTime'),
+      'schedulingPeriodEndsAt': const FieldInfo(
+          name: 'schedulingPeriodEndsAt',
+          columnName: 'schedulingPeriodEndsAt',
+          type: 'DateTime'),
+      'schedulingTimezone': const FieldInfo(
+          name: 'schedulingTimezone',
+          columnName: 'schedulingTimezone',
+          type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
+      'feedbackSummary': const FieldInfo(
+          name: 'feedbackSummary',
+          columnName: 'feedbackSummary',
+          type: 'String'),
+      'classPlanId': const FieldInfo(
+          name: 'classPlanId', columnName: 'classPlanId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'classPlan': RelationInfo.oneToOne(
+        name: 'classPlan',
+        targetModel: 'ClassPlan',
+        foreignKey: 'classPlanId',
+        isOwner: true,
+      ),
+      'appointments': RelationInfo.oneToMany(
+        name: 'appointments',
+        targetModel: 'Appointment',
+        foreignKey: 'classId',
       ),
     },
   ));
