@@ -580,14 +580,14 @@ class AppointmentRepository extends BaseRepository {
       allBookings.addAll(subscriptionBookings);
     }
 
-    // 3. Fetch WEBINARS (uses Waitlist with userId)
+    // 3. Fetch WEBINARS (uses SlotOfAppointment enrollment)
     final webinarBookings = await _fetchWebinarBookings(
       userId: userId,
       status: status,
     );
     allBookings.addAll(webinarBookings);
 
-    // 4. Fetch CLASSES (uses Waitlist with userId)
+    // 4. Fetch CLASSES (uses SlotOfAppointment enrollment)
     final classBookings = await _fetchClassBookings(
       userId: userId,
       status: status,
@@ -773,91 +773,78 @@ class AppointmentRepository extends BaseRepository {
     return bookings;
   }
 
-  /// Fetch webinar bookings for a user (via Waitlist)
+  /// Fetch webinar bookings for a user (via SlotOfAppointment enrollment)
+  ///
+  /// Users are enrolled in webinars through the _SlotOfAppointmentToUser junction
+  /// table, NOT through Waitlist. Waitlist is only for users waiting for spots.
   Future<List<Map<String, dynamic>>> _fetchWebinarBookings({
     required String userId,
     String? status,
   }) async {
-    // Get user's waitlist entries for webinars
-    final waitlistQuery = JsonQueryBuilder()
-        .model('Waitlist')
+    // Query appointments where user is enrolled via SlotOfAppointment M2M relation
+    // Uses FilterOperators.some() for type-safe ORM query instead of raw SQL
+    final appointmentsQuery = JsonQueryBuilder()
+        .model('Appointment')
         .action(QueryAction.findMany)
         .where({
-      'userId': userId,
-      'webinarId': {'not': null},
+      'appointmentType': 'WEBINAR',
+      'slots': FilterOperators.some({
+        'user': FilterOperators.some({'id': userId}),
+      }),
+    }).include({
+      'webinar': {
+        'include': {
+          'webinarPlan': true,
+        },
+      },
+      'slots': true,
     }).build();
 
-    final waitlistEntries = await executeQueryAsMaps(waitlistQuery);
-    if (waitlistEntries.isEmpty) return [];
+    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    if (appointments.isEmpty) return [];
 
-    // Collect webinar IDs for batch fetch
-    final webinarIds = waitlistEntries
-        .map((e) => e['webinarId'] as String?)
-        .whereType<String>()
-        .toList();
+    // Step 3: Apply status filter if provided
+    final filteredAppointments = status != null
+        ? appointments.where((apt) {
+            final webinar = apt['webinar'] as Map<String, dynamic>?;
+            final webinarStatus = webinar?['status'] as String?;
+            return _matchesWebinarStatus(webinarStatus, status);
+          }).toList()
+        : appointments;
 
-    // Batch fetch webinars with plans
-    final webinarsQuery =
-        JsonQueryBuilder().model('Webinar').action(QueryAction.findMany).where({
-      'id': {'in': webinarIds}
-    }).include({'webinarPlan': true}).build();
-    final webinars = await executeQueryAsMaps(webinarsQuery);
-    final webinarLookup = <String, Map<String, dynamic>>{};
-    for (final w in webinars) {
-      webinarLookup[w['id'] as String] = w;
-    }
+    if (filteredAppointments.isEmpty) return [];
 
-    // Collect consultant profile IDs for batch fetch
+    // Step 4: Collect consultant profile IDs for batch fetch
     final consultantProfileIds = <String>[];
-    for (final w in webinars) {
-      final plan = w['webinarPlan'] as Map<String, dynamic>?;
+    for (final apt in filteredAppointments) {
+      final webinar = apt['webinar'] as Map<String, dynamic>?;
+      final plan = webinar?['webinarPlan'] as Map<String, dynamic>?;
       final id = plan?['consultantProfileId'] as String?;
       if (id != null) consultantProfileIds.add(id);
     }
     final consultantLookup =
         await _batchFetchConsultantInfo(consultantProfileIds);
 
-    // Batch fetch appointments with slots
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-      'webinarId': {'in': webinarIds}
-    }).include({'slots': true}).build();
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
-    final appointmentLookup = <String, Map<String, dynamic>>{};
-    for (final a in appointments) {
-      final webinarId = a['webinarId'] as String?;
-      if (webinarId != null) appointmentLookup[webinarId] = a;
-    }
-
-    // Build bookings using lookup maps
+    // Step 5: Build bookings
     final bookings = <Map<String, dynamic>>[];
-    for (final entry in waitlistEntries) {
-      final webinarId = entry['webinarId'] as String?;
-      if (webinarId == null) continue;
-
-      final webinar = webinarLookup[webinarId];
+    for (final apt in filteredAppointments) {
+      final webinar = apt['webinar'] as Map<String, dynamic>?;
       if (webinar == null) continue;
 
       final webinarStatus = webinar['status'] as String?;
-      if (status != null && !_matchesWebinarStatus(webinarStatus, status)) {
-        continue;
-      }
-
       final plan = webinar['webinarPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
       final consultantInfo =
           _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
-      final appointment = appointmentLookup[webinarId];
-      final slots = appointment?['slots'] as List<dynamic>?;
+      final slots = apt['slots'] as List<dynamic>?;
 
       bookings.add({
-        'id': webinarId,
+        'id': webinar['id'],
         'bookingType': 'WEBINAR',
         'status': _mapWebinarStatusToRequestStatus(webinarStatus),
-        'createdAt': entry['joinedAt'] ?? webinar['createdAt'],
+        'appointmentId': apt['id'],
+        'createdAt': apt['createdAt'] ?? webinar['createdAt'],
         'planId': plan?['id'],
         'planTitle': plan?['title'],
         'planPrice': plan?['price'],
@@ -872,74 +859,78 @@ class AppointmentRepository extends BaseRepository {
     return bookings;
   }
 
-  /// Fetch class bookings for a user (via Waitlist)
+  /// Fetch class bookings for a user (via SlotOfAppointment enrollment)
+  ///
+  /// Users are enrolled in classes through the _SlotOfAppointmentToUser junction
+  /// table, NOT through Waitlist. Waitlist is only for users waiting for spots.
   Future<List<Map<String, dynamic>>> _fetchClassBookings({
     required String userId,
     String? status,
   }) async {
-    // Get user's waitlist entries for classes
-    final waitlistQuery = JsonQueryBuilder()
-        .model('Waitlist')
+    // Query appointments where user is enrolled via SlotOfAppointment M2M relation
+    // Uses FilterOperators.some() for type-safe ORM query instead of raw SQL
+    final appointmentsQuery = JsonQueryBuilder()
+        .model('Appointment')
         .action(QueryAction.findMany)
         .where({
-      'userId': userId,
-      'classId': {'not': null},
+      'appointmentType': 'CLASS',
+      'slots': FilterOperators.some({
+        'user': FilterOperators.some({'id': userId}),
+      }),
+    }).include({
+      'class': {
+        'include': {
+          'classPlan': true,
+        },
+      },
+      'slots': true,
     }).build();
 
-    final waitlistEntries = await executeQueryAsMaps(waitlistQuery);
-    if (waitlistEntries.isEmpty) return [];
+    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    if (appointments.isEmpty) return [];
 
-    // Collect class IDs for batch fetch
-    final classIds = waitlistEntries
-        .map((e) => e['classId'] as String?)
-        .whereType<String>()
-        .toList();
+    // Step 3: Apply status filter if provided
+    final filteredAppointments = status != null
+        ? appointments.where((apt) {
+            final classRecord = apt['class'] as Map<String, dynamic>?;
+            final classStatus = classRecord?['status'] as String?;
+            return _matchesClassStatus(classStatus, status);
+          }).toList()
+        : appointments;
 
-    // Batch fetch classes with plans
-    final classesQuery =
-        JsonQueryBuilder().model('Class').action(QueryAction.findMany).where({
-      'id': {'in': classIds}
-    }).include({'classPlan': true}).build();
-    final classes = await executeQueryAsMaps(classesQuery);
-    final classLookup = <String, Map<String, dynamic>>{};
-    for (final c in classes) {
-      classLookup[c['id'] as String] = c;
-    }
+    if (filteredAppointments.isEmpty) return [];
 
-    // Collect consultant profile IDs for batch fetch
+    // Step 4: Collect consultant profile IDs for batch fetch
     final consultantProfileIds = <String>[];
-    for (final c in classes) {
-      final plan = c['classPlan'] as Map<String, dynamic>?;
+    for (final apt in filteredAppointments) {
+      final classRecord = apt['class'] as Map<String, dynamic>?;
+      final plan = classRecord?['classPlan'] as Map<String, dynamic>?;
       final id = plan?['consultantProfileId'] as String?;
       if (id != null) consultantProfileIds.add(id);
     }
     final consultantLookup =
         await _batchFetchConsultantInfo(consultantProfileIds);
 
-    // Build bookings using lookup maps
+    // Step 5: Build bookings
     final bookings = <Map<String, dynamic>>[];
-    for (final entry in waitlistEntries) {
-      final classId = entry['classId'] as String?;
-      if (classId == null) continue;
-
-      final classRecord = classLookup[classId];
+    for (final apt in filteredAppointments) {
+      final classRecord = apt['class'] as Map<String, dynamic>?;
       if (classRecord == null) continue;
 
       final classStatus = classRecord['status'] as String?;
-      if (status != null && !_matchesClassStatus(classStatus, status)) {
-        continue;
-      }
-
       final plan = classRecord['classPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
       final consultantInfo =
           _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
+      final slots = apt['slots'] as List<dynamic>?;
+
       bookings.add({
-        'id': classId,
+        'id': classRecord['id'],
         'bookingType': 'CLASS',
         'status': _mapClassStatusToRequestStatus(classStatus),
-        'createdAt': entry['joinedAt'] ?? classRecord['createdAt'],
+        'appointmentId': apt['id'],
+        'createdAt': apt['createdAt'] ?? classRecord['createdAt'],
         'schedulingPeriodStartsAt': classRecord['schedulingPeriodStartsAt'],
         'schedulingPeriodEndsAt': classRecord['schedulingPeriodEndsAt'],
         'schedulingTimezone': classRecord['schedulingTimezone'],
@@ -952,6 +943,7 @@ class AppointmentRepository extends BaseRepository {
         'durationInMonths': plan?['durationInMonths'],
         'maxParticipants': plan?['maxParticipants'],
         ...consultantInfo,
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
       });
     }
 
