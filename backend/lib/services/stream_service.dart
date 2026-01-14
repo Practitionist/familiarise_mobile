@@ -5,6 +5,9 @@ import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 
+/// Stream Chat API base URL
+const _streamApiBaseUrl = 'https://chat.stream-io-api.com';
+
 /// Service for Stream Video API integration
 ///
 /// Handles JWT token generation for Stream Video SDK.
@@ -111,7 +114,7 @@ class StreamService {
       throw StateError('Stream API key and secret must be configured');
     }
 
-    final url = Uri.parse('https://chat.stream-io-api.com/users');
+    final url = Uri.parse('$_streamApiBaseUrl/users');
 
     // Generate server token (no user_id claim = server token)
     final serverToken = _createServerToken();
@@ -188,7 +191,7 @@ class StreamService {
     await upsertUser(userId: createdByUserId);
 
     final url = Uri.parse(
-      'https://chat.stream-io-api.com/channels/team/$channelId/query',
+      '$_streamApiBaseUrl/channels/team/$channelId/query',
     );
 
     final serverToken = _createServerToken();
@@ -240,7 +243,7 @@ class StreamService {
     }
 
     final url = Uri.parse(
-      'https://chat.stream-io-api.com/channels/$channelType/$channelId',
+      '$_streamApiBaseUrl/channels/$channelType/$channelId',
     );
 
     final serverToken = _createServerToken();
@@ -280,7 +283,7 @@ class StreamService {
     }
 
     final url = Uri.parse(
-      'https://chat.stream-io-api.com/channels/$channelType/$channelId',
+      '$_streamApiBaseUrl/channels/$channelType/$channelId',
     );
 
     final serverToken = _createServerToken();
@@ -324,7 +327,7 @@ class StreamService {
     }
 
     final url = Uri.parse(
-      'https://chat.stream-io-api.com/channels/$channelType/$channelId',
+      '$_streamApiBaseUrl/channels/$channelType/$channelId',
     );
 
     final serverToken = _createServerToken();
@@ -420,7 +423,7 @@ class StreamService {
       // Note: The /query endpoint creates the channel if it doesn't exist,
       // but it does NOT reliably set members from the data payload.
       final url = Uri.parse(
-        'https://chat.stream-io-api.com/channels/team/$channelId/query',
+        '$_streamApiBaseUrl/channels/team/$channelId/query',
       );
 
       final serverToken = _createServerToken();
