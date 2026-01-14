@@ -1491,10 +1491,14 @@ class AppointmentRepository extends BaseRepository {
         if (allSlots.isNotEmpty) {
           // Sort all slots by start time
           allSlots.sort((a, b) {
-            final aStart = DateTime.tryParse(a['startsAt']?.toString() ?? '') ??
-                DateTime(1970);
-            final bStart = DateTime.tryParse(b['startsAt']?.toString() ?? '') ??
-                DateTime(1970);
+            final aStart = DateTime.tryParse(a['startsAt']?.toString() ?? '');
+            final bStart = DateTime.tryParse(b['startsAt']?.toString() ?? '');
+
+            // Handle null dates explicitly - push nulls to end
+            if (aStart == null && bStart == null) return 0;
+            if (aStart == null) return 1;
+            if (bStart == null) return -1;
+
             return aStart.compareTo(bStart);
           });
 
