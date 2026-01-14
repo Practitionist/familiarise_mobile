@@ -1,4 +1,5 @@
 import '../entities/booking/booking_entities.dart';
+import '../entities/chat/chat_entities.dart';
 
 /// Repository interface for booking operations
 abstract class BookingRepository {
@@ -50,4 +51,10 @@ abstract class BookingRepository {
     required BookingType type,
     String? slotId,
   });
+
+  /// Get all unique consultants the user has bookings with
+  ///
+  /// Returns a deduplicated list of consultants from all booking types
+  /// (consultations, subscriptions, webinars, classes), sorted by most recent.
+  Future<List<AppointmentConsultant>> getAllMyConsultants();
 }

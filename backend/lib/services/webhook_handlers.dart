@@ -1,4 +1,5 @@
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -8,8 +9,10 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Razorpay and Stripe webhook endpoints.
 class WebhookHandlers {
   final DatabaseClient _db;
+  final StreamService? _streamService;
 
-  WebhookHandlers(this._db);
+  WebhookHandlers(this._db, {StreamService? streamService})
+      : _streamService = streamService;
 
   /// Handle successful payment from webhook
   ///
@@ -216,11 +219,23 @@ class WebhookHandlers {
 
   /// Confirm booking after successful payment
   Future<void> _confirmBooking(String appointmentId) async {
-    // Get appointment to find booking
+    // Get appointment to find booking with related data
     final appointmentQuery = JsonQueryBuilder()
         .model('Appointment')
         .action(QueryAction.findUnique)
-        .where({'id': appointmentId}).build();
+        .where({'id': appointmentId}).include({
+      'webinar': {
+        'include': {'webinarPlan': true}
+      },
+      'class': {
+        'include': {'classPlan': true}
+      },
+      'slots': {
+        'include': {
+          'user': true,
+        }
+      },
+    }).build();
     final appointment =
         await _db.executor.executeQueryAsSingleMap(appointmentQuery);
 
@@ -234,6 +249,9 @@ class WebhookHandlers {
 
     final consultationId = appointment['consultationId'] as String?;
     final subscriptionId = appointment['subscriptionId'] as String?;
+    final webinarId = appointment['webinarId'] as String?;
+    final classId = appointment['classId'] as String?;
+    final appointmentType = appointment['appointmentType'] as String?;
 
     if (consultationId != null) {
       // Update consultation status to SCHEDULED
@@ -252,7 +270,201 @@ class WebhookHandlers {
         bookingType: 'SUBSCRIPTION',
         status: 'SCHEDULED',
       );
+    } else if (webinarId != null && appointmentType == 'WEBINAR') {
+      // Handle webinar booking - create group channel
+      await _handleWebinarBookingConfirmation(appointment, webinarId);
+    } else if (classId != null && appointmentType == 'CLASS') {
+      // Handle class booking - create group channel
+      await _handleClassBookingConfirmation(appointment, classId);
     }
+  }
+
+  /// Handle webinar booking confirmation - creates group chat channel
+  Future<void> _handleWebinarBookingConfirmation(
+    Map<String, dynamic> appointment,
+    String webinarId,
+  ) async {
+    if (_streamService == null || !_streamService!.isConfigured) {
+      SentryLogger.warning(
+        'StreamService not configured, skipping group channel creation',
+        context: 'WebhookHandlers',
+      );
+      return;
+    }
+
+    try {
+      final webinar = appointment['webinar'] as Map<String, dynamic>?;
+      final webinarPlan = webinar?['webinarPlan'] as Map<String, dynamic>?;
+      final slots = appointment['slots'] as List<dynamic>?;
+
+      if (webinar == null || webinarPlan == null) {
+        SentryLogger.warning(
+          'Webinar or plan not found for booking confirmation: $webinarId',
+          context: 'WebhookHandlers',
+        );
+        return;
+      }
+
+      // Get instructor info
+      final consultantProfileId =
+          webinarPlan['consultantProfileId'] as String?;
+      final consultantInfo =
+          await _getConsultantUserInfo(consultantProfileId);
+
+      // Get participant info from slots (enrolled users)
+      final participantInfo = _getParticipantFromSlots(slots);
+
+      if (consultantInfo == null || participantInfo == null) {
+        SentryLogger.warning(
+          'Could not get user info for group channel: $webinarId',
+          context: 'WebhookHandlers',
+        );
+        return;
+      }
+
+      final channelId = 'webinar_$webinarId';
+      final channelName = webinarPlan['title'] as String? ?? 'Webinar';
+
+      await _streamService!.getOrCreateGroupChannelAndAddMember(
+        channelId: channelId,
+        channelName: channelName,
+        instructorUserId: consultantInfo['userId'] as String,
+        participantUserId: participantInfo['userId'] as String,
+        programType: 'WEBINAR',
+        programId: webinarId,
+        instructorName: consultantInfo['name'] as String?,
+        instructorImage: consultantInfo['image'] as String?,
+        participantName: participantInfo['name'] as String?,
+        participantImage: participantInfo['image'] as String?,
+      );
+
+      SentryLogger.info(
+        'Group channel created/updated for webinar: $channelId',
+        context: 'WebhookHandlers',
+      );
+    } catch (e, stackTrace) {
+      SentryLogger.error(
+        'Failed to create group channel for webinar: $webinarId',
+        context: 'WebhookHandlers',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Don't rethrow - channel creation failure shouldn't fail payment
+    }
+  }
+
+  /// Handle class booking confirmation - creates group chat channel
+  Future<void> _handleClassBookingConfirmation(
+    Map<String, dynamic> appointment,
+    String classId,
+  ) async {
+    if (_streamService == null || !_streamService!.isConfigured) {
+      SentryLogger.warning(
+        'StreamService not configured, skipping group channel creation',
+        context: 'WebhookHandlers',
+      );
+      return;
+    }
+
+    try {
+      final classRecord = appointment['class'] as Map<String, dynamic>?;
+      final classPlan = classRecord?['classPlan'] as Map<String, dynamic>?;
+      final slots = appointment['slots'] as List<dynamic>?;
+
+      if (classRecord == null || classPlan == null) {
+        SentryLogger.warning(
+          'Class or plan not found for booking confirmation: $classId',
+          context: 'WebhookHandlers',
+        );
+        return;
+      }
+
+      // Get instructor info
+      final consultantProfileId = classPlan['consultantProfileId'] as String?;
+      final consultantInfo =
+          await _getConsultantUserInfo(consultantProfileId);
+
+      // Get participant info from slots (enrolled users)
+      final participantInfo = _getParticipantFromSlots(slots);
+
+      if (consultantInfo == null || participantInfo == null) {
+        SentryLogger.warning(
+          'Could not get user info for group channel: $classId',
+          context: 'WebhookHandlers',
+        );
+        return;
+      }
+
+      final channelId = 'class_$classId';
+      final channelName = classPlan['title'] as String? ?? 'Class';
+
+      await _streamService!.getOrCreateGroupChannelAndAddMember(
+        channelId: channelId,
+        channelName: channelName,
+        instructorUserId: consultantInfo['userId'] as String,
+        participantUserId: participantInfo['userId'] as String,
+        programType: 'CLASS',
+        programId: classId,
+        instructorName: consultantInfo['name'] as String?,
+        instructorImage: consultantInfo['image'] as String?,
+        participantName: participantInfo['name'] as String?,
+        participantImage: participantInfo['image'] as String?,
+      );
+
+      SentryLogger.info(
+        'Group channel created/updated for class: $channelId',
+        context: 'WebhookHandlers',
+      );
+    } catch (e, stackTrace) {
+      SentryLogger.error(
+        'Failed to create group channel for class: $classId',
+        context: 'WebhookHandlers',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Don't rethrow - channel creation failure shouldn't fail payment
+    }
+  }
+
+  /// Get consultant's user info from consultant profile ID
+  Future<Map<String, dynamic>?> _getConsultantUserInfo(
+      String? consultantProfileId) async {
+    if (consultantProfileId == null) return null;
+
+    final query = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findUnique)
+        .where({'id': consultantProfileId}).include({'user': true}).build();
+
+    final profile = await _db.executor.executeQueryAsSingleMap(query);
+    if (profile == null) return null;
+
+    final user = profile['user'] as Map<String, dynamic>?;
+    if (user == null) return null;
+
+    return {
+      'userId': user['id'],
+      'name': user['name'],
+      'image': user['image'],
+    };
+  }
+
+  /// Extract participant info from appointment slots
+  Map<String, dynamic>? _getParticipantFromSlots(List<dynamic>? slots) {
+    if (slots == null || slots.isEmpty) return null;
+
+    // Get users from the first slot (should all be the same for single bookings)
+    final firstSlot = slots.first as Map<String, dynamic>;
+    final users = firstSlot['user'] as List<dynamic>?;
+
+    if (users == null || users.isEmpty) return null;
+
+    final user = users.first as Map<String, dynamic>;
+    return {
+      'userId': user['id'],
+      'name': user['name'],
+      'image': user['image'],
+    };
   }
 
   /// Map gateway-specific refund status to our enum

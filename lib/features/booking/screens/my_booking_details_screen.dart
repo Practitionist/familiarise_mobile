@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/booking/booking_entities.dart';
+import '../../chat/providers/chat_service_provider.dart';
 import '../providers/booking_actions_provider.dart';
 import '../providers/my_bookings_provider.dart';
 import '../widgets/cancel_dialog.dart';
@@ -655,6 +656,27 @@ class _MyBookingDetailsScreenState
       );
     }
 
+    // Talk to Expert button (for bookings with consultant)
+    if (_booking!.consultantUserId != null &&
+        _booking!.status != RequestStatus.cancelled &&
+        _booking!.status != RequestStatus.rejected &&
+        _booking!.status != RequestStatus.expired) {
+      actions.add(
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: isLoading ? null : _handleTalkToExpert,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Talk to Expert'),
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+      );
+    }
+
     // Pay Now button (for APPROVED_PENDING_PAYMENT)
     if (_booking!.status == RequestStatus.approvedPendingPayment) {
       actions.add(
@@ -791,6 +813,57 @@ class _MyBookingDetailsScreenState
       return;
     }
     context.push('/meeting/${_booking!.appointmentId}');
+  }
+
+  Future<void> _handleTalkToExpert() async {
+    if (_booking?.consultantUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Consultant not available')),
+      );
+      return;
+    }
+
+    final chatService = ref.read(chatServiceProvider.notifier);
+
+    // Ensure chat is initialized
+    final chatState = ref.read(chatServiceProvider);
+    if (!chatState.isInitialized) {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Connecting to chat...')),
+        );
+      }
+
+      final success = await chatService.initialize();
+      if (!success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to connect to chat')),
+          );
+        }
+        return;
+      }
+    }
+
+    // Create or get the channel
+    final channel = await chatService.getOrCreateDirectChannel(
+      _booking!.consultantUserId!,
+      otherUserName: _booking!.consultantName,
+      otherUserImage: _booking!.consultantImage,
+    );
+
+    if (channel != null && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      // Use go() to navigate within the shell (shows Messages tab)
+      context.go('/messages/${channel.id}');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to open chat')),
+      );
+    }
   }
 
   void _handlePayNow() {

@@ -12,7 +12,7 @@ import 'package:dart_frog/dart_frog.dart';
 /// User must be a participant in the booking.
 ///
 /// Query Parameters:
-/// - type: Booking type (CONSULTATION or SUBSCRIPTION, required)
+/// - type: Booking type (CONSULTATION, SUBSCRIPTION, WEBINAR, or CLASS)
 ///
 /// Response:
 /// ```json
@@ -50,13 +50,14 @@ Future<Response> onRequest(RequestContext context, String id) async {
 
     // Get booking type from query parameter
     final type = params['type'];
-    if (type == null || (type != 'CONSULTATION' && type != 'SUBSCRIPTION')) {
+    const validTypes = ['CONSULTATION', 'SUBSCRIPTION', 'WEBINAR', 'CLASS'];
+    if (type == null || !validTypes.contains(type)) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
           'error': {
             'message': 'Query parameter type required '
-                '(CONSULTATION or SUBSCRIPTION)',
+                '(CONSULTATION, SUBSCRIPTION, WEBINAR, or CLASS)',
           },
         },
       );

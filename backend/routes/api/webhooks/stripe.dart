@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/stream_service.dart';
 import 'package:backend/services/stripe_service.dart';
 import 'package:backend/services/webhook_handlers.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -84,8 +85,9 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(body: {'status': 'already_processed'});
     }
 
-    // Process the event
-    final handlers = WebhookHandlers(db);
+    // Process the event with Stream service for group channel creation
+    final streamService = StreamService();
+    final handlers = WebhookHandlers(db, streamService: streamService);
     var success = false;
 
     try {

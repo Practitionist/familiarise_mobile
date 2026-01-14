@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 import '../domain/entities/booking/booking_entities.dart';
 import '../domain/entities/checkout/checkout_entities.dart';
@@ -11,7 +12,8 @@ import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
 import '../features/booking/screens/booking_screens.dart';
-import '../features/chat/screens/messages_screen.dart';
+import '../features/chat/screens/chat_list_screen.dart';
+import '../features/chat/screens/chat_room_screen.dart';
 import '../features/checkout/screens/checkout_screens.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
 import '../features/explore/screens/explore_screen.dart';
@@ -250,11 +252,22 @@ GoRouter router(Ref ref) {
             name: 'dashboard',
             builder: (context, state) => const DashboardScreen(),
           ),
-          // Messages tab (placeholder)
+          // Messages tab
           GoRoute(
             path: '/messages',
             name: 'messages',
-            builder: (context, state) => const MessagesPlaceholderScreen(),
+            builder: (context, state) => const ChatListScreen(),
+            routes: [
+              // Chat room (individual conversation)
+              GoRoute(
+                path: ':channelId',
+                name: 'chatRoom',
+                builder: (context, state) => ChatRoomScreen(
+                  channelId: state.pathParameters['channelId']!,
+                  channel: state.extra as Channel?,
+                ),
+              ),
+            ],
           ),
           // Profile tab
           GoRoute(

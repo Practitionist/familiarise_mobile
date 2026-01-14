@@ -110,4 +110,11 @@ extension NullableStringX on String? {
 
   /// Return the string or a default value if null/empty
   String orDefault(String defaultValue) => isNullOrEmpty ? defaultValue : this!;
+
+  /// Get initials from nullable name, returns fallback if null/empty
+  /// null -> "?", "John Doe" -> "JD"
+  String getInitials([String fallback = '?']) {
+    if (isNullOrEmpty) return fallback;
+    return this!.initials.isEmpty ? fallback : this!.initials;
+  }
 }
