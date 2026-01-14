@@ -108,16 +108,32 @@ class BookingRepositoryImpl implements BookingRepository {
 
       final userId = booking.consultantUserId!;
 
-      // Keep the most recent appointment for each consultant
       if (!consultantsMap.containsKey(userId)) {
-        consultantsMap[userId] = AppointmentConsultant.fromBooking(booking);
+        // First booking for this consultant - create entry with this booking type
+        consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
+            .copyWith(
+          allBookingTypes:
+              booking.bookingType != null ? [booking.bookingType!] : [],
+        );
       } else {
-        // Update if this booking is more recent
+        // Existing consultant - merge booking types
         final existing = consultantsMap[userId]!;
+        final types = {...existing.allBookingTypes};
+        if (booking.bookingType != null) {
+          types.add(booking.bookingType!);
+        }
+
+        // Update with most recent booking data, keeping all types
         if (booking.createdAt != null &&
             (existing.lastAppointmentDate == null ||
                 booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
-          consultantsMap[userId] = AppointmentConsultant.fromBooking(booking);
+          // This booking is more recent - use its data
+          consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
+              .copyWith(allBookingTypes: types.toList());
+        } else {
+          // Just update the types list on existing entry
+          consultantsMap[userId] =
+              existing.copyWith(allBookingTypes: types.toList());
         }
       }
     }

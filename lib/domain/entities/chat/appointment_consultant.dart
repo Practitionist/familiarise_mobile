@@ -38,6 +38,10 @@ class AppointmentConsultant with _$AppointmentConsultant {
     /// The program name (webinar/class title) for display
     /// Only set for webinar/class appointments
     String? programName,
+
+    /// All booking types the user has with this consultant
+    /// Used to display multiple types (e.g., "Consultation, Subscription")
+    @Default([]) List<BookingType> allBookingTypes,
   }) = _AppointmentConsultant;
 
   const AppointmentConsultant._();
@@ -93,4 +97,25 @@ class AppointmentConsultant with _$AppointmentConsultant {
   bool get isGroupProgram =>
       lastAppointmentType == BookingType.webinar ||
       lastAppointmentType == BookingType.classes;
+
+  /// Formatted list of all appointment types for display
+  /// Returns "Consultation, Subscription" if user has multiple booking types
+  /// Falls back to single appointmentTypeText if allBookingTypes is empty
+  String get allTypesText {
+    if (allBookingTypes.isEmpty) {
+      return appointmentTypeText;
+    }
+    return allBookingTypes.map((type) {
+      switch (type) {
+        case BookingType.consultation:
+          return 'Consultation';
+        case BookingType.subscription:
+          return 'Subscription';
+        case BookingType.webinar:
+          return 'Webinar';
+        case BookingType.classes:
+          return 'Class';
+      }
+    }).join(', ');
+  }
 }

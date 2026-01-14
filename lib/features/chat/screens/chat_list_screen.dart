@@ -488,7 +488,7 @@ class _ConsultantTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        consultant.appointmentTypeText,
+        consultant.allTypesText,
         style: theme.textTheme.bodySmall?.copyWith(
           color: colorScheme.onSurfaceVariant,
         ),
