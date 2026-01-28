@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/constants/enums.dart' show FeedbackStatus;
 import '../../../core/errors/exceptions.dart';
 import '../../../domain/entities/feedback/feedback_entities.dart';
 import '../../../shared/providers/core_providers.dart';
@@ -99,7 +100,14 @@ class FeedbackRemoteSourceImpl implements FeedbackRemoteSource {
           ? FeedbackCategory.fromString(json['category'] as String)
           : null,
       rating: json['rating'] as int?,
-      status: json['status'] as String?,
+      status: json['status'] != null
+          ? FeedbackStatus.values.firstWhere(
+              (e) =>
+                  e.name == json['status'] ||
+                  e.name == _camelCase(json['status'] as String),
+              orElse: () => FeedbackStatus.pending,
+            )
+          : null,
       createdAt: _parseDateTime(json['createdAt']),
     );
   }
@@ -122,5 +130,12 @@ class FeedbackRemoteSourceImpl implements FeedbackRemoteSource {
       }
     }
     return e.message;
+  }
+
+  /// Convert SCREAMING_SNAKE_CASE or snake_case to camelCase
+  String _camelCase(String input) {
+    final parts = input.toLowerCase().split('_');
+    return parts.first +
+        parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
   }
 }

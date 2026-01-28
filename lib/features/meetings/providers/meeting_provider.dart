@@ -73,13 +73,25 @@ class MeetingController extends _$MeetingController {
     }
   }
 
-  /// Initialize Stream Video SDK and get meeting token
+  /// Initialize Stream Video SDK and get meeting token.
+  /// Also fetches meeting details for session metadata (recording state, etc.)
   Future<bool> initialize(String appointmentId) async {
     if (state.isInitialized) return true;
 
     state = state.copyWith(isLoading: true, error: null);
 
     try {
+      // Fetch meeting details for recording state and metadata
+      try {
+        final repository = ref.read(meetingRepositoryProvider);
+        final meetingSession =
+            await repository.getMeetingDetails(appointmentId);
+        state = state.copyWith(
+          isRecording: meetingSession.isRecording == true,
+        );
+      } catch (_) {
+        // Non-critical: continue even if details fetch fails
+      }
       // Detect if running on emulator/simulator
       final isEmulator = await DeviceUtils.isEmulator();
 

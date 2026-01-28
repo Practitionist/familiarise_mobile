@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/constants/enums.dart'
+    show BookingSource, CancellationReason;
 import '../../../core/errors/exceptions.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../shared/providers/core_providers.dart';
@@ -229,15 +231,7 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
-      final errorMessage = _extractErrorMessage(e);
-      if (e.error is AppException) {
-        throw e.error as AppException;
-      }
-      throw ServerException(
-        message: errorMessage ?? 'Failed to create booking',
-        statusCode: e.response?.statusCode,
-        originalError: e,
-      );
+      _throwBookingError(e);
     }
   }
 
@@ -261,16 +255,43 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
-      final errorMessage = _extractErrorMessage(e);
-      if (e.error is AppException) {
-        throw e.error as AppException;
+      _throwBookingError(e);
+    }
+  }
+
+  /// Handle booking creation errors with specific error codes
+  Never _throwBookingError(DioException e) {
+    if (e.error is AppException) {
+      throw e.error as AppException;
+    }
+    final errorCode = _extractErrorCode(e);
+    final errorMessage = _extractErrorMessage(e);
+
+    if (e.response?.statusCode == 409) {
+      if (errorCode == 'SLOT_CONFLICT') {
+        throw SlotConflictException(
+          message: errorMessage ?? 'Selected slot is no longer available',
+        );
       }
+      if (errorCode == 'DUPLICATE_BOOKING') {
+        throw const AlreadyExistsException(resource: 'Booking');
+      }
+    }
+    if (e.response?.statusCode == 400 &&
+        errorCode == 'MISSING_CONSULTEE_PROFILE') {
       throw ServerException(
-        message: errorMessage ?? 'Failed to create booking',
-        statusCode: e.response?.statusCode,
-        originalError: e,
+        message:
+            errorMessage ?? 'Please complete your profile before booking',
+        statusCode: 400,
+        errorCode: 'MISSING_CONSULTEE_PROFILE',
       );
     }
+
+    throw ServerException(
+      message: errorMessage ?? 'Failed to create booking',
+      statusCode: e.response?.statusCode,
+      originalError: e,
+    );
   }
 
   @override
@@ -387,6 +408,31 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       totalSessions: json['totalSessions'] as int?,
       sessionDurationInHours:
           (json['sessionDurationInHours'] as num?)?.toDouble(),
+      // Cancellation fields
+      cancellationReason: json['cancellationReason'] != null
+          ? CancellationReason.values.firstWhere(
+              (e) => e.name == json['cancellationReason'] ||
+                  e.name ==
+                      _camelCase(json['cancellationReason'] as String),
+              orElse: () => CancellationReason.other,
+            )
+          : null,
+      cancellationNotes: json['cancellationNotes'] as String?,
+      cancelledAt: _parseDateTime(json['cancelledAt']),
+      cancelledBy: json['cancelledBy'] as String?,
+      // Booking source
+      bookingSource: json['bookingSource'] != null
+          ? BookingSource.values.firstWhere(
+              (e) => e.name == json['bookingSource'] ||
+                  e.name ==
+                      _camelCase(json['bookingSource'] as String),
+              orElse: () => BookingSource.requestSubmitted,
+            )
+          : null,
+      // Feedback fields
+      feedbackFromConsultee: json['feedbackFromConsultee'] as String?,
+      feedbackFromConsultant: json['feedbackFromConsultant'] as String?,
+      rating: (json['rating'] as num?)?.toDouble(),
     );
   }
 
@@ -445,5 +491,25 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       }
     }
     return e.message;
+  }
+
+  /// Extract error code from DioException response
+  String? _extractErrorCode(DioException e) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map<String, dynamic>) {
+        return error['code'] as String?;
+      }
+      return data['code'] as String?;
+    }
+    return null;
+  }
+
+  /// Convert SCREAMING_SNAKE_CASE or snake_case to camelCase
+  String _camelCase(String input) {
+    final parts = input.toLowerCase().split('_');
+    return parts.first +
+        parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
   }
 }

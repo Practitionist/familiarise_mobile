@@ -24,6 +24,7 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
   late TextEditingController _websiteController;
   late TextEditingController _twitterController;
   late TextEditingController _githubController;
+  late TextEditingController _videoIntroUrlController;
 
   String? _selectedDomainId;
   List<String> _selectedSubDomainIds = [];
@@ -79,6 +80,8 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
     _websiteController = TextEditingController(text: profile?.websiteUrl ?? '');
     _twitterController = TextEditingController(text: profile?.twitterUrl ?? '');
     _githubController = TextEditingController(text: profile?.githubUrl ?? '');
+    _videoIntroUrlController =
+        TextEditingController(text: profile?.videoIntroUrl ?? '');
 
     _selectedDomainId = profile?.domainId;
     _selectedSubDomainIds = profile?.subDomainIds ?? [];
@@ -96,6 +99,7 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
     _websiteController.dispose();
     _twitterController.dispose();
     _githubController.dispose();
+    _videoIntroUrlController.dispose();
     super.dispose();
   }
 
@@ -123,6 +127,9 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
       githubUrl: _githubController.text.trim().isEmpty
           ? null
           : _githubController.text.trim(),
+      videoIntroUrl: _videoIntroUrlController.text.trim().isEmpty
+          ? null
+          : _videoIntroUrlController.text.trim(),
     );
 
     ref.read(onboardingProvider.notifier).updateConsultantProfile(profile);
@@ -310,6 +317,15 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
             hint: 'https://github.com/yourusername',
             keyboardType: TextInputType.url,
             prefixIcon: const Icon(Icons.code),
+            onChanged: (_) => _updateProfile(),
+          ),
+          const SizedBox(height: 16),
+          AppTextField(
+            controller: _videoIntroUrlController,
+            label: 'Video Introduction',
+            hint: 'https://youtube.com/watch?v=...',
+            keyboardType: TextInputType.url,
+            prefixIcon: const Icon(Icons.videocam_outlined),
             onChanged: (_) => _updateProfile(),
           ),
           const SizedBox(height: 80), // Space for navigation buttons

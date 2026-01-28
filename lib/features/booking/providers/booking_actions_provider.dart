@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/constants/enums.dart' show CancellationReason;
 import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
@@ -100,11 +101,15 @@ class BookingActions extends _$BookingActions {
 
   /// Cancel a booking
   ///
-  /// [reason] is optional and will be stored with the cancellation
+  /// [cancellationReason] is the structured reason enum
+  /// [cancellationNotes] is optional free-text notes
+  /// [reason] is the legacy string reason (used as fallback)
   Future<bool> cancelBooking({
     required String id,
     required BookingType type,
     String? reason,
+    CancellationReason? cancellationReason,
+    String? cancellationNotes,
   }) async {
     state = const BookingActionLoading();
 
@@ -115,7 +120,8 @@ class BookingActions extends _$BookingActions {
       data: {
         'bookingId': id,
         'bookingType': type.value,
-        'hasReason': reason != null,
+        'cancellationReason': cancellationReason?.name,
+        'hasNotes': cancellationNotes != null,
       },
     );
 
@@ -124,7 +130,7 @@ class BookingActions extends _$BookingActions {
       await repository.cancelBooking(
         id: id,
         type: type,
-        reason: reason,
+        reason: reason ?? cancellationReason?.name,
       );
 
       state = const BookingActionSuccess(
