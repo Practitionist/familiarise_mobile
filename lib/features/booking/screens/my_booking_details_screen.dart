@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../chat/providers/chat_service_provider.dart';
+import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/booking_actions_provider.dart';
 import '../providers/my_bookings_provider.dart';
 import '../widgets/cancel_dialog.dart';
@@ -198,6 +199,20 @@ class _MyBookingDetailsScreenState
             // Message Section
             if (_booking!.message != null && _booking!.message!.isNotEmpty)
               _buildMessageSection(),
+
+            // Cancellation Info Section
+            if (_booking!.status == RequestStatus.cancelled)
+              _buildCancellationSection(),
+
+            // Feedback & Rating Section
+            if (_booking!.rating != null ||
+                _booking!.feedbackFromConsultee != null ||
+                _booking!.feedbackFromConsultant != null)
+              _buildFeedbackSection(),
+
+            // Booking Source Info
+            if (_booking!.bookingSource != null)
+              _buildBookingSourceSection(),
 
             const SizedBox(height: 24),
 
@@ -631,6 +646,164 @@ class _MyBookingDetailsScreenState
     );
   }
 
+  Widget _buildCancellationSection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.error.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cancel_outlined,
+                  size: 20, color: colorScheme.error),
+              const SizedBox(width: 8),
+              Text(
+                'Cancellation Details',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+          if (_booking!.cancellationReason != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Reason: ${_booking!.cancellationReason!.name.replaceAllMapped(RegExp(r'[A-Z]'), (m) => ' ${m.group(0)}').trim()}',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+          if (_booking!.cancellationNotes != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _booking!.cancellationNotes!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (_booking!.cancelledAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Cancelled on ${_formatDate(_booking!.cancelledAt!.toLocal())}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackSection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Feedback',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (_booking!.rating != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ...List.generate(5, (i) {
+                  return Icon(
+                    i < _booking!.rating!.round()
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    size: 20,
+                    color: Colors.amber.shade600,
+                  );
+                }),
+                const SizedBox(width: 8),
+                Text(
+                  _booking!.rating!.toStringAsFixed(1),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_booking!.feedbackFromConsultee != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Your feedback: ${_booking!.feedbackFromConsultee!}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (_booking!.feedbackFromConsultant != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Consultant feedback: ${_booking!.feedbackFromConsultant!}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingSourceSection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final source = _booking!.bookingSource!;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.source_outlined,
+              size: 16, color: colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Text(
+            'Source: ${source.name.replaceAllMapped(RegExp(r'[A-Z]'), (m) => ' ${m.group(0)}').trim()}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionButtons() {
     final theme = Theme.of(context);
     final actionState = ref.watch(bookingActionsProvider);
@@ -723,6 +896,24 @@ class _MyBookingDetailsScreenState
             label: const Text('Cancel Booking'),
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.error,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Write Review button (for completed bookings)
+    if (_booking!.status == RequestStatus.completed &&
+        _booking!.consultantProfileId != null) {
+      actions.add(
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: isLoading ? null : _handleWriteReview,
+            icon: const Icon(Icons.rate_review_outlined),
+            label: const Text('Write a Review'),
+            style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
@@ -919,21 +1110,35 @@ class _MyBookingDetailsScreenState
   }
 
   Future<void> _handleCancel() async {
-    // showCancelDialog returns:
-    // - null if user dismissed
-    // - '' (empty string) if confirmed without reason
-    // - non-empty string if confirmed with reason
-    final reason = await showCancelDialog(
+    final result = await showCancelDialog(
       context: context,
       booking: _booking!,
     );
-    if (reason == null) return;
+    if (result == null) return;
 
     ref.read(bookingActionsProvider.notifier).cancelBooking(
           id: _booking!.id,
           type: _booking!.bookingType,
-          reason: reason.isEmpty ? null : reason,
+          cancellationReason: result.reason,
+          cancellationNotes: result.notes,
         );
+  }
+
+  Future<void> _handleWriteReview() async {
+    final submitted = await SubmitReviewDialog.show(
+      context,
+      consultantProfileId: _booking!.consultantProfileId!,
+      consultantName: _booking!.consultantName ?? 'Consultant',
+      consultantImage: _booking!.consultantImage,
+    );
+    if (submitted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Review submitted. Thank you!'),
+          backgroundColor: Colors.green.shade600,
+        ),
+      );
+    }
   }
 
   void _handleReportIssue() {

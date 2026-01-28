@@ -449,6 +449,40 @@ class _InCallView extends StatelessWidget {
             },
           ),
 
+        // Recording indicator
+        if (meetingState.isRecording)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade700,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.fiber_manual_record,
+                        size: 12, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text(
+                      'Recording',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
         // Bottom controls overlay
         Positioned(
           left: 0,

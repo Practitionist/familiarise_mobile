@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/enums.dart' show FeedbackStatus;
+
 part 'feedback_entities.freezed.dart';
 part 'feedback_entities.g.dart';
 
@@ -34,7 +36,7 @@ class AppFeedback with _$AppFeedback {
     required String description,
     FeedbackCategory? category,
     int? rating,
-    String? status,
+    FeedbackStatus? status,
     DateTime? createdAt,
   }) = _AppFeedback;
 

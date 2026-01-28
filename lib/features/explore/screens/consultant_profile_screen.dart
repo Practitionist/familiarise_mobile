@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/rating_stars.dart';
+import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/consultant_detail_provider.dart';
 import '../providers/consultant_reviews_provider.dart';
 import '../widgets/plan_card.dart';
@@ -124,16 +125,30 @@ class ConsultantProfileScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name and rating
+                  // Name, verification badge, and rating
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          consultant.displayName,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                consultant.displayName,
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            if (consultant.isVerified == true) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.verified,
+                                size: 22,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       if (consultant.rating != null)
@@ -234,8 +249,50 @@ class ConsultantProfileScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                   ],
+                  // Tags
+                  if (consultant.tags.isNotEmpty) ...[
+                    _buildSectionTitle(theme, 'Tags'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: consultant.tags
+                          .map<Widget>(
+                            (tag) => Chip(
+                              label: Text(tag),
+                              backgroundColor:
+                                  theme.colorScheme.secondaryContainer,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   // Reviews section
-                  _buildSectionTitle(theme, 'Reviews'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSectionTitle(theme, 'Reviews'),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final submitted = await SubmitReviewDialog.show(
+                            context,
+                            consultantProfileId: consultant.id,
+                            consultantName: consultant.displayName,
+                            consultantImage: consultant.imageUrl,
+                          );
+                          if (submitted) {
+                            // Refresh reviews
+                            ref.invalidate(
+                              consultantReviewsNotifierProvider(consultantId),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.rate_review_outlined, size: 18),
+                        label: const Text('Write Review'),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   _buildReviewsSection(context, ref),
                   const SizedBox(height: 32),

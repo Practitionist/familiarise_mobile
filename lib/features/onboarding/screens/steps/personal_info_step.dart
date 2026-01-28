@@ -21,6 +21,8 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
   late TextEditingController _phoneController;
   late TextEditingController _cityController;
   late TextEditingController _countryController;
+  late TextEditingController _addressController;
+  late TextEditingController _linkedinController;
   late TextEditingController _bioController;
 
   DateTime? _selectedDate;
@@ -37,6 +39,8 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
     _phoneController = TextEditingController(text: info?.phone ?? '');
     _cityController = TextEditingController(text: info?.city ?? '');
     _countryController = TextEditingController(text: info?.country ?? '');
+    _addressController = TextEditingController(text: info?.address ?? '');
+    _linkedinController = TextEditingController(text: info?.linkedinUrl ?? '');
     _bioController = TextEditingController(text: info?.bio ?? '');
     _selectedDate = info?.dateOfBirth;
     _selectedGender = info?.gender;
@@ -48,6 +52,8 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
     _phoneController.dispose();
     _cityController.dispose();
     _countryController.dispose();
+    _addressController.dispose();
+    _linkedinController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -66,6 +72,12 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
       country: _countryController.text.trim().isEmpty
           ? null
           : _countryController.text.trim(),
+      address: _addressController.text.trim().isEmpty
+          ? null
+          : _addressController.text.trim(),
+      linkedinUrl: _linkedinController.text.trim().isEmpty
+          ? null
+          : _linkedinController.text.trim(),
       bio: _bioController.text.trim().isEmpty
           ? null
           : _bioController.text.trim(),
@@ -217,13 +229,33 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
             ],
           ),
           const SizedBox(height: 16),
+          // Address
+          AppTextField(
+            controller: _addressController,
+            label: 'Address',
+            hint: 'Your street address',
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            onChanged: (_) => _updatePersonalInfo(),
+          ),
+          const SizedBox(height: 16),
+          // LinkedIn
+          AppTextField(
+            controller: _linkedinController,
+            label: 'LinkedIn Profile',
+            hint: 'https://linkedin.com/in/yourprofile',
+            keyboardType: TextInputType.url,
+            prefixIcon: const Icon(Icons.link),
+            onChanged: (_) => _updatePersonalInfo(),
+          ),
+          const SizedBox(height: 16),
           // Bio
           AppTextField(
             controller: _bioController,
             label: 'Bio',
             hint: 'Tell us about yourself...',
             maxLines: 4,
-            maxLength: 500,
+            maxLength: 160,
             textCapitalization: TextCapitalization.sentences,
             onChanged: (_) => _updatePersonalInfo(),
           ),

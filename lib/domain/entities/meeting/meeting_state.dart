@@ -36,6 +36,9 @@ class MeetingState with _$MeetingState {
     /// Whether running on an emulator/simulator (video preview unavailable)
     @Default(false) bool isEmulator,
 
+    /// Whether the meeting is being recorded
+    @Default(false) bool isRecording,
+
     /// Current call ID if in a call
     String? callId,
 

@@ -135,6 +135,39 @@ class SubscriptionPlanCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Free trial badge
+              if (plan.freeTrialEnabled) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.card_giftcard,
+                        size: 14,
+                        color: Colors.green.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Free trial${plan.freeTrialDurationMinutes > 0 ? ' (${plan.freeTrialDurationMinutes} min)' : ''}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               // Title and price row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

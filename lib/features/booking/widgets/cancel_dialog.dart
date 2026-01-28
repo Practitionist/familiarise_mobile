@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/enums.dart' show CancellationReason;
 import '../../../domain/entities/booking/booking_entities.dart';
+
+/// Result of cancel dialog containing both reason enum and notes
+class CancelResult {
+  final CancellationReason? reason;
+  final String? notes;
+  const CancelResult({this.reason, this.notes});
+}
 
 /// Shows a confirmation dialog for cancelling a booking
 ///
-/// Returns the cancellation reason if confirmed, null if cancelled
-Future<String?> showCancelDialog({
+/// Returns a [CancelResult] if confirmed, null if dismissed
+Future<CancelResult?> showCancelDialog({
   required BuildContext context,
   required Booking booking,
 }) async {
-  return showDialog<String>(
+  return showDialog<CancelResult>(
     context: context,
     builder: (context) => _CancelDialog(booking: booking),
   );
@@ -26,6 +34,17 @@ class _CancelDialog extends StatefulWidget {
 
 class _CancelDialogState extends State<_CancelDialog> {
   final _reasonController = TextEditingController();
+  CancellationReason? _selectedReason;
+
+  /// Only show user-relevant cancellation reasons
+  static const _userReasons = [
+    CancellationReason.scheduleConflict,
+    CancellationReason.foundAlternative,
+    CancellationReason.financialReasons,
+    CancellationReason.personalEmergency,
+    CancellationReason.noLongerNeeded,
+    CancellationReason.other,
+  ];
 
   @override
   void dispose() {
@@ -115,9 +134,34 @@ class _CancelDialogState extends State<_CancelDialog> {
               const SizedBox(height: 16),
             ],
 
-            // Reason field
+            // Cancellation reason selector
             Text(
-              'Reason for cancellation (optional)',
+              'Reason for cancellation',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _userReasons.map((reason) {
+                final isSelected = _selectedReason == reason;
+                return FilterChip(
+                  label: Text(_reasonLabel(reason)),
+                  selected: isSelected,
+                  onSelected: (_) =>
+                      setState(() => _selectedReason = reason),
+                  selectedColor: theme.colorScheme.errorContainer,
+                  checkmarkColor: theme.colorScheme.onErrorContainer,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+
+            // Additional notes
+            Text(
+              'Additional notes (optional)',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -127,7 +171,7 @@ class _CancelDialogState extends State<_CancelDialog> {
               controller: _reasonController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Let us know why you\'re cancelling...',
+                hintText: 'Let us know more details...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -144,12 +188,12 @@ class _CancelDialogState extends State<_CancelDialog> {
         ),
         FilledButton(
           onPressed: () {
-            // Return empty string if no reason, so we know user confirmed
-            Navigator.of(context).pop(
-              _reasonController.text.trim().isEmpty
-                  ? '' // Empty string means confirmed without reason
+            Navigator.of(context).pop(CancelResult(
+              reason: _selectedReason,
+              notes: _reasonController.text.trim().isEmpty
+                  ? null
                   : _reasonController.text.trim(),
-            );
+            ));
           },
           style: FilledButton.styleFrom(
             backgroundColor: theme.colorScheme.error,
@@ -172,6 +216,25 @@ class _CancelDialogState extends State<_CancelDialog> {
         return 'class';
       case BookingType.trial:
         return 'trial';
+    }
+  }
+
+  String _reasonLabel(CancellationReason reason) {
+    switch (reason) {
+      case CancellationReason.scheduleConflict:
+        return 'Schedule conflict';
+      case CancellationReason.foundAlternative:
+        return 'Found alternative';
+      case CancellationReason.financialReasons:
+        return 'Financial reasons';
+      case CancellationReason.personalEmergency:
+        return 'Personal emergency';
+      case CancellationReason.noLongerNeeded:
+        return 'No longer needed';
+      case CancellationReason.other:
+        return 'Other';
+      default:
+        return reason.name;
     }
   }
 }
