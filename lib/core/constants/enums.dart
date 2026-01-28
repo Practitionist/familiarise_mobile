@@ -36,17 +36,12 @@ enum ConsultationMode {
   inPerson,
 }
 
-enum CommunicationMethod {
-  video,
-  audio,
-  chat,
-}
-
 enum AppointmentType {
   consultation,
   subscription,
   webinar,
   classType, // 'class' is a reserved word in Dart
+  trial,
 }
 
 enum RequestStatus {
@@ -54,6 +49,7 @@ enum RequestStatus {
   approved,
   approvedPendingPayment,
   scheduled,
+  completed,
   rejected,
   cancelled,
   expired,
@@ -155,4 +151,194 @@ enum Platform {
   microsoftTeams,
   stream,
   custom,
+}
+
+// --- Enums below added to align with Prisma schema ---
+
+enum CancellationReason {
+  // User-initiated
+  scheduleConflict,
+  foundAlternative,
+  financialReasons,
+  personalEmergency,
+  noLongerNeeded,
+  // Consultant-initiated
+  consultantUnavailable,
+  consultantEmergency,
+  // System-initiated
+  paymentFailed,
+  expired,
+  // Issue-related
+  consultantIssue,
+  technicalIssue,
+  // Other
+  other,
+}
+
+enum DiscountType {
+  percentage,
+  fixedAmount,
+  freeShipping,
+}
+
+enum PlanDuration {
+  oneMonth,
+  threeMonths,
+  sixMonths,
+  twelveMonths,
+}
+
+enum AdminLevel {
+  superAdmin,
+  admin,
+  moderator,
+}
+
+enum TrialSessionStatus {
+  pending,
+  scheduled,
+  completed,
+  converted,
+  cancelled,
+  rejected,
+}
+
+enum ActivityType {
+  consultationBooked,
+  consultationCompleted,
+  consultationCancelled,
+  subscriptionRequested,
+  subscriptionApproved,
+  subscriptionCancelled,
+  webinarRegistered,
+  classEnrolled,
+  trialRequested,
+  trialScheduled,
+  trialCompleted,
+  trialConverted,
+  reviewSubmitted,
+  messageReceived,
+}
+
+enum WaitlistStatus {
+  waiting,
+  notified,
+  booked,
+  expired,
+  cancelled,
+  skipped,
+}
+
+enum DocumentReviewStatus {
+  pending,
+  inReview,
+  approved,
+  rejected,
+  needsRevision,
+}
+
+enum DocumentUploadRole {
+  consultee,
+  consultant,
+}
+
+enum RecordingStorageType {
+  streamS3,
+  supabase,
+}
+
+enum RecordingStatus {
+  recording,
+  processing,
+  ready,
+  transferring,
+  available,
+  failed,
+  expired,
+}
+
+enum DisputeStatus {
+  warningNeedsResponse,
+  warningUnderReview,
+  warningClosed,
+  needsResponse,
+  underReview,
+  chargeRefunded,
+  won,
+  lost,
+}
+
+enum EarningStatus {
+  pending,
+  held,
+  ready,
+  paid,
+  refunded,
+}
+
+enum PayoutStatus {
+  pending,
+  approved,
+  processing,
+  completed,
+  failed,
+  cancelled,
+}
+
+enum PayoutMethod {
+  bankTransfer,
+  upi,
+  stripeTransfer,
+}
+
+enum PayoutAccountType {
+  bankAccount,
+  upi,
+  stripeConnect,
+}
+
+enum ModerationReportType {
+  review,
+  profile,
+  message,
+  document,
+  other,
+}
+
+enum ModerationReportStatus {
+  pending,
+  underReview,
+  dismissed,
+  actionTaken,
+  escalated,
+}
+
+enum ModerationActionType {
+  warningIssued,
+  contentRemoved,
+  userSuspended,
+  userBanned,
+  profileUnverified,
+  noAction,
+}
+
+enum ProfileVerificationStatus {
+  pending,
+  approved,
+  rejected,
+  needsInfo,
+}
+
+enum SystemJobStatus {
+  running,
+  completed,
+  failed,
+  cancelled,
+}
+
+enum ConsultantVerificationStatus {
+  pendingVerification,
+  underReview,
+  verified,
+  rejected,
 }

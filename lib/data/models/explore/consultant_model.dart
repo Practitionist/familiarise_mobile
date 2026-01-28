@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../domain/entities/explore/consultant.dart';
 import '../../../domain/entities/onboarding/domain_entity.dart';
 
@@ -20,6 +21,9 @@ class ConsultantModel with _$ConsultantModel {
     @Default([]) List<String> toolsAndTechnologies,
     int? totalMenteesHelped,
     bool? isVerified,
+    String? verificationStatus,
+    int? profileCompletionPercentage,
+    @Default([]) List<String> tags,
     String? domainId,
     String? createdAt,
     // Nested data
@@ -48,6 +52,9 @@ class ConsultantModel with _$ConsultantModel {
         toolsAndTechnologies: toolsAndTechnologies,
         totalMenteesHelped: totalMenteesHelped,
         isVerified: isVerified,
+        verificationStatus: _parseVerificationStatus(verificationStatus),
+        profileCompletionPercentage: profileCompletionPercentage,
+        tags: tags,
         domainId: domainId,
         createdAt: createdAt != null ? DateTime.tryParse(createdAt!) : null,
         user: user?.toEntity(),
@@ -56,6 +63,17 @@ class ConsultantModel with _$ConsultantModel {
         minPrice: minPrice,
         priceCurrency: priceCurrency,
       );
+
+  ConsultantVerificationStatus? _parseVerificationStatus(String? value) {
+    if (value == null) return null;
+    return switch (value.toUpperCase()) {
+      'PENDING_VERIFICATION' => ConsultantVerificationStatus.pendingVerification,
+      'UNDER_REVIEW' => ConsultantVerificationStatus.underReview,
+      'VERIFIED' => ConsultantVerificationStatus.verified,
+      'REJECTED' => ConsultantVerificationStatus.rejected,
+      _ => null,
+    };
+  }
 }
 
 /// User data embedded in consultant

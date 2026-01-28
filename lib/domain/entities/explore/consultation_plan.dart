@@ -18,6 +18,7 @@ class ConsultationPlan with _$ConsultationPlan {
     String? prerequisites,
     String? materialProvided,
     @Default([]) List<String> learningOutcomes,
+    @Default([]) List<String> topics,
     DateTime? createdAt,
   }) = _ConsultationPlan;
 

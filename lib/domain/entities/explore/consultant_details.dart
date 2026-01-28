@@ -2,9 +2,11 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/constants/enums.dart';
 import '../onboarding/domain_entity.dart';
+import 'class_plan.dart';
 import 'consultation_plan.dart';
 import 'review.dart';
 import 'subscription_plan.dart';
+import 'webinar_plan.dart';
 
 part 'consultant_details.freezed.dart';
 part 'consultant_details.g.dart';
@@ -23,6 +25,9 @@ class ConsultantDetails with _$ConsultantDetails {
     @Default([]) List<String> toolsAndTechnologies,
     int? totalMenteesHelped,
     bool? isVerified,
+    ConsultantVerificationStatus? verificationStatus,
+    int? profileCompletionPercentage,
+    ScheduleType? scheduleType,
     String? domainId,
     String? mentoringStyle,
     @Default([]) List<SessionType> sessionTypes,
@@ -38,6 +43,8 @@ class ConsultantDetails with _$ConsultantDetails {
     @Default([]) List<SubDomainEntity> subDomains,
     @Default([]) List<ConsultationPlan> consultationPlans,
     @Default([]) List<SubscriptionPlan> subscriptionPlans,
+    @Default([]) List<WebinarPlan> webinarPlans,
+    @Default([]) List<ClassPlan> classPlans,
     ReviewSummary? reviewSummary,
   }) = _ConsultantDetails;
 

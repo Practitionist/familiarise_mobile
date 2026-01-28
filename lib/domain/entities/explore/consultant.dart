@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/enums.dart';
 import '../onboarding/domain_entity.dart';
 
 part 'consultant.freezed.dart';
@@ -19,6 +20,9 @@ class Consultant with _$Consultant {
     @Default([]) List<String> toolsAndTechnologies,
     int? totalMenteesHelped,
     bool? isVerified,
+    ConsultantVerificationStatus? verificationStatus,
+    int? profileCompletionPercentage,
+    @Default([]) List<String> tags,
     String? domainId,
     DateTime? createdAt,
     // Nested data
