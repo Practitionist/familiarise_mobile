@@ -88,6 +88,8 @@ class AppointmentConsultant with _$AppointmentConsultant {
         return 'Webinar';
       case BookingType.classes:
         return 'Class';
+      case BookingType.trial:
+        return 'Trial';
       case null:
         return 'Appointment';
     }
@@ -115,6 +117,8 @@ class AppointmentConsultant with _$AppointmentConsultant {
           return 'Webinar';
         case BookingType.classes:
           return 'Class';
+        case BookingType.trial:
+          return 'Trial';
       }
     }).join(', ');
   }

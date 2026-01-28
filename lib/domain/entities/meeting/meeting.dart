@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/enums.dart';
+
 part 'meeting.freezed.dart';
 part 'meeting.g.dart';
 
@@ -34,6 +36,12 @@ class MeetingSession with _$MeetingSession {
     String? consultantImage,
     String? consulteeImage,
     String? passcode,
+    @Default(Platform.stream) Platform platform,
+    @Default([]) List<String> hostKeys,
+    @Default(false) bool isRecording,
+    DateTime? recordingStartedAt,
+    DateTime? endedAt,
+    String? endedReason,
     @Default(MeetingStatus.scheduled) MeetingStatus status,
   }) = _MeetingSession;
 

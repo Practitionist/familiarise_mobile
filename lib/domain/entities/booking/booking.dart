@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/enums.dart' show BookingSource, CancellationReason;
 import '../../../core/utils/formatters.dart';
 
 part 'booking.freezed.dart';
@@ -10,7 +11,8 @@ enum BookingType {
   consultation('CONSULTATION'),
   subscription('SUBSCRIPTION'),
   webinar('WEBINAR'),
-  classes('CLASS'); // 'class' is a reserved keyword, using 'classes'
+  classes('CLASS'), // 'class' is a reserved keyword, using 'classes'
+  trial('TRIAL');
 
   final String value;
   const BookingType(this.value);
@@ -29,10 +31,10 @@ enum RequestStatus {
   approved('APPROVED'),
   approvedPendingPayment('APPROVED_PENDING_PAYMENT'),
   scheduled('SCHEDULED'),
+  completed('COMPLETED'),
   rejected('REJECTED'),
   cancelled('CANCELLED'),
-  expired('EXPIRED'),
-  completed('COMPLETED');
+  expired('EXPIRED');
 
   final String value;
   const RequestStatus(this.value);
@@ -80,6 +82,17 @@ class Booking with _$Booking {
     int? durationInMonths,
     // Webinar/Class-specific
     int? maxParticipants,
+    // Cancellation fields
+    CancellationReason? cancellationReason,
+    String? cancellationNotes,
+    DateTime? cancelledAt,
+    String? cancelledBy,
+    // Booking source
+    BookingSource? bookingSource,
+    // Feedback fields
+    String? feedbackFromConsultee,
+    String? feedbackFromConsultant,
+    double? rating,
   }) = _Booking;
 
   const Booking._();

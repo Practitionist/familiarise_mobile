@@ -26,6 +26,8 @@ class SubscriptionPlanModel with _$SubscriptionPlanModel {
     String? prerequisites,
     String? materialProvided,
     @Default([]) List<String> learningOutcomes,
+    @Default(false) bool freeTrialEnabled,
+    @Default(30) int freeTrialDurationMinutes,
     String? createdAt,
   }) = _SubscriptionPlanModel;
 
@@ -52,6 +54,8 @@ class SubscriptionPlanModel with _$SubscriptionPlanModel {
         prerequisites: prerequisites,
         materialProvided: materialProvided,
         learningOutcomes: learningOutcomes,
+        freeTrialEnabled: freeTrialEnabled,
+        freeTrialDurationMinutes: freeTrialDurationMinutes,
         createdAt: createdAt != null ? DateTime.tryParse(createdAt!) : null,
       );
 

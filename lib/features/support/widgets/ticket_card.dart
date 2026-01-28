@@ -133,6 +133,11 @@ class TicketCard extends StatelessWidget {
           Colors.orange.shade700,
           Colors.orange.shade50,
         );
+      case TicketStatus.onHold:
+        return (
+          Colors.amber.shade700,
+          Colors.amber.shade50,
+        );
       case TicketStatus.resolved:
         return (
           Colors.green.shade700,

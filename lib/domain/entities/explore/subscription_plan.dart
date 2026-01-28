@@ -25,6 +25,8 @@ class SubscriptionPlan with _$SubscriptionPlan {
     String? prerequisites,
     String? materialProvided,
     @Default([]) List<String> learningOutcomes,
+    @Default(false) bool freeTrialEnabled,
+    @Default(30) int freeTrialDurationMinutes,
     DateTime? createdAt,
   }) = _SubscriptionPlan;
 

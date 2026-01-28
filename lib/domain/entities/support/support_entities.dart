@@ -7,6 +7,7 @@ part 'support_entities.g.dart';
 enum TicketStatus {
   open('OPEN', 'Open'),
   inProgress('IN_PROGRESS', 'In Progress'),
+  onHold('ON_HOLD', 'On Hold'),
   resolved('RESOLVED', 'Resolved'),
   closed('CLOSED', 'Closed');
 

@@ -20,6 +20,7 @@ class ConsultationPlanModel with _$ConsultationPlanModel {
     String? prerequisites,
     String? materialProvided,
     @Default([]) List<String> learningOutcomes,
+    @Default([]) List<String> topics,
     String? createdAt,
   }) = _ConsultationPlanModel;
 
@@ -41,6 +42,7 @@ class ConsultationPlanModel with _$ConsultationPlanModel {
         prerequisites: prerequisites,
         materialProvided: materialProvided,
         learningOutcomes: learningOutcomes,
+        topics: topics,
         createdAt: createdAt != null ? DateTime.tryParse(createdAt!) : null,
       );
 }

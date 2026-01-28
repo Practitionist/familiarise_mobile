@@ -170,6 +170,8 @@ class _CancelDialogState extends State<_CancelDialog> {
         return 'webinar';
       case BookingType.classes:
         return 'class';
+      case BookingType.trial:
+        return 'trial';
     }
   }
 }

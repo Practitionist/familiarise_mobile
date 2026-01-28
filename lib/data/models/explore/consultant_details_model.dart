@@ -1,7 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../domain/entities/explore/class_plan.dart';
 import '../../../domain/entities/explore/consultant_details.dart';
+import '../../../domain/entities/explore/webinar_plan.dart';
 import 'consultant_model.dart';
 import 'consultation_plan_model.dart';
 import 'review_model.dart';
@@ -24,6 +26,9 @@ class ConsultantDetailsModel with _$ConsultantDetailsModel {
     @Default([]) List<String> toolsAndTechnologies,
     int? totalMenteesHelped,
     bool? isVerified,
+    String? verificationStatus,
+    int? profileCompletionPercentage,
+    String? scheduleType,
     String? domainId,
     String? mentoringStyle,
     @Default([]) List<String> sessionTypes,
@@ -39,6 +44,8 @@ class ConsultantDetailsModel with _$ConsultantDetailsModel {
     @Default([]) List<SubDomainModelSimple> subDomains,
     @Default([]) List<ConsultationPlanModel> consultationPlans,
     @Default([]) List<SubscriptionPlanModel> subscriptionPlans,
+    @Default([]) List<WebinarPlan> webinarPlans,
+    @Default([]) List<ClassPlan> classPlans,
     ReviewSummaryModel? reviewSummary,
   }) = _ConsultantDetailsModel;
 
@@ -59,6 +66,9 @@ class ConsultantDetailsModel with _$ConsultantDetailsModel {
         toolsAndTechnologies: toolsAndTechnologies,
         totalMenteesHelped: totalMenteesHelped,
         isVerified: isVerified,
+        verificationStatus: _parseVerificationStatus(verificationStatus),
+        profileCompletionPercentage: profileCompletionPercentage,
+        scheduleType: _parseScheduleType(scheduleType),
         domainId: domainId,
         mentoringStyle: mentoringStyle,
         sessionTypes: _parseSessionTypes(sessionTypes),
@@ -73,6 +83,8 @@ class ConsultantDetailsModel with _$ConsultantDetailsModel {
         subDomains: subDomains.map((s) => s.toEntity()).toList(),
         consultationPlans: consultationPlans.map((p) => p.toEntity()).toList(),
         subscriptionPlans: subscriptionPlans.map((p) => p.toEntity()).toList(),
+        webinarPlans: webinarPlans,
+        classPlans: classPlans,
         reviewSummary: reviewSummary?.toEntity(),
       );
 
@@ -86,6 +98,26 @@ class ConsultantDetailsModel with _$ConsultantDetailsModel {
         _ => SessionType.oneOnOne,
       };
     }).toList();
+  }
+
+  ConsultantVerificationStatus? _parseVerificationStatus(String? value) {
+    if (value == null) return null;
+    return switch (value.toUpperCase()) {
+      'PENDING_VERIFICATION' => ConsultantVerificationStatus.pendingVerification,
+      'UNDER_REVIEW' => ConsultantVerificationStatus.underReview,
+      'VERIFIED' => ConsultantVerificationStatus.verified,
+      'REJECTED' => ConsultantVerificationStatus.rejected,
+      _ => null,
+    };
+  }
+
+  ScheduleType? _parseScheduleType(String? value) {
+    if (value == null) return null;
+    return switch (value.toUpperCase()) {
+      'WEEKLY' => ScheduleType.weekly,
+      'CUSTOM' => ScheduleType.custom,
+      _ => null,
+    };
   }
 }
 

@@ -336,6 +336,13 @@ class BookingCard extends StatelessWidget {
           const Color(0xFFE8EAF6).withOpacity(0.7), // Indigo container
           const Color(0xFF3949AB), // Indigo accent
         );
+      case BookingType.trial:
+        return (
+          Icons.explore_outlined,
+          'Trial',
+          colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          colorScheme.onSurfaceVariant,
+        );
     }
   }
 
