@@ -67,10 +67,7 @@ class ProfileScreen extends ConsumerWidget {
               icon: Icons.person_outline,
               title: 'Edit Profile',
               onTap: () {
-                // TODO: Navigate to edit profile
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon')),
-                );
+                context.push('/profile/edit');
               },
             ),
             _buildMenuItem(

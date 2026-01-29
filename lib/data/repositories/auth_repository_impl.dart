@@ -183,10 +183,18 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Result<User>> updateProfile({
+    required String userId,
     String? name,
     String? phone,
     String? timezone,
     String? image,
+    String? bio,
+    DateTime? dateOfBirth,
+    String? gender,
+    String? city,
+    String? country,
+    String? address,
+    String? linkedinUrl,
   }) async {
     if (!await networkInfo.isConnected) {
       return const Left(Failure.network());
@@ -198,8 +206,15 @@ class AuthRepositoryImpl implements AuthRepository {
       if (phone != null) data['phone'] = phone;
       if (timezone != null) data['timezone'] = timezone;
       if (image != null) data['image'] = image;
+      if (bio != null) data['bio'] = bio;
+      if (dateOfBirth != null) data['dateOfBirth'] = dateOfBirth.toIso8601String();
+      if (gender != null) data['gender'] = gender;
+      if (city != null) data['city'] = city;
+      if (country != null) data['country'] = country;
+      if (address != null) data['address'] = address;
+      if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
 
-      final userModel = await remoteSource.updateProfile(data);
+      final userModel = await remoteSource.updateProfile(userId, data);
       return Right(userModel.toEntity());
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));

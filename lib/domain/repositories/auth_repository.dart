@@ -39,10 +39,18 @@ abstract class AuthRepository {
 
   /// Update user profile
   Future<Result<User>> updateProfile({
+    required String userId,
     String? name,
     String? phone,
     String? timezone,
     String? image,
+    String? bio,
+    DateTime? dateOfBirth,
+    String? gender,
+    String? city,
+    String? country,
+    String? address,
+    String? linkedinUrl,
   });
 
   /// Stream of auth state changes

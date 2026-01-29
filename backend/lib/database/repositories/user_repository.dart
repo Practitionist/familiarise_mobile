@@ -67,17 +67,35 @@ class UserRepository extends BaseRepository {
     return result;
   }
 
-  /// Update user data (name, image)
+  /// Update user profile data
   Future<Map<String, dynamic>?> update({
     required String id,
     String? name,
     String? image,
+    String? phone,
+    String? bio,
+    String? dateOfBirth,
+    String? gender,
+    String? city,
+    String? country,
+    String? address,
+    String? linkedinUrl,
+    String? timezone,
   }) async {
     final data = <String, dynamic>{
       'updatedAt': nowIso8601,
     };
     if (name != null) data['name'] = name;
     if (image != null) data['image'] = image;
+    if (phone != null) data['phone'] = phone;
+    if (bio != null) data['bio'] = bio;
+    if (dateOfBirth != null) data['dateOfBirth'] = dateOfBirth;
+    if (gender != null) data['gender'] = gender;
+    if (city != null) data['city'] = city;
+    if (country != null) data['country'] = country;
+    if (address != null) data['address'] = address;
+    if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
+    if (timezone != null) data['timezone'] = timezone;
 
     final query = JsonQueryBuilder()
         .model('users')

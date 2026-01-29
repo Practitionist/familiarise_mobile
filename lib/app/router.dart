@@ -22,6 +22,7 @@ import '../features/programs/screens/webinar_detail_screen.dart';
 import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
+import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/support/screens/support_tickets_screen.dart';
 import '../features/support/screens/support_ticket_detail_screen.dart';
@@ -274,6 +275,13 @@ GoRouter router(Ref ref) {
             path: '/profile',
             name: 'profile',
             builder: (context, state) => const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                name: 'editProfile',
+                builder: (context, state) => const EditProfileScreen(),
+              ),
+            ],
           ),
           // My Bookings (inside shell for bottom nav)
           GoRoute(

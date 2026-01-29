@@ -51,7 +51,7 @@ abstract class AuthRemoteSource {
   Future<void> sendPasswordResetEmail(String email);
 
   /// Update user profile
-  Future<UserModel> updateProfile(Map<String, dynamic> data);
+  Future<UserModel> updateProfile(String userId, Map<String, dynamic> data);
 
   /// Stream of auth state changes
   Stream<UserModel?> get authStateChanges;
@@ -384,11 +384,48 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   }
 
   @override
-  Future<UserModel> updateProfile(Map<String, dynamic> data) async {
-    // Profile updates may need to go through the backend API directly
-    throw const AuthException(
-      message: 'Profile updates are not available through the auth client.',
-    );
+  Future<UserModel> updateProfile(String userId, Map<String, dynamic> data) async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/user/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to update profile',
+        );
+      }
+
+      final responseData = jsonDecode(response.body);
+      final userModel = UserModel.fromJson(responseData['data']);
+
+      // Update cached user
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+
+      _authStateController.add(userModel);
+      return userModel;
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSource.updateProfile');
+      throw const AuthException(
+        message: 'Failed to update profile. Please try again.',
+      );
+    }
   }
 
   @override
@@ -634,10 +671,46 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   }
 
   @override
-  Future<UserModel> updateProfile(Map<String, dynamic> data) async {
-    throw const AuthException(
-      message: 'Profile updates are not available yet.',
-    );
+  Future<UserModel> updateProfile(String userId, Map<String, dynamic> data) async {
+    try {
+      final token = await _getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.put(
+        Uri.parse('$_baseUrl/api/user/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to update profile',
+        );
+      }
+
+      final responseData = jsonDecode(response.body);
+      final userModel = UserModel.fromJson(responseData['data']);
+
+      // Update cached user
+      await _saveUser(userModel);
+
+      _authStateController.add(userModel);
+      return userModel;
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.updateProfile');
+      throw const AuthException(
+        message: 'Failed to update profile. Please try again.',
+      );
+    }
   }
 
   @override
