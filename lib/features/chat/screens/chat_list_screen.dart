@@ -17,6 +17,10 @@ class ChatListScreen extends ConsumerStatefulWidget {
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _navigatingKey; // non-null = a channel tap is in progress
+
+  String _consultantKey(AppointmentConsultant c) =>
+      c.isGroupProgram ? 'group_${c.programId}' : 'dm_${c.consultantUserId}';
 
   @override
   void initState() {
@@ -44,60 +48,69 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   }
 
   Future<void> _onConsultantTap(AppointmentConsultant consultant) async {
-    final chatService = ref.read(chatServiceProvider.notifier);
+    if (_navigatingKey != null) return; // guard against concurrent taps
 
-    // Ensure chat is initialized
-    final chatState = ref.read(chatServiceProvider);
-    if (!chatState.isInitialized) {
-      final success = await chatService.initialize();
-      if (!success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to connect to chat')),
-          );
+    final key = _consultantKey(consultant);
+    setState(() => _navigatingKey = key);
+
+    try {
+      final chatService = ref.read(chatServiceProvider.notifier);
+
+      // Ensure chat is initialized
+      final chatState = ref.read(chatServiceProvider);
+      if (!chatState.isInitialized) {
+        final success = await chatService.initialize();
+        if (!success) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to connect to chat')),
+            );
+          }
+          return;
         }
-        return;
       }
-    }
 
-    // Get or create the appropriate channel based on appointment type
-    Channel? channel;
+      // Get or create the appropriate channel based on appointment type
+      Channel? channel;
 
-    if (consultant.isGroupProgram && consultant.programId != null) {
-      // For webinar/class: open existing group channel
-      final channelId =
-          '${consultant.lastAppointmentType?.value.toLowerCase()}_${consultant.programId}';
-      channel = await chatService.getGroupChannel(channelId);
+      if (consultant.isGroupProgram && consultant.programId != null) {
+        // For webinar/class: open existing group channel
+        final channelId =
+            '${consultant.lastAppointmentType?.value.toLowerCase()}_${consultant.programId}';
+        channel = await chatService.getGroupChannel(channelId);
 
-      if (channel == null && mounted) {
-        // Group channel might not exist yet (backend hasn't created it)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Group chat is not available yet. '
-                'Please wait for the booking to be confirmed.'),
-          ),
+        if (channel == null && mounted) {
+          // Group channel might not exist yet (backend hasn't created it)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Group chat is not available yet. '
+                  'Please wait for the booking to be confirmed.'),
+            ),
+          );
+          return;
+        }
+      } else {
+        // For consultation/subscription: create or get 1:1 DM channel
+        channel = await chatService.getOrCreateDirectChannel(
+          consultant.consultantUserId,
+          otherUserName: consultant.consultantName,
+          otherUserImage: consultant.consultantImage,
         );
-        return;
       }
-    } else {
-      // For consultation/subscription: create or get 1:1 DM channel
-      channel = await chatService.getOrCreateDirectChannel(
-        consultant.consultantUserId,
-        otherUserName: consultant.consultantName,
-        otherUserImage: consultant.consultantImage,
-      );
-    }
 
-    if (channel != null && mounted) {
-      context.pushNamed(
-        'chatRoom',
-        pathParameters: {'channelId': channel.id!},
-        extra: channel,
-      );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to open chat')),
-      );
+      if (channel != null && mounted) {
+        context.pushNamed(
+          'chatRoom',
+          pathParameters: {'channelId': channel.id!},
+          extra: channel,
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to open chat')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _navigatingKey = null);
     }
   }
 
@@ -337,6 +350,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               else
                 ...dmConsultants.map((consultant) => _ConsultantTile(
                       consultant: consultant,
+                      isLoading:
+                          _navigatingKey == _consultantKey(consultant),
                       onTap: () => _onConsultantTap(consultant),
                     )),
             ],
@@ -428,6 +443,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               ),
               ...eventConsultants.map((consultant) => _EventChannelTile(
                     consultant: consultant,
+                    isLoading:
+                        _navigatingKey == _consultantKey(consultant),
                     onTap: () => _onConsultantTap(consultant),
                     chatService: ref.read(chatServiceProvider.notifier),
                   )),
@@ -447,10 +464,12 @@ class _ConsultantTile extends StatelessWidget {
   const _ConsultantTile({
     required this.consultant,
     required this.onTap,
+    this.isLoading = false,
   });
 
   final AppointmentConsultant consultant;
   final VoidCallback onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +477,7 @@ class _ConsultantTile extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return ListTile(
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 4,
@@ -493,11 +512,20 @@ class _ConsultantTile extends StatelessWidget {
           color: colorScheme.onSurfaceVariant,
         ),
       ),
-      trailing: Icon(
-        Icons.chat_bubble_outline,
-        color: colorScheme.primary,
-        size: 20,
-      ),
+      trailing: isLoading
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colorScheme.primary,
+              ),
+            )
+          : Icon(
+              Icons.chat_bubble_outline,
+              color: colorScheme.primary,
+              size: 20,
+            ),
     );
   }
 }
@@ -508,11 +536,13 @@ class _EventChannelTile extends StatefulWidget {
     required this.consultant,
     required this.onTap,
     required this.chatService,
+    this.isLoading = false,
   });
 
   final AppointmentConsultant consultant;
   final VoidCallback onTap;
   final ChatService chatService;
+  final bool isLoading;
 
   @override
   State<_EventChannelTile> createState() => _EventChannelTileState();
@@ -566,7 +596,7 @@ class _EventChannelTileState extends State<_EventChannelTile> {
     final memberCount = members.length;
 
     return InkWell(
-      onTap: widget.onTap,
+      onTap: widget.isLoading ? null : widget.onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
@@ -643,11 +673,21 @@ class _EventChannelTileState extends State<_EventChannelTile> {
               ),
             ),
 
-            // Chevron icon
-            Icon(
-              Icons.chevron_right,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            // Chevron or loading spinner
+            if (widget.isLoading)
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colorScheme.primary,
+                ),
+              )
+            else
+              Icon(
+                Icons.chevron_right,
+                color: colorScheme.onSurfaceVariant,
+              ),
           ],
         ),
       ),
