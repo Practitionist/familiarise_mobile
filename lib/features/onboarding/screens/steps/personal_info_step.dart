@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/enums.dart';
+import '../../../../core/utils/sentry_logger.dart';
 import '../../../../domain/entities/onboarding/personal_info.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../providers/onboarding_provider.dart';
@@ -130,6 +131,13 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
                         fileName: fileName,
                         contentType: mimeType,
                       );
+                } catch (e, stackTrace) {
+                  AppSentryLogger.captureException(
+                    e,
+                    stackTrace: stackTrace,
+                    context: 'PersonalInfoStep.uploadProfileImage',
+                    extras: {'fileName': fileName, 'mimeType': mimeType},
+                  );
                 } finally {
                   if (mounted) {
                     setState(() => _isUploadingImage = false);

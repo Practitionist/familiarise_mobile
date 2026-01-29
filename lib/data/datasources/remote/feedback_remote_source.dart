@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/enums.dart' show FeedbackStatus;
 import '../../../core/errors/exceptions.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/feedback/feedback_entities.dart';
 import '../../../shared/providers/core_providers.dart';
 
@@ -52,6 +53,12 @@ class FeedbackRemoteSourceImpl implements FeedbackRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'FeedbackRemoteSource.createFeedback',
+        extras: {'statusCode': e.response?.statusCode},
+      );
       throw ServerException(
         message: errorMessage ?? 'Failed to submit feedback',
         statusCode: e.response?.statusCode,
@@ -81,6 +88,12 @@ class FeedbackRemoteSourceImpl implements FeedbackRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'FeedbackRemoteSource.getUserFeedback',
+        extras: {'statusCode': e.response?.statusCode},
+      );
       throw ServerException(
         message: e.message ?? 'Failed to fetch feedback',
         statusCode: e.response?.statusCode,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../chat/providers/chat_service_provider.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
@@ -57,7 +58,16 @@ class _MyBookingDetailsScreenState
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MyBookingDetailsScreen._loadBooking',
+        extras: {
+          'bookingId': widget.bookingId,
+          'bookingType': widget.bookingType.name,
+        },
+      );
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -1014,46 +1024,72 @@ class _MyBookingDetailsScreenState
       return;
     }
 
-    final chatService = ref.read(chatServiceProvider.notifier);
+    try {
+      final chatService = ref.read(chatServiceProvider.notifier);
 
-    // Ensure chat is initialized
-    final chatState = ref.read(chatServiceProvider);
-    if (!chatState.isInitialized) {
-      // Show loading indicator
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connecting to chat...')),
-        );
-      }
-
-      final success = await chatService.initialize();
-      if (!success) {
+      // Ensure chat is initialized
+      final chatState = ref.read(chatServiceProvider);
+      if (!chatState.isInitialized) {
+        // Show loading indicator
         if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to connect to chat')),
+            const SnackBar(content: Text('Connecting to chat...')),
           );
         }
-        return;
+
+        final success = await chatService.initialize();
+        if (!success) {
+          AppSentryLogger.captureMessage(
+            'Chat initialization failed',
+            context: 'MyBookingDetailsScreen._handleTalkToExpert',
+            extras: {
+              'bookingId': widget.bookingId,
+              'consultantUserId': _booking!.consultantUserId,
+            },
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to connect to chat')),
+            );
+          }
+          return;
+        }
       }
-    }
 
-    // Create or get the channel
-    final channel = await chatService.getOrCreateDirectChannel(
-      _booking!.consultantUserId!,
-      otherUserName: _booking!.consultantName,
-      otherUserImage: _booking!.consultantImage,
-    );
-
-    if (channel != null && mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      // Use go() to navigate within the shell (shows Messages tab)
-      context.go('/messages/${channel.id}');
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to open chat')),
+      // Create or get the channel
+      final channel = await chatService.getOrCreateDirectChannel(
+        _booking!.consultantUserId!,
+        otherUserName: _booking!.consultantName,
+        otherUserImage: _booking!.consultantImage,
       );
+
+      if (channel != null && mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        // Use go() to navigate within the shell (shows Messages tab)
+        context.go('/messages/${channel.id}');
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to open chat')),
+        );
+      }
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MyBookingDetailsScreen._handleTalkToExpert',
+        extras: {
+          'bookingId': widget.bookingId,
+          'consultantUserId': _booking?.consultantUserId,
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to open chat')),
+        );
+      }
     }
   }
 

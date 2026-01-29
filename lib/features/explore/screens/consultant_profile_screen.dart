@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/sentry_logger.dart';
 import '../../../shared/widgets/rating_stars.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/consultant_detail_provider.dart';
@@ -31,7 +32,15 @@ class ConsultantProfileScreen extends ConsumerWidget {
         return _buildProfile(context, ref, consultant);
       },
       loading: () => _buildLoading(),
-      error: (error, _) => _buildError(context, error.toString()),
+      error: (error, stackTrace) {
+        AppSentryLogger.captureException(
+          error,
+          stackTrace: stackTrace,
+          context: 'ConsultantProfileScreen.loadProfile',
+          extras: {'consultantId': consultantId},
+        );
+        return _buildError(context, error.toString());
+      },
     );
   }
 
@@ -275,16 +284,26 @@ class ConsultantProfileScreen extends ConsumerWidget {
                       _buildSectionTitle(theme, 'Reviews'),
                       TextButton.icon(
                         onPressed: () async {
-                          final submitted = await SubmitReviewDialog.show(
-                            context,
-                            consultantProfileId: consultant.id,
-                            consultantName: consultant.displayName,
-                            consultantImage: consultant.imageUrl,
-                          );
-                          if (submitted) {
-                            // Refresh reviews
-                            ref.invalidate(
-                              consultantReviewsNotifierProvider(consultantId),
+                          try {
+                            final submitted = await SubmitReviewDialog.show(
+                              context,
+                              consultantProfileId: consultant.id,
+                              consultantName: consultant.displayName,
+                              consultantImage: consultant.imageUrl,
+                            );
+                            if (submitted) {
+                              // Refresh reviews
+                              ref.invalidate(
+                                consultantReviewsNotifierProvider(consultantId),
+                              );
+                            }
+                          } catch (e, stackTrace) {
+                            AppSentryLogger.captureException(
+                              e,
+                              stackTrace: stackTrace,
+                              context:
+                                  'ConsultantProfileScreen.submitReview',
+                              extras: {'consultantId': consultantId},
                             );
                           }
                         },

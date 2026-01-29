@@ -99,10 +99,16 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                     },
                     child: bookingsAsync.when(
                       data: (bookings) {
-                        // Filter by category only (status filtering is done server-side)
-                        final filteredBookings = bookings
-                            .where((b) => b.bookingType.value == category.value)
-                            .toList();
+                        // Filter by category (status filtering is done server-side)
+                        // Trials are shown under Subscriptions since they're
+                        // trial sessions for subscription plans
+                        final filteredBookings = bookings.where((b) {
+                          if (category == BookingCategory.subscriptions) {
+                            return b.bookingType == BookingType.subscription ||
+                                b.bookingType == BookingType.trial;
+                          }
+                          return b.bookingType.value == category.value;
+                        }).toList();
 
                         if (filteredBookings.isEmpty) {
                           return _buildEmptyState(theme, category);

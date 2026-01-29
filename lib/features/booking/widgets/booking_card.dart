@@ -338,10 +338,10 @@ class BookingCard extends StatelessWidget {
         );
       case BookingType.trial:
         return (
-          Icons.explore_outlined,
-          'Trial',
-          colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          colorScheme.onSurfaceVariant,
+          Icons.star_outline_rounded,
+          'Free Trial',
+          const Color(0xFFE8F5E9),
+          const Color(0xFF2E7D32),
         );
     }
   }
@@ -420,11 +420,13 @@ class BookingCard extends StatelessWidget {
   }
 
   Widget _buildPriceTag(ThemeData theme) {
+    final isTrial = booking.bookingType == BookingType.trial;
+
     return Text(
-      booking.formattedPrice,
+      isTrial ? 'Free' : booking.formattedPrice,
       style: theme.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.bold,
-        color: theme.colorScheme.primary,
+        color: isTrial ? const Color(0xFF2E7D32) : theme.colorScheme.primary,
         letterSpacing: -0.5,
       ),
     );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:stream_video_flutter/stream_video_flutter.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/meeting/meeting_entities.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../providers/meeting_provider.dart';
@@ -32,19 +33,28 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
   }
 
   Future<void> _initializeMeeting() async {
-    final controller = ref.read(meetingControllerProvider.notifier);
+    try {
+      final controller = ref.read(meetingControllerProvider.notifier);
 
-    // Request permissions first
-    final permissionsGranted = await controller.requestPermissions();
-    if (!permissionsGranted) {
-      if (mounted) {
-        _showPermissionDialog();
+      // Request permissions first
+      final permissionsGranted = await controller.requestPermissions();
+      if (!permissionsGranted) {
+        if (mounted) {
+          _showPermissionDialog();
+        }
+        return;
       }
-      return;
-    }
 
-    // Initialize Stream Video
-    await controller.initialize(widget.appointmentId);
+      // Initialize Stream Video
+      await controller.initialize(widget.appointmentId);
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'MeetingScreen._initializeMeeting',
+        extras: {'appointmentId': widget.appointmentId},
+      );
+    }
   }
 
   void _showPermissionDialog() {
@@ -98,9 +108,18 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final controller = ref.read(meetingControllerProvider.notifier);
-      await controller.notifyMeetingEnded(widget.appointmentId);
-      await controller.leaveCall();
+      try {
+        final controller = ref.read(meetingControllerProvider.notifier);
+        await controller.notifyMeetingEnded(widget.appointmentId);
+        await controller.leaveCall();
+      } catch (e, stackTrace) {
+        AppSentryLogger.captureException(
+          e,
+          stackTrace: stackTrace,
+          context: 'MeetingScreen._handleLeave',
+          extras: {'appointmentId': widget.appointmentId},
+        );
+      }
       if (mounted) {
         context.pop();
       }

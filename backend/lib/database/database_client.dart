@@ -329,6 +329,87 @@ SchemaRegistry _buildSchemaRegistry() {
     },
   ));
 
+  // TrialSession model (free trial session for subscription plans)
+  schema.registerModel(ModelSchema(
+    name: 'TrialSession',
+    tableName: 'TrialSession',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'status': const FieldInfo(
+          name: 'status', columnName: 'status', type: 'String'),
+      'notes': const FieldInfo(
+          name: 'notes', columnName: 'notes', type: 'String'),
+      'consulteeProfileId': const FieldInfo(
+          name: 'consulteeProfileId',
+          columnName: 'consulteeProfileId',
+          type: 'String'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'subscriptionPlanId': const FieldInfo(
+          name: 'subscriptionPlanId',
+          columnName: 'subscriptionPlanId',
+          type: 'String'),
+      'appointmentId': const FieldInfo(
+          name: 'appointmentId',
+          columnName: 'appointmentId',
+          type: 'String'),
+      'convertedToSubscriptionId': const FieldInfo(
+          name: 'convertedToSubscriptionId',
+          columnName: 'convertedToSubscriptionId',
+          type: 'String'),
+      'requestedAt': const FieldInfo(
+          name: 'requestedAt',
+          columnName: 'requestedAt',
+          type: 'DateTime'),
+      'completedAt': const FieldInfo(
+          name: 'completedAt',
+          columnName: 'completedAt',
+          type: 'DateTime'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt',
+          columnName: 'createdAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt',
+          columnName: 'updatedAt',
+          type: 'DateTime'),
+    },
+    relations: {
+      'subscriptionPlan': RelationInfo.oneToOne(
+        name: 'subscriptionPlan',
+        targetModel: 'SubscriptionPlan',
+        foreignKey: 'subscriptionPlanId',
+        isOwner: true,
+      ),
+      'consulteeProfile': RelationInfo.oneToOne(
+        name: 'consulteeProfile',
+        targetModel: 'ConsulteeProfile',
+        foreignKey: 'consulteeProfileId',
+        isOwner: true,
+      ),
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
+      'appointment': RelationInfo.oneToOne(
+        name: 'appointment',
+        targetModel: 'Appointment',
+        foreignKey: 'appointmentId',
+        isOwner: true,
+      ),
+      'convertedToSubscription': RelationInfo.oneToOne(
+        name: 'convertedToSubscription',
+        targetModel: 'Subscription',
+        foreignKey: 'convertedToSubscriptionId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   // Appointment model
   schema.registerModel(ModelSchema(
     name: 'Appointment',

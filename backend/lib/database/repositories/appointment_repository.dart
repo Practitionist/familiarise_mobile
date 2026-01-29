@@ -538,7 +538,8 @@ class AppointmentRepository extends BaseRepository {
 
   /// Get user's bookings with pagination and optional status filter
   ///
-  /// Fetches all four booking types: Consultations, Subscriptions, Webinars, Classes.
+  /// Fetches all five booking types: Consultations, Subscriptions,
+  /// Webinars, Classes, Trials.
   /// Uses ORM with parameterized queries - NO SQL INJECTION RISK.
   Future<Map<String, dynamic>> getMyBookings({
     required String userId,
@@ -593,6 +594,15 @@ class AppointmentRepository extends BaseRepository {
       status: status,
     );
     allBookings.addAll(classBookings);
+
+    // 5. Fetch TRIAL SESSIONS (uses ConsulteeProfile)
+    if (consulteeProfileId != null) {
+      final trialBookings = await _fetchTrialBookings(
+        consulteeProfileId: consulteeProfileId,
+        status: status,
+      );
+      allBookings.addAll(trialBookings);
+    }
 
     // Sort all bookings by createdAt descending
     allBookings.sort((a, b) {
@@ -954,6 +964,145 @@ class AppointmentRepository extends BaseRepository {
     return bookings;
   }
 
+  /// Fetch trial session bookings for a consultee
+  Future<List<Map<String, dynamic>>> _fetchTrialBookings({
+    required String consulteeProfileId,
+    String? status,
+  }) async {
+    final where = <String, dynamic>{
+      'consulteeProfileId': consulteeProfileId,
+    };
+    if (status != null) {
+      // Map RequestStatus to TrialSessionStatus for filtering
+      final trialStatus = _mapRequestStatusToTrialStatus(status);
+      if (trialStatus == null) return []; // No matching trial status
+      where['status'] = trialStatus;
+    }
+
+    final trialsQuery = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.findMany)
+        .where(where)
+        .include({'subscriptionPlan': true})
+        .orderBy({'createdAt': 'desc'})
+        .build();
+
+    final trials = await executeQueryAsMaps(trialsQuery);
+    if (trials.isEmpty) return [];
+
+    // Collect consultant profile IDs for batch fetch
+    final consultantProfileIds = <String>[];
+    for (final t in trials) {
+      final consultantProfileId = t['consultantProfileId'] as String?;
+      if (consultantProfileId != null) {
+        consultantProfileIds.add(consultantProfileId);
+      }
+    }
+
+    // Batch fetch consultant info
+    final consultantLookup =
+        await _batchFetchConsultantInfo(consultantProfileIds);
+
+    // Batch fetch appointments with slots (trials may have linked appointments)
+    final appointmentIds = trials
+        .map((t) => t['appointmentId'] as String?)
+        .where((id) => id != null)
+        .cast<String>()
+        .toList();
+
+    final appointmentLookup = <String, Map<String, dynamic>>{};
+    if (appointmentIds.isNotEmpty) {
+      final appointmentsQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findMany)
+          .where({
+            'id': {'in': appointmentIds},
+          })
+          .include({'slots': true})
+          .build();
+      final appointments = await executeQueryAsMaps(appointmentsQuery);
+      for (final a in appointments) {
+        final appointmentId = a['id'] as String;
+        appointmentLookup[appointmentId] = a;
+      }
+    }
+
+    // Build bookings
+    final bookings = <Map<String, dynamic>>[];
+    for (final t in trials) {
+      final plan = t['subscriptionPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = t['consultantProfileId'] as String?;
+      final appointmentId = t['appointmentId'] as String?;
+
+      final consultantInfo =
+          _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
+
+      final appointment =
+          appointmentId != null ? appointmentLookup[appointmentId] : null;
+      final slots = appointment?['slots'] as List<dynamic>?;
+
+      bookings.add({
+        'id': t['id'],
+        'bookingType': 'TRIAL',
+        'status': _mapTrialStatusToRequestStatus(t['status'] as String?),
+        'message': t['notes'],
+        'createdAt': t['createdAt'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': 0, // Trials are free
+        'planCurrency': plan?['priceCurrency'] ?? 'INR',
+        'planDuration': (plan?['freeTrialDurationMinutes'] as num?)
+            ?.toDouble(),
+        'freeTrialDurationMinutes': plan?['freeTrialDurationMinutes'],
+        ...consultantInfo,
+        if (appointmentId != null) 'appointmentId': appointmentId,
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Map TrialSessionStatus to RequestStatus for consistent UI display
+  String _mapTrialStatusToRequestStatus(String? trialStatus) {
+    switch (trialStatus) {
+      case 'PENDING':
+        return 'PENDING';
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CONVERTED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      case 'REJECTED':
+        return 'REJECTED';
+      default:
+        return 'PENDING';
+    }
+  }
+
+  /// Map RequestStatus back to TrialSessionStatus for filtering
+  String? _mapRequestStatusToTrialStatus(String requestStatus) {
+    switch (requestStatus) {
+      case 'PENDING':
+        return 'PENDING';
+      case 'APPROVED':
+        return 'PENDING'; // Trials don't have APPROVED, map to PENDING
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      case 'REJECTED':
+        return 'REJECTED';
+      default:
+        return null;
+    }
+  }
+
   /// Batch fetch consultant profiles and user info for multiple IDs
   ///
   /// Returns a map of consultantProfileId -> consultant info for O(1) lookup.
@@ -970,8 +1119,10 @@ class AppointmentRepository extends BaseRepository {
         .model('ConsultantProfile')
         .action(QueryAction.findMany)
         .where({
-      'id': {'in': uniqueIds}
-    }).include({'user': true}).build();
+          'id': {'in': uniqueIds},
+        })
+        .include({'user': true})
+        .build();
 
     final profiles = await executeQueryAsMaps(profilesQuery);
 
@@ -1010,44 +1161,16 @@ class AppointmentRepository extends BaseRepository {
     return lookupMap[consultantProfileId]!;
   }
 
-  /// Fetch consultant profile and user info (single query - used for getBookingById)
-  Future<Map<String, dynamic>> _fetchConsultantInfo(
-      String? consultantProfileId) async {
-    if (consultantProfileId == null) {
-      return {
-        'consultantProfileId': null,
-        'consultantUserId': null,
-        'consultantName': null,
-        'consultantImage': null,
-      };
-    }
-
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findUnique)
-        .where({'id': consultantProfileId}).include({'user': true}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
-    final user = profile?['user'] as Map<String, dynamic>?;
-
-    return {
-      'consultantProfileId': profile?['id'],
-      'consultantUserId': user?['id'],
-      'consultantName': user?['name'],
-      'consultantImage': user?['image'],
-    };
-  }
-
   /// Format slots for response
   List<Map<String, dynamic>> _formatSlots(List<dynamic> slots) {
-    return slots
-        .map((s) => {
-              'id': s['id'],
-              'startsAt': s['startsAt'],
-              'endsAt': s['endsAt'],
-              'isTentative': s['isTentative'],
-            })
-        .toList();
+    return slots.cast<Map<String, dynamic>>().map((s) {
+      return {
+        'id': s['id'],
+        'startsAt': s['startsAt'],
+        'endsAt': s['endsAt'],
+        'isTentative': s['isTentative'],
+      };
+    }).toList();
   }
 
   /// Check if webinar status matches the requested filter status
@@ -1106,6 +1229,8 @@ class AppointmentRepository extends BaseRepository {
       return _getWebinarById(id);
     } else if (type == 'CLASS') {
       return _getClassById(id);
+    } else if (type == 'TRIAL') {
+      return _getTrialById(id);
     } else {
       throw Exception('Invalid booking type: $type');
     }
@@ -1517,6 +1642,113 @@ class AppointmentRepository extends BaseRepository {
     });
   }
 
+  Future<Map<String, dynamic>> _getTrialById(String id) async {
+    // Wrap in transaction for consistent reads
+    return executeInTransaction((txn) async {
+      // Get trial session with subscription plan
+      final query = JsonQueryBuilder()
+          .model('TrialSession')
+          .action(QueryAction.findUnique)
+          .where({'id': id})
+          .include({'subscriptionPlan': true})
+          .build();
+
+      final result = await executeQueryAsSingleMap(query, txn: txn);
+
+      if (result == null) {
+        throw Exception('Trial session not found');
+      }
+
+      final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
+      final consultantProfileId = result['consultantProfileId'] as String?;
+
+      // Fetch consultant profile and user
+      Map<String, dynamic>? profile;
+      Map<String, dynamic>? user;
+      if (consultantProfileId != null) {
+        final profileQuery = JsonQueryBuilder()
+            .model('ConsultantProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': consultantProfileId})
+            .include({'user': true})
+            .build();
+        profile = await executeQueryAsSingleMap(
+          profileQuery,
+          txn: txn,
+        );
+
+        user = profile?['user'] as Map<String, dynamic>?;
+        if (user == null && profile != null) {
+          final userName = profile['userName'] as String?;
+          final userImage = profile['userImage'] as String?;
+          if (userName != null || userImage != null) {
+            user = {
+              'id': profile['userId'],
+              'name': userName,
+              'image': userImage,
+            };
+          }
+        }
+      }
+
+      final booking = <String, dynamic>{
+        'id': result['id'],
+        'bookingType': 'TRIAL',
+        'status': _mapTrialStatusToRequestStatus(
+          result['status'] as String?,
+        ),
+        'message': result['notes'],
+        'createdAt': result['createdAt'],
+        'updatedAt': result['updatedAt'],
+        'planId': plan?['id'] ?? result['subscriptionPlanId'],
+        'planTitle': plan?['title'],
+        'planPrice': 0, // Trials are free
+        'planCurrency': plan?['priceCurrency'] ?? 'INR',
+        'planDuration': plan?['freeTrialDurationMinutes'],
+        'freeTrialDurationMinutes':
+            plan?['freeTrialDurationMinutes'],
+        'consultantProfileId': profile?['id'],
+        'consultantUserId': user?['id'],
+        'consultantName': user?['name'],
+        'consultantImage': user?['image'],
+      };
+
+      // Get linked appointment if exists
+      final appointmentId =
+          result['appointmentId'] as String?;
+      if (appointmentId != null) {
+        booking['appointmentId'] = appointmentId;
+
+        // Fetch slots
+        final slotsQuery = JsonQueryBuilder()
+            .model('SlotOfAppointment')
+            .action(QueryAction.findMany)
+            .where({'appointmentId': appointmentId})
+            .orderBy({'startsAt': 'asc'})
+            .build();
+
+        final slots = await executeQueryAsMaps(
+          slotsQuery,
+          txn: txn,
+        );
+        if (slots.isNotEmpty) {
+          booking['slots'] = slots
+              .map(
+                (s) => {
+                  'id': s['id'],
+                  'startsAt': s['startsAt'],
+                  'endsAt': s['endsAt'],
+                  'isTentative': s['isTentative'],
+                },
+              )
+              .toList();
+        }
+      }
+
+      return booking;
+    });
+  }
+
   /// Cancel a booking
   ///
   /// Uses explicit model queries instead of dynamic table names (SAFE).
@@ -1596,6 +1828,32 @@ class AppointmentRepository extends BaseRepository {
         'cancellationReason': reason,
         'cancelledAt': now,
         'cancelledBy': consulteeProfileId,
+        'updatedAt': now,
+      }).build();
+
+      await executeMutation(updateQuery);
+    } else if (type == 'TRIAL') {
+      // Verify ownership via consultee profile
+      final verifyQuery = JsonQueryBuilder()
+          .model('TrialSession')
+          .action(QueryAction.findFirst)
+          .where({
+        'id': id,
+        'consulteeProfileId': consulteeProfileId,
+      }).build();
+
+      final booking = await executeQueryAsSingleMap(verifyQuery);
+
+      if (booking == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+
+      // Update status to CANCELLED
+      final updateQuery = JsonQueryBuilder()
+          .model('TrialSession')
+          .action(QueryAction.update)
+          .where({'id': id}).data({
+        'status': 'CANCELLED',
         'updatedAt': now,
       }).build();
 
@@ -1726,7 +1984,9 @@ class AppointmentRepository extends BaseRepository {
           if (slotId != null) {
             // Individual session reschedule
             final targetSlot = slots.firstWhere(
-              (s) => s['id'] == slotId,
+              (s) =>
+                  (s as Map<String, dynamic>)['id'] ==
+                  slotId,
               orElse: () => null,
             );
 
@@ -1773,7 +2033,8 @@ class AppointmentRepository extends BaseRepository {
     final now = DateTime.now().toUtc();
     for (final slot in slots) {
       // Handle both DateTime and String types (ORM may return either)
-      final startsAtRaw = slot['startsAt'];
+      final slotMap = slot as Map<String, dynamic>;
+      final startsAtRaw = slotMap['startsAt'];
       DateTime? startsAt;
       if (startsAtRaw is DateTime) {
         startsAt = startsAtRaw;
@@ -1795,7 +2056,9 @@ class AppointmentRepository extends BaseRepository {
   /// Mark slots as tentative
   /// If slotId is provided, only mark that slot; otherwise mark all slots
   Future<void> _markSlotsAsTentative(
-      String appointmentId, String? slotId) async {
+    String appointmentId,
+    String? slotId,
+  ) async {
     final now = nowIso8601;
 
     if (slotId != null) {
@@ -1829,8 +2092,8 @@ class AppointmentRepository extends BaseRepository {
     required String type,
     required String userId,
   }) async {
-    // For CONSULTATION and SUBSCRIPTION, check via consultee profile
-    if (type == 'CONSULTATION' || type == 'SUBSCRIPTION') {
+    // For CONSULTATION, SUBSCRIPTION, and TRIAL, check via consultee profile
+    if (type == 'CONSULTATION' || type == 'SUBSCRIPTION' || type == 'TRIAL') {
       // Get consultee profile ID
       final profileQuery = JsonQueryBuilder()
           .model('ConsulteeProfile')
@@ -1850,6 +2113,17 @@ class AppointmentRepository extends BaseRepository {
             .where({
           'id': bookingId,
           'requestedById': consulteeProfileId,
+        }).build();
+
+        final result = await executeQueryAsSingleMap(query);
+        return result != null;
+      } else if (type == 'TRIAL') {
+        final query = JsonQueryBuilder()
+            .model('TrialSession')
+            .action(QueryAction.findFirst)
+            .where({
+          'id': bookingId,
+          'consulteeProfileId': consulteeProfileId,
         }).build();
 
         final result = await executeQueryAsSingleMap(query);

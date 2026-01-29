@@ -63,7 +63,7 @@ extension FailureX on Failure {
           _getErrorCodeMessage(errorCode) ?? _getServerErrorMessage(statusCode),
         NetworkFailure() =>
           'Unable to connect. Please check your internet connection.',
-        AuthFailure() => 'Your session has expired. Please sign in again.',
+        AuthFailure(:final message) => message,
         ValidationFailure(:final errors) =>
           errors.values.expand((e) => e).firstOrNull ??
               'Please check your input and try again.',

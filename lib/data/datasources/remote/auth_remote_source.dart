@@ -107,8 +107,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSource.signInWithEmail');
+      throw const AuthException(
+          message: 'Sign in failed. Please try again.');
     }
   }
 
@@ -151,8 +152,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSource.signUpWithEmail');
+      throw const AuthException(
+          message: 'Sign up failed. Please try again.');
     }
   }
 
@@ -203,8 +205,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSource.signInWithGoogle');
+      throw const AuthException(
+          message: 'Google sign in failed. Please try again.');
     }
   }
 
@@ -280,8 +283,9 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSource.signInWithGitHub');
+      throw const AuthException(
+          message: 'GitHub sign in failed. Please try again.');
     }
   }
 
@@ -465,8 +469,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signInWithEmail');
+      throw const AuthException(
+          message: 'Sign in failed. Please try again.');
     }
   }
 
@@ -502,8 +507,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signUpWithEmail');
+      throw const AuthException(
+          message: 'Sign up failed. Please try again.');
     }
   }
 
@@ -557,8 +563,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource');
-      throw AuthException(message: e.toString());
+          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signInWithGoogle');
+      throw const AuthException(
+          message: 'Google sign in failed. Please try again.');
     }
   }
 

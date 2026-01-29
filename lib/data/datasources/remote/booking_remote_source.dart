@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/constants/enums.dart'
     show BookingSource, CancellationReason;
 import '../../../core/errors/exceptions.dart';
+import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../shared/providers/core_providers.dart';
 
@@ -127,6 +128,15 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'BookingRemoteSource.getConsultantAvailability',
+        extras: {
+          'consultantProfileId': consultantProfileId,
+          'statusCode': e.response?.statusCode,
+        },
+      );
       throw ServerException(
         message: e.message ?? 'Failed to fetch availability',
         statusCode: e.response?.statusCode,
@@ -168,6 +178,16 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'BookingRemoteSource.getMyBookings',
+        extras: {
+          'status': status,
+          'page': page,
+          'statusCode': e.response?.statusCode,
+        },
+      );
       throw ServerException(
         message: e.message ?? 'Failed to fetch bookings',
         statusCode: e.response?.statusCode,
@@ -203,6 +223,16 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'BookingRemoteSource.getBookingById',
+        extras: {
+          'bookingId': id,
+          'bookingType': type.value,
+          'statusCode': e.response?.statusCode,
+        },
+      );
       throw ServerException(
         message: e.message ?? 'Failed to fetch booking details',
         statusCode: e.response?.statusCode,
@@ -287,6 +317,17 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       );
     }
 
+    AppSentryLogger.captureException(
+      e,
+      stackTrace: e.stackTrace,
+      context: 'BookingRemoteSource._throwBookingError',
+      extras: {
+        'statusCode': e.response?.statusCode,
+        'errorCode': errorCode,
+        'errorMessage': errorMessage,
+      },
+    );
+
     throw ServerException(
       message: errorMessage ?? 'Failed to create booking',
       statusCode: e.response?.statusCode,
@@ -322,6 +363,16 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'BookingRemoteSource.cancelBooking',
+        extras: {
+          'bookingId': id,
+          'bookingType': type.value,
+          'statusCode': e.response?.statusCode,
+        },
+      );
       throw ServerException(
         message: e.message ?? 'Failed to cancel booking',
         statusCode: e.response?.statusCode,
@@ -371,6 +422,17 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       if (e.error is AppException) {
         throw e.error as AppException;
       }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'BookingRemoteSource.rescheduleBooking',
+        extras: {
+          'bookingId': id,
+          'bookingType': type.value,
+          'slotId': slotId,
+          'statusCode': e.response?.statusCode,
+        },
+      );
       throw ServerException(
         message: _extractErrorMessage(e) ?? 'Failed to reschedule booking',
         statusCode: e.response?.statusCode,
