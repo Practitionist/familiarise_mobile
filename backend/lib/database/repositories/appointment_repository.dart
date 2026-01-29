@@ -1302,6 +1302,10 @@ class AppointmentRepository extends BaseRepository {
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'cancellationReason': result['cancellationReason'],
+        'cancellationNotes': result['cancellationNotes'],
+        'cancelledAt': result['cancelledAt'],
+        'cancelledBy': result['cancelledBy'],
       };
 
       // Get appointment (without include - ORM flattens relations incorrectly)
@@ -1387,7 +1391,7 @@ class AppointmentRepository extends BaseRepository {
         }
       }
 
-      return {
+      final booking = {
         'id': result['id'],
         'bookingType': 'SUBSCRIPTION',
         'status': result['requestStatus'],
@@ -1411,7 +1415,13 @@ class AppointmentRepository extends BaseRepository {
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'cancellationReason': result['cancellationReason'],
+        'cancellationNotes': result['cancellationNotes'],
+        'cancelledAt': result['cancelledAt'],
+        'cancelledBy': result['cancelledBy'],
       };
+
+      return booking;
     });
   }
 

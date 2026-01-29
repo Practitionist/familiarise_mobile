@@ -51,7 +51,7 @@ dependencies:
   # UI Components
   flutter_svg: ^2.0.10+1
   cached_network_image: ^3.4.1
-  shimmer: ^3.0.0
+  skeletonizer: ^2.1.2
   flutter_animate: ^4.5.0
 
   # Forms & Validation

@@ -2,8 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/utils/sentry_logger.dart';
+import '../../../domain/entities/explore/consultant_details.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../../../shared/widgets/rating_stars.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/consultant_detail_provider.dart';
@@ -23,30 +26,30 @@ class ConsultantProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final consultantAsync = ref.watch(consultantDetailsProvider(consultantId));
+    final isLoading = consultantAsync.isLoading;
+    final consultant = consultantAsync.valueOrNull;
 
-    return consultantAsync.when(
-      data: (consultant) {
-        if (consultant == null) {
-          return _buildNotFound(context);
-        }
-        return _buildProfile(context, ref, consultant);
-      },
-      loading: () => _buildLoading(),
-      error: (error, stackTrace) {
-        AppSentryLogger.captureException(
-          error,
-          stackTrace: stackTrace,
-          context: 'ConsultantProfileScreen.loadProfile',
-          extras: {'consultantId': consultantId},
-        );
-        return _buildError(context, error.toString());
-      },
-    );
-  }
+    if (consultantAsync.hasError && !isLoading) {
+      AppSentryLogger.captureException(
+        consultantAsync.error!,
+        stackTrace: consultantAsync.stackTrace,
+        context: 'ConsultantProfileScreen.loadProfile',
+        extras: {'consultantId': consultantId},
+      );
+      return _buildError(context, consultantAsync.error.toString());
+    }
 
-  Widget _buildLoading() {
-    return Scaffold(
-      body: const Center(child: CircularProgressIndicator()),
+    if (!isLoading && consultant == null) {
+      return _buildNotFound(context);
+    }
+
+    return Skeletonizer(
+      enabled: isLoading,
+      child: _buildProfile(
+        context,
+        ref,
+        consultant ?? FakeData.consultantDetails(),
+      ),
     );
   }
 
@@ -112,7 +115,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
   Widget _buildProfile(
     BuildContext context,
     WidgetRef ref,
-    dynamic consultant, // Will be ConsultantDetails after code gen
+    ConsultantDetails consultant,
   ) {
     final theme = Theme.of(context);
 
@@ -324,7 +327,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroImage(ThemeData theme, dynamic consultant) {
+  Widget _buildHeroImage(ThemeData theme, ConsultantDetails consultant) {
     if (consultant.imageUrl != null) {
       return CachedNetworkImage(
         imageUrl: consultant.imageUrl!,
@@ -358,7 +361,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsRow(ThemeData theme, dynamic consultant) {
+  Widget _buildStatsRow(ThemeData theme, ConsultantDetails consultant) {
     return Row(
       children: [
         _buildStatItem(

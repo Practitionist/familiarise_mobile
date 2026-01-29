@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 /// App theme configuration matching the web app design system
 class AppTheme {
@@ -120,6 +121,15 @@ class AppTheme {
         thickness: 1,
       ),
       textTheme: _buildTextTheme(_lightForeground, _lightMutedForeground),
+      extensions: [
+        SkeletonizerConfigData(
+          effect: const ShimmerEffect(
+            baseColor: Color(0xFFE4E4E7),
+            highlightColor: Color(0xFFF4F4F5),
+          ),
+          enableSwitchAnimation: true,
+        ),
+      ],
     );
   }
 
@@ -207,6 +217,15 @@ class AppTheme {
         thickness: 1,
       ),
       textTheme: _buildTextTheme(_darkForeground, _darkMutedForeground),
+      extensions: [
+        SkeletonizerConfigData.dark(
+          effect: const ShimmerEffect(
+            baseColor: Color(0xFF27272A),
+            highlightColor: Color(0xFF3F3F46),
+          ),
+          enableSwitchAnimation: true,
+        ),
+      ],
     );
   }
 

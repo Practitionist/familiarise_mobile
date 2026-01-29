@@ -257,6 +257,9 @@ class ConsultantExploreRepository extends BaseRepository {
       'subDomains': {
         'select': {'id': true, 'name': true, 'domainId': true},
       },
+      'tags': {
+        'select': {'name': true},
+      },
     }).where({'id': id}).build();
 
     final profileResult = await executeQueryAsMaps(profileQuery);
@@ -296,6 +299,10 @@ class ConsultantExploreRepository extends BaseRepository {
       'user': row['user'],
       'domain': row['domain'],
       'subDomains': row['subDomains'] ?? <Map<String, dynamic>>[],
+      'tags': (row['tags'] as List?)
+          ?.map((t) => (t as Map<String, dynamic>)['name'] as String)
+          .toList() ??
+          <String>[],
       'consultationPlans': results[0],
       'subscriptionPlans': results[1],
       'reviewSummary': results[2],

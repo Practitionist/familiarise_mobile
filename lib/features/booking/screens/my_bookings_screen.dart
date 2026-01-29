@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../domain/entities/booking/booking_entities.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../providers/my_bookings_provider.dart';
 import '../widgets/booking_card.dart';
 
@@ -93,16 +95,17 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: BookingCategory.values.map((category) {
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      await ref.read(myBookingsProvider.notifier).refresh();
-                    },
-                    child: bookingsAsync.when(
-                      data: (bookings) {
-                        // Filter by category (status filtering is done server-side)
-                        // Trials are shown under Subscriptions since they're
-                        // trial sessions for subscription plans
-                        final filteredBookings = bookings.where((b) {
+                  final isLoading = bookingsAsync.isLoading;
+                  final bookings = bookingsAsync.valueOrNull ?? [];
+
+                  if (bookingsAsync.hasError && !isLoading) {
+                    return _buildError(theme, bookingsAsync.error.toString());
+                  }
+
+                  // Filter by category
+                  final filteredBookings = isLoading
+                      ? FakeData.bookings(4)
+                      : bookings.where((b) {
                           if (category == BookingCategory.subscriptions) {
                             return b.bookingType == BookingType.subscription ||
                                 b.bookingType == BookingType.trial;
@@ -110,25 +113,31 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                           return b.bookingType.value == category.value;
                         }).toList();
 
-                        // Sort newest first by createdAt
-                        filteredBookings.sort((a, b) {
-                          final aDate = a.createdAt ?? DateTime(2000);
-                          final bDate = b.createdAt ?? DateTime(2000);
-                          return bDate.compareTo(aDate);
-                        });
+                  if (!isLoading) {
+                    // Sort newest first by createdAt
+                    filteredBookings.sort((a, b) {
+                      final aDate = a.createdAt ?? DateTime(2000);
+                      final bDate = b.createdAt ?? DateTime(2000);
+                      return bDate.compareTo(aDate);
+                    });
+                  }
 
-                        if (filteredBookings.isEmpty) {
-                          return _buildEmptyState(theme, category);
-                        }
-                        if (category == BookingCategory.subscriptions) {
-                          return _buildSubscriptionsTabContent(
-                              context, ref, filteredBookings);
-                        }
-                        return _buildBookingsList(
-                            context, ref, filteredBookings, category);
-                      },
-                      loading: () => _buildLoadingState(),
-                      error: (error, _) => _buildError(theme, error.toString()),
+                  if (!isLoading && filteredBookings.isEmpty) {
+                    return _buildEmptyState(theme, category);
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      await ref.read(myBookingsProvider.notifier).refresh();
+                    },
+                    child: Skeletonizer(
+                      enabled: isLoading,
+                      child: category == BookingCategory.subscriptions &&
+                              !isLoading
+                          ? _buildSubscriptionsTabContent(
+                              context, ref, filteredBookings)
+                          : _buildBookingsList(
+                              context, ref, filteredBookings, category),
                     ),
                   );
                 }).toList(),
@@ -280,17 +289,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: 4,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _ShimmerCard(),
       ),
     );
   }
@@ -606,72 +604,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Shimmer loading card placeholder
-class _ShimmerCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _shimmerBox(48, 48, 12, colorScheme),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _shimmerBox(140, 16, 4, colorScheme),
-                    const SizedBox(height: 8),
-                    _shimmerBox(100, 12, 4, colorScheme),
-                  ],
-                ),
-              ),
-              _shimmerBox(70, 28, 14, colorScheme),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-              height: 1,
-              color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _shimmerBox(90, 24, 8, colorScheme),
-              _shimmerBox(60, 20, 4, colorScheme),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _shimmerBox(
-      double width, double height, double radius, ColorScheme colorScheme) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(radius),
-      ),
     );
   }
 }
