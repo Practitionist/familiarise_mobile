@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 import '../../../domain/entities/chat/chat_entities.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../providers/chat_service_provider.dart';
 
 /// Screen displaying the list of chat conversations
@@ -213,14 +215,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   ) {
     // Show connecting state
     if (chatState.isConnecting) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Connecting to chat...'),
-          ],
+      return Skeletonizer(
+        enabled: true,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          children: FakeData.appointmentConsultants(4)
+              .map((c) => _ConsultantTile(consultant: c, onTap: () {}))
+              .toList(),
         ),
       );
     }
@@ -358,10 +359,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           ),
         );
       },
-      loading: () => const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Center(child: CircularProgressIndicator()),
+      loading: () => SliverToBoxAdapter(
+        child: Skeletonizer(
+          enabled: true,
+          child: Column(
+            children: FakeData.appointmentConsultants(3)
+                .map((c) => _ConsultantTile(consultant: c, onTap: () {}))
+                .toList(),
+          ),
         ),
       ),
       error: (error, _) => SliverToBoxAdapter(

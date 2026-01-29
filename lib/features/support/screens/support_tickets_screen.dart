@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../domain/entities/support/support_entities.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../providers/support_provider.dart';
 import '../widgets/ticket_card.dart';
 
@@ -51,21 +53,31 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
 
             // Tickets list
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  await ref.read(supportTicketsProvider.notifier).refresh();
-                },
-                child: ticketsAsync.when(
-                  data: (tickets) {
-                    if (tickets.isEmpty) {
-                      return _buildEmptyState(theme);
-                    }
-                    return _buildTicketsList(context, ref, tickets);
+              child: () {
+                final isLoading = ticketsAsync.isLoading;
+                final tickets = ticketsAsync.valueOrNull ?? [];
+
+                if (ticketsAsync.hasError && !isLoading) {
+                  return _buildError(theme, ticketsAsync.error.toString());
+                }
+
+                final displayTickets =
+                    isLoading ? FakeData.supportTickets(4) : tickets;
+
+                if (!isLoading && displayTickets.isEmpty) {
+                  return _buildEmptyState(theme);
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await ref.read(supportTicketsProvider.notifier).refresh();
                   },
-                  loading: () => _buildLoadingState(colorScheme),
-                  error: (error, _) => _buildError(theme, error.toString()),
-                ),
-              ),
+                  child: Skeletonizer(
+                    enabled: isLoading,
+                    child: _buildTicketsList(context, ref, displayTickets),
+                  ),
+                );
+              }(),
             ),
           ],
         ),
@@ -261,17 +273,6 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
     );
   }
 
-  Widget _buildLoadingState(ColorScheme colorScheme) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: 4,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _ShimmerCard(colorScheme: colorScheme),
-      ),
-    );
-  }
-
   Widget _buildError(ThemeData theme, String message) {
     return ListView(
       children: [
@@ -326,62 +327,6 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Shimmer loading card placeholder
-class _ShimmerCard extends StatelessWidget {
-  final ColorScheme colorScheme;
-
-  const _ShimmerCard({required this.colorScheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _shimmerBox(140, 16, 4),
-              const Spacer(),
-              _shimmerBox(70, 24, 12),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _shimmerBox(double.infinity, 14, 4),
-          const SizedBox(height: 8),
-          _shimmerBox(200, 14, 4),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _shimmerBox(80, 20, 10),
-              const SizedBox(width: 8),
-              _shimmerBox(60, 20, 10),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _shimmerBox(double width, double height, double radius) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(radius),
-      ),
     );
   }
 }

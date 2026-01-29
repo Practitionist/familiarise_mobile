@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../domain/entities/explore/explore_filters.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../providers/consultants_provider.dart';
 import '../providers/explore_filters_provider.dart';
 import '../widgets/consultant_card.dart';
-import '../widgets/consultant_card_skeleton.dart';
 import '../widgets/explore_search_bar.dart';
 import '../widgets/filter_sheet.dart';
 
@@ -170,8 +171,21 @@ class ExploreScreen extends ConsumerWidget {
     WidgetRef ref,
     ConsultantsState state,
   ) {
-    if (state.isLoading) {
-      return const ConsultantListSkeleton();
+    if (state.isLoading && state.consultants.isEmpty) {
+      return Skeletonizer(
+        enabled: true,
+        child: ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          itemCount: 5,
+          itemBuilder: (context, index) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ConsultantCard(
+              consultant: FakeData.consultant(),
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
     }
 
     if (state.error != null) {

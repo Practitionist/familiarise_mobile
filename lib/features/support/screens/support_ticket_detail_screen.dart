@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../domain/entities/support/support_entities.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../providers/support_provider.dart';
 import '../widgets/response_bubble.dart';
 
@@ -81,11 +83,27 @@ class _SupportTicketDetailScreenState
 
             // Content
             Expanded(
-              child: ticketAsync.when(
-                data: (ticket) => _buildContent(context, theme, ticket),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => _buildError(theme, error.toString()),
-              ),
+              child: () {
+                final isLoading = ticketAsync.isLoading;
+                final ticket = ticketAsync.valueOrNull;
+
+                if (ticketAsync.hasError && !isLoading) {
+                  return _buildError(theme, ticketAsync.error.toString());
+                }
+
+                if (!isLoading && ticket == null) {
+                  return _buildError(theme, 'Ticket not found');
+                }
+
+                return Skeletonizer(
+                  enabled: isLoading,
+                  child: _buildContent(
+                    context,
+                    theme,
+                    ticket ?? FakeData.supportTicket(),
+                  ),
+                );
+              }(),
             ),
 
             // Message input (only for open/in-progress tickets)

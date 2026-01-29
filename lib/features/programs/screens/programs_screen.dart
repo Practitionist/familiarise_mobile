@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
+import '../../../shared/utils/fake_data.dart';
 import '../providers/webinars_provider.dart';
 import '../providers/classes_provider.dart';
 import '../widgets/webinar_card.dart';
@@ -70,7 +72,17 @@ class _WebinarsTab extends ConsumerWidget {
     final state = ref.watch(webinarsNotifierProvider);
 
     if (state.isLoading && state.webinars.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Skeletonizer(
+        enabled: true,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: 3,
+          itemBuilder: (_, __) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: WebinarCard(webinar: FakeData.webinarPlan(), onTap: () {}),
+          ),
+        ),
+      );
     }
 
     if (state.error != null && state.webinars.isEmpty) {
@@ -131,7 +143,17 @@ class _ClassesTab extends ConsumerWidget {
     final state = ref.watch(classesNotifierProvider);
 
     if (state.isLoading && state.classes.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Skeletonizer(
+        enabled: true,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: 3,
+          itemBuilder: (_, __) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: ClassCard(classPlan: FakeData.classPlan(), onTap: () {}),
+          ),
+        ),
+      );
     }
 
     if (state.error != null && state.classes.isEmpty) {

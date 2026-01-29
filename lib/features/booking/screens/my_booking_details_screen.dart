@@ -2,9 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../../chat/providers/chat_service_provider.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/booking_actions_provider.dart';
@@ -139,11 +141,7 @@ class _MyBookingDetailsScreenState
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
+    if (_error != null && !_isLoading) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -174,66 +172,76 @@ class _MyBookingDetailsScreenState
       );
     }
 
-    if (_booking == null) {
+    if (!_isLoading && _booking == null) {
       return const Center(child: Text('Booking not found'));
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadBooking,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Consultant Info Card
-            _buildConsultantCard(),
-            const SizedBox(height: 16),
+    // Temporarily assign fake data during loading so sub-methods can access _booking!
+    final wasNull = _booking == null;
+    if (wasNull) _booking = FakeData.booking();
 
-            // Status Section
-            _buildStatusSection(),
-            const SizedBox(height: 16),
+    final b = _booking!;
+    final result = Skeletonizer(
+      enabled: _isLoading,
+      child: RefreshIndicator(
+        onRefresh: _loadBooking,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Consultant Info Card
+              _buildConsultantCard(),
+              const SizedBox(height: 16),
 
-            // Plan Details Card
-            _buildPlanDetailsCard(),
-            const SizedBox(height: 16),
+              // Status Section
+              _buildStatusSection(),
+              const SizedBox(height: 16),
 
-            // Slots Section (for consultations and scheduled subscriptions)
-            if (_booking!.slots.isNotEmpty) _buildSlotsSection(),
+              // Plan Details Card
+              _buildPlanDetailsCard(),
+              const SizedBox(height: 16),
 
-            // Scheduling Period (for subscriptions)
-            if (_booking!.bookingType == BookingType.subscription &&
-                _booking!.schedulingPeriodStartsAt != null)
-              _buildSchedulingPeriodSection(),
+              // Slots Section (for consultations and scheduled subscriptions)
+              if (b.slots.isNotEmpty) _buildSlotsSection(),
 
-            // Message Section
-            if (_booking!.message != null && _booking!.message!.isNotEmpty)
-              _buildMessageSection(),
+              // Scheduling Period (for subscriptions)
+              if (b.bookingType == BookingType.subscription &&
+                  b.schedulingPeriodStartsAt != null)
+                _buildSchedulingPeriodSection(),
 
-            // Cancellation Info Section
-            if (_booking!.status == RequestStatus.cancelled)
-              _buildCancellationSection(),
+              // Message Section
+              if (b.message != null && b.message!.isNotEmpty)
+                _buildMessageSection(),
 
-            // Feedback & Rating Section
-            if (_booking!.rating != null ||
-                _booking!.feedbackFromConsultee != null ||
-                _booking!.feedbackFromConsultant != null)
-              _buildFeedbackSection(),
+              // Cancellation Info Section
+              if (b.status == RequestStatus.cancelled)
+                _buildCancellationSection(),
 
-            // Booking Source Info
-            if (_booking!.bookingSource != null)
-              _buildBookingSourceSection(),
+              // Feedback & Rating Section
+              if (b.rating != null ||
+                  b.feedbackFromConsultee != null ||
+                  b.feedbackFromConsultant != null)
+                _buildFeedbackSection(),
 
-            const SizedBox(height: 24),
+              // Booking Source Info
+              if (b.bookingSource != null) _buildBookingSourceSection(),
 
-            // Action Buttons
-            _buildActionButtons(),
+              const SizedBox(height: 24),
 
-            const SizedBox(height: 32),
-          ],
+              // Action Buttons
+              _buildActionButtons(),
+
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
+
+    if (wasNull) _booking = null;
+    return result;
   }
 
   Widget _buildConsultantCard() {

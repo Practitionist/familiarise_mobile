@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../domain/entities/explore/class_plan.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../../checkout/screens/checkout_screen.dart';
 import '../providers/classes_provider.dart';
 
@@ -22,24 +24,26 @@ class ClassDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final classAsync = ref.watch(classDetailProvider(classPlanId));
 
-    return classAsync.when(
-      data: (classPlan) {
-        if (classPlan == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Class')),
-            body: const Center(child: Text('Class not found')),
-          );
-        }
-        return _ClassDetailContent(classPlan: classPlan);
-      },
-      loading: () => Scaffold(
+    final isLoading = classAsync.isLoading;
+    final classPlan = classAsync.valueOrNull;
+
+    if (classAsync.hasError && !isLoading) {
+      return Scaffold(
         appBar: AppBar(title: const Text('Class')),
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
+        body: Center(child: Text('Error: ${classAsync.error}')),
+      );
+    }
+
+    if (!isLoading && classPlan == null) {
+      return Scaffold(
         appBar: AppBar(title: const Text('Class')),
-        body: Center(child: Text('Error: $e')),
-      ),
+        body: const Center(child: Text('Class not found')),
+      );
+    }
+
+    return Skeletonizer(
+      enabled: isLoading,
+      child: _ClassDetailContent(classPlan: classPlan ?? FakeData.classPlan()),
     );
   }
 }

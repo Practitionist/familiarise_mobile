@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../domain/entities/explore/webinar_plan.dart';
+import '../../../shared/utils/fake_data.dart';
 import '../../checkout/screens/checkout_screen.dart';
 import '../providers/webinars_provider.dart';
 
@@ -22,24 +24,26 @@ class WebinarDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final webinarAsync = ref.watch(webinarDetailProvider(webinarPlanId));
 
-    return webinarAsync.when(
-      data: (webinar) {
-        if (webinar == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Webinar')),
-            body: const Center(child: Text('Webinar not found')),
-          );
-        }
-        return _WebinarDetailContent(webinar: webinar);
-      },
-      loading: () => Scaffold(
+    final isLoading = webinarAsync.isLoading;
+    final webinar = webinarAsync.valueOrNull;
+
+    if (webinarAsync.hasError && !isLoading) {
+      return Scaffold(
         appBar: AppBar(title: const Text('Webinar')),
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
+        body: Center(child: Text('Error: ${webinarAsync.error}')),
+      );
+    }
+
+    if (!isLoading && webinar == null) {
+      return Scaffold(
         appBar: AppBar(title: const Text('Webinar')),
-        body: Center(child: Text('Error: $e')),
-      ),
+        body: const Center(child: Text('Webinar not found')),
+      );
+    }
+
+    return Skeletonizer(
+      enabled: isLoading,
+      child: _WebinarDetailContent(webinar: webinar ?? FakeData.webinarPlan()),
     );
   }
 }
