@@ -58,13 +58,15 @@ Future<Response> _handleGetBookings(RequestContext context) async {
     final status = params['status'];
     final page = int.tryParse(params['page'] ?? '0') ?? 0;
     final pageSize = int.tryParse(params['pageSize'] ?? '20') ?? 20;
+    final role = params['role'];
 
-    // Fetch bookings
+    // Fetch bookings - support consultant role to see their own sessions
     final result = await db.appointments.getMyBookings(
       userId: userId,
       status: status,
       page: page,
       pageSize: pageSize,
+      asConsultant: role == 'consultant',
     );
 
     // Serialize response

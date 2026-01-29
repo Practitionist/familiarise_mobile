@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/enums.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/timezone_indicator.dart';
 import '../providers/navigation_provider.dart';
 
@@ -19,6 +21,9 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(navigationIndexProvider);
+    final user = ref.watch(currentUserProvider);
+    final role = user?.role ?? UserRole.consultee;
+    final tabs = AppNavigationTabs.forRole(role);
 
     return Scaffold(
       body: child,
@@ -41,42 +46,21 @@ class MainShell extends ConsumerWidget {
             child: const Center(child: TimezoneIndicator()),
           ),
           NavigationBar(
-            selectedIndex: currentIndex,
+            selectedIndex: currentIndex.clamp(0, tabs.length - 1),
             onDestinationSelected: (index) {
-              // Update the provider state
               ref.read(navigationIndexProvider.notifier).setIndex(index);
-
-              // Navigate to the corresponding route
-              final tab = NavigationTab.fromIndex(index);
-              context.go(tab.path);
+              final path = AppNavigationTabs.pathFromIndex(index, role);
+              context.go(path);
             },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.explore_outlined),
-                selectedIcon: Icon(Icons.explore),
-                label: 'Explore',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.school_outlined),
-                selectedIcon: Icon(Icons.school),
-                label: 'Programs',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: 'Dashboard',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.chat_bubble_outline),
-                selectedIcon: Icon(Icons.chat_bubble),
-                label: 'Messages',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
+            destinations: tabs
+                .map(
+                  (tab) => NavigationDestination(
+                    icon: Icon(tab.icon),
+                    selectedIcon: Icon(tab.selectedIcon),
+                    label: tab.label,
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),

@@ -996,6 +996,7 @@ class DatabaseClient {
     _reviewRepository = ReviewRepository(_executor);
     _feedbackRepository = FeedbackRepository(_executor);
     _meetingSessionRepository = MeetingSessionRepository(_executor);
+    _dashboardRepository = DashboardRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -1025,6 +1026,7 @@ class DatabaseClient {
   late final ReviewRepository _reviewRepository;
   late final FeedbackRepository _feedbackRepository;
   late final MeetingSessionRepository _meetingSessionRepository;
+  late final DashboardRepository _dashboardRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -1133,6 +1135,9 @@ class DatabaseClient {
 
   /// Meeting session repository (for video meetings)
   MeetingSessionRepository get meetingSessions => _meetingSessionRepository;
+
+  /// Dashboard repository (for aggregated dashboard data)
+  DashboardRepository get dashboard => _dashboardRepository;
 
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all
