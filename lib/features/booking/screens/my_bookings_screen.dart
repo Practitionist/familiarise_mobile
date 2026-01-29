@@ -110,8 +110,19 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                           return b.bookingType.value == category.value;
                         }).toList();
 
+                        // Sort newest first by createdAt
+                        filteredBookings.sort((a, b) {
+                          final aDate = a.createdAt ?? DateTime(2000);
+                          final bDate = b.createdAt ?? DateTime(2000);
+                          return bDate.compareTo(aDate);
+                        });
+
                         if (filteredBookings.isEmpty) {
                           return _buildEmptyState(theme, category);
+                        }
+                        if (category == BookingCategory.subscriptions) {
+                          return _buildSubscriptionsTabContent(
+                              context, ref, filteredBookings);
                         }
                         return _buildBookingsList(
                             context, ref, filteredBookings, category);
@@ -373,6 +384,115 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
           'Enroll in structured courses\nand programs',
         );
     }
+  }
+
+  Widget _buildSubscriptionsTabContent(
+    BuildContext context,
+    WidgetRef ref,
+    List<Booking> allBookings,
+  ) {
+    final theme = Theme.of(context);
+    final notifier = ref.read(myBookingsProvider.notifier);
+
+    final subscriptions = allBookings
+        .where((b) => b.bookingType == BookingType.subscription)
+        .toList();
+    final freeTrials = allBookings
+        .where((b) => b.bookingType == BookingType.trial)
+        .toList();
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollEndNotification) {
+          final metrics = notification.metrics;
+          if (metrics.pixels >= metrics.maxScrollExtent - 200) {
+            notifier.loadMore();
+          }
+        }
+        return false;
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        children: [
+          // Subscription cards
+          for (final booking in subscriptions)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: BookingCard(
+                booking: booking,
+                onTap: () {
+                  context.pushNamed(
+                    'bookingDetails',
+                    pathParameters: {'bookingId': booking.id},
+                    queryParameters: {'type': booking.bookingType.value},
+                  );
+                },
+                onPayNow: booking.status == RequestStatus.approvedPendingPayment
+                    ? () {
+                        context.pushNamed(
+                          'checkout',
+                          extra: booking,
+                        );
+                      }
+                    : null,
+              ),
+            ),
+          // Free Trials section
+          if (freeTrials.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star_outline,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Free Trials',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            for (final booking in freeTrials)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: BookingCard(
+                  booking: booking,
+                  onTap: () {
+                    context.pushNamed(
+                      'bookingDetails',
+                      pathParameters: {'bookingId': booking.id},
+                      queryParameters: {'type': booking.bookingType.value},
+                    );
+                  },
+                  onPayNow:
+                      booking.status == RequestStatus.approvedPendingPayment
+                          ? () {
+                              context.pushNamed(
+                                'checkout',
+                                extra: booking,
+                              );
+                            }
+                          : null,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildBookingsList(
