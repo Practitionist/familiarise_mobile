@@ -33,7 +33,7 @@ class MyBookingDetailsScreen extends ConsumerStatefulWidget {
 
 class _MyBookingDetailsScreenState
     extends ConsumerState<MyBookingDetailsScreen> {
-  Booking? _booking;
+  Booking? _fetchedBooking;
   bool _isLoading = true;
   String? _error;
 
@@ -56,7 +56,7 @@ class _MyBookingDetailsScreenState
       ).future);
       if (mounted) {
         setState(() {
-          _booking = booking;
+          _fetchedBooking = booking;
           _isLoading = false;
         });
       }
@@ -172,15 +172,13 @@ class _MyBookingDetailsScreenState
       );
     }
 
-    if (!_isLoading && _booking == null) {
+    if (!_isLoading && _fetchedBooking == null) {
       return const Center(child: Text('Booking not found'));
     }
 
-    // Temporarily assign fake data during loading so sub-methods can access _booking!
-    _booking ??= FakeData.booking();
+    final booking = _fetchedBooking ?? FakeData.booking();
 
-    final b = _booking!;
-    final result = Skeletonizer(
+    return Skeletonizer(
       enabled: _isLoading,
       child: RefreshIndicator(
         onRefresh: _loadBooking,
@@ -191,49 +189,50 @@ class _MyBookingDetailsScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Consultant Info Card
-              _buildConsultantCard(),
+              _buildConsultantCard(booking),
               const SizedBox(height: 16),
 
               // Status Section
-              _buildStatusSection(),
+              _buildStatusSection(booking),
               const SizedBox(height: 16),
 
               // Plan Details Card
-              _buildPlanDetailsCard(),
+              _buildPlanDetailsCard(booking),
               const SizedBox(height: 16),
 
               // Slots Section (for consultations and scheduled subscriptions)
-              if (b.slots.isNotEmpty) _buildSlotsSection(),
+              if (booking.slots.isNotEmpty) _buildSlotsSection(booking),
 
               // Scheduling Period (for subscriptions)
-              if (b.bookingType == BookingType.subscription &&
-                  b.schedulingPeriodStartsAt != null)
-                _buildSchedulingPeriodSection(),
+              if (booking.bookingType == BookingType.subscription &&
+                  booking.schedulingPeriodStartsAt != null)
+                _buildSchedulingPeriodSection(booking),
 
               // Message Section
-              if (b.message != null && b.message!.isNotEmpty)
-                _buildMessageSection(),
+              if (booking.message != null && booking.message!.isNotEmpty)
+                _buildMessageSection(booking),
 
               // Cancellation Info Section
-              if (b.status == RequestStatus.cancelled &&
-                  (b.cancellationReason != null ||
-                      b.cancellationNotes != null ||
-                      b.cancelledAt != null))
-                _buildCancellationSection(),
+              if (booking.status == RequestStatus.cancelled &&
+                  (booking.cancellationReason != null ||
+                      booking.cancellationNotes != null ||
+                      booking.cancelledAt != null))
+                _buildCancellationSection(booking),
 
               // Feedback & Rating Section
-              if (b.rating != null ||
-                  b.feedbackFromConsultee != null ||
-                  b.feedbackFromConsultant != null)
-                _buildFeedbackSection(),
+              if (booking.rating != null ||
+                  booking.feedbackFromConsultee != null ||
+                  booking.feedbackFromConsultant != null)
+                _buildFeedbackSection(booking),
 
               // Booking Source Info
-              if (b.bookingSource != null) _buildBookingSourceSection(),
+              if (booking.bookingSource != null)
+                _buildBookingSourceSection(booking),
 
               const SizedBox(height: 24),
 
               // Action Buttons
-              _buildActionButtons(),
+              _buildActionButtons(booking),
 
               const SizedBox(height: 32),
             ],
@@ -241,11 +240,9 @@ class _MyBookingDetailsScreenState
         ),
       ),
     );
-
-    return result;
   }
 
-  Widget _buildConsultantCard() {
+  Widget _buildConsultantCard(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -263,9 +260,9 @@ class _MyBookingDetailsScreenState
           // Avatar
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: _booking!.consultantImage != null
+            child: booking.consultantImage != null
                 ? CachedNetworkImage(
-                    imageUrl: _booking!.consultantImage!,
+                    imageUrl: booking.consultantImage!,
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
@@ -301,14 +298,14 @@ class _MyBookingDetailsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _booking!.consultantName ?? 'Consultant',
+                  booking.consultantName ?? 'Consultant',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (_booking!.planTitle != null)
+                if (booking.planTitle != null)
                   Text(
-                    _booking!.planTitle!,
+                    booking.planTitle!,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -321,9 +318,9 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildStatusSection() {
+  Widget _buildStatusSection(Booking booking) {
     final theme = Theme.of(context);
-    final statusColors = _getStatusColors(_booking!.status);
+    final statusColors = _getStatusColors(booking.status);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -335,7 +332,7 @@ class _MyBookingDetailsScreenState
       child: Row(
         children: [
           Icon(
-            _getStatusIcon(_booking!.status),
+            _getStatusIcon(booking.status),
             color: statusColors.$2,
             size: 24,
           ),
@@ -345,7 +342,7 @@ class _MyBookingDetailsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _booking!.statusText,
+                  booking.statusText,
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: statusColors.$2,
                     fontWeight: FontWeight.w600,
@@ -353,7 +350,7 @@ class _MyBookingDetailsScreenState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _booking!.statusDescription,
+                  booking.statusDescription,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: statusColors.$2.withOpacity(0.8),
                   ),
@@ -366,7 +363,7 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildPlanDetailsCard() {
+  Widget _buildPlanDetailsCard(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -394,24 +391,24 @@ class _MyBookingDetailsScreenState
               _buildDetailItem(
                 icon: Icons.schedule,
                 label: 'Duration',
-                value: _booking!.planDuration != null
-                    ? '${_booking!.planDuration!.toInt()} min'
-                    : (_booking!.sessionDurationInHours != null
-                        ? '${(_booking!.sessionDurationInHours! * 60).toInt()} min/session'
+                value: booking.planDuration != null
+                    ? '${booking.planDuration!.toInt()} min'
+                    : (booking.sessionDurationInHours != null
+                        ? '${(booking.sessionDurationInHours! * 60).toInt()} min/session'
                         : '-'),
               ),
               const SizedBox(width: 24),
               _buildDetailItem(
                 icon: Icons.currency_rupee,
                 label: 'Price',
-                value: _booking!.formattedPrice,
+                value: booking.formattedPrice,
               ),
-              if (_booking!.totalSessions != null) ...[
+              if (booking.totalSessions != null) ...[
                 const SizedBox(width: 24),
                 _buildDetailItem(
                   icon: Icons.calendar_view_week,
                   label: 'Sessions',
-                  value: '${_booking!.totalSessions}',
+                  value: '${booking.totalSessions}',
                 ),
               ],
             ],
@@ -455,7 +452,7 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildSlotsSection() {
+  Widget _buildSlotsSection(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -473,7 +470,7 @@ class _MyBookingDetailsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _booking!.slots.length == 1
+            booking.slots.length == 1
                 ? 'Scheduled Time'
                 : 'Scheduled Sessions',
             style: theme.textTheme.titleSmall?.copyWith(
@@ -481,7 +478,7 @@ class _MyBookingDetailsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          ..._booking!.slots.asMap().entries.map((entry) {
+          ...booking.slots.asMap().entries.map((entry) {
             final index = entry.key;
             final slot = entry.value;
             return Padding(
@@ -565,12 +562,12 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildSchedulingPeriodSection() {
+  Widget _buildSchedulingPeriodSection(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final startDate = _booking!.schedulingPeriodStartsAt!.toLocal();
-    final endDate = _booking!.schedulingPeriodEndsAt?.toLocal();
+    final startDate = booking.schedulingPeriodStartsAt!.toLocal();
+    final endDate = booking.schedulingPeriodEndsAt?.toLocal();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -606,7 +603,7 @@ class _MyBookingDetailsScreenState
               ),
             ],
           ),
-          if (_booking!.schedulingTimezone != null) ...[
+          if (booking.schedulingTimezone != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
@@ -617,7 +614,7 @@ class _MyBookingDetailsScreenState
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _booking!.schedulingTimezone!,
+                  booking.schedulingTimezone!,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -630,7 +627,7 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildMessageSection() {
+  Widget _buildMessageSection(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -655,7 +652,7 @@ class _MyBookingDetailsScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            _booking!.message!,
+            booking.message!,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -665,7 +662,7 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildCancellationSection() {
+  Widget _buildCancellationSection(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -696,26 +693,26 @@ class _MyBookingDetailsScreenState
               ),
             ],
           ),
-          if (_booking!.cancellationReason != null) ...[
+          if (booking.cancellationReason != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Reason: ${_booking!.cancellationReason!.name.replaceAllMapped(RegExp(r'[A-Z]'), (m) => ' ${m.group(0)}').trim()}',
+              'Reason: ${booking.cancellationReason!.name.replaceAllMapped(RegExp(r'[A-Z]'), (m) => ' ${m.group(0)}').trim()}',
               style: theme.textTheme.bodyMedium,
             ),
           ],
-          if (_booking!.cancellationNotes != null) ...[
+          if (booking.cancellationNotes != null) ...[
             const SizedBox(height: 4),
             Text(
-              _booking!.cancellationNotes!,
+              booking.cancellationNotes!,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
-          if (_booking!.cancelledAt != null) ...[
+          if (booking.cancelledAt != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Cancelled on ${_formatDate(_booking!.cancelledAt!.toLocal())}',
+              'Cancelled on ${_formatDate(booking.cancelledAt!.toLocal())}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -726,7 +723,7 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildFeedbackSection() {
+  Widget _buildFeedbackSection(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -749,13 +746,13 @@ class _MyBookingDetailsScreenState
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (_booking!.rating != null) ...[
+          if (booking.rating != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
                 ...List.generate(5, (i) {
                   return Icon(
-                    i < _booking!.rating!.round()
+                    i < booking.rating!.round()
                         ? Icons.star_rounded
                         : Icons.star_border_rounded,
                     size: 20,
@@ -764,7 +761,7 @@ class _MyBookingDetailsScreenState
                 }),
                 const SizedBox(width: 8),
                 Text(
-                  _booking!.rating!.toStringAsFixed(1),
+                  booking.rating!.toStringAsFixed(1),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -772,19 +769,19 @@ class _MyBookingDetailsScreenState
               ],
             ),
           ],
-          if (_booking!.feedbackFromConsultee != null) ...[
+          if (booking.feedbackFromConsultee != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Your feedback: ${_booking!.feedbackFromConsultee!}',
+              'Your feedback: ${booking.feedbackFromConsultee!}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
-          if (_booking!.feedbackFromConsultant != null) ...[
+          if (booking.feedbackFromConsultant != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Consultant feedback: ${_booking!.feedbackFromConsultant!}',
+              'Consultant feedback: ${booking.feedbackFromConsultant!}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -795,10 +792,10 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildBookingSourceSection() {
+  Widget _buildBookingSourceSection(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final source = _booking!.bookingSource!;
+    final source = booking.bookingSource!;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -823,7 +820,7 @@ class _MyBookingDetailsScreenState
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(Booking booking) {
     final theme = Theme.of(context);
     final actionState = ref.watch(bookingActionsProvider);
     final isLoading = actionState is BookingActionLoading;
@@ -831,7 +828,7 @@ class _MyBookingDetailsScreenState
     final actions = <Widget>[];
 
     // Join Meeting button (for SCHEDULED within time window)
-    if (_booking!.canJoinMeeting) {
+    if (booking.canJoinMeeting) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -849,10 +846,10 @@ class _MyBookingDetailsScreenState
     }
 
     // Talk to Expert button (for bookings with consultant)
-    if (_booking!.consultantUserId != null &&
-        _booking!.status != RequestStatus.cancelled &&
-        _booking!.status != RequestStatus.rejected &&
-        _booking!.status != RequestStatus.expired) {
+    if (booking.consultantUserId != null &&
+        booking.status != RequestStatus.cancelled &&
+        booking.status != RequestStatus.rejected &&
+        booking.status != RequestStatus.expired) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -870,7 +867,7 @@ class _MyBookingDetailsScreenState
     }
 
     // Pay Now button (for APPROVED_PENDING_PAYMENT)
-    if (_booking!.status == RequestStatus.approvedPendingPayment) {
+    if (booking.status == RequestStatus.approvedPendingPayment) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -888,7 +885,7 @@ class _MyBookingDetailsScreenState
     }
 
     // Reschedule button
-    if (_booking!.canReschedule) {
+    if (booking.canReschedule) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -905,7 +902,7 @@ class _MyBookingDetailsScreenState
     }
 
     // Cancel button
-    if (_booking!.canCancelNow) {
+    if (booking.canCancelNow) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -923,8 +920,8 @@ class _MyBookingDetailsScreenState
     }
 
     // Write Review button (for completed bookings)
-    if (_booking!.status == RequestStatus.completed &&
-        _booking!.consultantProfileId != null) {
+    if (booking.status == RequestStatus.completed &&
+        booking.consultantProfileId != null) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -941,9 +938,9 @@ class _MyBookingDetailsScreenState
     }
 
     // Report Issue button - always visible for active/completed bookings
-    if (_booking!.status != RequestStatus.cancelled &&
-        _booking!.status != RequestStatus.rejected &&
-        _booking!.status != RequestStatus.expired) {
+    if (booking.status != RequestStatus.cancelled &&
+        booking.status != RequestStatus.rejected &&
+        booking.status != RequestStatus.expired) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -966,12 +963,12 @@ class _MyBookingDetailsScreenState
     }
 
     // Show info message if actions are disabled due to 24h restriction
-    if (!_booking!.canReschedule &&
-        _booking!.status != RequestStatus.cancelled &&
-        _booking!.status != RequestStatus.completed &&
-        _booking!.status != RequestStatus.rejected &&
-        _booking!.status != RequestStatus.expired &&
-        _booking!.slots.isNotEmpty) {
+    if (!booking.canReschedule &&
+        booking.status != RequestStatus.cancelled &&
+        booking.status != RequestStatus.completed &&
+        booking.status != RequestStatus.rejected &&
+        booking.status != RequestStatus.expired &&
+        booking.slots.isNotEmpty) {
       actions.add(
         Container(
           padding: const EdgeInsets.all(12),
@@ -1016,17 +1013,17 @@ class _MyBookingDetailsScreenState
   }
 
   void _handleJoinMeeting() {
-    if (_booking?.appointmentId == null) {
+    if (_fetchedBooking?.appointmentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Meeting not available')),
       );
       return;
     }
-    context.push('/meeting/${_booking!.appointmentId}');
+    context.push('/meeting/${_fetchedBooking!.appointmentId}');
   }
 
   Future<void> _handleTalkToExpert() async {
-    if (_booking?.consultantUserId == null) {
+    if (_fetchedBooking?.consultantUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Consultant not available')),
       );
@@ -1053,7 +1050,7 @@ class _MyBookingDetailsScreenState
             context: 'MyBookingDetailsScreen._handleTalkToExpert',
             extras: {
               'bookingId': widget.bookingId,
-              'consultantUserId': _booking!.consultantUserId,
+              'consultantUserId': _fetchedBooking!.consultantUserId,
             },
           );
           if (mounted) {
@@ -1068,9 +1065,9 @@ class _MyBookingDetailsScreenState
 
       // Create or get the channel
       final channel = await chatService.getOrCreateDirectChannel(
-        _booking!.consultantUserId!,
-        otherUserName: _booking!.consultantName,
-        otherUserImage: _booking!.consultantImage,
+        _fetchedBooking!.consultantUserId!,
+        otherUserName: _fetchedBooking!.consultantName,
+        otherUserImage: _fetchedBooking!.consultantImage,
       );
 
       if (channel != null && mounted) {
@@ -1090,7 +1087,7 @@ class _MyBookingDetailsScreenState
         context: 'MyBookingDetailsScreen._handleTalkToExpert',
         extras: {
           'bookingId': widget.bookingId,
-          'consultantUserId': _booking?.consultantUserId,
+          'consultantUserId': _fetchedBooking?.consultantUserId,
         },
       );
       if (mounted) {
@@ -1105,17 +1102,17 @@ class _MyBookingDetailsScreenState
   void _handlePayNow() {
     context.pushNamed(
       'checkout',
-      extra: _booking,
+      extra: _fetchedBooking,
     );
   }
 
   Future<void> _handleReschedule() async {
-    if (_booking!.bookingType == BookingType.subscription &&
-        _booking!.slots.isNotEmpty) {
+    if (_fetchedBooking!.bookingType == BookingType.subscription &&
+        _fetchedBooking!.slots.isNotEmpty) {
       // For subscriptions with slots, offer choice
       final choice = await showRescheduleOptionsSheet(
         context: context,
-        booking: _booking!,
+        booking: _fetchedBooking!,
       );
       if (choice == null) return;
 
@@ -1123,33 +1120,33 @@ class _MyBookingDetailsScreenState
         // Show session selector
         final selectedSlot = await showSessionSelectorSheet(
           context: context,
-          booking: _booking!,
+          booking: _fetchedBooking!,
         );
         if (selectedSlot == null) return;
 
         ref.read(bookingActionsProvider.notifier).rescheduleBooking(
-              id: _booking!.id,
-              type: _booking!.bookingType,
+              id: _fetchedBooking!.id,
+              type: _fetchedBooking!.bookingType,
               slotId: selectedSlot.id,
             );
       } else {
         // Full reschedule
         ref.read(bookingActionsProvider.notifier).rescheduleBooking(
-              id: _booking!.id,
-              type: _booking!.bookingType,
+              id: _fetchedBooking!.id,
+              type: _fetchedBooking!.bookingType,
             );
       }
     } else {
       // For consultations, simple confirmation
       final confirmed = await showRescheduleConfirmationDialog(
         context: context,
-        booking: _booking!,
+        booking: _fetchedBooking!,
       );
       if (!confirmed) return;
 
       ref.read(bookingActionsProvider.notifier).rescheduleBooking(
-            id: _booking!.id,
-            type: _booking!.bookingType,
+            id: _fetchedBooking!.id,
+            type: _fetchedBooking!.bookingType,
           );
     }
   }
@@ -1157,13 +1154,13 @@ class _MyBookingDetailsScreenState
   Future<void> _handleCancel() async {
     final result = await showCancelDialog(
       context: context,
-      booking: _booking!,
+      booking: _fetchedBooking!,
     );
     if (result == null) return;
 
     ref.read(bookingActionsProvider.notifier).cancelBooking(
-          id: _booking!.id,
-          type: _booking!.bookingType,
+          id: _fetchedBooking!.id,
+          type: _fetchedBooking!.bookingType,
           cancellationReason: result.reason,
           cancellationNotes: result.notes,
         );
@@ -1172,9 +1169,9 @@ class _MyBookingDetailsScreenState
   Future<void> _handleWriteReview() async {
     final submitted = await SubmitReviewDialog.show(
       context,
-      consultantProfileId: _booking!.consultantProfileId!,
-      consultantName: _booking!.consultantName ?? 'Consultant',
-      consultantImage: _booking!.consultantImage,
+      consultantProfileId: _fetchedBooking!.consultantProfileId!,
+      consultantName: _fetchedBooking!.consultantName ?? 'Consultant',
+      consultantImage: _fetchedBooking!.consultantImage,
     );
     if (submitted && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1188,11 +1185,11 @@ class _MyBookingDetailsScreenState
 
   void _handleReportIssue() {
     // Navigate to create ticket screen with booking context
-    final bookingTypeStr = _booking!.bookingType == BookingType.consultation
+    final bookingTypeStr = _fetchedBooking!.bookingType == BookingType.consultation
         ? 'CONSULTATION'
         : 'SUBSCRIPTION';
     context.push(
-        '/support/create?bookingId=${_booking!.id}&bookingType=$bookingTypeStr');
+        '/support/create?bookingId=${_fetchedBooking!.id}&bookingType=$bookingTypeStr');
   }
 
   (Color, Color) _getStatusColors(RequestStatus status) {

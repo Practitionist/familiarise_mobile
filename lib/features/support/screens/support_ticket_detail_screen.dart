@@ -92,7 +92,7 @@ class _SupportTicketDetailScreenState
                 }
 
                 if (!isLoading && ticket == null) {
-                  return _buildError(theme, 'Ticket not found');
+                  return const Center(child: Text('Ticket not found'));
                 }
 
                 return Skeletonizer(

@@ -25,12 +25,12 @@ class FakeData {
         consultantName: BoneMock.name,
         planTitle: BoneMock.words(3),
         planPrice: 2000,
-        createdAt: DateTime.now(),
+        createdAt: DateTime(2024, 1, 1, 10, 0),
         slots: [
           BookingSlot(
             id: 'fake',
-            startsAt: DateTime.now().add(const Duration(days: 3)),
-            endsAt: DateTime.now().add(const Duration(days: 3, hours: 1)),
+            startsAt: DateTime(2024, 1, 4, 14, 0),
+            endsAt: DateTime(2024, 1, 4, 15, 0),
           ),
         ],
       );
@@ -45,7 +45,7 @@ class FakeData {
         description: BoneMock.words(12),
         status: TicketStatus.open,
         priority: TicketPriority.medium,
-        createdAt: DateTime.now(),
+        createdAt: DateTime(2024, 1, 1, 10, 0),
       );
 
   static List<SupportTicket> supportTickets([int count = 4]) =>
