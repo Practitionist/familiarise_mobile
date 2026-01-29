@@ -253,6 +253,32 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'requestNotes', columnName: 'requestNotes', type: 'String'),
       'bookingSource': const FieldInfo(
           name: 'bookingSource', columnName: 'bookingSource', type: 'String'),
+      'pendingPaymentUrl': const FieldInfo(
+          name: 'pendingPaymentUrl',
+          columnName: 'pendingPaymentUrl',
+          type: 'String'),
+      'feedbackFromConsultee': const FieldInfo(
+          name: 'feedbackFromConsultee',
+          columnName: 'feedbackFromConsultee',
+          type: 'String'),
+      'feedbackFromConsultant': const FieldInfo(
+          name: 'feedbackFromConsultant',
+          columnName: 'feedbackFromConsultant',
+          type: 'String'),
+      'rating': const FieldInfo(
+          name: 'rating', columnName: 'rating', type: 'Float'),
+      'cancellationReason': const FieldInfo(
+          name: 'cancellationReason',
+          columnName: 'cancellationReason',
+          type: 'String'),
+      'cancellationNotes': const FieldInfo(
+          name: 'cancellationNotes',
+          columnName: 'cancellationNotes',
+          type: 'String'),
+      'cancelledAt': const FieldInfo(
+          name: 'cancelledAt', columnName: 'cancelledAt', type: 'DateTime'),
+      'cancelledBy': const FieldInfo(
+          name: 'cancelledBy', columnName: 'cancelledBy', type: 'String'),
       'requestedAt': const FieldInfo(
           name: 'requestedAt', columnName: 'requestedAt', type: 'DateTime'),
       'createdAt': const FieldInfo(
@@ -294,6 +320,32 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'requestNotes', columnName: 'requestNotes', type: 'String'),
       'bookingSource': const FieldInfo(
           name: 'bookingSource', columnName: 'bookingSource', type: 'String'),
+      'pendingPaymentUrl': const FieldInfo(
+          name: 'pendingPaymentUrl',
+          columnName: 'pendingPaymentUrl',
+          type: 'String'),
+      'feedbackFromConsultee': const FieldInfo(
+          name: 'feedbackFromConsultee',
+          columnName: 'feedbackFromConsultee',
+          type: 'String'),
+      'feedbackFromConsultant': const FieldInfo(
+          name: 'feedbackFromConsultant',
+          columnName: 'feedbackFromConsultant',
+          type: 'String'),
+      'rating': const FieldInfo(
+          name: 'rating', columnName: 'rating', type: 'Float'),
+      'cancellationReason': const FieldInfo(
+          name: 'cancellationReason',
+          columnName: 'cancellationReason',
+          type: 'String'),
+      'cancellationNotes': const FieldInfo(
+          name: 'cancellationNotes',
+          columnName: 'cancellationNotes',
+          type: 'String'),
+      'cancelledAt': const FieldInfo(
+          name: 'cancelledAt', columnName: 'cancelledAt', type: 'DateTime'),
+      'cancelledBy': const FieldInfo(
+          name: 'cancelledBy', columnName: 'cancelledBy', type: 'String'),
       'schedulingPeriodStartsAt': const FieldInfo(
           name: 'schedulingPeriodStartsAt',
           columnName: 'schedulingPeriodStartsAt',

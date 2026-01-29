@@ -1302,27 +1302,11 @@ class AppointmentRepository extends BaseRepository {
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'cancellationReason': result['cancellationReason'],
+        'cancellationNotes': result['cancellationNotes'],
+        'cancelledAt': result['cancelledAt'],
+        'cancelledBy': result['cancelledBy'],
       };
-
-      // Fetch cancellation fields explicitly (ORM may not return them
-      // from findUnique+include when they were added after initial setup)
-      final cancellationQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findUnique)
-          .where({'id': id}).selectFields([
-        'cancellationReason',
-        'cancellationNotes',
-        'cancelledAt',
-        'cancelledBy',
-      ]).build();
-      final cancellationData =
-          await executeQueryAsSingleMap(cancellationQuery, txn: txn);
-      if (cancellationData != null) {
-        booking['cancellationReason'] = cancellationData['cancellationReason'];
-        booking['cancellationNotes'] = cancellationData['cancellationNotes'];
-        booking['cancelledAt'] = cancellationData['cancelledAt'];
-        booking['cancelledBy'] = cancellationData['cancelledBy'];
-      }
 
       // Get appointment (without include - ORM flattens relations incorrectly)
       final appointmentQuery = JsonQueryBuilder()
@@ -1431,29 +1415,11 @@ class AppointmentRepository extends BaseRepository {
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'cancellationReason': result['cancellationReason'],
+        'cancellationNotes': result['cancellationNotes'],
+        'cancelledAt': result['cancelledAt'],
+        'cancelledBy': result['cancelledBy'],
       };
-
-      // Fetch cancellation fields explicitly (ORM may not return them
-      // from findUnique+include when they were added after initial setup)
-      final cancellationQuery = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findUnique)
-          .where({'id': id}).selectFields([
-        'cancellationReason',
-        'cancellationNotes',
-        'cancelledAt',
-        'cancelledBy',
-      ]).build();
-      final cancellationData =
-          await executeQueryAsSingleMap(cancellationQuery, txn: txn);
-      if (cancellationData != null) {
-        booking['cancellationReason'] =
-            cancellationData['cancellationReason'];
-        booking['cancellationNotes'] =
-            cancellationData['cancellationNotes'];
-        booking['cancelledAt'] = cancellationData['cancelledAt'];
-        booking['cancelledBy'] = cancellationData['cancelledBy'];
-      }
 
       return booking;
     });
