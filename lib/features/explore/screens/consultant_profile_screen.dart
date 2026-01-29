@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/utils/sentry_logger.dart';
+import '../../../domain/entities/explore/consultant_details.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../../../shared/widgets/rating_stars.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
@@ -114,7 +115,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
   Widget _buildProfile(
     BuildContext context,
     WidgetRef ref,
-    dynamic consultant, // Will be ConsultantDetails after code gen
+    ConsultantDetails consultant,
   ) {
     final theme = Theme.of(context);
 
@@ -326,7 +327,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroImage(ThemeData theme, dynamic consultant) {
+  Widget _buildHeroImage(ThemeData theme, ConsultantDetails consultant) {
     if (consultant.imageUrl != null) {
       return CachedNetworkImage(
         imageUrl: consultant.imageUrl!,
@@ -360,7 +361,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsRow(ThemeData theme, dynamic consultant) {
+  Widget _buildStatsRow(ThemeData theme, ConsultantDetails consultant) {
     return Row(
       children: [
         _buildStatItem(

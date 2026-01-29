@@ -23,6 +23,7 @@ class ConsultantDetails with _$ConsultantDetails {
     double? experience,
     @Default([]) List<String> languages,
     @Default([]) List<String> toolsAndTechnologies,
+    @Default([]) List<String> tags,
     int? totalMenteesHelped,
     bool? isVerified,
     ConsultantVerificationStatus? verificationStatus,

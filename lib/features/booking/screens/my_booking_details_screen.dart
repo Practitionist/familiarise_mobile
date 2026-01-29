@@ -177,8 +177,7 @@ class _MyBookingDetailsScreenState
     }
 
     // Temporarily assign fake data during loading so sub-methods can access _booking!
-    final wasNull = _booking == null;
-    if (wasNull) _booking = FakeData.booking();
+    _booking ??= FakeData.booking();
 
     final b = _booking!;
     final result = Skeletonizer(
@@ -216,7 +215,10 @@ class _MyBookingDetailsScreenState
                 _buildMessageSection(),
 
               // Cancellation Info Section
-              if (b.status == RequestStatus.cancelled)
+              if (b.status == RequestStatus.cancelled &&
+                  (b.cancellationReason != null ||
+                      b.cancellationNotes != null ||
+                      b.cancelledAt != null))
                 _buildCancellationSection(),
 
               // Feedback & Rating Section
@@ -240,7 +242,6 @@ class _MyBookingDetailsScreenState
       ),
     );
 
-    if (wasNull) _booking = null;
     return result;
   }
 

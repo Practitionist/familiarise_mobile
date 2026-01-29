@@ -1304,6 +1304,26 @@ class AppointmentRepository extends BaseRepository {
         'consultantImage': user?['image'],
       };
 
+      // Fetch cancellation fields explicitly (ORM may not return them
+      // from findUnique+include when they were added after initial setup)
+      final cancellationQuery = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.findUnique)
+          .where({'id': id}).selectFields([
+        'cancellationReason',
+        'cancellationNotes',
+        'cancelledAt',
+        'cancelledBy',
+      ]).build();
+      final cancellationData =
+          await executeQueryAsSingleMap(cancellationQuery, txn: txn);
+      if (cancellationData != null) {
+        booking['cancellationReason'] = cancellationData['cancellationReason'];
+        booking['cancellationNotes'] = cancellationData['cancellationNotes'];
+        booking['cancelledAt'] = cancellationData['cancelledAt'];
+        booking['cancelledBy'] = cancellationData['cancelledBy'];
+      }
+
       // Get appointment (without include - ORM flattens relations incorrectly)
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
@@ -1387,7 +1407,7 @@ class AppointmentRepository extends BaseRepository {
         }
       }
 
-      return {
+      final booking = {
         'id': result['id'],
         'bookingType': 'SUBSCRIPTION',
         'status': result['requestStatus'],
@@ -1412,6 +1432,30 @@ class AppointmentRepository extends BaseRepository {
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
       };
+
+      // Fetch cancellation fields explicitly (ORM may not return them
+      // from findUnique+include when they were added after initial setup)
+      final cancellationQuery = JsonQueryBuilder()
+          .model('Subscription')
+          .action(QueryAction.findUnique)
+          .where({'id': id}).selectFields([
+        'cancellationReason',
+        'cancellationNotes',
+        'cancelledAt',
+        'cancelledBy',
+      ]).build();
+      final cancellationData =
+          await executeQueryAsSingleMap(cancellationQuery, txn: txn);
+      if (cancellationData != null) {
+        booking['cancellationReason'] =
+            cancellationData['cancellationReason'];
+        booking['cancellationNotes'] =
+            cancellationData['cancellationNotes'];
+        booking['cancelledAt'] = cancellationData['cancelledAt'];
+        booking['cancelledBy'] = cancellationData['cancelledBy'];
+      }
+
+      return booking;
     });
   }
 
