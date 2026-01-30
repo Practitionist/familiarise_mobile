@@ -159,20 +159,37 @@ Future<Response> onRequest(RequestContext context, String id) async {
 ///
 /// Returns the duration in minutes, or null if plan not found.
 /// For ConsultationPlan, uses `durationInHours`.
-/// For SubscriptionPlan, uses `sessionDurationInHours`.
+/// For SubscriptionPlan/ClassPlan/WebinarPlan, uses `sessionDurationInHours`.
 Future<int?> _getPlanDuration(
   QueryExecutor executor,
   String planId,
   String planType,
 ) async {
   try {
-    final modelName = planType.toLowerCase() == 'subscription'
-        ? 'SubscriptionPlan'
-        : 'ConsultationPlan';
+    final String modelName;
+    final String durationField;
 
-    final durationField = planType.toLowerCase() == 'subscription'
-        ? 'sessionDurationInHours'
-        : 'durationInHours';
+    switch (planType.toLowerCase()) {
+      case 'subscription':
+        modelName = 'SubscriptionPlan';
+        durationField = 'sessionDurationInHours';
+      case 'class':
+        modelName = 'ClassPlan';
+        durationField = 'sessionDurationInHours';
+      case 'webinar':
+        modelName = 'WebinarPlan';
+        durationField = 'durationInHours';
+      case 'consultation':
+        modelName = 'ConsultationPlan';
+        durationField = 'durationInHours';
+      default:
+        await SentryLogger.warning(
+          'Unknown plan type: $planType, falling back to ConsultationPlan',
+          context: 'ConsultantAvailabilityRoute',
+        );
+        modelName = 'ConsultationPlan';
+        durationField = 'durationInHours';
+    }
 
     final query = JsonQueryBuilder()
         .model(modelName)
@@ -181,6 +198,10 @@ Future<int?> _getPlanDuration(
 
     final result = await executor.executeQueryAsSingleMap(query);
     if (result == null) {
+      await SentryLogger.warning(
+        'Plan not found: model=$modelName, id=$planId',
+        context: 'ConsultantAvailabilityRoute',
+      );
       return null;
     }
 
@@ -190,7 +211,7 @@ Future<int?> _getPlanDuration(
     // Convert hours to minutes
     return ((durationHours as num) * 60).round();
   } catch (e) {
-    SentryLogger.warning(
+    await SentryLogger.warning(
       'Failed to fetch plan duration: $e',
       context: 'ConsultantAvailabilityRoute',
     );
