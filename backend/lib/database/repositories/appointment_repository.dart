@@ -544,13 +544,8 @@ class AppointmentRepository extends BaseRepository {
   Future<Map<String, dynamic>> getMyBookings({
     required String userId,
     String? status,
-    int page = 0,
-    int pageSize = 20,
     bool asConsultant = false,
   }) async {
-    final effectivePageSize = pageSize.clamp(1, 50);
-    final offset = page * effectivePageSize;
-
     // Collect all bookings from different types
     final allBookings = <Map<String, dynamic>>[];
 
@@ -566,11 +561,44 @@ class AppointmentRepository extends BaseRepository {
       final consultantProfileId = consultantProfile?['id'] as String?;
 
       if (consultantProfileId != null) {
+        // 1. Fetch CONSULTATIONS
         final consultantBookings = await _fetchConsultantBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(consultantBookings);
+
+        // 2. Fetch SUBSCRIPTIONS
+        final subscriptionBookings =
+            await _fetchConsultantSubscriptionBookings(
+          consultantProfileId: consultantProfileId,
+          status: status,
+        );
+        allBookings.addAll(subscriptionBookings);
+
+        // 3. Fetch WEBINARS
+        final webinarBookings =
+            await _fetchConsultantWebinarBookings(
+          consultantProfileId: consultantProfileId,
+          status: status,
+        );
+        allBookings.addAll(webinarBookings);
+
+        // 4. Fetch CLASSES
+        final classBookings =
+            await _fetchConsultantClassBookings(
+          consultantProfileId: consultantProfileId,
+          status: status,
+        );
+        allBookings.addAll(classBookings);
+
+        // 5. Fetch TRIAL SESSIONS
+        final trialBookings =
+            await _fetchConsultantTrialBookings(
+          consultantProfileId: consultantProfileId,
+          status: status,
+        );
+        allBookings.addAll(trialBookings);
       }
     } else {
       // Consultee view: existing behavior
@@ -634,19 +662,14 @@ class AppointmentRepository extends BaseRepository {
       return bDate.compareTo(aDate);
     });
 
-    // Apply pagination
-    final totalCount = allBookings.length;
-    final totalPages = (totalCount / effectivePageSize).ceil();
-    final paginatedBookings =
-        allBookings.skip(offset).take(effectivePageSize).toList();
-
+    // Return all bookings (no pagination — mobile app displays all)
     return {
-      'bookings': paginatedBookings,
+      'bookings': allBookings,
       'pagination': {
-        'page': page,
-        'pageSize': effectivePageSize,
-        'totalCount': totalCount,
-        'totalPages': totalPages,
+        'page': 0,
+        'pageSize': allBookings.length,
+        'totalCount': allBookings.length,
+        'totalPages': 1,
       },
     };
   }
@@ -743,10 +766,440 @@ class AppointmentRepository extends BaseRepository {
         'planDuration': plan?['durationInHours'],
         'appointmentId': appointment?['id'],
         'consulteeProfileId': requestedBy?['id'],
+        'consulteeUserId': consulteeUser?['id'],
         'consulteeName': consulteeUser?['name'],
         'consulteeImage': consulteeUser?['image'],
         if (slots != null && slots.isNotEmpty)
           'slots': _formatSlots(slots),
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch subscription bookings where the user is the consultant
+  Future<List<Map<String, dynamic>>> _fetchConsultantSubscriptionBookings({
+    required String consultantProfileId,
+    String? status,
+  }) async {
+    // Get all subscription plans for this consultant
+    final plansQuery = JsonQueryBuilder()
+        .model('SubscriptionPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({
+          'id': true,
+          'title': true,
+          'price': true,
+          'priceCurrency': true,
+          'totalSessions': true,
+          'sessionDurationInHours': true,
+          'durationInMonths': true,
+        })
+        .build();
+
+    final plans = await executeQueryAsMaps(plansQuery);
+    if (plans.isEmpty) return [];
+
+    final planIds = plans.map((p) => p['id'] as String).toList();
+    final planLookup = <String, Map<String, dynamic>>{};
+    for (final p in plans) {
+      planLookup[p['id'] as String] = p;
+    }
+
+    // Fetch subscriptions for those plans with consultee info
+    final where = <String, dynamic>{
+      'subscriptionPlanId': {'in': planIds},
+    };
+    if (status != null) {
+      where['requestStatus'] = status;
+    }
+
+    final subscriptionsQuery = JsonQueryBuilder()
+        .model('Subscription')
+        .action(QueryAction.findMany)
+        .where(where)
+        .include({
+          'requestedBy': {
+            'include': {'user': true},
+          },
+        })
+        .orderBy({'createdAt': 'desc'})
+        .build();
+
+    final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
+    if (subscriptions.isEmpty) return [];
+
+    final bookings = <Map<String, dynamic>>[];
+    for (final s in subscriptions) {
+      final planId = s['subscriptionPlanId'] as String?;
+      final plan = planId != null ? planLookup[planId] : null;
+
+      final requestedBy =
+          s['requestedBy'] as Map<String, dynamic>?;
+      final consulteeUser =
+          requestedBy?['user'] as Map<String, dynamic>?;
+
+      bookings.add({
+        'id': s['id'],
+        'bookingType': 'SUBSCRIPTION',
+        'status': s['requestStatus'],
+        'message': s['requestNotes'],
+        'createdAt': s['createdAt'],
+        'schedulingPeriodStartsAt': s['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt': s['schedulingPeriodEndsAt'],
+        'schedulingTimezone': s['schedulingTimezone'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'totalSessions': plan?['totalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
+        'durationInMonths': plan?['durationInMonths'],
+        'consulteeProfileId': requestedBy?['id'],
+        'consulteeUserId': consulteeUser?['id'],
+        'consulteeName': consulteeUser?['name'],
+        'consulteeImage': consulteeUser?['image'],
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch webinar bookings where the user is the consultant
+  Future<List<Map<String, dynamic>>> _fetchConsultantWebinarBookings({
+    required String consultantProfileId,
+    String? status,
+  }) async {
+    // Get all webinar plans for this consultant
+    final plansQuery = JsonQueryBuilder()
+        .model('WebinarPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({
+          'id': true,
+          'title': true,
+          'price': true,
+          'priceCurrency': true,
+          'durationInHours': true,
+          'maxParticipants': true,
+        })
+        .build();
+
+    final plans = await executeQueryAsMaps(plansQuery);
+    if (plans.isEmpty) return [];
+
+    final planIds = plans.map((p) => p['id'] as String).toList();
+    final planLookup = <String, Map<String, dynamic>>{};
+    for (final p in plans) {
+      planLookup[p['id'] as String] = p;
+    }
+
+    // Get webinar records for those plans
+    final webinarsQuery = JsonQueryBuilder()
+        .model('Webinar')
+        .action(QueryAction.findMany)
+        .where({
+          'webinarPlanId': {'in': planIds},
+        })
+        .build();
+
+    final webinars = await executeQueryAsMaps(webinarsQuery);
+    if (webinars.isEmpty) return [];
+
+    // Apply status filter if provided
+    final filteredWebinars = status != null
+        ? webinars.where((w) {
+            final webinarStatus = w['status'] as String?;
+            return _matchesWebinarStatus(webinarStatus, status);
+          }).toList()
+        : webinars;
+
+    if (filteredWebinars.isEmpty) return [];
+
+    // Batch fetch appointments with slots + enrolled users for all webinars
+    final webinarIds =
+        filteredWebinars.map((w) => w['id'] as String).toList();
+
+    final appointmentsQuery = JsonQueryBuilder()
+        .model('Appointment')
+        .action(QueryAction.findMany)
+        .where({
+          'webinarId': {'in': webinarIds},
+        })
+        .include({
+          'slots': {
+            'include': {'user': true},
+          },
+        })
+        .build();
+
+    final appointments = await executeQueryAsMaps(appointmentsQuery);
+
+    final appointmentLookup = <String, Map<String, dynamic>>{};
+    for (final a in appointments) {
+      final wId = a['webinarId'] as String?;
+      if (wId != null) appointmentLookup[wId] = a;
+    }
+
+    // Build bookings (no consultee info - group program)
+    final bookings = <Map<String, dynamic>>[];
+    for (final w in filteredWebinars) {
+      final webinarId = w['id'] as String;
+      final planId = w['webinarPlanId'] as String?;
+      final plan = planId != null ? planLookup[planId] : null;
+      final appointment = appointmentLookup[webinarId];
+      final slots = appointment?['slots'] as List<dynamic>?;
+      final participantData = _extractParticipants(slots);
+
+      bookings.add({
+        'id': webinarId,
+        'bookingType': 'WEBINAR',
+        'status': _mapWebinarStatusToRequestStatus(
+          w['status'] as String?,
+        ),
+        'appointmentId': appointment?['id'],
+        'createdAt': appointment?['createdAt'] ?? w['createdAt'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'planDuration': plan?['durationInHours'],
+        'maxParticipants': plan?['maxParticipants'],
+        if (slots != null && slots.isNotEmpty)
+          'slots': _formatSlots(slots),
+        'participants': participantData['participants'],
+        'participantCount': participantData['participantCount'],
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch class bookings where the user is the consultant
+  Future<List<Map<String, dynamic>>> _fetchConsultantClassBookings({
+    required String consultantProfileId,
+    String? status,
+  }) async {
+    // Get all class plans for this consultant
+    final plansQuery = JsonQueryBuilder()
+        .model('ClassPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({
+          'id': true,
+          'title': true,
+          'price': true,
+          'priceCurrency': true,
+          'totalSessions': true,
+          'sessionDurationInHours': true,
+          'durationInMonths': true,
+          'maxParticipants': true,
+        })
+        .build();
+
+    final plans = await executeQueryAsMaps(plansQuery);
+    if (plans.isEmpty) return [];
+
+    final planIds = plans.map((p) => p['id'] as String).toList();
+    final planLookup = <String, Map<String, dynamic>>{};
+    for (final p in plans) {
+      planLookup[p['id'] as String] = p;
+    }
+
+    // Get class records for those plans
+    final classesQuery = JsonQueryBuilder()
+        .model('Class')
+        .action(QueryAction.findMany)
+        .where({
+          'classPlanId': {'in': planIds},
+        })
+        .build();
+
+    final classes = await executeQueryAsMaps(classesQuery);
+    if (classes.isEmpty) return [];
+
+    // Apply status filter if provided
+    final filteredClasses = status != null
+        ? classes.where((c) {
+            final classStatus = c['status'] as String?;
+            return _matchesClassStatus(classStatus, status);
+          }).toList()
+        : classes;
+
+    if (filteredClasses.isEmpty) return [];
+
+    // Batch fetch appointments with slots + enrolled users for all classes
+    final classIds =
+        filteredClasses.map((c) => c['id'] as String).toList();
+
+    final appointmentsQuery = JsonQueryBuilder()
+        .model('Appointment')
+        .action(QueryAction.findMany)
+        .where({
+          'classId': {'in': classIds},
+        })
+        .include({
+          'slots': {
+            'include': {'user': true},
+          },
+        })
+        .build();
+
+    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    // Classes can have multiple appointments; group by classId
+    final appointmentsByClass =
+        <String, List<Map<String, dynamic>>>{};
+    for (final a in appointments) {
+      final cId = a['classId'] as String?;
+      if (cId != null) {
+        appointmentsByClass
+            .putIfAbsent(cId, () => [])
+            .add(a);
+      }
+    }
+
+    // Build bookings (no consultee info - group program)
+    final bookings = <Map<String, dynamic>>[];
+    for (final c in filteredClasses) {
+      final classId = c['id'] as String;
+      final planId = c['classPlanId'] as String?;
+      final plan = planId != null ? planLookup[planId] : null;
+      final classAppointments =
+          appointmentsByClass[classId] ?? [];
+
+      // Collect all slots from all appointments
+      final allSlots = <dynamic>[];
+      for (final a in classAppointments) {
+        final slots = a['slots'] as List<dynamic>?;
+        if (slots != null) allSlots.addAll(slots);
+      }
+
+      final participantData = _extractParticipantsFromAppointments(
+        classAppointments,
+      );
+
+      bookings.add({
+        'id': classId,
+        'bookingType': 'CLASS',
+        'status': _mapClassStatusToRequestStatus(
+          c['status'] as String?,
+        ),
+        'appointmentId': classAppointments.isNotEmpty
+            ? classAppointments.first['id']
+            : null,
+        'createdAt': classAppointments.isNotEmpty
+            ? (classAppointments.first['createdAt'] ??
+                c['createdAt'])
+            : c['createdAt'],
+        'schedulingPeriodStartsAt':
+            c['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt':
+            c['schedulingPeriodEndsAt'],
+        'schedulingTimezone': c['schedulingTimezone'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'totalSessions': plan?['totalSessions'],
+        'sessionDurationInHours':
+            plan?['sessionDurationInHours'],
+        'durationInMonths': plan?['durationInMonths'],
+        'maxParticipants': plan?['maxParticipants'],
+        if (allSlots.isNotEmpty)
+          'slots': _formatSlots(allSlots),
+        'participants': participantData['participants'],
+        'participantCount': participantData['participantCount'],
+      });
+    }
+
+    return bookings;
+  }
+
+  /// Fetch trial session bookings for a consultant
+  Future<List<Map<String, dynamic>>> _fetchConsultantTrialBookings({
+    required String consultantProfileId,
+    String? status,
+  }) async {
+    final where = <String, dynamic>{
+      'consultantProfileId': consultantProfileId,
+    };
+    if (status != null) {
+      final trialStatus = _mapRequestStatusToTrialStatus(status);
+      if (trialStatus == null) return [];
+      where['status'] = trialStatus;
+    }
+
+    final trialsQuery = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.findMany)
+        .where(where)
+        .include({
+          'subscriptionPlan': true,
+          'consulteeProfile': {
+            'include': {'user': true},
+          },
+        })
+        .orderBy({'createdAt': 'desc'})
+        .build();
+
+    final trials = await executeQueryAsMaps(trialsQuery);
+    if (trials.isEmpty) return [];
+
+    // Batch fetch appointments with slots
+    final appointmentIds = trials
+        .map((t) => t['appointmentId'] as String?)
+        .where((id) => id != null)
+        .cast<String>()
+        .toList();
+
+    final appointmentLookup = <String, Map<String, dynamic>>{};
+    if (appointmentIds.isNotEmpty) {
+      final appointmentsQuery = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findMany)
+          .where({
+            'id': {'in': appointmentIds},
+          })
+          .include({'slots': true})
+          .build();
+      final appointments = await executeQueryAsMaps(appointmentsQuery);
+      for (final a in appointments) {
+        appointmentLookup[a['id'] as String] = a;
+      }
+    }
+
+    final bookings = <Map<String, dynamic>>[];
+    for (final t in trials) {
+      final plan = t['subscriptionPlan'] as Map<String, dynamic>?;
+      final consulteeProfile =
+          t['consulteeProfile'] as Map<String, dynamic>?;
+      final consulteeUser =
+          consulteeProfile?['user'] as Map<String, dynamic>?;
+      final appointmentId = t['appointmentId'] as String?;
+      final appointment =
+          appointmentId != null ? appointmentLookup[appointmentId] : null;
+      final slots = appointment?['slots'] as List<dynamic>?;
+
+      bookings.add({
+        'id': t['id'],
+        'bookingType': 'TRIAL',
+        'status': _mapTrialStatusToRequestStatus(t['status'] as String?),
+        'message': t['notes'],
+        'createdAt': t['createdAt'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': 0,
+        'planCurrency': plan?['priceCurrency'] ?? 'INR',
+        'planDuration':
+            (plan?['freeTrialDurationMinutes'] as num?)?.toDouble(),
+        'freeTrialDurationMinutes': plan?['freeTrialDurationMinutes'],
+        'consulteeProfileId': consulteeProfile?['id'],
+        'consulteeUserId': consulteeUser?['id'],
+        'consulteeName': consulteeUser?['name'],
+        'consulteeImage': consulteeUser?['image'],
+        if (appointmentId != null) 'appointmentId': appointmentId,
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
       });
     }
 
@@ -1294,6 +1747,54 @@ class AppointmentRepository extends BaseRepository {
         'isTentative': s['isTentative'],
       };
     }).toList();
+  }
+
+  /// Extract unique participants from slot user data (M2M include).
+  /// Returns up to 3 participant objects and total unique count.
+  Map<String, dynamic> _extractParticipants(
+    List<dynamic>? slots,
+  ) {
+    if (slots == null || slots.isEmpty) {
+      return {
+        'participants': <Map<String, dynamic>>[],
+        'participantCount': 0,
+      };
+    }
+    final seen = <String>{};
+    final participants = <Map<String, dynamic>>[];
+    for (final slot in slots) {
+      final slotMap = slot as Map<String, dynamic>;
+      final users = slotMap['user'] as List<dynamic>? ?? [];
+      for (final user in users) {
+        final u = user as Map<String, dynamic>;
+        final id = u['id'] as String?;
+        if (id != null && seen.add(id)) {
+          if (participants.length < 3) {
+            participants.add({
+              'id': id,
+              'name': u['name'],
+              'image': u['image'],
+            });
+          }
+        }
+      }
+    }
+    return {
+      'participants': participants,
+      'participantCount': seen.length,
+    };
+  }
+
+  /// Extract participants from multiple appointments' slots.
+  Map<String, dynamic> _extractParticipantsFromAppointments(
+    List<Map<String, dynamic>> appointments,
+  ) {
+    final allSlots = <dynamic>[];
+    for (final a in appointments) {
+      final slots = a['slots'] as List<dynamic>? ?? [];
+      allSlots.addAll(slots);
+    }
+    return _extractParticipants(allSlots);
   }
 
   /// Check if webinar status matches the requested filter status

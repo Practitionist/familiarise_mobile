@@ -43,13 +43,11 @@ class BookingRepositoryImpl implements BookingRepository {
   @override
   Future<BookingsResponse> getMyBookings({
     String? status,
-    int page = 0,
-    int pageSize = 20,
+    String? role,
   }) {
     return _remoteSource.getMyBookings(
       status: status,
-      page: page,
-      pageSize: pageSize,
+      role: role,
     );
   }
 
@@ -97,43 +95,51 @@ class BookingRepositoryImpl implements BookingRepository {
   Future<List<AppointmentConsultant>> getAllMyConsultants() async {
     // Fetch all bookings (large page size to get all consultants)
     // We fetch without status filter to include all appointment types
-    final response = await _remoteSource.getMyBookings(pageSize: 100);
+    final response = await _remoteSource.getMyBookings();
 
-    // Extract unique consultants by consultantUserId
+    // Separate map keys for 1:1 DMs vs group programs to prevent merging
     final consultantsMap = <String, AppointmentConsultant>{};
 
     for (final booking in response.bookings) {
-      // Skip bookings without consultant info
       if (booking.consultantUserId == null) continue;
 
-      final userId = booking.consultantUserId!;
+      final isGroupProgram = booking.bookingType == BookingType.webinar ||
+          booking.bookingType == BookingType.classes;
 
-      if (!consultantsMap.containsKey(userId)) {
-        // First booking for this consultant - create entry with this booking type
-        consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
-            .copyWith(
-          allBookingTypes:
-              booking.bookingType != null ? [booking.bookingType!] : [],
-        );
-      } else {
-        // Existing consultant - merge booking types
-        final existing = consultantsMap[userId]!;
-        final types = {...existing.allBookingTypes};
-        if (booking.bookingType != null) {
-          types.add(booking.bookingType!);
+      if (isGroupProgram) {
+        // Group programs keyed by program ID to avoid merging with 1:1 entries
+        final key = 'group_${booking.id}';
+        if (!consultantsMap.containsKey(key)) {
+          consultantsMap[key] = AppointmentConsultant.fromBooking(booking)
+              .copyWith(allBookingTypes: [booking.bookingType]);
         }
+      } else {
+        // 1:1 bookings keyed by consultant user ID
+        final userId = booking.consultantUserId!;
 
-        // Update with most recent booking data, keeping all types
-        if (booking.createdAt != null &&
-            (existing.lastAppointmentDate == null ||
-                booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
-          // This booking is more recent - use its data
+        if (!consultantsMap.containsKey(userId)) {
           consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
-              .copyWith(allBookingTypes: types.toList());
+              .copyWith(
+            allBookingTypes:
+                booking.bookingType != null ? [booking.bookingType!] : [],
+          );
         } else {
-          // Just update the types list on existing entry
-          consultantsMap[userId] =
-              existing.copyWith(allBookingTypes: types.toList());
+          final existing = consultantsMap[userId]!;
+          final types = {...existing.allBookingTypes};
+          if (booking.bookingType != null) {
+            types.add(booking.bookingType!);
+          }
+
+          if (booking.createdAt != null &&
+              (existing.lastAppointmentDate == null ||
+                  booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
+            consultantsMap[userId] =
+                AppointmentConsultant.fromBooking(booking)
+                    .copyWith(allBookingTypes: types.toList());
+          } else {
+            consultantsMap[userId] =
+                existing.copyWith(allBookingTypes: types.toList());
+          }
         }
       }
     }
@@ -150,5 +156,79 @@ class BookingRepositoryImpl implements BookingRepository {
       });
 
     return consultants;
+  }
+
+  @override
+  Future<List<AppointmentConsultant>> getAllMyClients() async {
+    // Fetch bookings where the current user is the consultant
+    final response = await _remoteSource.getMyBookings(
+      role: 'consultant',
+    );
+
+    // Separate map keys for 1:1 DMs vs group programs.
+    // Note: when role=consultant, the booking's consultant fields actually
+    // contain the consultee (client) information from the API response.
+    // Group programs (webinar/class) may have null consultantUserId since
+    // they don't have a single consultee — they're multi-participant.
+    final clientsMap = <String, AppointmentConsultant>{};
+
+    for (final booking in response.bookings) {
+      final isGroupProgram = booking.bookingType == BookingType.webinar ||
+          booking.bookingType == BookingType.classes;
+
+      if (isGroupProgram) {
+        // Group programs keyed by booking ID (webinarId/classId)
+        final key = 'group_${booking.id}';
+        if (!clientsMap.containsKey(key)) {
+          clientsMap[key] = AppointmentConsultant(
+            consultantUserId: booking.id,
+            consultantName: booking.planTitle ?? 'Group Program',
+            lastAppointmentType: booking.bookingType,
+            lastAppointmentDate: booking.createdAt,
+            programId: booking.id,
+            programName: booking.planTitle,
+            allBookingTypes: [booking.bookingType],
+          );
+        }
+      } else {
+        // 1:1 bookings keyed by client user ID
+        if (booking.consultantUserId == null) continue;
+
+        final userId = booking.consultantUserId!;
+
+        if (!clientsMap.containsKey(userId)) {
+          clientsMap[userId] = AppointmentConsultant.fromBooking(booking)
+              .copyWith(
+            allBookingTypes: [booking.bookingType],
+          );
+        } else {
+          final existing = clientsMap[userId]!;
+          final types = {...existing.allBookingTypes};
+          types.add(booking.bookingType);
+
+          if (booking.createdAt != null &&
+              (existing.lastAppointmentDate == null ||
+                  booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
+            clientsMap[userId] = AppointmentConsultant.fromBooking(booking)
+                .copyWith(allBookingTypes: types.toList());
+          } else {
+            clientsMap[userId] =
+                existing.copyWith(allBookingTypes: types.toList());
+          }
+        }
+      }
+    }
+
+    final clients = clientsMap.values.toList()
+      ..sort((a, b) {
+        if (a.lastAppointmentDate == null && b.lastAppointmentDate == null) {
+          return 0;
+        }
+        if (a.lastAppointmentDate == null) return 1;
+        if (b.lastAppointmentDate == null) return -1;
+        return b.lastAppointmentDate!.compareTo(a.lastAppointmentDate!);
+      });
+
+    return clients;
   }
 }

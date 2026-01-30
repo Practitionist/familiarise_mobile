@@ -123,7 +123,6 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
         queryParameters: {
           'role': 'consultant',
           'status': 'SCHEDULED',
-          'pageSize': 10,
         },
       );
 
@@ -293,7 +292,9 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
       return Booking(
         id: json['id'] as String,
         bookingType: BookingType.fromString(
-          json['bookingType'] as String? ?? 'CONSULTATION',
+          json['bookingType'] as String? ??
+              json['appointmentType'] as String? ??
+              'CONSULTATION',
         ),
         status: RequestStatus.fromString(
           json['status'] as String? ?? 'PENDING',
@@ -305,6 +306,8 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
         planTitle: json['planTitle'] as String?,
         planPrice: (json['planPrice'] as num?)?.toDouble(),
         planCurrency: json['planCurrency'] as String? ?? 'INR',
+        consultantUserId: json['consultantUserId'] as String? ??
+            json['consulteeUserId'] as String?,
         consultantName: json['consultantName'] as String? ??
             json['consulteeName'] as String?,
         consultantImage: json['consultantImage'] as String? ??

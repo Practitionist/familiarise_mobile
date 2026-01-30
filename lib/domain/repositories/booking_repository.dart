@@ -14,11 +14,13 @@ abstract class BookingRepository {
     String? planType,
   });
 
-  /// Get user's bookings with pagination and optional status filter
+  /// Get all of the user's bookings with optional status/role filter
+  ///
+  /// [role] can be 'consultant' to fetch bookings where the user is the
+  /// consultant (i.e. their clients' bookings).
   Future<BookingsResponse> getMyBookings({
     String? status,
-    int page = 0,
-    int pageSize = 20,
+    String? role,
   });
 
   /// Get booking details by ID
@@ -57,4 +59,10 @@ abstract class BookingRepository {
   /// Returns a deduplicated list of consultants from all booking types
   /// (consultations, subscriptions, webinars, classes), sorted by most recent.
   Future<List<AppointmentConsultant>> getAllMyConsultants();
+
+  /// Get all unique clients (consultees) for the current consultant
+  ///
+  /// Fetches bookings with role=consultant and extracts unique consultees,
+  /// sorted by most recent booking.
+  Future<List<AppointmentConsultant>> getAllMyClients();
 }

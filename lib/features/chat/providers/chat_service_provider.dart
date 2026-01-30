@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 
+import '../../../core/constants/enums.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../data/repositories/chat_repository_impl.dart';
@@ -263,12 +264,17 @@ int totalUnreadCount(Ref ref) {
   return chatState.totalUnreadCount;
 }
 
-/// Provider for fetching consultants from user's appointments
+/// Provider for fetching chat counterparts from user's appointments
 ///
-/// Returns a deduplicated list of consultants the user has appointments with,
-/// sorted by most recent appointment date.
+/// For consultees: returns consultants they have bookings with.
+/// For consultants: returns clients (consultees) who booked with them.
+/// Sorted by most recent appointment date.
 @riverpod
 Future<List<AppointmentConsultant>> appointmentConsultants(Ref ref) async {
   final repository = ref.watch(bookingRepositoryProvider);
+  final user = ref.watch(currentUserProvider);
+  if (user?.role == UserRole.consultant) {
+    return repository.getAllMyClients();
+  }
   return repository.getAllMyConsultants();
 }

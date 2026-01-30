@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/constants/enums.dart';
+import '../../auth/providers/auth_provider.dart';
 
 /// Placeholder screen for the Messages tab
-class MessagesPlaceholderScreen extends StatelessWidget {
+class MessagesPlaceholderScreen extends ConsumerWidget {
   const MessagesPlaceholderScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final user = ref.watch(currentUserProvider);
+    final isConsultant = user?.role == UserRole.consultant;
+    final subtitle = isConsultant
+        ? 'Chat with your clients'
+        : 'Chat with your consultants';
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -31,7 +40,7 @@ class MessagesPlaceholderScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Chat with your consultants',
+                          subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -74,7 +83,7 @@ class MessagesPlaceholderScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Chat with your consultants and\nmanage your conversations here.',
+                        '$subtitle and\nmanage your conversations here.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),

@@ -37,11 +37,16 @@ Future<ConsultantDashboardData> consultantDashboard(Ref ref) async {
   final reviewsFuture = repo.getConsultantRecentReviews();
   final earningsFuture = repo.getConsultantEarnings();
 
-  final stats = await statsFuture;
-  final sessions = await sessionsFuture;
-  final requests = await requestsFuture;
-  final reviews = await reviewsFuture;
-  final earnings = await earningsFuture;
+  final stats = await statsFuture
+      .catchError((_) => const ConsultantDashboardStats());
+  final sessions =
+      await sessionsFuture.catchError((_) => <Booking>[]);
+  final requests =
+      await requestsFuture.catchError((_) => <Booking>[]);
+  final reviews =
+      await reviewsFuture.catchError((_) => <Review>[]);
+  final earnings = await earningsFuture
+      .catchError((_) => const EarningsSummary());
 
   return ConsultantDashboardData(
     stats: stats,

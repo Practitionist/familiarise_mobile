@@ -6,9 +6,7 @@ import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/consultant_dashboard_provider.dart';
 import '../widgets/dashboard_section_header.dart';
-import '../widgets/earnings_summary_card.dart';
 import '../widgets/pending_request_card.dart';
-import '../widgets/recent_review_card.dart';
 import '../widgets/stats_overview_card.dart';
 import '../widgets/upcoming_session_card.dart';
 
@@ -34,7 +32,7 @@ class ConsultantDashboardScreen extends ConsumerWidget {
               ),
             ),
             Text(
-              'Your consultant dashboard',
+              "Here's what needs your attention",
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -71,7 +69,7 @@ class ConsultantDashboardScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Stats overview card
+        // Quick stats overview (always visible, at top)
         StatsOverviewCard(
           items: [
             StatItem(
@@ -98,21 +96,9 @@ class ConsultantDashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
-        // Today's schedule / upcoming sessions
-        if (data.upcomingSessions.isNotEmpty) ...[
-          const DashboardSectionHeader(title: "Today's Schedule"),
-          ...data.upcomingSessions.map(
-            (booking) => UpcomingSessionCard(
-              booking: booking,
-              showConsulteeInfo: true,
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-
-        // Pending booking requests
+        // Pending booking requests (most urgent — needs action)
         if (data.pendingRequests.isNotEmpty) ...[
           DashboardSectionHeader(
             title: 'Pending Requests',
@@ -141,18 +127,17 @@ class ConsultantDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
         ],
 
-        // Recent reviews
-        if (data.recentReviews.isNotEmpty) ...[
-          const DashboardSectionHeader(title: 'Recent Reviews'),
-          ...data.recentReviews.take(3).map(
-                (review) => RecentReviewCard(review: review),
-              ),
+        // Upcoming sessions
+        if (data.upcomingSessions.isNotEmpty) ...[
+          const DashboardSectionHeader(title: 'Upcoming Sessions'),
+          ...data.upcomingSessions.map(
+            (booking) => UpcomingSessionCard(
+              booking: booking,
+              showConsulteeInfo: true,
+            ),
+          ),
           const SizedBox(height: 16),
         ],
-
-        // Earnings summary
-        EarningsSummaryCard(earnings: data.earnings),
-        const SizedBox(height: 16),
       ],
     );
   }

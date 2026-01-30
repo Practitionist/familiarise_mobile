@@ -11,7 +11,7 @@ part 'clients_provider.g.dart';
 Future<List<AppointmentConsultant>> clientsList(Ref ref) async {
   final bookingRepo = ref.watch(bookingRepositoryProvider);
 
-  // Reuse the existing getAllMyConsultants method which fetches unique
-  // consultees from booking data. For a consultant, these are their clients.
-  return bookingRepo.getAllMyConsultants();
+  // Fetch bookings where the current user is the consultant,
+  // then extract unique clients (consultees) from those bookings.
+  return bookingRepo.getAllMyClients();
 }

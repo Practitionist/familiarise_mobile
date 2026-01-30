@@ -30,11 +30,13 @@ abstract class BookingRemoteSource {
     String? planType,
   });
 
-  /// Get user's bookings with pagination and optional status filter
+  /// Get all of the user's bookings with optional status/role filter
+  ///
+  /// [role] can be 'consultant' to fetch bookings where the user is the
+  /// consultant (i.e. their clients' bookings).
   Future<BookingsResponse> getMyBookings({
     String? status,
-    int page = 0,
-    int pageSize = 20,
+    String? role,
   });
 
   /// Get booking details by ID
@@ -148,16 +150,15 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
   @override
   Future<BookingsResponse> getMyBookings({
     String? status,
-    int page = 0,
-    int pageSize = 20,
+    String? role,
   }) async {
     try {
-      final queryParams = <String, dynamic>{
-        'page': page,
-        'pageSize': pageSize,
-      };
+      final queryParams = <String, dynamic>{};
       if (status != null) {
         queryParams['status'] = status;
+      }
+      if (role != null) {
+        queryParams['role'] = role;
       }
 
       final response = await _dio.get(
@@ -184,7 +185,6 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
         context: 'BookingRemoteSource.getMyBookings',
         extras: {
           'status': status,
-          'page': page,
           'statusCode': e.response?.statusCode,
         },
       );
@@ -442,11 +442,18 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
   }
 
   /// Parse a booking from API response
+  ///
+  /// Handles both consultee and consultant perspectives:
+  /// - Falls back to `appointmentType` when `bookingType` is absent
+  /// - Falls back to consultee fields when consultant fields are null
+  ///   (when role=consultant, the "other party" info is in consultee fields)
   Booking _parseBooking(Map<String, dynamic> json) {
     return Booking(
       id: json['id'] as String,
       bookingType: BookingType.fromString(
-        json['bookingType'] as String? ?? 'CONSULTATION',
+        json['bookingType'] as String? ??
+            json['appointmentType'] as String? ??
+            'CONSULTATION',
       ),
       status: RequestStatus.fromString(json['status'] as String? ?? 'PENDING'),
       message: json['message'] as String?,
@@ -459,9 +466,12 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       planCurrency: json['planCurrency'] as String? ?? 'INR',
       planDuration: (json['planDuration'] as num?)?.toDouble(),
       consultantProfileId: json['consultantProfileId'] as String?,
-      consultantUserId: json['consultantUserId'] as String?,
-      consultantName: json['consultantName'] as String?,
-      consultantImage: json['consultantImage'] as String?,
+      consultantUserId: json['consultantUserId'] as String? ??
+          json['consulteeUserId'] as String?,
+      consultantName: json['consultantName'] as String? ??
+          json['consulteeName'] as String?,
+      consultantImage: json['consultantImage'] as String? ??
+          json['consulteeImage'] as String?,
       slots: _parseSlots(json['slots']),
       schedulingPeriodStartsAt:
           _parseDateTime(json['schedulingPeriodStartsAt']),
@@ -495,7 +505,23 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       feedbackFromConsultee: json['feedbackFromConsultee'] as String?,
       feedbackFromConsultant: json['feedbackFromConsultant'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
+      // Participant info (for group programs)
+      participants: _parseParticipants(json['participants']),
+      participantCount: json['participantCount'] as int? ?? 0,
     );
+  }
+
+  /// Parse participants list from API response
+  List<BookingParticipant> _parseParticipants(dynamic participantsJson) {
+    if (participantsJson == null || participantsJson is! List) return [];
+    return participantsJson.map((p) {
+      final pMap = p as Map<String, dynamic>;
+      return BookingParticipant(
+        id: pMap['id'] as String,
+        name: pMap['name'] as String?,
+        image: pMap['image'] as String?,
+      );
+    }).toList();
   }
 
   /// Parse bookings response with pagination

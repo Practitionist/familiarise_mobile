@@ -212,9 +212,22 @@ class DashboardRepository extends BaseRepository {
         .model('ConsultantReview')
         .action(QueryAction.findMany)
         .where({'consultantProfileId': consultantProfileId})
-        .include({
+        .select({
+          'id': true,
+          'rating': true,
+          'reviewDescription': true,
+          'createdAt': true,
           'consulteeProfile': {
-            'include': {'user': true},
+            'select': {
+              'id': true,
+              'user': {
+                'select': {
+                  'id': true,
+                  'name': true,
+                  'image': true,
+                },
+              },
+            },
           },
         })
         .orderBy({'createdAt': 'desc'})
@@ -334,71 +347,317 @@ class DashboardRepository extends BaseRepository {
   Future<int> _countUniqueClients({
     required String consultantProfileId,
   }) async {
-    // Get all consultation plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true}).build();
+    final clientIds = <String>{};
+    final activeStatuses = [
+      'COMPLETED',
+      'SCHEDULED',
+      'APPROVED',
+      'APPROVED_PENDING_PAYMENT',
+    ];
 
-    final plans = await executeQueryAsMaps(plansQuery);
-    final planIds = plans.map((p) => p['id'] as String).toList();
+    // 1. Consultation clients
+    final consultationPlanIds =
+        await _getPlanIds('ConsultationPlan', consultantProfileId);
+    if (consultationPlanIds.isNotEmpty) {
+      final consultationsQuery = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.findMany)
+          .where({
+            'consultationPlanId': {'in': consultationPlanIds},
+            'requestStatus': {'in': activeStatuses},
+          })
+          .distinct()
+          .select({'requestedById': true})
+          .build();
+      final consultations = await executeQueryAsMaps(consultationsQuery);
+      for (final c in consultations) {
+        final id = c['requestedById'] as String?;
+        if (id != null) clientIds.add(id);
+      }
+    }
 
-    if (planIds.isEmpty) return 0;
+    // 2. Subscription clients
+    final subscriptionPlanIds =
+        await _getPlanIds('SubscriptionPlan', consultantProfileId);
+    if (subscriptionPlanIds.isNotEmpty) {
+      final subscriptionsQuery = JsonQueryBuilder()
+          .model('Subscription')
+          .action(QueryAction.findMany)
+          .where({
+            'subscriptionPlanId': {'in': subscriptionPlanIds},
+            'requestStatus': {'in': activeStatuses},
+          })
+          .distinct()
+          .select({'requestedById': true})
+          .build();
+      final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
+      for (final s in subscriptions) {
+        final id = s['requestedById'] as String?;
+        if (id != null) clientIds.add(id);
+      }
+    }
 
-    // Get unique requestedBy IDs using distinct to reduce data transfer
-    final consultationsQuery = JsonQueryBuilder()
-        .model('Consultation')
+    // 3. Trial session clients
+    final trialsQuery = JsonQueryBuilder()
+        .model('TrialSession')
         .action(QueryAction.findMany)
         .where({
-          'consultationPlanId': {'in': planIds},
-          'requestStatus': {
-            'in': [
-              'COMPLETED',
-              'SCHEDULED',
-              'APPROVED',
-              'APPROVED_PENDING_PAYMENT',
-            ],
+          'consultantProfileId': consultantProfileId,
+          'status': {
+            'in': ['PENDING', 'SCHEDULED', 'COMPLETED', 'CONVERTED'],
           },
         })
         .distinct()
-        .select({'requestedById': true})
+        .select({'consulteeProfileId': true})
         .build();
+    final trials = await executeQueryAsMaps(trialsQuery);
+    for (final t in trials) {
+      final id = t['consulteeProfileId'] as String?;
+      if (id != null) clientIds.add(id);
+    }
 
-    final consultations = await executeQueryAsMaps(consultationsQuery);
-    return consultations.length;
+    // 4. Webinar participants (via slots → users)
+    final webinarPlanIds =
+        await _getPlanIds('WebinarPlan', consultantProfileId);
+    if (webinarPlanIds.isNotEmpty) {
+      final webinarsQuery = JsonQueryBuilder()
+          .model('Webinar')
+          .action(QueryAction.findMany)
+          .where({
+            'webinarPlanId': {'in': webinarPlanIds},
+            'status': {'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']},
+          })
+          .include({
+            'appointment': {
+              'include': {
+                'slots': {
+                  'include': {'user': true},
+                },
+              },
+            },
+          })
+          .build();
+      final webinars = await executeQueryAsMaps(webinarsQuery);
+      for (final w in webinars) {
+        final appointment = w['appointment'] as Map<String, dynamic>?;
+        if (appointment == null) continue;
+        final slots = appointment['slots'] as List<dynamic>? ?? [];
+        for (final slot in slots) {
+          final slotMap = slot as Map<String, dynamic>;
+          final users = slotMap['user'] as List<dynamic>? ?? [];
+          for (final user in users) {
+            final userId = (user as Map<String, dynamic>)['id'] as String?;
+            if (userId != null) clientIds.add(userId);
+          }
+        }
+      }
+    }
+
+    // 5. Class participants (via slots → users)
+    final classPlanIds =
+        await _getPlanIds('ClassPlan', consultantProfileId);
+    if (classPlanIds.isNotEmpty) {
+      final classesQuery = JsonQueryBuilder()
+          .model('Class')
+          .action(QueryAction.findMany)
+          .where({
+            'classPlanId': {'in': classPlanIds},
+            'status': {'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']},
+          })
+          .include({
+            'appointments': {
+              'include': {
+                'slots': {
+                  'include': {'user': true},
+                },
+              },
+            },
+          })
+          .build();
+      final classes = await executeQueryAsMaps(classesQuery);
+      for (final c in classes) {
+        final appointments = c['appointments'] as List<dynamic>? ?? [];
+        for (final a in appointments) {
+          final aMap = a as Map<String, dynamic>;
+          final slots = aMap['slots'] as List<dynamic>? ?? [];
+          for (final slot in slots) {
+            final slotMap = slot as Map<String, dynamic>;
+            final users = slotMap['user'] as List<dynamic>? ?? [];
+            for (final user in users) {
+              final userId = (user as Map<String, dynamic>)['id'] as String?;
+              if (userId != null) clientIds.add(userId);
+            }
+          }
+        }
+      }
+    }
+
+    return clientIds.length;
+  }
+
+  /// Helper to get plan IDs for a given plan model and consultant profile
+  Future<List<String>> _getPlanIds(
+    String planModel,
+    String consultantProfileId,
+  ) async {
+    final query = JsonQueryBuilder()
+        .model(planModel)
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true})
+        .build();
+    final plans = await executeQueryAsMaps(query);
+    return plans.map((p) => p['id'] as String).toList();
   }
 
   Future<int> _countConsultantSessions({
     required String consultantProfileId,
     String? status,
   }) async {
-    // Get consultation plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true}).build();
+    var total = 0;
 
-    final plans = await executeQueryAsMaps(plansQuery);
-    final planIds = plans.map((p) => p['id'] as String).toList();
-
-    if (planIds.isEmpty) return 0;
-
-    final where = <String, dynamic>{
-      'consultationPlanId': {'in': planIds},
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
+    // 1. Count consultations
+    final consultationPlanIds =
+        await _getPlanIds('ConsultationPlan', consultantProfileId);
+    if (consultationPlanIds.isNotEmpty) {
+      final where = <String, dynamic>{
+        'consultationPlanId': {'in': consultationPlanIds},
+      };
+      if (status != null) {
+        where['requestStatus'] = status;
+      }
+      final query = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.count)
+          .where(where)
+          .build();
+      total += await executeCount(query);
     }
 
-    final query = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
+    // 2. Count subscriptions
+    final subscriptionPlanIds =
+        await _getPlanIds('SubscriptionPlan', consultantProfileId);
+    if (subscriptionPlanIds.isNotEmpty) {
+      final where = <String, dynamic>{
+        'subscriptionPlanId': {'in': subscriptionPlanIds},
+      };
+      if (status != null) {
+        where['requestStatus'] = status;
+      }
+      final query = JsonQueryBuilder()
+          .model('Subscription')
+          .action(QueryAction.count)
+          .where(where)
+          .build();
+      total += await executeCount(query);
+    }
 
-    return executeCount(query);
+    // 3. Count trial sessions
+    final trialWhere = <String, dynamic>{
+      'consultantProfileId': consultantProfileId,
+    };
+    if (status != null) {
+      final trialStatus = _mapRequestStatusToTrialStatus(status);
+      if (trialStatus != null) {
+        trialWhere['status'] = trialStatus;
+      }
+    }
+    final trialQuery = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.count)
+        .where(trialWhere)
+        .build();
+    total += await executeCount(trialQuery);
+
+    // 4. Count webinar instances
+    final webinarPlanIds =
+        await _getPlanIds('WebinarPlan', consultantProfileId);
+    if (webinarPlanIds.isNotEmpty) {
+      final webinarWhere = <String, dynamic>{
+        'webinarPlanId': {'in': webinarPlanIds},
+      };
+      if (status != null) {
+        final webinarStatus = _mapRequestStatusToWebinarStatus(status);
+        if (webinarStatus != null) {
+          webinarWhere['status'] = webinarStatus;
+        }
+      }
+      final webinarQuery = JsonQueryBuilder()
+          .model('Webinar')
+          .action(QueryAction.count)
+          .where(webinarWhere)
+          .build();
+      total += await executeCount(webinarQuery);
+    }
+
+    // 5. Count class instances
+    final classPlanIds =
+        await _getPlanIds('ClassPlan', consultantProfileId);
+    if (classPlanIds.isNotEmpty) {
+      final classWhere = <String, dynamic>{
+        'classPlanId': {'in': classPlanIds},
+      };
+      if (status != null) {
+        final classStatus = _mapRequestStatusToClassStatus(status);
+        if (classStatus != null) {
+          classWhere['status'] = classStatus;
+        }
+      }
+      final classQuery = JsonQueryBuilder()
+          .model('Class')
+          .action(QueryAction.count)
+          .where(classWhere)
+          .build();
+      total += await executeCount(classQuery);
+    }
+
+    return total;
+  }
+
+  /// Map RequestStatus to TrialSessionStatus for filtering
+  String? _mapRequestStatusToTrialStatus(String requestStatus) {
+    switch (requestStatus) {
+      case 'PENDING':
+        return 'PENDING';
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      case 'REJECTED':
+        return 'REJECTED';
+      default:
+        return null;
+    }
+  }
+
+  /// Map RequestStatus to WebinarStatus for filtering
+  String? _mapRequestStatusToWebinarStatus(String requestStatus) {
+    switch (requestStatus) {
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      default:
+        return null;
+    }
+  }
+
+  /// Map RequestStatus to ClassStatus for filtering
+  String? _mapRequestStatusToClassStatus(String requestStatus) {
+    switch (requestStatus) {
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      default:
+        return null;
+    }
   }
 
   Future<Map<String, double>> _calculateConsultantEarnings({

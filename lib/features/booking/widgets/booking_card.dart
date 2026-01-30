@@ -163,6 +163,13 @@ class BookingCard extends StatelessWidget {
   }
 
   Widget _buildAvatar(ColorScheme colorScheme) {
+    final isGroupProgram = booking.bookingType == BookingType.webinar ||
+        booking.bookingType == BookingType.classes;
+
+    if (isGroupProgram && booking.participants.isNotEmpty) {
+      return _buildStackedAvatars(colorScheme);
+    }
+
     return Container(
       width: 48,
       height: 48,
@@ -192,12 +199,122 @@ class BookingCard extends StatelessWidget {
             )
           : Center(
               child: Icon(
-                Icons.person,
+                isGroupProgram ? Icons.groups : Icons.person,
                 color: colorScheme.onPrimaryContainer,
                 size: 24,
               ),
             ),
     );
+  }
+
+  Widget _buildStackedAvatars(ColorScheme colorScheme) {
+    final participants = booking.participants;
+    final remaining = booking.participantCount - participants.length;
+    final avatarSize = 32.0;
+    final overlap = 10.0;
+    final count = participants.length;
+    final totalWidth =
+        avatarSize + (count - 1) * (avatarSize - overlap) +
+        (remaining > 0 ? avatarSize - overlap : 0);
+
+    return SizedBox(
+      width: totalWidth,
+      height: 48,
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          for (var i = 0; i < count; i++)
+            Positioned(
+              left: i * (avatarSize - overlap),
+              child: _buildCircleAvatar(
+                participants[i],
+                avatarSize,
+                colorScheme,
+              ),
+            ),
+          if (remaining > 0)
+            Positioned(
+              left: count * (avatarSize - overlap),
+              child: Container(
+                width: avatarSize,
+                height: avatarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.tertiaryContainer,
+                  border: Border.all(
+                    color: colorScheme.surface,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '+$remaining',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCircleAvatar(
+    BookingParticipant participant,
+    double size,
+    ColorScheme colorScheme,
+  ) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colorScheme.primaryContainer,
+        border: Border.all(
+          color: colorScheme.surface,
+          width: 2,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: participant.image != null
+          ? CachedNetworkImage(
+              imageUrl: participant.image!,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Center(
+                child: Icon(
+                  Icons.person,
+                  color: colorScheme.onPrimaryContainer,
+                  size: size * 0.5,
+                ),
+              ),
+              errorWidget: (context, url, error) => Center(
+                child: Icon(
+                  Icons.person,
+                  color: colorScheme.onPrimaryContainer,
+                  size: size * 0.5,
+                ),
+              ),
+            )
+          : Center(
+              child: Text(
+                _getInitial(participant.name),
+                style: TextStyle(
+                  fontSize: size * 0.4,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+    );
+  }
+
+  String _getInitial(String? name) {
+    if (name == null || name.isEmpty) return '?';
+    return name[0].toUpperCase();
   }
 
   Widget _buildStatusChip(ThemeData theme) {

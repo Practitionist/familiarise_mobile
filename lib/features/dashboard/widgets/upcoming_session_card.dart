@@ -22,7 +22,11 @@ class UpcomingSessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final slot = booking.slots.isNotEmpty ? booking.slots.first : null;
-    final name = booking.consultantName ?? 'Unknown';
+    final isGroupProgram = booking.bookingType == BookingType.webinar ||
+        booking.bookingType == BookingType.classes;
+    final name = isGroupProgram
+        ? booking.bookingType.value
+        : (booking.consultantName ?? 'Session');
 
     return Card(
       elevation: 0,

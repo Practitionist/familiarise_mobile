@@ -93,6 +93,9 @@ class Booking with _$Booking {
     String? feedbackFromConsultee,
     String? feedbackFromConsultant,
     double? rating,
+    // Participant info (for webinars/classes)
+    @Default([]) List<BookingParticipant> participants,
+    @Default(0) int participantCount,
   }) = _Booking;
 
   const Booking._();
@@ -339,4 +342,17 @@ class BookingsPagination with _$BookingsPagination {
 
   factory BookingsPagination.fromJson(Map<String, dynamic> json) =>
       _$BookingsPaginationFromJson(json);
+}
+
+/// Participant info for group programs (webinars/classes)
+@freezed
+class BookingParticipant with _$BookingParticipant {
+  const factory BookingParticipant({
+    required String id,
+    String? name,
+    String? image,
+  }) = _BookingParticipant;
+
+  factory BookingParticipant.fromJson(Map<String, dynamic> json) =>
+      _$BookingParticipantFromJson(json);
 }

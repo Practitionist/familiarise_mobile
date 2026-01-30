@@ -29,7 +29,6 @@ Future<ConsulteeDashboardData> consulteeDashboard(Ref ref) async {
   final statsFuture = dashboardRepo.getConsulteeStats();
   final bookingsFuture = bookingRepo.getMyBookings(
     status: 'SCHEDULED',
-    pageSize: 5,
   );
 
   final stats = await statsFuture;

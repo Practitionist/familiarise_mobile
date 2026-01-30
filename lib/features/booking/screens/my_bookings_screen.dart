@@ -64,9 +64,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
   }
 
   void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    final category = BookingCategory.values[_tabController.index];
-    ref.read(myBookingsProvider.notifier).filterByType(category.value);
+    // Tab changes are handled by TabBarView; client-side filtering
+    // is done in build() based on the active category.
   }
 
   @override
@@ -152,49 +151,20 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
   Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back button
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-            ),
-            child: IconButton(
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/dashboard');
-                }
-              },
-              icon: const Icon(Icons.arrow_back, size: 20),
-              visualDensity: VisualDensity.compact,
+          Text(
+            'My Bookings',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(width: 16),
-          // Title
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'My Bookings',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Text(
-                  'Manage your sessions',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          Text(
+            'Manage your sessions',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -390,7 +360,6 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     List<Booking> allBookings,
   ) {
     final theme = Theme.of(context);
-    final notifier = ref.read(myBookingsProvider.notifier);
 
     final subscriptions = allBookings
         .where((b) => b.bookingType == BookingType.subscription)
@@ -399,21 +368,62 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
         .where((b) => b.bookingType == BookingType.trial)
         .toList();
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollEndNotification) {
-          final metrics = notification.metrics;
-          if (metrics.pixels >= metrics.maxScrollExtent - 200) {
-            notifier.loadMore();
-          }
-        }
-        return false;
-      },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          // Subscription cards
-          for (final booking in subscriptions)
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      children: [
+        // Subscription cards
+        for (final booking in subscriptions)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: BookingCard(
+              booking: booking,
+              onTap: () {
+                context.pushNamed(
+                  'bookingDetails',
+                  pathParameters: {'bookingId': booking.id},
+                  queryParameters: {'type': booking.bookingType.value},
+                );
+              },
+              onPayNow: booking.status == RequestStatus.approvedPendingPayment
+                  ? () {
+                      context.pushNamed(
+                        'checkout',
+                        extra: booking,
+                      );
+                    }
+                  : null,
+            ),
+          ),
+        // Free Trials section
+        if (freeTrials.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.star_outline,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Free Trials',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          for (final booking in freeTrials)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: BookingCard(
@@ -425,71 +435,19 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                     queryParameters: {'type': booking.bookingType.value},
                   );
                 },
-                onPayNow: booking.status == RequestStatus.approvedPendingPayment
-                    ? () {
-                        context.pushNamed(
-                          'checkout',
-                          extra: booking,
-                        );
-                      }
-                    : null,
+                onPayNow:
+                    booking.status == RequestStatus.approvedPendingPayment
+                        ? () {
+                            context.pushNamed(
+                              'checkout',
+                              extra: booking,
+                            );
+                          }
+                        : null,
               ),
             ),
-          // Free Trials section
-          if (freeTrials.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.star_outline,
-                        size: 18,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Free Trials',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            for (final booking in freeTrials)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: BookingCard(
-                  booking: booking,
-                  onTap: () {
-                    context.pushNamed(
-                      'bookingDetails',
-                      pathParameters: {'bookingId': booking.id},
-                      queryParameters: {'type': booking.bookingType.value},
-                    );
-                  },
-                  onPayNow:
-                      booking.status == RequestStatus.approvedPendingPayment
-                          ? () {
-                              context.pushNamed(
-                                'checkout',
-                                extra: booking,
-                              );
-                            }
-                          : null,
-                ),
-              ),
-          ],
         ],
-      ),
+      ],
     );
   }
 
@@ -499,48 +457,33 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     List<Booking> bookings,
     BookingCategory category,
   ) {
-    final notifier = ref.read(myBookingsProvider.notifier);
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollEndNotification) {
-          final metrics = notification.metrics;
-          if (metrics.pixels >= metrics.maxScrollExtent - 200) {
-            notifier.loadMore();
-          }
-        }
-        return false;
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      itemCount: bookings.length,
+      itemBuilder: (context, index) {
+        final booking = bookings[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: BookingCard(
+            booking: booking,
+            onTap: () {
+              context.pushNamed(
+                'bookingDetails',
+                pathParameters: {'bookingId': booking.id},
+                queryParameters: {'type': booking.bookingType.value},
+              );
+            },
+            onPayNow: booking.status == RequestStatus.approvedPendingPayment
+                ? () {
+                    context.pushNamed(
+                      'checkout',
+                      extra: booking,
+                    );
+                  }
+                : null,
+          ),
+        );
       },
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        itemCount: bookings.length,
-        itemBuilder: (context, index) {
-          final booking = bookings[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: BookingCard(
-              booking: booking,
-              onTap: () {
-                // Navigate to booking detail screen
-                context.pushNamed(
-                  'bookingDetails',
-                  pathParameters: {'bookingId': booking.id},
-                  queryParameters: {'type': booking.bookingType.value},
-                );
-              },
-              onPayNow: booking.status == RequestStatus.approvedPendingPayment
-                  ? () {
-                      // Navigate to checkout screen
-                      context.pushNamed(
-                        'checkout',
-                        extra: booking,
-                      );
-                    }
-                  : null,
-            ),
-          );
-        },
-      ),
     );
   }
 

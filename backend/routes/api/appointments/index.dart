@@ -24,18 +24,17 @@ Future<Response> onRequest(RequestContext context) async {
 
 /// GET /api/appointments
 ///
-/// Returns the authenticated user's bookings with pagination.
+/// Returns all of the authenticated user's bookings.
 ///
 /// Query Parameters:
 /// - status: Filter by status (PENDING, APPROVED, SCHEDULED, etc.)
-/// - page: Page number (0-indexed, default: 0)
-/// - pageSize: Items per page (default: 20, max: 50)
+/// - role: Set to 'consultant' to fetch bookings as consultant
 ///
 /// Response:
 /// ```json
 /// {
 ///   "bookings": [...],
-///   "pagination": { "page": 0, "pageSize": 20, "totalCount": 10 }
+///   "pagination": { "page": 0, "pageSize": N, "totalCount": N }
 /// }
 /// ```
 Future<Response> _handleGetBookings(RequestContext context) async {
@@ -56,16 +55,12 @@ Future<Response> _handleGetBookings(RequestContext context) async {
 
     // Parse query parameters
     final status = params['status'];
-    final page = int.tryParse(params['page'] ?? '0') ?? 0;
-    final pageSize = int.tryParse(params['pageSize'] ?? '20') ?? 20;
     final role = params['role'];
 
-    // Fetch bookings - support consultant role to see their own sessions
+    // Fetch all bookings
     final result = await db.appointments.getMyBookings(
       userId: userId,
       status: status,
-      page: page,
-      pageSize: pageSize,
       asConsultant: role == 'consultant',
     );
 
