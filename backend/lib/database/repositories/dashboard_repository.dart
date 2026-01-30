@@ -90,14 +90,7 @@ class DashboardRepository extends BaseRepository {
   Future<Map<String, dynamic>> getConsultantStats({
     required String userId,
   }) async {
-    // Get consultant profile
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
-    final consultantProfileId = profile?['id'] as String?;
+    final consultantProfileId = await _getConsultantProfileId(userId);
 
     if (consultantProfileId == null) {
       return {
@@ -113,7 +106,13 @@ class DashboardRepository extends BaseRepository {
     }
 
     // Get rating from profile
-    final rating = (profile?['rating'] as num?)?.toDouble() ?? 0.0;
+    final ratingQuery = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findFirst)
+        .where({'id': consultantProfileId})
+        .select({'rating': true}).build();
+    final profileData = await executeQueryAsSingleMap(ratingQuery);
+    final rating = (profileData?['rating'] as num?)?.toDouble() ?? 0.0;
 
     // Count reviews
     final reviewCountQuery = JsonQueryBuilder()
@@ -166,14 +165,7 @@ class DashboardRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getConsultantPendingRequests({
     required String userId,
   }) async {
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
-    final consultantProfileId = profile?['id'] as String?;
-
+    final consultantProfileId = await _getConsultantProfileId(userId);
     if (consultantProfileId == null) return [];
 
     // Get consultation plans for this consultant
@@ -213,14 +205,7 @@ class DashboardRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getConsultantRecentReviews({
     required String userId,
   }) async {
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
-    final consultantProfileId = profile?['id'] as String?;
-
+    final consultantProfileId = await _getConsultantProfileId(userId);
     if (consultantProfileId == null) return [];
 
     final reviewsQuery = JsonQueryBuilder()
@@ -243,13 +228,7 @@ class DashboardRepository extends BaseRepository {
   Future<Map<String, dynamic>> getConsultantEarnings({
     required String userId,
   }) async {
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
-    final consultantProfileId = profile?['id'] as String?;
+    final consultantProfileId = await _getConsultantProfileId(userId);
 
     if (consultantProfileId == null) {
       return {
@@ -273,6 +252,17 @@ class DashboardRepository extends BaseRepository {
   }
 
   // ==================== Private Helpers ====================
+
+  /// Resolves the consultant profile ID for a given user ID.
+  /// Returns null if the user has no consultant profile.
+  Future<String?> _getConsultantProfileId(String userId) async {
+    final profileQuery = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findFirst)
+        .where({'userId': userId}).build();
+    final profile = await executeQueryAsSingleMap(profileQuery);
+    return profile?['id'] as String?;
+  }
 
   Future<int> _countConsultations({
     required String consulteeProfileId,
@@ -356,25 +346,27 @@ class DashboardRepository extends BaseRepository {
 
     if (planIds.isEmpty) return 0;
 
-    // Get unique requestedBy IDs
+    // Get unique requestedBy IDs using distinct to reduce data transfer
     final consultationsQuery = JsonQueryBuilder()
         .model('Consultation')
         .action(QueryAction.findMany)
         .where({
           'consultationPlanId': {'in': planIds},
           'requestStatus': {
-            'in': ['COMPLETED', 'SCHEDULED', 'APPROVED', 'APPROVED_PENDING_PAYMENT'],
+            'in': [
+              'COMPLETED',
+              'SCHEDULED',
+              'APPROVED',
+              'APPROVED_PENDING_PAYMENT',
+            ],
           },
         })
+        .distinct()
         .select({'requestedById': true})
         .build();
 
     final consultations = await executeQueryAsMaps(consultationsQuery);
-    final uniqueClients = consultations
-        .map((c) => c['requestedById'] as String)
-        .toSet();
-
-    return uniqueClients.length;
+    return consultations.length;
   }
 
   Future<int> _countConsultantSessions({
