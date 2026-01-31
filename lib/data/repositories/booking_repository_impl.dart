@@ -191,28 +191,45 @@ class BookingRepositoryImpl implements BookingRepository {
           );
         }
       } else {
-        // 1:1 bookings keyed by client user ID
-        if (booking.consultantUserId == null) continue;
+        // 1:1 bookings keyed by client user ID.
+        // For consultant-view bookings, the client info is in consultee fields.
+        final clientUserId = booking.consulteeUserId ?? booking.consultantUserId;
+        if (clientUserId == null) continue;
 
-        final userId = booking.consultantUserId!;
-
-        if (!clientsMap.containsKey(userId)) {
-          clientsMap[userId] = AppointmentConsultant.fromBooking(booking)
-              .copyWith(
+        if (!clientsMap.containsKey(clientUserId)) {
+          clientsMap[clientUserId] = AppointmentConsultant(
+            consultantUserId: clientUserId,
+            consultantName:
+                booking.consulteeName ?? booking.consultantName ?? 'Unknown',
+            consultantImage: booking.consulteeImage ?? booking.consultantImage,
+            consultantProfileId:
+                booking.consulteeProfileId ?? booking.consultantProfileId,
+            lastAppointmentType: booking.bookingType,
+            lastAppointmentDate: booking.createdAt,
             allBookingTypes: [booking.bookingType],
           );
         } else {
-          final existing = clientsMap[userId]!;
+          final existing = clientsMap[clientUserId]!;
           final types = {...existing.allBookingTypes};
           types.add(booking.bookingType);
 
           if (booking.createdAt != null &&
               (existing.lastAppointmentDate == null ||
                   booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
-            clientsMap[userId] = AppointmentConsultant.fromBooking(booking)
-                .copyWith(allBookingTypes: types.toList());
+            clientsMap[clientUserId] = AppointmentConsultant(
+              consultantUserId: clientUserId,
+              consultantName:
+                  booking.consulteeName ?? booking.consultantName ?? 'Unknown',
+              consultantImage:
+                  booking.consulteeImage ?? booking.consultantImage,
+              consultantProfileId:
+                  booking.consulteeProfileId ?? booking.consultantProfileId,
+              lastAppointmentType: booking.bookingType,
+              lastAppointmentDate: booking.createdAt,
+              allBookingTypes: types.toList(),
+            );
           } else {
-            clientsMap[userId] =
+            clientsMap[clientUserId] =
                 existing.copyWith(allBookingTypes: types.toList());
           }
         }
