@@ -1907,6 +1907,35 @@ class AppointmentRepository extends BaseRepository {
         }
       }
 
+      // Fetch consultee (requestedBy) profile and user
+      final requestedById = result['requestedById'] as String?;
+      Map<String, dynamic>? consulteeProfile;
+      Map<String, dynamic>? consulteeUser;
+      if (requestedById != null) {
+        final consulteeQuery = JsonQueryBuilder()
+            .model('ConsulteeProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': requestedById})
+            .include({'user': true})
+            .build();
+        consulteeProfile =
+            await executeQueryAsSingleMap(consulteeQuery, txn: txn);
+
+        consulteeUser =
+            consulteeProfile?['user'] as Map<String, dynamic>?;
+        if (consulteeUser == null && consulteeProfile != null) {
+          final cName = consulteeProfile['userName'] as String?;
+          final cImage = consulteeProfile['userImage'] as String?;
+          if (cName != null || cImage != null) {
+            consulteeUser = {
+              'id': consulteeProfile['userId'],
+              'name': cName,
+              'image': cImage,
+            };
+          }
+        }
+      }
+
       final booking = {
         'id': result['id'],
         'bookingType': 'CONSULTATION',
@@ -1922,10 +1951,20 @@ class AppointmentRepository extends BaseRepository {
             plan?['priceCurrency'] ?? result['consultationPlanPriceCurrency'],
         'planDuration': plan?['durationInHours'] ??
             result['consultationPlanDurationInHours'],
+        'planDescription': plan?['description'],
+        'planLanguage': plan?['language'],
+        'planLevel': plan?['level'],
+        'planPrerequisites': plan?['prerequisites'],
+        'planMaterialProvided': plan?['materialProvided'],
+        'planLearningOutcomes': plan?['learningOutcomes'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'consulteeProfileId': consulteeProfile?['id'],
+        'consulteeUserId': consulteeUser?['id'],
+        'consulteeName': consulteeUser?['name'],
+        'consulteeImage': consulteeUser?['image'],
         'cancellationReason': result['cancellationReason'],
         'cancellationNotes': result['cancellationNotes'],
         'cancelledAt': result['cancelledAt'],
@@ -2015,6 +2054,35 @@ class AppointmentRepository extends BaseRepository {
         }
       }
 
+      // Fetch consultee (requestedBy) profile and user
+      final requestedById = result['requestedById'] as String?;
+      Map<String, dynamic>? consulteeProfile;
+      Map<String, dynamic>? consulteeUser;
+      if (requestedById != null) {
+        final consulteeQuery = JsonQueryBuilder()
+            .model('ConsulteeProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': requestedById})
+            .include({'user': true})
+            .build();
+        consulteeProfile =
+            await executeQueryAsSingleMap(consulteeQuery, txn: txn);
+
+        consulteeUser =
+            consulteeProfile?['user'] as Map<String, dynamic>?;
+        if (consulteeUser == null && consulteeProfile != null) {
+          final cName = consulteeProfile['userName'] as String?;
+          final cImage = consulteeProfile['userImage'] as String?;
+          if (cName != null || cImage != null) {
+            consulteeUser = {
+              'id': consulteeProfile['userId'],
+              'name': cName,
+              'image': cImage,
+            };
+          }
+        }
+      }
+
       final booking = {
         'id': result['id'],
         'bookingType': 'SUBSCRIPTION',
@@ -2035,10 +2103,24 @@ class AppointmentRepository extends BaseRepository {
             plan?['totalSessions'] ?? result['subscriptionPlanTotalSessions'],
         'sessionDurationInHours': plan?['sessionDurationInHours'] ??
             result['subscriptionPlanSessionDurationInHours'],
+        'durationInMonths': plan?['durationInMonths'] ??
+            result['subscriptionPlanDurationInMonths'],
+        'planDescription': plan?['description'],
+        'planLanguage': plan?['language'],
+        'planLevel': plan?['level'],
+        'planPrerequisites': plan?['prerequisites'],
+        'planMaterialProvided': plan?['materialProvided'],
+        'planLearningOutcomes': plan?['learningOutcomes'],
+        'meetingsPerWeek': plan?['callsPerWeek'],
+        'totalHours': plan?['totalHours'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'consulteeProfileId': consulteeProfile?['id'],
+        'consulteeUserId': consulteeUser?['id'],
+        'consulteeName': consulteeUser?['name'],
+        'consulteeImage': consulteeUser?['image'],
         'cancellationReason': result['cancellationReason'],
         'cancellationNotes': result['cancellationNotes'],
         'cancelledAt': result['cancelledAt'],
@@ -2109,6 +2191,14 @@ class AppointmentRepository extends BaseRepository {
             plan?['durationInHours'] ?? result['webinarPlanDurationInHours'],
         'maxParticipants':
             plan?['maxParticipants'] ?? result['webinarPlanMaxParticipants'],
+        'planDescription': plan?['description'],
+        'planLanguage': plan?['language'],
+        'planLevel': plan?['level'],
+        'planPrerequisites': plan?['prerequisites'],
+        'planMaterialProvided': plan?['materialProvided'],
+        'planLearningOutcomes': plan?['learningOutcomes'],
+        'planCertificateProvided': plan?['certificateProvided'] ?? false,
+        'planRecordingEnabled': plan?['recordingEnabled'] ?? false,
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -2127,12 +2217,14 @@ class AppointmentRepository extends BaseRepository {
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
 
-        // Fetch slots
+        // Fetch slots with users for participant extraction
         final slotsQuery = JsonQueryBuilder()
             .model('SlotOfAppointment')
             .action(QueryAction.findMany)
-            .where({'appointmentId': appointment['id']}).orderBy(
-                {'startsAt': 'asc'}).build();
+            .where({'appointmentId': appointment['id']})
+            .include({'user': true})
+            .orderBy({'startsAt': 'asc'})
+            .build();
 
         final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
         if (slots.isNotEmpty) {
@@ -2144,6 +2236,12 @@ class AppointmentRepository extends BaseRepository {
                     'isTentative': s['isTentative'],
                   })
               .toList();
+
+          // Extract participants from slots
+          final participantData = _extractParticipants(slots);
+          booking['participants'] = participantData['participants'];
+          booking['participantCount'] =
+              participantData['participantCount'];
         }
       }
 
@@ -2216,6 +2314,18 @@ class AppointmentRepository extends BaseRepository {
             result['classPlanSessionDurationInHours'],
         'maxParticipants':
             plan?['maxParticipants'] ?? result['classPlanMaxParticipants'],
+        'planDescription': plan?['description'],
+        'planLanguage': plan?['language'],
+        'planLevel': plan?['level'],
+        'planPrerequisites': plan?['prerequisites'],
+        'planMaterialProvided': plan?['materialProvided'],
+        'planLearningOutcomes': plan?['learningOutcomes'],
+        'planCertificateProvided': plan?['certificateProvided'] ?? false,
+        'planRecordingEnabled': plan?['recordingEnabled'] ?? false,
+        'meetingsPerWeek': plan?['meetingsPerWeek'],
+        'totalHours': plan?['totalHours'],
+        'durationInMonths':
+            plan?['durationInMonths'] ?? result['classPlanDurationInMonths'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -2234,14 +2344,16 @@ class AppointmentRepository extends BaseRepository {
         // Use first appointment for now (most common case)
         booking['appointmentId'] = appointments.first['id'];
 
-        // Fetch all slots from all appointments
+        // Fetch all slots from all appointments (with users)
         final allSlots = <Map<String, dynamic>>[];
         for (final apt in appointments) {
           final slotsQuery = JsonQueryBuilder()
               .model('SlotOfAppointment')
               .action(QueryAction.findMany)
-              .where({'appointmentId': apt['id']}).orderBy(
-                  {'startsAt': 'asc'}).build();
+              .where({'appointmentId': apt['id']})
+              .include({'user': true})
+              .orderBy({'startsAt': 'asc'})
+              .build();
 
           final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
           allSlots.addAll(slots);
@@ -2269,6 +2381,12 @@ class AppointmentRepository extends BaseRepository {
                     'isTentative': s['isTentative'],
                   })
               .toList();
+
+          // Extract participants from slots
+          final participantData = _extractParticipants(allSlots);
+          booking['participants'] = participantData['participants'];
+          booking['participantCount'] =
+              participantData['participantCount'];
         }
       }
 
@@ -2325,6 +2443,40 @@ class AppointmentRepository extends BaseRepository {
         }
       }
 
+      // Fetch consultee profile and user
+      final consulteeProfileId =
+          result['consulteeProfileId'] as String?;
+      Map<String, dynamic>? consulteeProfile;
+      Map<String, dynamic>? consulteeUser;
+      if (consulteeProfileId != null) {
+        final consulteeQuery = JsonQueryBuilder()
+            .model('ConsulteeProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': consulteeProfileId})
+            .include({'user': true})
+            .build();
+        consulteeProfile = await executeQueryAsSingleMap(
+          consulteeQuery,
+          txn: txn,
+        );
+
+        consulteeUser =
+            consulteeProfile?['user'] as Map<String, dynamic>?;
+        if (consulteeUser == null && consulteeProfile != null) {
+          final cName =
+              consulteeProfile['userName'] as String?;
+          final cImage =
+              consulteeProfile['userImage'] as String?;
+          if (cName != null || cImage != null) {
+            consulteeUser = {
+              'id': consulteeProfile['userId'],
+              'name': cName,
+              'image': cImage,
+            };
+          }
+        }
+      }
+
       final booking = <String, dynamic>{
         'id': result['id'],
         'bookingType': 'TRIAL',
@@ -2345,6 +2497,10 @@ class AppointmentRepository extends BaseRepository {
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
         'consultantImage': user?['image'],
+        'consulteeProfileId': consulteeProfile?['id'],
+        'consulteeUserId': consulteeUser?['id'],
+        'consulteeName': consulteeUser?['name'],
+        'consulteeImage': consulteeUser?['image'],
       };
 
       // Get linked appointment if exists
@@ -2726,6 +2882,99 @@ class AppointmentRepository extends BaseRepository {
     required String type,
     required String userId,
   }) async {
+    // First, check consultant access (consultant who owns the plan)
+    final consultantProfileQuery = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findFirst)
+        .where({'userId': userId}).build();
+
+    final consultantProfile =
+        await executeQueryAsSingleMap(consultantProfileQuery);
+
+    if (consultantProfile != null) {
+      final consultantProfileId = consultantProfile['id'] as String;
+      var isConsultant = false;
+
+      if (type == 'CONSULTATION') {
+        final query = JsonQueryBuilder()
+            .model('Consultation')
+            .action(QueryAction.findFirst)
+            .where({'id': bookingId})
+            .include({'consultationPlan': true})
+            .build();
+        final result = await executeQueryAsSingleMap(query);
+        if (result != null) {
+          final plan = result['consultationPlan'] as Map<String, dynamic>?;
+          final planConsultantId =
+              plan?['consultantProfileId'] as String? ??
+                  result['consultationPlanConsultantProfileId'] as String?;
+          isConsultant = planConsultantId == consultantProfileId;
+        }
+      } else if (type == 'SUBSCRIPTION') {
+        final query = JsonQueryBuilder()
+            .model('Subscription')
+            .action(QueryAction.findFirst)
+            .where({'id': bookingId})
+            .include({'subscriptionPlan': true})
+            .build();
+        final result = await executeQueryAsSingleMap(query);
+        if (result != null) {
+          final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
+          final planConsultantId =
+              plan?['consultantProfileId'] as String? ??
+                  result['subscriptionPlanConsultantProfileId'] as String?;
+          isConsultant = planConsultantId == consultantProfileId;
+        }
+      } else if (type == 'WEBINAR') {
+        final query = JsonQueryBuilder()
+            .model('Webinar')
+            .action(QueryAction.findFirst)
+            .where({'id': bookingId})
+            .include({'webinarPlan': true})
+            .build();
+        final result = await executeQueryAsSingleMap(query);
+        if (result != null) {
+          final plan = result['webinarPlan'] as Map<String, dynamic>?;
+          final planConsultantId =
+              plan?['consultantProfileId'] as String? ??
+                  result['webinarPlanConsultantProfileId'] as String?;
+          isConsultant = planConsultantId == consultantProfileId;
+        }
+      } else if (type == 'CLASS') {
+        final query = JsonQueryBuilder()
+            .model('Class')
+            .action(QueryAction.findFirst)
+            .where({'id': bookingId})
+            .include({'classPlan': true})
+            .build();
+        final result = await executeQueryAsSingleMap(query);
+        if (result != null) {
+          final plan = result['classPlan'] as Map<String, dynamic>?;
+          final planConsultantId =
+              plan?['consultantProfileId'] as String? ??
+                  result['classPlanConsultantProfileId'] as String?;
+          isConsultant = planConsultantId == consultantProfileId;
+        }
+      } else if (type == 'TRIAL') {
+        final query = JsonQueryBuilder()
+            .model('TrialSession')
+            .action(QueryAction.findFirst)
+            .where({'id': bookingId})
+            .include({'subscriptionPlan': true})
+            .build();
+        final result = await executeQueryAsSingleMap(query);
+        if (result != null) {
+          final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
+          final planConsultantId =
+              plan?['consultantProfileId'] as String? ??
+                  result['subscriptionPlanConsultantProfileId'] as String?;
+          isConsultant = planConsultantId == consultantProfileId;
+        }
+      }
+
+      if (isConsultant) return true;
+    }
+
     // For CONSULTATION, SUBSCRIPTION, and TRIAL, check via consultee profile
     if (type == 'CONSULTATION' || type == 'SUBSCRIPTION' || type == 'TRIAL') {
       // Get consultee profile ID

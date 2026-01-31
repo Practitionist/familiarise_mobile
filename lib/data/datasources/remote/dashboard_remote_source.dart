@@ -306,12 +306,12 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
         planTitle: json['planTitle'] as String?,
         planPrice: (json['planPrice'] as num?)?.toDouble(),
         planCurrency: json['planCurrency'] as String? ?? 'INR',
-        consultantUserId: json['consultantUserId'] as String? ??
-            json['consulteeUserId'] as String?,
-        consultantName: json['consultantName'] as String? ??
-            json['consulteeName'] as String?,
-        consultantImage: json['consultantImage'] as String? ??
-            json['consulteeImage'] as String?,
+        consultantUserId: json['consultantUserId'] as String?,
+        consultantName: json['consultantName'] as String?,
+        consultantImage: json['consultantImage'] as String?,
+        consulteeUserId: json['consulteeUserId'] as String?,
+        consulteeName: json['consulteeName'] as String?,
+        consulteeImage: json['consulteeImage'] as String?,
         slots: _parseSlots(json['slots']),
       );
     }).toList();

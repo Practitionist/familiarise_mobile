@@ -50,14 +50,21 @@ Future<Response> onRequest(RequestContext context, String id) async {
 
     // Get booking type from query parameter
     final type = params['type'];
-    const validTypes = ['CONSULTATION', 'SUBSCRIPTION', 'WEBINAR', 'CLASS'];
+    const validTypes = [
+      'CONSULTATION',
+      'SUBSCRIPTION',
+      'WEBINAR',
+      'CLASS',
+      'TRIAL',
+    ];
     if (type == null || !validTypes.contains(type)) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
           'error': {
             'message': 'Query parameter type required '
-                '(CONSULTATION, SUBSCRIPTION, WEBINAR, or CLASS)',
+                '(CONSULTATION, SUBSCRIPTION, WEBINAR, CLASS, '
+                'or TRIAL)',
           },
         },
       );

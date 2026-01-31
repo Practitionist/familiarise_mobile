@@ -466,12 +466,13 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       planCurrency: json['planCurrency'] as String? ?? 'INR',
       planDuration: (json['planDuration'] as num?)?.toDouble(),
       consultantProfileId: json['consultantProfileId'] as String?,
-      consultantUserId: json['consultantUserId'] as String? ??
-          json['consulteeUserId'] as String?,
-      consultantName: json['consultantName'] as String? ??
-          json['consulteeName'] as String?,
-      consultantImage: json['consultantImage'] as String? ??
-          json['consulteeImage'] as String?,
+      consultantUserId: json['consultantUserId'] as String?,
+      consultantName: json['consultantName'] as String?,
+      consultantImage: json['consultantImage'] as String?,
+      consulteeProfileId: json['consulteeProfileId'] as String?,
+      consulteeUserId: json['consulteeUserId'] as String?,
+      consulteeName: json['consulteeName'] as String?,
+      consulteeImage: json['consulteeImage'] as String?,
       slots: _parseSlots(json['slots']),
       schedulingPeriodStartsAt:
           _parseDateTime(json['schedulingPeriodStartsAt']),
@@ -508,6 +509,21 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       // Participant info (for group programs)
       participants: _parseParticipants(json['participants']),
       participantCount: json['participantCount'] as int? ?? 0,
+      // Extended plan details (for webinar/class detail views)
+      planDescription: json['planDescription'] as String?,
+      planLanguage: json['planLanguage'] as String?,
+      planLevel: json['planLevel'] as String?,
+      planPrerequisites: json['planPrerequisites'] as String?,
+      planMaterialProvided: json['planMaterialProvided'] as String?,
+      planLearningOutcomes: (json['planLearningOutcomes'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      planCertificateProvided:
+          json['planCertificateProvided'] as bool? ?? false,
+      planRecordingEnabled: json['planRecordingEnabled'] as bool? ?? false,
+      meetingsPerWeek: json['meetingsPerWeek'] as int?,
+      totalHours: (json['totalHours'] as num?)?.toDouble(),
     );
   }
 

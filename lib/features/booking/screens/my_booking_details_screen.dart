@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import '../../../core/constants/enums.dart' show UserRole;
 import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../shared/utils/fake_data.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_service_provider.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/booking_actions_provider.dart';
@@ -188,15 +190,19 @@ class _MyBookingDetailsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Consultant Info Card
-              _buildConsultantCard(booking),
+              // For group programs (webinar/class), show plan overview
+              // For 1-on-1 (consultation/subscription/trial), show person card
+              if (booking.isGroupProgram)
+                _buildPlanOverviewCard(booking)
+              else
+                _buildConsultantCard(booking),
               const SizedBox(height: 16),
 
               // Status Section
               _buildStatusSection(booking),
               const SizedBox(height: 16),
 
-              // Plan Details Card
+              // Plan Details Card (duration, price, sessions)
               _buildPlanDetailsCard(booking),
               const SizedBox(height: 16),
 
@@ -242,9 +248,25 @@ class _MyBookingDetailsScreenState
     );
   }
 
+  /// Whether the current user is viewing as a consultant
+  bool get _isConsultantView {
+    final user = ref.read(currentUserProvider);
+    return user?.role == UserRole.consultant;
+  }
+
   Widget _buildConsultantCard(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isConsultant = _isConsultantView;
+
+    // Show the "other party": consultee info for consultants,
+    // consultant info for consultees
+    final displayName = isConsultant
+        ? (booking.consulteeName ?? 'Client')
+        : (booking.consultantName ?? 'Consultant');
+    final displayImage = isConsultant
+        ? booking.consulteeImage
+        : booking.consultantImage;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -260,9 +282,9 @@ class _MyBookingDetailsScreenState
           // Avatar
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: booking.consultantImage != null
+            child: displayImage != null
                 ? CachedNetworkImage(
-                    imageUrl: booking.consultantImage!,
+                    imageUrl: displayImage,
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
@@ -298,7 +320,7 @@ class _MyBookingDetailsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  booking.consultantName ?? 'Consultant',
+                  displayName,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -318,9 +340,290 @@ class _MyBookingDetailsScreenState
     );
   }
 
+  Widget _buildPlanOverviewCard(Booking booking) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isWebinar = booking.bookingType == BookingType.webinar;
+    final typeLabel = isWebinar ? 'Webinar' : 'Class';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Type badge + title
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isWebinar ? Icons.videocam : Icons.school,
+                      size: 14,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      typeLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (booking.maxParticipants != null) ...[
+                const Spacer(),
+                Icon(
+                  Icons.group,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${booking.participantCount}/${booking.maxParticipants} participants',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Plan title
+          if (booking.planTitle != null)
+            Text(
+              booking.planTitle!,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+          // Description
+          if (booking.planDescription != null &&
+              booking.planDescription!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              booking.planDescription!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+
+          // Info chips row
+          if (booking.planLanguage != null ||
+              booking.planLevel != null ||
+              booking.planCertificateProvided ||
+              booking.planRecordingEnabled) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (booking.planLanguage != null)
+                  _buildInfoChip(
+                    Icons.language,
+                    booking.planLanguage!,
+                    colorScheme,
+                    theme,
+                  ),
+                if (booking.planLevel != null)
+                  _buildInfoChip(
+                    Icons.signal_cellular_alt,
+                    booking.planLevel!,
+                    colorScheme,
+                    theme,
+                  ),
+                if (booking.planCertificateProvided)
+                  _buildInfoChip(
+                    Icons.workspace_premium,
+                    'Certificate',
+                    colorScheme,
+                    theme,
+                  ),
+                if (booking.planRecordingEnabled)
+                  _buildInfoChip(
+                    Icons.fiber_manual_record,
+                    'Recorded',
+                    colorScheme,
+                    theme,
+                  ),
+              ],
+            ),
+          ],
+
+          // Class-specific: meetings per week
+          if (!isWebinar && booking.meetingsPerWeek != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_month,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${booking.meetingsPerWeek} meetings/week',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (booking.durationInMonths != null) ...[
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.date_range,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${booking.durationInMonths} months',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+
+          // Prerequisites
+          if (booking.planPrerequisites != null &&
+              booking.planPrerequisites!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Prerequisites',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              booking.planPrerequisites!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+
+          // Learning outcomes
+          if (booking.planLearningOutcomes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Learning Outcomes',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            ...booking.planLearningOutcomes.map(
+              (outcome) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 14,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        outcome,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // Materials provided
+          if (booking.planMaterialProvided != null &&
+              booking.planMaterialProvided!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Materials Provided',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              booking.planMaterialProvided!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(
+    IconData icon,
+    String label,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatusSection(Booking booking) {
     final theme = Theme.of(context);
     final statusColors = _getStatusColors(booking.status);
+    final description = _isConsultantView
+        ? _consultantStatusDescription(booking.status)
+        : booking.statusDescription;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -350,7 +653,7 @@ class _MyBookingDetailsScreenState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  booking.statusDescription,
+                  description,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: statusColors.$2.withOpacity(0.8),
                   ),
@@ -363,6 +666,27 @@ class _MyBookingDetailsScreenState
     );
   }
 
+  String _consultantStatusDescription(RequestStatus status) {
+    switch (status) {
+      case RequestStatus.pending:
+        return 'Waiting for your approval';
+      case RequestStatus.approved:
+        return 'You approved this request';
+      case RequestStatus.approvedPendingPayment:
+        return 'Waiting for client payment';
+      case RequestStatus.scheduled:
+        return 'Confirmed and scheduled';
+      case RequestStatus.rejected:
+        return 'You declined this request';
+      case RequestStatus.cancelled:
+        return 'This booking has been cancelled';
+      case RequestStatus.expired:
+        return 'This request has expired';
+      case RequestStatus.completed:
+        return 'Session completed';
+    }
+  }
+
   Widget _buildPlanDetailsCard(Booking booking) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -373,7 +697,7 @@ class _MyBookingDetailsScreenState
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.5),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -386,7 +710,11 @@ class _MyBookingDetailsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+
+          // Core metrics row
+          Wrap(
+            spacing: 24,
+            runSpacing: 12,
             children: [
               _buildDetailItem(
                 icon: Icons.schedule,
@@ -397,22 +725,178 @@ class _MyBookingDetailsScreenState
                         ? '${(booking.sessionDurationInHours! * 60).toInt()} min/session'
                         : '-'),
               ),
-              const SizedBox(width: 24),
               _buildDetailItem(
                 icon: Icons.currency_rupee,
                 label: 'Price',
                 value: booking.formattedPrice,
               ),
-              if (booking.totalSessions != null) ...[
-                const SizedBox(width: 24),
+              if (booking.totalSessions != null)
                 _buildDetailItem(
                   icon: Icons.calendar_view_week,
                   label: 'Sessions',
                   value: '${booking.totalSessions}',
                 ),
-              ],
+              if (booking.meetingsPerWeek != null)
+                _buildDetailItem(
+                  icon: Icons.repeat,
+                  label: 'Per Week',
+                  value: '${booking.meetingsPerWeek}',
+                ),
+              if (booking.durationInMonths != null)
+                _buildDetailItem(
+                  icon: Icons.date_range,
+                  label: 'Months',
+                  value: '${booking.durationInMonths}',
+                ),
+              if (booking.totalHours != null)
+                _buildDetailItem(
+                  icon: Icons.hourglass_bottom,
+                  label: 'Total Hours',
+                  value: '${booking.totalHours!.toStringAsFixed(0)}h',
+                ),
             ],
           ),
+
+          // Description (skip for group programs since their overview card
+          // already shows it)
+          if (!booking.isGroupProgram &&
+              booking.planDescription != null &&
+              booking.planDescription!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              booking.planDescription!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+
+          // Info chips (language, level, certificate, recording)
+          if (!booking.isGroupProgram &&
+              (booking.planLanguage != null ||
+                  booking.planLevel != null ||
+                  booking.planCertificateProvided ||
+                  booking.planRecordingEnabled)) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (booking.planLanguage != null)
+                  _buildInfoChip(
+                    Icons.language,
+                    booking.planLanguage!,
+                    colorScheme,
+                    theme,
+                  ),
+                if (booking.planLevel != null)
+                  _buildInfoChip(
+                    Icons.signal_cellular_alt,
+                    booking.planLevel!,
+                    colorScheme,
+                    theme,
+                  ),
+                if (booking.planCertificateProvided)
+                  _buildInfoChip(
+                    Icons.workspace_premium,
+                    'Certificate',
+                    colorScheme,
+                    theme,
+                  ),
+                if (booking.planRecordingEnabled)
+                  _buildInfoChip(
+                    Icons.fiber_manual_record,
+                    'Recorded',
+                    colorScheme,
+                    theme,
+                  ),
+              ],
+            ),
+          ],
+
+          // Prerequisites
+          if (!booking.isGroupProgram &&
+              booking.planPrerequisites != null &&
+              booking.planPrerequisites!.isNotEmpty &&
+              booking.planPrerequisites != 'None') ...[
+            const SizedBox(height: 12),
+            Text(
+              'Prerequisites',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              booking.planPrerequisites!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+
+          // Learning outcomes
+          if (!booking.isGroupProgram &&
+              booking.planLearningOutcomes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Learning Outcomes',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            ...booking.planLearningOutcomes.map(
+              (outcome) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 14,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        outcome,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // Materials provided
+          if (!booking.isGroupProgram &&
+              booking.planMaterialProvided != null &&
+              booking.planMaterialProvided!.isNotEmpty &&
+              booking.planMaterialProvided != 'None') ...[
+            const SizedBox(height: 12),
+            Text(
+              'Materials Provided',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              booking.planMaterialProvided!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -645,7 +1129,7 @@ class _MyBookingDetailsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Your Message',
+            _isConsultantView ? "Client's Message" : 'Your Message',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -845,8 +1329,13 @@ class _MyBookingDetailsScreenState
       );
     }
 
-    // Talk to Expert button (for bookings with consultant)
-    if (booking.consultantUserId != null &&
+    // Chat button (shows "Talk to Expert" for consultees,
+    // "Message Client" for consultants)
+    final isConsultant = _isConsultantView;
+    final chatUserId = isConsultant
+        ? booking.consulteeUserId
+        : booking.consultantUserId;
+    if (chatUserId != null &&
         booking.status != RequestStatus.cancelled &&
         booking.status != RequestStatus.rejected &&
         booking.status != RequestStatus.expired) {
@@ -856,7 +1345,7 @@ class _MyBookingDetailsScreenState
           child: FilledButton.icon(
             onPressed: isLoading ? null : _handleTalkToExpert,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text('Talk to Expert'),
+            label: Text(isConsultant ? 'Message Client' : 'Talk to Expert'),
             style: FilledButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -866,8 +1355,9 @@ class _MyBookingDetailsScreenState
       );
     }
 
-    // Pay Now button (for APPROVED_PENDING_PAYMENT)
-    if (booking.status == RequestStatus.approvedPendingPayment) {
+    // Pay Now button (for APPROVED_PENDING_PAYMENT, consultee only)
+    if (!isConsultant &&
+        booking.status == RequestStatus.approvedPendingPayment) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -884,8 +1374,8 @@ class _MyBookingDetailsScreenState
       );
     }
 
-    // Reschedule button
-    if (booking.canReschedule) {
+    // Reschedule button (consultee only)
+    if (!isConsultant && booking.canReschedule) {
       actions.add(
         SizedBox(
           width: double.infinity,
@@ -919,8 +1409,9 @@ class _MyBookingDetailsScreenState
       );
     }
 
-    // Write Review button (for completed bookings)
-    if (booking.status == RequestStatus.completed &&
+    // Write Review button (for completed bookings, consultee only)
+    if (!isConsultant &&
+        booking.status == RequestStatus.completed &&
         booking.consultantProfileId != null) {
       actions.add(
         SizedBox(
@@ -1023,9 +1514,20 @@ class _MyBookingDetailsScreenState
   }
 
   Future<void> _handleTalkToExpert() async {
-    if (_fetchedBooking?.consultantUserId == null) {
+    final isConsultant = _isConsultantView;
+    final otherUserId = isConsultant
+        ? _fetchedBooking?.consulteeUserId
+        : _fetchedBooking?.consultantUserId;
+    final otherUserName = isConsultant
+        ? _fetchedBooking?.consulteeName
+        : _fetchedBooking?.consultantName;
+    final otherUserImage = isConsultant
+        ? _fetchedBooking?.consulteeImage
+        : _fetchedBooking?.consultantImage;
+
+    if (otherUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Consultant not available')),
+        const SnackBar(content: Text('User not available')),
       );
       return;
     }
@@ -1050,7 +1552,7 @@ class _MyBookingDetailsScreenState
             context: 'MyBookingDetailsScreen._handleTalkToExpert',
             extras: {
               'bookingId': widget.bookingId,
-              'consultantUserId': _fetchedBooking!.consultantUserId,
+              'otherUserId': otherUserId,
             },
           );
           if (mounted) {
@@ -1065,9 +1567,9 @@ class _MyBookingDetailsScreenState
 
       // Create or get the channel
       final channel = await chatService.getOrCreateDirectChannel(
-        _fetchedBooking!.consultantUserId!,
-        otherUserName: _fetchedBooking!.consultantName,
-        otherUserImage: _fetchedBooking!.consultantImage,
+        otherUserId,
+        otherUserName: otherUserName,
+        otherUserImage: otherUserImage,
       );
 
       if (channel != null && mounted) {
@@ -1087,7 +1589,7 @@ class _MyBookingDetailsScreenState
         context: 'MyBookingDetailsScreen._handleTalkToExpert',
         extras: {
           'bookingId': widget.bookingId,
-          'consultantUserId': _fetchedBooking?.consultantUserId,
+          'otherUserId': otherUserId,
         },
       );
       if (mounted) {

@@ -59,9 +59,9 @@ class BookingCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (booking.consultantName != null)
+                          if (booking.displayName != null)
                             Text(
-                              booking.consultantName!,
+                              booking.displayName!,
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: -0.2,
@@ -170,6 +170,8 @@ class BookingCard extends StatelessWidget {
       return _buildStackedAvatars(colorScheme);
     }
 
+    final image = booking.displayImage;
+
     return Container(
       width: 48,
       height: 48,
@@ -178,9 +180,9 @@ class BookingCard extends StatelessWidget {
         color: colorScheme.primaryContainer,
       ),
       clipBehavior: Clip.antiAlias,
-      child: booking.consultantImage != null
+      child: image != null
           ? CachedNetworkImage(
-              imageUrl: booking.consultantImage!,
+              imageUrl: image,
               fit: BoxFit.cover,
               placeholder: (context, url) => Center(
                 child: Icon(
