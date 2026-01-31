@@ -156,6 +156,11 @@ class ChatService extends _$ChatService {
         return null;
       }
 
+      // Prevent creating channel with self (causes StreamChat 400 error)
+      if (currentUserId == otherUserId) {
+        return null;
+      }
+
       // Upsert the other user in Stream Chat (server-side)
       // This ensures the user exists before creating a channel with them
       final chatRepository = ref.read(chatRepositoryProvider);
