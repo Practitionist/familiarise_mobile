@@ -2,12 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../core/constants/enums.dart'
-    show BookingSource, CancellationReason;
 import '../../../core/errors/exceptions.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../shared/providers/core_providers.dart';
+import 'booking_json_parser.dart';
 
 part 'booking_remote_source.g.dart';
 
@@ -441,104 +440,10 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     }
   }
 
-  /// Parse a booking from API response
-  ///
-  /// Handles both consultee and consultant perspectives:
-  /// - Falls back to `appointmentType` when `bookingType` is absent
-  /// - Falls back to consultee fields when consultant fields are null
-  ///   (when role=consultant, the "other party" info is in consultee fields)
-  Booking _parseBooking(Map<String, dynamic> json) {
-    return Booking(
-      id: json['id'] as String,
-      bookingType: BookingType.fromString(
-        json['bookingType'] as String? ??
-            json['appointmentType'] as String? ??
-            'CONSULTATION',
-      ),
-      status: RequestStatus.fromString(json['status'] as String? ?? 'PENDING'),
-      message: json['message'] as String?,
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: _parseDateTime(json['updatedAt']),
-      appointmentId: json['appointmentId'] as String?,
-      planId: json['planId'] as String?,
-      planTitle: json['planTitle'] as String?,
-      planPrice: (json['planPrice'] as num?)?.toDouble(),
-      planCurrency: json['planCurrency'] as String? ?? 'INR',
-      planDuration: (json['planDuration'] as num?)?.toDouble(),
-      consultantProfileId: json['consultantProfileId'] as String?,
-      consultantUserId: json['consultantUserId'] as String?,
-      consultantName: json['consultantName'] as String?,
-      consultantImage: json['consultantImage'] as String?,
-      consulteeProfileId: json['consulteeProfileId'] as String?,
-      consulteeUserId: json['consulteeUserId'] as String?,
-      consulteeName: json['consulteeName'] as String?,
-      consulteeImage: json['consulteeImage'] as String?,
-      slots: _parseSlots(json['slots']),
-      schedulingPeriodStartsAt:
-          _parseDateTime(json['schedulingPeriodStartsAt']),
-      schedulingPeriodEndsAt: _parseDateTime(json['schedulingPeriodEndsAt']),
-      schedulingTimezone: json['schedulingTimezone'] as String?,
-      totalSessions: json['totalSessions'] as int?,
-      sessionDurationInHours:
-          (json['sessionDurationInHours'] as num?)?.toDouble(),
-      // Cancellation fields
-      cancellationReason: json['cancellationReason'] != null
-          ? CancellationReason.values.firstWhere(
-              (e) => e.name == json['cancellationReason'] ||
-                  e.name ==
-                      _camelCase(json['cancellationReason'] as String),
-              orElse: () => CancellationReason.other,
-            )
-          : null,
-      cancellationNotes: json['cancellationNotes'] as String?,
-      cancelledAt: _parseDateTime(json['cancelledAt']),
-      cancelledBy: json['cancelledBy'] as String?,
-      // Booking source
-      bookingSource: json['bookingSource'] != null
-          ? BookingSource.values.firstWhere(
-              (e) => e.name == json['bookingSource'] ||
-                  e.name ==
-                      _camelCase(json['bookingSource'] as String),
-              orElse: () => BookingSource.requestSubmitted,
-            )
-          : null,
-      // Feedback fields
-      feedbackFromConsultee: json['feedbackFromConsultee'] as String?,
-      feedbackFromConsultant: json['feedbackFromConsultant'] as String?,
-      rating: (json['rating'] as num?)?.toDouble(),
-      // Participant info (for group programs)
-      participants: _parseParticipants(json['participants']),
-      participantCount: json['participantCount'] as int? ?? 0,
-      // Extended plan details (for webinar/class detail views)
-      planDescription: json['planDescription'] as String?,
-      planLanguage: json['planLanguage'] as String?,
-      planLevel: json['planLevel'] as String?,
-      planPrerequisites: json['planPrerequisites'] as String?,
-      planMaterialProvided: json['planMaterialProvided'] as String?,
-      planLearningOutcomes: (json['planLearningOutcomes'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
-      planCertificateProvided:
-          json['planCertificateProvided'] as bool? ?? false,
-      planRecordingEnabled: json['planRecordingEnabled'] as bool? ?? false,
-      meetingsPerWeek: json['meetingsPerWeek'] as int?,
-      totalHours: (json['totalHours'] as num?)?.toDouble(),
-    );
-  }
-
-  /// Parse participants list from API response
-  List<BookingParticipant> _parseParticipants(dynamic participantsJson) {
-    if (participantsJson == null || participantsJson is! List) return [];
-    return participantsJson.map((p) {
-      final pMap = p as Map<String, dynamic>;
-      return BookingParticipant(
-        id: pMap['id'] as String,
-        name: pMap['name'] as String?,
-        image: pMap['image'] as String?,
-      );
-    }).toList();
-  }
+  /// Parse a booking from API response.
+  /// Delegates to the shared [parseBookingJson] parser.
+  Booking _parseBooking(Map<String, dynamic> json) =>
+      parseBookingJson(json);
 
   /// Parse bookings response with pagination
   BookingsResponse _parseBookingsResponse(Map<String, dynamic> json) {
@@ -558,31 +463,6 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     );
 
     return BookingsResponse(bookings: bookings, pagination: pagination);
-  }
-
-  /// Parse slots list
-  List<BookingSlot> _parseSlots(dynamic slotsJson) {
-    if (slotsJson == null) return [];
-    if (slotsJson is! List) return [];
-
-    return slotsJson.map((s) {
-      final slotJson = s as Map<String, dynamic>;
-      // Fail fast if startsAt/endsAt is null - indicates data integrity issue
-      return BookingSlot(
-        id: slotJson['id'] as String,
-        startsAt: _parseDateTime(slotJson['startsAt'])!,
-        endsAt: _parseDateTime(slotJson['endsAt'])!,
-        isTentative: slotJson['isTentative'] as bool? ?? false,
-      );
-    }).toList();
-  }
-
-  /// Parse datetime from string or null
-  DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value);
-    return null;
   }
 
   /// Extract error message from DioException
@@ -610,10 +490,4 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     return null;
   }
 
-  /// Convert SCREAMING_SNAKE_CASE or snake_case to camelCase
-  String _camelCase(String input) {
-    final parts = input.toLowerCase().split('_');
-    return parts.first +
-        parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
-  }
 }

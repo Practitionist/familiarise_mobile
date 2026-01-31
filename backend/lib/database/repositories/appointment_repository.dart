@@ -1908,33 +1908,12 @@ class AppointmentRepository extends BaseRepository {
       }
 
       // Fetch consultee (requestedBy) profile and user
-      final requestedById = result['requestedById'] as String?;
-      Map<String, dynamic>? consulteeProfile;
-      Map<String, dynamic>? consulteeUser;
-      if (requestedById != null) {
-        final consulteeQuery = JsonQueryBuilder()
-            .model('ConsulteeProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': requestedById})
-            .include({'user': true})
-            .build();
-        consulteeProfile =
-            await executeQueryAsSingleMap(consulteeQuery, txn: txn);
-
-        consulteeUser =
-            consulteeProfile?['user'] as Map<String, dynamic>?;
-        if (consulteeUser == null && consulteeProfile != null) {
-          final cName = consulteeProfile['userName'] as String?;
-          final cImage = consulteeProfile['userImage'] as String?;
-          if (cName != null || cImage != null) {
-            consulteeUser = {
-              'id': consulteeProfile['userId'],
-              'name': cName,
-              'image': cImage,
-            };
-          }
-        }
-      }
+      final consulteeInfo = await _fetchConsulteeInfo(
+        result['requestedById'] as String?,
+        txn: txn,
+      );
+      final consulteeProfile = consulteeInfo.profile;
+      final consulteeUser = consulteeInfo.user;
 
       final booking = {
         'id': result['id'],
@@ -2055,33 +2034,12 @@ class AppointmentRepository extends BaseRepository {
       }
 
       // Fetch consultee (requestedBy) profile and user
-      final requestedById = result['requestedById'] as String?;
-      Map<String, dynamic>? consulteeProfile;
-      Map<String, dynamic>? consulteeUser;
-      if (requestedById != null) {
-        final consulteeQuery = JsonQueryBuilder()
-            .model('ConsulteeProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': requestedById})
-            .include({'user': true})
-            .build();
-        consulteeProfile =
-            await executeQueryAsSingleMap(consulteeQuery, txn: txn);
-
-        consulteeUser =
-            consulteeProfile?['user'] as Map<String, dynamic>?;
-        if (consulteeUser == null && consulteeProfile != null) {
-          final cName = consulteeProfile['userName'] as String?;
-          final cImage = consulteeProfile['userImage'] as String?;
-          if (cName != null || cImage != null) {
-            consulteeUser = {
-              'id': consulteeProfile['userId'],
-              'name': cName,
-              'image': cImage,
-            };
-          }
-        }
-      }
+      final consulteeInfo = await _fetchConsulteeInfo(
+        result['requestedById'] as String?,
+        txn: txn,
+      );
+      final consulteeProfile = consulteeInfo.profile;
+      final consulteeUser = consulteeInfo.user;
 
       final booking = {
         'id': result['id'],
@@ -2444,38 +2402,12 @@ class AppointmentRepository extends BaseRepository {
       }
 
       // Fetch consultee profile and user
-      final consulteeProfileId =
-          result['consulteeProfileId'] as String?;
-      Map<String, dynamic>? consulteeProfile;
-      Map<String, dynamic>? consulteeUser;
-      if (consulteeProfileId != null) {
-        final consulteeQuery = JsonQueryBuilder()
-            .model('ConsulteeProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consulteeProfileId})
-            .include({'user': true})
-            .build();
-        consulteeProfile = await executeQueryAsSingleMap(
-          consulteeQuery,
-          txn: txn,
-        );
-
-        consulteeUser =
-            consulteeProfile?['user'] as Map<String, dynamic>?;
-        if (consulteeUser == null && consulteeProfile != null) {
-          final cName =
-              consulteeProfile['userName'] as String?;
-          final cImage =
-              consulteeProfile['userImage'] as String?;
-          if (cName != null || cImage != null) {
-            consulteeUser = {
-              'id': consulteeProfile['userId'],
-              'name': cName,
-              'image': cImage,
-            };
-          }
-        }
-      }
+      final consulteeInfo = await _fetchConsulteeInfo(
+        result['consulteeProfileId'] as String?,
+        txn: txn,
+      );
+      final consulteeProfile = consulteeInfo.profile;
+      final consulteeUser = consulteeInfo.user;
 
       final booking = <String, dynamic>{
         'id': result['id'],
@@ -3057,5 +2989,43 @@ class AppointmentRepository extends BaseRepository {
     }
 
     return false;
+  }
+
+  /// Fetch a consultee's profile and user info by profile ID.
+  ///
+  /// Returns a record with the consultee profile map and user map.
+  /// Handles both nested and ORM-flattened user fields.
+  Future<({Map<String, dynamic>? profile, Map<String, dynamic>? user})>
+      _fetchConsulteeInfo(
+    String? consulteeProfileId, {
+    TransactionExecutor? txn,
+  }) async {
+    if (consulteeProfileId == null) {
+      return (profile: null, user: null);
+    }
+
+    final consulteeQuery = JsonQueryBuilder()
+        .model('ConsulteeProfile')
+        .action(QueryAction.findUnique)
+        .where({'id': consulteeProfileId})
+        .include({'user': true})
+        .build();
+    final profile =
+        await executeQueryAsSingleMap(consulteeQuery, txn: txn);
+
+    var user = profile?['user'] as Map<String, dynamic>?;
+    if (user == null && profile != null) {
+      final cName = profile['userName'] as String?;
+      final cImage = profile['userImage'] as String?;
+      if (cName != null || cImage != null) {
+        user = {
+          'id': profile['userId'],
+          'name': cName,
+          'image': cImage,
+        };
+      }
+    }
+
+    return (profile: profile, user: user);
   }
 }

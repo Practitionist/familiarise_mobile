@@ -8,6 +8,9 @@ class DashboardRepository extends BaseRepository {
   DashboardRepository(super._executor);
 
   /// Get aggregated stats for a consultee user
+  ///
+  /// Batches consultation and subscription counts into 2 queries (grouped by
+  /// status in Dart) instead of separate count queries per status.
   Future<Map<String, dynamic>> getConsulteeStats({
     required String userId,
   }) async {
@@ -32,61 +35,56 @@ class DashboardRepository extends BaseRepository {
       };
     }
 
-    // Count consultations by status
-    final totalConsultations = await _countConsultations(
-      consulteeProfileId: consulteeProfileId,
-    );
-    final completedConsultations = await _countConsultations(
-      consulteeProfileId: consulteeProfileId,
-      status: 'COMPLETED',
-    );
-    final cancelledConsultations = await _countConsultations(
-      consulteeProfileId: consulteeProfileId,
-      status: 'CANCELLED',
-    );
+    // Batch: get all consultation statuses in 1 query (instead of 5 counts)
+    final consultationStatusQuery = JsonQueryBuilder()
+        .model('Consultation')
+        .action(QueryAction.findMany)
+        .where({'requestedById': consulteeProfileId})
+        .select({'requestStatus': true})
+        .build();
+    final consultationRows =
+        await executeQueryAsMaps(consultationStatusQuery);
+    final consultationCounts =
+        _groupByStatus(consultationRows, 'requestStatus');
 
-    // Count upcoming (SCHEDULED status with future slots)
-    final upcomingConsultations = await _countConsultations(
-      consulteeProfileId: consulteeProfileId,
-      status: 'SCHEDULED',
-    );
-
-    // Count subscriptions
-    final totalSubscriptions = await _countSubscriptions(
-      consulteeProfileId: consulteeProfileId,
-    );
-    final activeSubscriptions = await _countSubscriptions(
-      consulteeProfileId: consulteeProfileId,
-      status: 'SCHEDULED',
-    );
-
-    // Count pending payments
-    final pendingPayments = await _countConsultations(
-      consulteeProfileId: consulteeProfileId,
-      status: 'APPROVED_PENDING_PAYMENT',
-    );
-    final pendingSubPayments = await _countSubscriptions(
-      consulteeProfileId: consulteeProfileId,
-      status: 'APPROVED_PENDING_PAYMENT',
-    );
+    // Batch: get all subscription statuses in 1 query (instead of 3 counts)
+    final subscriptionStatusQuery = JsonQueryBuilder()
+        .model('Subscription')
+        .action(QueryAction.findMany)
+        .where({'requestedById': consulteeProfileId})
+        .select({'requestStatus': true})
+        .build();
+    final subscriptionRows =
+        await executeQueryAsMaps(subscriptionStatusQuery);
+    final subscriptionCounts =
+        _groupByStatus(subscriptionRows, 'requestStatus');
 
     // Calculate total spent from completed consultations
     final totalSpent = await _calculateTotalSpent(
       consulteeProfileId: consulteeProfileId,
     );
 
+    final totalConsultations =
+        consultationCounts.values.fold(0, (a, b) => a + b);
+    final totalSubscriptions =
+        subscriptionCounts.values.fold(0, (a, b) => a + b);
+
     return {
       'totalSessions': totalConsultations + totalSubscriptions,
-      'completedSessions': completedConsultations,
-      'upcomingSessions': upcomingConsultations,
-      'cancelledSessions': cancelledConsultations,
+      'completedSessions': consultationCounts['COMPLETED'] ?? 0,
+      'upcomingSessions': consultationCounts['SCHEDULED'] ?? 0,
+      'cancelledSessions': consultationCounts['CANCELLED'] ?? 0,
       'totalSpent': totalSpent,
-      'activeSubscriptions': activeSubscriptions,
-      'pendingPayments': pendingPayments + pendingSubPayments,
+      'activeSubscriptions': subscriptionCounts['SCHEDULED'] ?? 0,
+      'pendingPayments': (consultationCounts['APPROVED_PENDING_PAYMENT'] ?? 0) +
+          (subscriptionCounts['APPROVED_PENDING_PAYMENT'] ?? 0),
     };
   }
 
   /// Get aggregated stats for a consultant user
+  ///
+  /// Pre-fetches all plan IDs once and batches session counts across statuses
+  /// to reduce DB round trips (~18 queries instead of ~42).
   Future<Map<String, dynamic>> getConsultantStats({
     required String userId,
   }) async {
@@ -105,6 +103,9 @@ class DashboardRepository extends BaseRepository {
       };
     }
 
+    // Pre-fetch all plan IDs once (4 queries, reused by all downstream methods)
+    final planData = await _prefetchConsultantPlanData(consultantProfileId);
+
     // Get rating from profile
     final ratingQuery = JsonQueryBuilder()
         .model('ConsultantProfile')
@@ -121,39 +122,31 @@ class DashboardRepository extends BaseRepository {
         .where({'consultantProfileId': consultantProfileId}).build();
     final totalReviews = await executeCount(reviewCountQuery);
 
-    // Count unique clients from consultations
+    // Count unique clients using pre-fetched plan IDs
     final uniqueClients = await _countUniqueClients(
       consultantProfileId: consultantProfileId,
+      planData: planData,
     );
 
-    // Count completed sessions
-    final completedSessions = await _countConsultantSessions(
+    // Count sessions by status in a single pass per booking type
+    // (5 queries instead of 15)
+    final sessionCounts = await _countConsultantSessionsByStatus(
       consultantProfileId: consultantProfileId,
-      status: 'COMPLETED',
+      planData: planData,
+      statuses: ['COMPLETED', 'SCHEDULED', 'PENDING'],
     );
 
-    // Count upcoming sessions
-    final upcomingSessions = await _countConsultantSessions(
-      consultantProfileId: consultantProfileId,
-      status: 'SCHEDULED',
-    );
-
-    // Count pending requests
-    final pendingRequests = await _countConsultantSessions(
-      consultantProfileId: consultantProfileId,
-      status: 'PENDING',
-    );
-
-    // Calculate earnings
+    // Calculate earnings using pre-fetched plan prices (1 query instead of 3)
     final earnings = await _calculateConsultantEarnings(
       consultantProfileId: consultantProfileId,
+      preloadedPlanPrices: planData.consultationPlanPrices,
     );
 
     return {
       'totalClients': uniqueClients,
-      'totalSessionsConducted': completedSessions,
-      'upcomingSessions': upcomingSessions,
-      'pendingRequests': pendingRequests,
+      'totalSessionsConducted': sessionCounts['COMPLETED'] ?? 0,
+      'upcomingSessions': sessionCounts['SCHEDULED'] ?? 0,
+      'pendingRequests': sessionCounts['PENDING'] ?? 0,
       'averageRating': rating,
       'totalReviews': totalReviews,
       'totalEarnings': earnings['total'] ?? 0.0,
@@ -259,7 +252,8 @@ class DashboardRepository extends BaseRepository {
     return {
       'totalEarnings': earnings['total'] ?? 0.0,
       'pendingEarnings': earnings['pending'] ?? 0.0,
-      'paidEarnings': (earnings['total'] ?? 0.0) - (earnings['pending'] ?? 0.0),
+      'paidEarnings':
+          (earnings['total'] ?? 0.0) - (earnings['pending'] ?? 0.0),
       'currency': 'INR',
     };
   }
@@ -277,44 +271,205 @@ class DashboardRepository extends BaseRepository {
     return profile?['id'] as String?;
   }
 
-  Future<int> _countConsultations({
-    required String consulteeProfileId,
-    String? status,
-  }) async {
-    final where = <String, dynamic>{
-      'requestedById': consulteeProfileId,
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
-    }
-
-    final query = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.count)
-        .where(where)
+  /// Pre-fetch all plan IDs and consultation plan prices for a consultant.
+  ///
+  /// Returns a cache object that downstream methods reuse, avoiding redundant
+  /// plan ID lookups (saves ~12 queries in getConsultantStats).
+  Future<_ConsultantPlanData> _prefetchConsultantPlanData(
+    String consultantProfileId,
+  ) async {
+    // ConsultationPlan — also fetch prices for earnings calculation
+    final consultationPlansQuery = JsonQueryBuilder()
+        .model('ConsultationPlan')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true, 'price': true})
         .build();
+    final consultationPlans = await executeQueryAsMaps(consultationPlansQuery);
 
-    return executeCount(query);
+    final subscriptionPlanIds =
+        await _getPlanIds('SubscriptionPlan', consultantProfileId);
+    final webinarPlanIds =
+        await _getPlanIds('WebinarPlan', consultantProfileId);
+    final classPlanIds = await _getPlanIds('ClassPlan', consultantProfileId);
+
+    return _ConsultantPlanData(
+      consultationPlanIds:
+          consultationPlans.map((p) => p['id'] as String).toList(),
+      consultationPlanPrices: {
+        for (final p in consultationPlans)
+          p['id'] as String: (p['price'] as num?)?.toDouble() ?? 0.0,
+      },
+      subscriptionPlanIds: subscriptionPlanIds,
+      webinarPlanIds: webinarPlanIds,
+      classPlanIds: classPlanIds,
+    );
   }
 
-  Future<int> _countSubscriptions({
-    required String consulteeProfileId,
-    String? status,
+  /// Helper to get plan IDs for a given plan model and consultant profile
+  Future<List<String>> _getPlanIds(
+    String planModel,
+    String consultantProfileId,
+  ) async {
+    final query = JsonQueryBuilder()
+        .model(planModel)
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .select({'id': true})
+        .build();
+    final plans = await executeQueryAsMaps(query);
+    return plans.map((p) => p['id'] as String).toList();
+  }
+
+  /// Group rows by a status field and return counts per status value.
+  Map<String, int> _groupByStatus(
+    List<Map<String, dynamic>> rows,
+    String statusField,
+  ) {
+    final counts = <String, int>{};
+    for (final row in rows) {
+      final status = row[statusField] as String? ?? 'UNKNOWN';
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /// Count consultant sessions across all booking types, grouped by status.
+  ///
+  /// For each booking type, fetches all records matching any of the requested
+  /// statuses in a single query, then groups by status in Dart.
+  /// This is 5 queries instead of (5 × N) where N = number of statuses.
+  Future<Map<String, int>> _countConsultantSessionsByStatus({
+    required String consultantProfileId,
+    required _ConsultantPlanData planData,
+    required List<String> statuses,
   }) async {
-    final where = <String, dynamic>{
-      'requestedById': consulteeProfileId,
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
+    final counts = <String, int>{};
+
+    // 1. Consultations (requestStatus field)
+    if (planData.consultationPlanIds.isNotEmpty) {
+      final query = JsonQueryBuilder()
+          .model('Consultation')
+          .action(QueryAction.findMany)
+          .where({
+            'consultationPlanId': {'in': planData.consultationPlanIds},
+            'requestStatus': {'in': statuses},
+          })
+          .select({'requestStatus': true})
+          .build();
+      final rows = await executeQueryAsMaps(query);
+      _mergeStatusCounts(counts, rows, 'requestStatus');
     }
 
-    final query = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
+    // 2. Subscriptions (requestStatus field)
+    if (planData.subscriptionPlanIds.isNotEmpty) {
+      final query = JsonQueryBuilder()
+          .model('Subscription')
+          .action(QueryAction.findMany)
+          .where({
+            'subscriptionPlanId': {'in': planData.subscriptionPlanIds},
+            'requestStatus': {'in': statuses},
+          })
+          .select({'requestStatus': true})
+          .build();
+      final rows = await executeQueryAsMaps(query);
+      _mergeStatusCounts(counts, rows, 'requestStatus');
+    }
 
-    return executeCount(query);
+    // 3. Trial sessions (status field, mapped from request statuses)
+    final trialStatuses = statuses
+        .map(_mapRequestStatusToTrialStatus)
+        .whereType<String>()
+        .toList();
+    if (trialStatuses.isNotEmpty) {
+      final query = JsonQueryBuilder()
+          .model('TrialSession')
+          .action(QueryAction.findMany)
+          .where({
+            'consultantProfileId': consultantProfileId,
+            'status': {'in': trialStatuses},
+          })
+          .select({'status': true})
+          .build();
+      final rows = await executeQueryAsMaps(query);
+      // Map trial statuses back to request statuses for aggregation
+      for (final row in rows) {
+        final trialStatus = row['status'] as String?;
+        final requestStatus = _mapTrialStatusToRequestStatus(trialStatus);
+        if (requestStatus != null && statuses.contains(requestStatus)) {
+          counts[requestStatus] = (counts[requestStatus] ?? 0) + 1;
+        }
+      }
+    }
+
+    // 4. Webinars (status field, mapped from request statuses)
+    if (planData.webinarPlanIds.isNotEmpty) {
+      final webinarStatuses = statuses
+          .map(_mapRequestStatusToWebinarStatus)
+          .whereType<String>()
+          .toList();
+      if (webinarStatuses.isNotEmpty) {
+        final query = JsonQueryBuilder()
+            .model('Webinar')
+            .action(QueryAction.findMany)
+            .where({
+              'webinarPlanId': {'in': planData.webinarPlanIds},
+              'status': {'in': webinarStatuses},
+            })
+            .select({'status': true})
+            .build();
+        final rows = await executeQueryAsMaps(query);
+        for (final row in rows) {
+          final webinarStatus = row['status'] as String?;
+          final requestStatus =
+              _mapWebinarStatusToRequestStatus(webinarStatus);
+          if (requestStatus != null && statuses.contains(requestStatus)) {
+            counts[requestStatus] = (counts[requestStatus] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    // 5. Classes (status field, mapped from request statuses)
+    if (planData.classPlanIds.isNotEmpty) {
+      final classStatuses = statuses
+          .map(_mapRequestStatusToClassStatus)
+          .whereType<String>()
+          .toList();
+      if (classStatuses.isNotEmpty) {
+        final query = JsonQueryBuilder()
+            .model('Class')
+            .action(QueryAction.findMany)
+            .where({
+              'classPlanId': {'in': planData.classPlanIds},
+              'status': {'in': classStatuses},
+            })
+            .select({'status': true})
+            .build();
+        final rows = await executeQueryAsMaps(query);
+        for (final row in rows) {
+          final classStatus = row['status'] as String?;
+          final requestStatus = _mapClassStatusToRequestStatus(classStatus);
+          if (requestStatus != null && statuses.contains(requestStatus)) {
+            counts[requestStatus] = (counts[requestStatus] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    return counts;
+  }
+
+  /// Merge status counts from query rows into the accumulator map.
+  void _mergeStatusCounts(
+    Map<String, int> counts,
+    List<Map<String, dynamic>> rows,
+    String statusField,
+  ) {
+    for (final row in rows) {
+      final status = row[statusField] as String? ?? 'UNKNOWN';
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
   }
 
   Future<double> _calculateTotalSpent({
@@ -326,7 +481,9 @@ class DashboardRepository extends BaseRepository {
         .action(QueryAction.findMany)
         .where({
           'requestedById': consulteeProfileId,
-          'requestStatus': {'in': ['COMPLETED', 'SCHEDULED']},
+          'requestStatus': {
+            'in': ['COMPLETED', 'SCHEDULED'],
+          },
         })
         .include({'consultationPlan': true})
         .build();
@@ -346,6 +503,7 @@ class DashboardRepository extends BaseRepository {
 
   Future<int> _countUniqueClients({
     required String consultantProfileId,
+    required _ConsultantPlanData planData,
   }) async {
     final clientIds = <String>{};
     final activeStatuses = [
@@ -356,14 +514,12 @@ class DashboardRepository extends BaseRepository {
     ];
 
     // 1. Consultation clients
-    final consultationPlanIds =
-        await _getPlanIds('ConsultationPlan', consultantProfileId);
-    if (consultationPlanIds.isNotEmpty) {
+    if (planData.consultationPlanIds.isNotEmpty) {
       final consultationsQuery = JsonQueryBuilder()
           .model('Consultation')
           .action(QueryAction.findMany)
           .where({
-            'consultationPlanId': {'in': consultationPlanIds},
+            'consultationPlanId': {'in': planData.consultationPlanIds},
             'requestStatus': {'in': activeStatuses},
           })
           .distinct()
@@ -377,14 +533,12 @@ class DashboardRepository extends BaseRepository {
     }
 
     // 2. Subscription clients
-    final subscriptionPlanIds =
-        await _getPlanIds('SubscriptionPlan', consultantProfileId);
-    if (subscriptionPlanIds.isNotEmpty) {
+    if (planData.subscriptionPlanIds.isNotEmpty) {
       final subscriptionsQuery = JsonQueryBuilder()
           .model('Subscription')
           .action(QueryAction.findMany)
           .where({
-            'subscriptionPlanId': {'in': subscriptionPlanIds},
+            'subscriptionPlanId': {'in': planData.subscriptionPlanIds},
             'requestStatus': {'in': activeStatuses},
           })
           .distinct()
@@ -417,15 +571,15 @@ class DashboardRepository extends BaseRepository {
     }
 
     // 4. Webinar participants (via slots → users)
-    final webinarPlanIds =
-        await _getPlanIds('WebinarPlan', consultantProfileId);
-    if (webinarPlanIds.isNotEmpty) {
+    if (planData.webinarPlanIds.isNotEmpty) {
       final webinarsQuery = JsonQueryBuilder()
           .model('Webinar')
           .action(QueryAction.findMany)
           .where({
-            'webinarPlanId': {'in': webinarPlanIds},
-            'status': {'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']},
+            'webinarPlanId': {'in': planData.webinarPlanIds},
+            'status': {
+              'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+            },
           })
           .include({
             'appointment': {
@@ -454,15 +608,15 @@ class DashboardRepository extends BaseRepository {
     }
 
     // 5. Class participants (via slots → users)
-    final classPlanIds =
-        await _getPlanIds('ClassPlan', consultantProfileId);
-    if (classPlanIds.isNotEmpty) {
+    if (planData.classPlanIds.isNotEmpty) {
       final classesQuery = JsonQueryBuilder()
           .model('Class')
           .action(QueryAction.findMany)
           .where({
-            'classPlanId': {'in': classPlanIds},
-            'status': {'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']},
+            'classPlanId': {'in': planData.classPlanIds},
+            'status': {
+              'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+            },
           })
           .include({
             'appointments': {
@@ -495,126 +649,73 @@ class DashboardRepository extends BaseRepository {
     return clientIds.length;
   }
 
-  /// Helper to get plan IDs for a given plan model and consultant profile
-  Future<List<String>> _getPlanIds(
-    String planModel,
-    String consultantProfileId,
-  ) async {
-    final query = JsonQueryBuilder()
-        .model(planModel)
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true})
-        .build();
-    final plans = await executeQueryAsMaps(query);
-    return plans.map((p) => p['id'] as String).toList();
-  }
-
-  Future<int> _countConsultantSessions({
+  /// Calculate consultant earnings.
+  ///
+  /// When [preloadedPlanPrices] is provided (from pre-fetched plan data),
+  /// skips the plan query and combines completed+scheduled into a single
+  /// consultation query (1 query instead of 3).
+  Future<Map<String, double>> _calculateConsultantEarnings({
     required String consultantProfileId,
-    String? status,
+    Map<String, double>? preloadedPlanPrices,
   }) async {
-    var total = 0;
+    final Map<String, double> planPrices;
 
-    // 1. Count consultations
-    final consultationPlanIds =
-        await _getPlanIds('ConsultationPlan', consultantProfileId);
-    if (consultationPlanIds.isNotEmpty) {
-      final where = <String, dynamic>{
-        'consultationPlanId': {'in': consultationPlanIds},
-      };
-      if (status != null) {
-        where['requestStatus'] = status;
-      }
-      final query = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.count)
-          .where(where)
+    if (preloadedPlanPrices != null && preloadedPlanPrices.isNotEmpty) {
+      planPrices = preloadedPlanPrices;
+    } else {
+      // Standalone call — fetch plan prices
+      final plansQuery = JsonQueryBuilder()
+          .model('ConsultationPlan')
+          .action(QueryAction.findMany)
+          .where({'consultantProfileId': consultantProfileId})
+          .select({'id': true, 'price': true})
           .build();
-      total += await executeCount(query);
-    }
-
-    // 2. Count subscriptions
-    final subscriptionPlanIds =
-        await _getPlanIds('SubscriptionPlan', consultantProfileId);
-    if (subscriptionPlanIds.isNotEmpty) {
-      final where = <String, dynamic>{
-        'subscriptionPlanId': {'in': subscriptionPlanIds},
+      final plans = await executeQueryAsMaps(plansQuery);
+      planPrices = {
+        for (final p in plans)
+          p['id'] as String: (p['price'] as num?)?.toDouble() ?? 0.0,
       };
-      if (status != null) {
-        where['requestStatus'] = status;
-      }
-      final query = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.count)
-          .where(where)
-          .build();
-      total += await executeCount(query);
     }
 
-    // 3. Count trial sessions
-    final trialWhere = <String, dynamic>{
-      'consultantProfileId': consultantProfileId,
-    };
-    if (status != null) {
-      final trialStatus = _mapRequestStatusToTrialStatus(status);
-      if (trialStatus != null) {
-        trialWhere['status'] = trialStatus;
-      }
-    }
-    final trialQuery = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.count)
-        .where(trialWhere)
+    if (planPrices.isEmpty) return {'total': 0.0, 'pending': 0.0};
+
+    // Single query for all relevant statuses (instead of 2 separate queries)
+    final allConsultationsQuery = JsonQueryBuilder()
+        .model('Consultation')
+        .action(QueryAction.findMany)
+        .where({
+          'consultationPlanId': {'in': planPrices.keys.toList()},
+          'requestStatus': {
+            'in': ['COMPLETED', 'SCHEDULED', 'APPROVED_PENDING_PAYMENT'],
+          },
+        })
+        .select({'consultationPlanId': true, 'requestStatus': true})
         .build();
-    total += await executeCount(trialQuery);
 
-    // 4. Count webinar instances
-    final webinarPlanIds =
-        await _getPlanIds('WebinarPlan', consultantProfileId);
-    if (webinarPlanIds.isNotEmpty) {
-      final webinarWhere = <String, dynamic>{
-        'webinarPlanId': {'in': webinarPlanIds},
-      };
-      if (status != null) {
-        final webinarStatus = _mapRequestStatusToWebinarStatus(status);
-        if (webinarStatus != null) {
-          webinarWhere['status'] = webinarStatus;
-        }
+    final allConsultations = await executeQueryAsMaps(allConsultationsQuery);
+
+    var totalEarnings = 0.0;
+    var pendingEarnings = 0.0;
+    for (final c in allConsultations) {
+      final planId = c['consultationPlanId'] as String;
+      final status = c['requestStatus'] as String;
+      final price = planPrices[planId] ?? 0.0;
+      if (status == 'COMPLETED') {
+        totalEarnings += price;
+      } else {
+        pendingEarnings += price;
       }
-      final webinarQuery = JsonQueryBuilder()
-          .model('Webinar')
-          .action(QueryAction.count)
-          .where(webinarWhere)
-          .build();
-      total += await executeCount(webinarQuery);
     }
 
-    // 5. Count class instances
-    final classPlanIds =
-        await _getPlanIds('ClassPlan', consultantProfileId);
-    if (classPlanIds.isNotEmpty) {
-      final classWhere = <String, dynamic>{
-        'classPlanId': {'in': classPlanIds},
-      };
-      if (status != null) {
-        final classStatus = _mapRequestStatusToClassStatus(status);
-        if (classStatus != null) {
-          classWhere['status'] = classStatus;
-        }
-      }
-      final classQuery = JsonQueryBuilder()
-          .model('Class')
-          .action(QueryAction.count)
-          .where(classWhere)
-          .build();
-      total += await executeCount(classQuery);
-    }
-
-    return total;
+    return {
+      'total': totalEarnings + pendingEarnings,
+      'pending': pendingEarnings,
+    };
   }
 
-  /// Map RequestStatus to TrialSessionStatus for filtering
+  // ==================== Status Mapping ====================
+
+  /// Map RequestStatus → TrialSessionStatus
   String? _mapRequestStatusToTrialStatus(String requestStatus) {
     switch (requestStatus) {
       case 'PENDING':
@@ -632,7 +733,25 @@ class DashboardRepository extends BaseRepository {
     }
   }
 
-  /// Map RequestStatus to WebinarStatus for filtering
+  /// Map TrialSessionStatus → RequestStatus
+  String? _mapTrialStatusToRequestStatus(String? trialStatus) {
+    switch (trialStatus) {
+      case 'PENDING':
+        return 'PENDING';
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      case 'REJECTED':
+        return 'REJECTED';
+      default:
+        return null;
+    }
+  }
+
+  /// Map RequestStatus → WebinarStatus
   String? _mapRequestStatusToWebinarStatus(String requestStatus) {
     switch (requestStatus) {
       case 'SCHEDULED':
@@ -646,7 +765,21 @@ class DashboardRepository extends BaseRepository {
     }
   }
 
-  /// Map RequestStatus to ClassStatus for filtering
+  /// Map WebinarStatus → RequestStatus
+  String? _mapWebinarStatusToRequestStatus(String? webinarStatus) {
+    switch (webinarStatus) {
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      default:
+        return null;
+    }
+  }
+
+  /// Map RequestStatus → ClassStatus
   String? _mapRequestStatusToClassStatus(String requestStatus) {
     switch (requestStatus) {
       case 'SCHEDULED':
@@ -660,66 +793,37 @@ class DashboardRepository extends BaseRepository {
     }
   }
 
-  Future<Map<String, double>> _calculateConsultantEarnings({
-    required String consultantProfileId,
-  }) async {
-    // Get consultation plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true, 'price': true}).build();
-
-    final plans = await executeQueryAsMaps(plansQuery);
-    final planPrices = <String, double>{};
-    for (final plan in plans) {
-      planPrices[plan['id'] as String] =
-          (plan['price'] as num?)?.toDouble() ?? 0.0;
+  /// Map ClassStatus → RequestStatus
+  String? _mapClassStatusToRequestStatus(String? classStatus) {
+    switch (classStatus) {
+      case 'SCHEDULED':
+        return 'SCHEDULED';
+      case 'COMPLETED':
+        return 'COMPLETED';
+      case 'CANCELLED':
+        return 'CANCELLED';
+      default:
+        return null;
     }
-
-    if (planPrices.isEmpty) return {'total': 0.0, 'pending': 0.0};
-
-    // Get completed consultations
-    final completedQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where({
-          'consultationPlanId': {'in': planPrices.keys.toList()},
-          'requestStatus': 'COMPLETED',
-        })
-        .select({'consultationPlanId': true})
-        .build();
-
-    final completed = await executeQueryAsMaps(completedQuery);
-    var totalEarnings = 0.0;
-    for (final c in completed) {
-      final planId = c['consultationPlanId'] as String;
-      totalEarnings += planPrices[planId] ?? 0.0;
-    }
-
-    // Get scheduled (pending earnings)
-    final scheduledQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where({
-          'consultationPlanId': {'in': planPrices.keys.toList()},
-          'requestStatus': {
-            'in': ['SCHEDULED', 'APPROVED_PENDING_PAYMENT'],
-          },
-        })
-        .select({'consultationPlanId': true})
-        .build();
-
-    final scheduled = await executeQueryAsMaps(scheduledQuery);
-    var pendingEarnings = 0.0;
-    for (final c in scheduled) {
-      final planId = c['consultationPlanId'] as String;
-      pendingEarnings += planPrices[planId] ?? 0.0;
-    }
-
-    return {
-      'total': totalEarnings + pendingEarnings,
-      'pending': pendingEarnings,
-    };
   }
+}
+
+/// Pre-fetched plan IDs and prices for a consultant.
+///
+/// Avoids redundant _getPlanIds calls across multiple methods
+/// within getConsultantStats.
+class _ConsultantPlanData {
+  const _ConsultantPlanData({
+    required this.consultationPlanIds,
+    required this.consultationPlanPrices,
+    required this.subscriptionPlanIds,
+    required this.webinarPlanIds,
+    required this.classPlanIds,
+  });
+
+  final List<String> consultationPlanIds;
+  final Map<String, double> consultationPlanPrices;
+  final List<String> subscriptionPlanIds;
+  final List<String> webinarPlanIds;
+  final List<String> classPlanIds;
 }

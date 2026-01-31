@@ -9,6 +9,7 @@ import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../domain/entities/dashboard/dashboard_entities.dart';
 import '../../../domain/entities/explore/review.dart';
 import '../../../shared/providers/core_providers.dart';
+import 'booking_json_parser.dart';
 
 part 'dashboard_remote_source.g.dart';
 
@@ -171,7 +172,7 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
             bookingType: BookingType.consultation,
             status: RequestStatus.pending,
             message: req['requestNotes'] as String?,
-            createdAt: _parseDateTime(req['requestedAt'] ?? req['createdAt']),
+            createdAt: parseDateTime(req['requestedAt'] ?? req['createdAt']),
             planId: plan?['id'] as String?,
             planTitle: plan?['title'] as String?,
             planPrice: (plan?['price'] as num?)?.toDouble(),
@@ -221,7 +222,7 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
             rating: review['rating'] as int? ?? 0,
             description: review['reviewDescription'] as String? ??
                 review['comment'] as String?,
-            createdAt: _parseDateTime(review['createdAt']),
+            createdAt: parseDateTime(review['createdAt']),
             reviewer: ReviewerInfo(
               name: user?['name'] as String?,
               image: user?['image'] as String?,
@@ -286,54 +287,7 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
     }
   }
 
-  List<Booking> _parseBookingsList(List<dynamic> bookingsJson) {
-    return bookingsJson.map((b) {
-      final json = b as Map<String, dynamic>;
-      return Booking(
-        id: json['id'] as String,
-        bookingType: BookingType.fromString(
-          json['bookingType'] as String? ??
-              json['appointmentType'] as String? ??
-              'CONSULTATION',
-        ),
-        status: RequestStatus.fromString(
-          json['status'] as String? ?? 'PENDING',
-        ),
-        message: json['message'] as String?,
-        createdAt: _parseDateTime(json['createdAt']),
-        appointmentId: json['appointmentId'] as String?,
-        planId: json['planId'] as String?,
-        planTitle: json['planTitle'] as String?,
-        planPrice: (json['planPrice'] as num?)?.toDouble(),
-        planCurrency: json['planCurrency'] as String? ?? 'INR',
-        consultantUserId: json['consultantUserId'] as String?,
-        consultantName: json['consultantName'] as String?,
-        consultantImage: json['consultantImage'] as String?,
-        consulteeUserId: json['consulteeUserId'] as String?,
-        consulteeName: json['consulteeName'] as String?,
-        consulteeImage: json['consulteeImage'] as String?,
-        slots: _parseSlots(json['slots']),
-      );
-    }).toList();
-  }
-
-  List<BookingSlot> _parseSlots(dynamic slotsJson) {
-    if (slotsJson == null || slotsJson is! List) return [];
-    return slotsJson.map((s) {
-      final slotJson = s as Map<String, dynamic>;
-      return BookingSlot(
-        id: slotJson['id'] as String,
-        startsAt: _parseDateTime(slotJson['startsAt'])!,
-        endsAt: _parseDateTime(slotJson['endsAt'])!,
-        isTentative: slotJson['isTentative'] as bool? ?? false,
-      );
-    }).toList();
-  }
-
-  DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value);
-    return null;
-  }
+  /// Parse bookings list using the shared parser.
+  List<Booking> _parseBookingsList(List<dynamic> bookingsJson) =>
+      parseBookingsListJson(bookingsJson);
 }
