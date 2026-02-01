@@ -2,10 +2,12 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../domain/entities/booking/booking.dart';
 import '../../domain/entities/chat/appointment_consultant.dart';
+import '../../domain/entities/dashboard/dashboard_entities.dart';
 import '../../domain/entities/explore/class_plan.dart';
 import '../../domain/entities/explore/consultant.dart';
 import '../../domain/entities/explore/consultant_details.dart';
 import '../../domain/entities/explore/consultation_plan.dart';
+import '../../domain/entities/explore/review.dart';
 import '../../domain/entities/explore/subscription_plan.dart';
 import '../../domain/entities/explore/webinar_plan.dart';
 import '../../domain/entities/support/support_entities.dart';
@@ -136,4 +138,46 @@ class FakeData {
 
   static List<AppointmentConsultant> appointmentConsultants([int count = 4]) =>
       List.generate(count, (_) => appointmentConsultant());
+
+  // --- Dashboard Stats ---
+  static ConsulteeDashboardStats consulteeDashboardStats() =>
+      const ConsulteeDashboardStats(
+        totalSessions: 12,
+        completedSessions: 8,
+        upcomingSessions: 3,
+        cancelledSessions: 1,
+        totalSpent: 24000,
+        activeSubscriptions: 1,
+        pendingPayments: 0,
+      );
+
+  static ConsultantDashboardStats consultantDashboardStats() =>
+      const ConsultantDashboardStats(
+        totalClients: 15,
+        totalSessionsConducted: 42,
+        upcomingSessions: 5,
+        pendingRequests: 2,
+        averageRating: 4.5,
+        totalReviews: 12,
+        totalEarnings: 150000,
+        pendingEarnings: 20000,
+      );
+
+  static EarningsSummary earningsSummary() => const EarningsSummary(
+        totalEarnings: 150000,
+        pendingEarnings: 20000,
+        paidEarnings: 130000,
+      );
+
+  // --- Review ---
+  static Review review() => Review(
+        id: BoneMock.name,
+        rating: 4,
+        description: BoneMock.words(10),
+        createdAt: DateTime(2024, 1, 1, 10, 0),
+        reviewer: ReviewerInfo(name: BoneMock.name),
+      );
+
+  static List<Review> reviews([int count = 3]) =>
+      List.generate(count, (_) => review());
 }

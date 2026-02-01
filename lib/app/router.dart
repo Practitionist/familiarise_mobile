@@ -7,6 +7,7 @@ import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 import '../domain/entities/booking/booking_entities.dart';
 import '../domain/entities/checkout/checkout_entities.dart';
+import '../core/constants/enums.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
@@ -22,6 +23,7 @@ import '../features/programs/screens/webinar_detail_screen.dart';
 import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
+import '../features/schedule/screens/schedule_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/support/screens/support_tickets_screen.dart';
@@ -77,6 +79,7 @@ GoRouter router(Ref ref) {
       final isValidAppRoute = location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
           location.startsWith('/programs') ||
+          location.startsWith('/schedule') ||
           location.startsWith('/booking') ||
           location.startsWith('/my-bookings') ||
           location.startsWith('/booking-details') ||
@@ -195,16 +198,19 @@ GoRouter router(Ref ref) {
       // Main app shell with bottom navigation
       ShellRoute(
         builder: (context, state, child) {
-          // Sync navigation index based on current route
+          // Sync navigation index based on current route (role-aware)
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final container = ProviderScope.containerOf(context);
             final currentPath = state.matchedLocation;
-            final currentTab = NavigationTab.fromPath(currentPath);
+            final user = container.read(currentUserProvider);
+            final role = user?.role ?? UserRole.consultee;
+            final tabIndex =
+                AppNavigationTabs.indexFromPath(currentPath, role);
             final currentIndex = container.read(navigationIndexProvider);
-            if (currentIndex != currentTab.index) {
+            if (currentIndex != tabIndex) {
               container
                   .read(navigationIndexProvider.notifier)
-                  .setIndex(currentTab.index);
+                  .setIndex(tabIndex);
             }
           });
           return MainShell(child: child);
@@ -252,6 +258,12 @@ GoRouter router(Ref ref) {
             path: '/dashboard',
             name: 'dashboard',
             builder: (context, state) => const DashboardScreen(),
+          ),
+          // Schedule tab (consultant only)
+          GoRoute(
+            path: '/schedule',
+            name: 'schedule',
+            builder: (context, state) => const ScheduleScreen(),
           ),
           // Messages tab
           GoRoute(

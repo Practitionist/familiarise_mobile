@@ -70,6 +70,11 @@ class Booking with _$Booking {
     String? consultantUserId,
     String? consultantName,
     String? consultantImage,
+    // Consultee info (for consultant view)
+    String? consulteeProfileId,
+    String? consulteeUserId,
+    String? consulteeName,
+    String? consulteeImage,
     // Slots (for consultations and webinars)
     @Default([]) List<BookingSlot> slots,
     // Subscription/Class-specific scheduling period
@@ -93,12 +98,38 @@ class Booking with _$Booking {
     String? feedbackFromConsultee,
     String? feedbackFromConsultant,
     double? rating,
+    // Participant info (for webinars/classes)
+    @Default([]) List<BookingParticipant> participants,
+    @Default(0) int participantCount,
+    // Extended plan details (for webinar/class detail views)
+    String? planDescription,
+    String? planLanguage,
+    String? planLevel,
+    String? planPrerequisites,
+    String? planMaterialProvided,
+    @Default([]) List<String> planLearningOutcomes,
+    @Default(false) bool planCertificateProvided,
+    @Default(false) bool planRecordingEnabled,
+    int? meetingsPerWeek,
+    double? totalHours,
   }) = _Booking;
 
   const Booking._();
 
   factory Booking.fromJson(Map<String, dynamic> json) =>
       _$BookingFromJson(json);
+
+  /// Display name for the "other party" in list views.
+  /// Uses consultant fields first (consultee view), falls back to consultee
+  /// fields (consultant view).
+  String? get displayName => consultantName ?? consulteeName;
+
+  /// Display image for the "other party" in list views.
+  String? get displayImage => consultantImage ?? consulteeImage;
+
+  /// Whether this is a group program (webinar or class)
+  bool get isGroupProgram =>
+      bookingType == BookingType.webinar || bookingType == BookingType.classes;
 
   /// Formatted price (e.g., "₹2,000")
   String get formattedPrice {
@@ -339,4 +370,17 @@ class BookingsPagination with _$BookingsPagination {
 
   factory BookingsPagination.fromJson(Map<String, dynamic> json) =>
       _$BookingsPaginationFromJson(json);
+}
+
+/// Participant info for group programs (webinars/classes)
+@freezed
+class BookingParticipant with _$BookingParticipant {
+  const factory BookingParticipant({
+    required String id,
+    String? name,
+    String? image,
+  }) = _BookingParticipant;
+
+  factory BookingParticipant.fromJson(Map<String, dynamic> json) =>
+      _$BookingParticipantFromJson(json);
 }

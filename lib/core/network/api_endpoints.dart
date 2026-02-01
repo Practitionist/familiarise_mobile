@@ -77,4 +77,19 @@ abstract final class ApiEndpoints {
   // Upload
   static const String upload = '$api/upload';
   static const String uploadImage = '$upload/image';
+
+  // Dashboard
+  static const String dashboardStats = '$api/dashboard/stats';
+  static const String consultantDashboardStats =
+      '$api/consultant/dashboard/stats';
+  static const String consultantPendingRequests =
+      '$api/consultant/dashboard/pending-requests';
+  static const String consultantRecentReviews =
+      '$api/consultant/dashboard/recent-reviews';
+  static const String consultantEarnings =
+      '$api/consultant/dashboard/earnings';
+
+  // Profile update (role-specific)
+  static const String consultantProfile = '$api/consultant/profile';
+  static const String consulteeProfile = '$api/consultee/profile';
 }

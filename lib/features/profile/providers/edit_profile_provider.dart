@@ -1,14 +1,37 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../core/errors/failures.dart';
+import '../../../data/datasources/remote/profile_remote_source.dart';
 import '../../../data/repositories/auth_repository_impl.dart';
 import '../../../data/repositories/onboarding_repository_impl.dart';
 import '../../auth/providers/auth_provider.dart';
 
 part 'edit_profile_provider.g.dart';
+
+/// Fetches the role-specific profile data for the current user.
+/// Returns null if the user has no role profile or on error.
+@riverpod
+Future<Map<String, dynamic>?> roleProfileData(Ref ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return null;
+
+  final remote = ref.watch(profileRemoteSourceProvider);
+  try {
+    if (user.role == UserRole.consultant) {
+      return await remote.getConsultantProfile();
+    } else if (user.role == UserRole.consultee) {
+      return await remote.getConsulteeProfile();
+    }
+  } catch (_) {
+    // Profile may not exist yet
+  }
+  return null;
+}
 
 @riverpod
 class EditProfile extends _$EditProfile {
@@ -58,6 +81,30 @@ class EditProfile extends _$EditProfile {
         return true;
       },
     );
+  }
+
+  /// Save role-specific profile fields (consultant or consultee).
+  /// Returns `true` on success.
+  Future<bool> saveConsultantProfile(Map<String, dynamic> fields) async {
+    try {
+      final remote = ref.read(profileRemoteSourceProvider);
+      await remote.updateConsultantProfile(fields);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Save consultee-specific profile fields.
+  /// Returns `true` on success.
+  Future<bool> saveConsulteeProfile(Map<String, dynamic> fields) async {
+    try {
+      final remote = ref.read(profileRemoteSourceProvider);
+      await remote.updateConsulteeProfile(fields);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   /// Upload a profile image via the onboarding repository's upload flow.

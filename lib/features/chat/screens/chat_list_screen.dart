@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../domain/entities/chat/chat_entities.dart';
 import '../../../shared/utils/fake_data.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_service_provider.dart';
 
 /// Screen displaying the list of chat conversations
@@ -122,6 +124,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final colorScheme = theme.colorScheme;
     final chatState = ref.watch(chatServiceProvider);
     final consultantsAsync = ref.watch(appointmentConsultantsProvider);
+    final user = ref.watch(currentUserProvider);
+    final isConsultant = user?.role == UserRole.consultant;
+    final subtitle = isConsultant
+        ? 'Chat with your clients'
+        : 'Chat with your consultants';
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -145,7 +152,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           ),
                         ),
                         Text(
-                          'Chat with your consultants',
+                          subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),

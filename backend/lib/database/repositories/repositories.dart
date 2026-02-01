@@ -8,6 +8,7 @@ export 'appointment_repository.dart';
 export 'base_repository.dart';
 export 'checkout_repository.dart';
 export 'consultant_explore_repository.dart';
+export 'dashboard_repository.dart';
 export 'consultant_profile_repository.dart';
 export 'consultee_profile_repository.dart';
 export 'dispute_repository.dart';
