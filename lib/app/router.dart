@@ -21,7 +21,6 @@ import '../features/explore/screens/explore_screen.dart';
 import '../features/programs/screens/programs_screen.dart';
 import '../features/programs/screens/webinar_detail_screen.dart';
 import '../features/programs/screens/class_detail_screen.dart';
-import '../features/clients/screens/clients_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 import '../features/schedule/screens/schedule_screen.dart';
@@ -81,7 +80,6 @@ GoRouter router(Ref ref) {
           location.startsWith('/explore') ||
           location.startsWith('/programs') ||
           location.startsWith('/schedule') ||
-          location.startsWith('/clients') ||
           location.startsWith('/booking') ||
           location.startsWith('/my-bookings') ||
           location.startsWith('/booking-details') ||
@@ -296,12 +294,6 @@ GoRouter router(Ref ref) {
                 builder: (context, state) => const EditProfileScreen(),
               ),
             ],
-          ),
-          // Clients tab (consultant only)
-          GoRoute(
-            path: '/clients',
-            name: 'clients',
-            builder: (context, state) => const ClientsScreen(),
           ),
           // My Bookings (inside shell for bottom nav)
           GoRoute(

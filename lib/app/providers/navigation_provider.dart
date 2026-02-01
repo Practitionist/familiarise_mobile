@@ -104,16 +104,22 @@ class AppNavigationTabs {
       selectedIcon: Icons.dashboard,
     ),
     AppNavTab(
-      path: '/my-bookings',
-      label: 'My Bookings',
-      icon: Icons.book_outlined,
-      selectedIcon: Icons.book,
+      path: '/schedule',
+      label: 'Schedule',
+      icon: Icons.calendar_month_outlined,
+      selectedIcon: Icons.calendar_month,
     ),
     AppNavTab(
       path: '/messages',
       label: 'Messages',
       icon: Icons.chat_bubble_outline,
       selectedIcon: Icons.chat_bubble,
+    ),
+    AppNavTab(
+      path: '/my-bookings',
+      label: 'My Bookings',
+      icon: Icons.book_outlined,
+      selectedIcon: Icons.book,
     ),
     AppNavTab(
       path: '/profile',
