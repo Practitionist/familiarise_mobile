@@ -169,8 +169,18 @@ SchemaRegistry _buildSchemaRegistry() {
           type: 'String'),
       'rating':
           const FieldInfo(name: 'rating', columnName: 'rating', type: 'Int'),
-      'comment': const FieldInfo(
-          name: 'comment', columnName: 'comment', type: 'String'),
+      'reviewDescription': const FieldInfo(
+          name: 'reviewDescription',
+          columnName: 'reviewDescription',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt',
+          columnName: 'createdAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt',
+          columnName: 'updatedAt',
+          type: 'DateTime'),
     },
     relations: {
       'consulteeProfile': RelationInfo.oneToOne(

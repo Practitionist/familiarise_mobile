@@ -34,7 +34,7 @@ Future<Response> onRequest(RequestContext context) async {
       body: serializeForJson({'reviews': reviews}),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/consultant/dashboard/recent-reviews',
       context: 'ConsultantRecentReviewsRoute',
       error: e,
