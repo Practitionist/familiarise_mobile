@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/consultant_dashboard_provider.dart';
 import '../widgets/dashboard_section_header.dart';
+import '../widgets/earnings_summary_card.dart';
 import '../widgets/pending_request_card.dart';
+import '../widgets/recent_review_card.dart';
 import '../widgets/stats_overview_card.dart';
 import '../widgets/upcoming_session_card.dart';
+
+const _webBannerDismissedKey = 'consultant_web_banner_dismissed';
 
 /// Dashboard screen for consultant users
 class ConsultantDashboardScreen extends ConsumerWidget {
@@ -98,6 +104,9 @@ class ConsultantDashboardScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
 
+        // Web App features banner
+        const _WebAppBanner(),
+
         // Pending booking requests (most urgent — needs action)
         if (data.pendingRequests.isNotEmpty) ...[
           DashboardSectionHeader(
@@ -135,6 +144,23 @@ class ConsultantDashboardScreen extends ConsumerWidget {
               booking: booking,
               showConsulteeInfo: true,
             ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Earnings Summary
+        if (data.earnings.totalEarnings > 0 ||
+            data.earnings.pendingEarnings > 0) ...[
+          const DashboardSectionHeader(title: 'Earnings'),
+          EarningsSummaryCard(earnings: data.earnings),
+          const SizedBox(height: 16),
+        ],
+
+        // Recent Reviews
+        if (data.recentReviews.isNotEmpty) ...[
+          const DashboardSectionHeader(title: 'Recent Reviews'),
+          ...data.recentReviews.map(
+            (review) => RecentReviewCard(review: review),
           ),
           const SizedBox(height: 16),
         ],
@@ -200,6 +226,118 @@ class ConsultantDashboardScreen extends ConsumerWidget {
               child: const Text('Retry'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dismissible banner directing consultants to the web app for advanced features
+class _WebAppBanner extends StatefulWidget {
+  const _WebAppBanner();
+
+  @override
+  State<_WebAppBanner> createState() => _WebAppBannerState();
+}
+
+class _WebAppBannerState extends State<_WebAppBanner> {
+  bool _dismissed = true; // hidden by default until prefs load
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDismissState();
+  }
+
+  Future<void> _loadDismissState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _dismissed = prefs.getBool(_webBannerDismissedKey) ?? false;
+    });
+  }
+
+  Future<void> _dismiss() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_webBannerDismissedKey, true);
+    if (mounted) {
+      setState(() => _dismissed = true);
+    }
+  }
+
+  Future<void> _openWebApp() async {
+    final uri = Uri.parse('https://familiarise.io');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 0,
+        color: theme.colorScheme.primaryContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.language,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Manage on Web',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _dismiss,
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Set up availability, manage requests, and reschedule '
+                'sessions on familiarise.io',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 32,
+                child: FilledButton.tonal(
+                  onPressed: _openWebApp,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Open Web App'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

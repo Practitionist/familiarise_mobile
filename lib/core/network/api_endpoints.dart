@@ -88,4 +88,8 @@ abstract final class ApiEndpoints {
       '$api/consultant/dashboard/recent-reviews';
   static const String consultantEarnings =
       '$api/consultant/dashboard/earnings';
+
+  // Profile update (role-specific)
+  static const String consultantProfile = '$api/consultant/profile';
+  static const String consulteeProfile = '$api/consultee/profile';
 }
