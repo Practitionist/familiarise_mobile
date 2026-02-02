@@ -21,6 +21,10 @@ class AuthException implements Exception {
 }
 
 /// Service for authentication operations using Prisma Flutter Connector
+///
+/// BetterAuth-compatible: passwords are stored in the accounts table
+/// (providerId: "credential"), not the users table. BCrypt cost 12
+/// is used to match BetterAuth's default.
 class AuthService {
   /// Creates an AuthService with database client and JWT service
   AuthService(this._db, this._jwtService, {GoogleTokenVerifier? tokenVerifier})
@@ -31,7 +35,13 @@ class AuthService {
   final GoogleTokenVerifier _tokenVerifier;
   final _uuid = const Uuid();
 
+  /// BCrypt cost factor — matches BetterAuth web config
+  static const int _bcryptCost = 12;
+
   /// Sign in with email and password
+  ///
+  /// Fetches the credential Account (providerId: "credential") and
+  /// verifies the password stored there (not on the user row).
   Future<Map<String, dynamic>> signInWithEmail(
     String email,
     String password,
@@ -43,11 +53,20 @@ class AuthService {
       throw AuthException('Invalid email or password');
     }
 
-    // Check if user has a password set (credentials auth)
-    final hashedPassword = user['password'] as String?;
+    final userId = user['id'] as String;
 
+    // Find credential account for this user
+    final account = await _db.accounts.findCredentialAccount(userId);
+
+    if (account == null) {
+      // User might have signed up via OAuth, no credential account
+      throw AuthException(
+        'This account uses social login. Please sign in with Google.',
+      );
+    }
+
+    final hashedPassword = account['password'] as String?;
     if (hashedPassword == null) {
-      // User might have signed up via OAuth, no password set
       throw AuthException(
         'This account uses social login. Please sign in with Google.',
       );
@@ -59,11 +78,11 @@ class AuthService {
     }
 
     // Create session
-    final session = await _createSession(user['id'] as String);
+    final session = await _createSession(userId);
 
     // Create JWT token
     final token = _jwtService.createToken(
-      userId: user['id'] as String,
+      userId: userId,
       sessionId: session['id'] as String,
     );
 
@@ -73,7 +92,7 @@ class AuthService {
       'session': {
         'id': session['id'],
         'userId': session['userId'],
-        'expiresAt': session['expires']?.toString(),
+        'expiresAt': session['expiresAt']?.toString(),
       },
     };
   }
@@ -81,7 +100,7 @@ class AuthService {
   /// Sign up with email and password
   ///
   /// User creation is wrapped in a database transaction for atomicity.
-  /// If any step fails, the entire operation is rolled back automatically.
+  /// Password is stored in the accounts table (BetterAuth schema).
   Future<Map<String, dynamic>> signUpWithEmail(
     String email,
     String password, {
@@ -97,26 +116,27 @@ class AuthService {
       );
     }
 
-    // Hash password
-    final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+    // Hash password with cost 12 to match BetterAuth
+    final hashedPassword =
+        BCrypt.hashpw(password, BCrypt.gensalt(logRounds: _bcryptCost));
     final userId = _uuid.v4();
 
     // Create user, account, and profile atomically in a transaction
     final user = await _db.executeInTransaction((txn) async {
-      // Create user with password stored in users table
+      // Create user without password (BetterAuth schema)
       final newUser = await _db.createUser(
         id: userId,
         email: email,
         name: name,
-        hashedPassword: hashedPassword,
         executor: txn,
       );
 
-      // Create credentials account (for provider tracking)
-      await _db.createCredentialsAccount(
+      // Create credentials account with password
+      await _db.accounts.createCredentials(
         id: _uuid.v4(),
         userId: userId,
-        executor: txn,
+        hashedPassword: hashedPassword,
+        txn: txn,
       );
 
       // Create consultee profile
@@ -144,7 +164,7 @@ class AuthService {
       'session': {
         'id': session['id'],
         'userId': session['userId'],
-        'expiresAt': session['expires']?.toString(),
+        'expiresAt': session['expiresAt']?.toString(),
       },
     };
   }
@@ -157,7 +177,7 @@ class AuthService {
       return null;
     }
 
-    // Session query already filters by expires > NOW()
+    // Session query already filters by expiresAt > NOW()
     // Extract user data from the joined result
     final user = {
       'id': sessionData['user_id'],
@@ -172,7 +192,7 @@ class AuthService {
       'session': {
         'id': sessionData['id'],
         'userId': sessionData['userId'],
-        'expiresAt': sessionData['expires']?.toString(),
+        'expiresAt': sessionData['expiresAt']?.toString(),
       },
       'user': user,
     };
@@ -194,9 +214,6 @@ class AuthService {
   /// Accepts either an ID token (preferred, from mobile) or access token (web).
   /// On web, google_sign_in cannot provide an ID token, so we use the access
   /// token to fetch user info from Google's userinfo endpoint instead.
-  ///
-  /// Both methods are secure - the backend always fetches user info directly
-  /// from Google, never trusting client-provided user data.
   ///
   /// New user creation is wrapped in a database transaction for atomicity.
   Future<Map<String, dynamic>> signInWithGoogle({
@@ -220,7 +237,7 @@ class AuthService {
       );
     }
 
-    // Use the stable Google user ID (sub) as providerAccountId
+    // Use the stable Google user ID (sub) as accountId
     final providerAccountId = googleUser.sub;
     final email = googleUser.email;
     final name = googleUser.name;
@@ -242,15 +259,15 @@ class AuthService {
           executor: txn,
         );
 
-        // Create Google OAuth account link using stable sub ID
-        await _db.createOAuthAccount(
+        // Create Google OAuth account link using BetterAuth column names
+        await _db.accounts.createOAuth(
           id: _uuid.v4(),
           userId: userId,
-          provider: 'google',
-          providerAccountId: providerAccountId,
+          providerId: 'google',
+          accountId: providerAccountId,
           accessToken: accessToken,
           idToken: idToken,
-          executor: txn,
+          txn: txn,
         );
 
         // Create consultee profile
@@ -292,7 +309,7 @@ class AuthService {
       'session': {
         'id': session['id'],
         'userId': session['userId'],
-        'expiresAt': session['expires']?.toString(),
+        'expiresAt': session['expiresAt']?.toString(),
       },
     };
   }
@@ -301,7 +318,8 @@ class AuthService {
   ///
   /// Exchanges the authorization code for user info and creates/updates the user.
   Future<Map<String, dynamic>> signInWithGitHub(
-      GitHubUserInfo githubUser) async {
+    GitHubUserInfo githubUser,
+  ) async {
     final email = githubUser.email;
     if (email == null || email.isEmpty) {
       throw AuthException(
@@ -330,13 +348,13 @@ class AuthService {
           executor: txn,
         );
 
-        // Create GitHub OAuth account link
-        await _db.createOAuthAccount(
+        // Create GitHub OAuth account link using BetterAuth column names
+        await _db.accounts.createOAuth(
           id: _uuid.v4(),
           userId: userId,
-          provider: 'github',
-          providerAccountId: providerAccountId,
-          executor: txn,
+          providerId: 'github',
+          accountId: providerAccountId,
+          txn: txn,
         );
 
         // Create consultee profile
@@ -377,22 +395,30 @@ class AuthService {
       'session': {
         'id': session['id'],
         'userId': session['userId'],
-        'expiresAt': session['expires']?.toString(),
+        'expiresAt': session['expiresAt']?.toString(),
       },
     };
   }
 
   /// Create a new session for a user
-  Future<Map<String, dynamic>> _createSession(String userId) async {
+  ///
+  /// Uses BetterAuth column names: token (not sessionToken), expiresAt (not expires)
+  Future<Map<String, dynamic>> _createSession(
+    String userId, {
+    String? ipAddress,
+    String? userAgent,
+  }) async {
     final sessionId = _uuid.v4();
     final sessionToken = _uuid.v4();
     final expiresAt = DateTime.now().toUtc().add(const Duration(days: 30));
 
-    final session = await _db.createSession(
+    final session = await _db.sessions.create(
       id: sessionId,
-      sessionToken: sessionToken,
+      token: sessionToken,
       userId: userId,
-      expires: expiresAt,
+      expiresAt: expiresAt,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
     );
 
     return session;
@@ -400,14 +426,17 @@ class AuthService {
 
   /// Remove sensitive fields from user data
   Map<String, dynamic> _sanitizeUser(Map<String, dynamic> user) {
-    // emailVerified is a DateTime? in the database (when verified), convert to bool
+    // emailVerified is now a Boolean in BetterAuth schema
     final emailVerifiedValue = user['emailVerified'];
-    final isEmailVerified = emailVerifiedValue != null;
+    final isEmailVerified = emailVerifiedValue is bool
+        ? emailVerifiedValue
+        : emailVerifiedValue != null;
 
     // onboardingCompleted can be bool, DateTime, or null - convert to bool
     final onboardingValue = user['onboardingCompleted'];
-    final isOnboardingCompleted =
-        onboardingValue is bool ? onboardingValue : onboardingValue != null;
+    final isOnboardingCompleted = onboardingValue is bool
+        ? onboardingValue
+        : onboardingValue != null;
 
     return {
       'id': user['id'],

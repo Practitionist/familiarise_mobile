@@ -381,21 +381,21 @@ void main() {
     });
   });
 
-  group('Auth Provider - sendPasswordResetEmail', () {
+  group('Auth Provider - forgotPassword', () {
     test('should return true when email is sent successfully', () async {
       // Arrange
       when(() => mockRepository.getCurrentUser())
           .thenAnswer((_) async => const Right(null));
-      when(() => mockRepository.sendPasswordResetEmail(any()))
+      when(() => mockRepository.forgotPassword(any()))
           .thenAnswer((_) async => const Right(null));
 
       // Act
       final notifier = container.read(authProvider.notifier);
-      final result = await notifier.sendPasswordResetEmail('test@example.com');
+      final result = await notifier.forgotPassword('test@example.com');
 
       // Assert
       expect(result, true);
-      verify(() => mockRepository.sendPasswordResetEmail('test@example.com'))
+      verify(() => mockRepository.forgotPassword('test@example.com'))
           .called(1);
     });
 
@@ -403,12 +403,12 @@ void main() {
       // Arrange
       when(() => mockRepository.getCurrentUser())
           .thenAnswer((_) async => const Right(null));
-      when(() => mockRepository.sendPasswordResetEmail(any())).thenAnswer(
+      when(() => mockRepository.forgotPassword(any())).thenAnswer(
           (_) async => const Left(Failure.auth(message: 'User not found')));
 
       // Act
       final notifier = container.read(authProvider.notifier);
-      final result = await notifier.sendPasswordResetEmail('unknown@example.com');
+      final result = await notifier.forgotPassword('unknown@example.com');
 
       // Assert
       expect(result, false);

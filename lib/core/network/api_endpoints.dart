@@ -11,6 +11,18 @@ abstract final class ApiEndpoints {
   static const String authSession = '$api/auth/session';
   static const String authRefresh = '$api/auth/refresh';
 
+  // Auth — Profile operations
+  static const String authChangePassword = '$api/auth/change-password';
+  static const String authForgotPassword = '$api/auth/forgot-password';
+  static const String authResetPassword = '$api/auth/reset-password';
+  static const String authVerifyEmail = '$api/auth/verify-email';
+  static const String authSetPassword = '$api/auth/set-password';
+  static const String authDeleteAccount = '$api/auth/delete-account';
+  static const String authSessions = '$api/auth/sessions';
+  static const String authRevokeSession = '$api/auth/revoke-session';
+  static const String authRevokeOtherSessions =
+      '$api/auth/revoke-other-sessions';
+
   // User Profile
   static const String user = '$api/user';
   static const String userProfile = '$api/user/profile';

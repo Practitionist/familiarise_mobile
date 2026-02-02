@@ -383,15 +383,15 @@ void main() {
     });
   });
 
-  group('sendPasswordResetEmail', () {
+  group('forgotPassword', () {
     test('should return success when email is sent', () async {
       // Arrange
       when(() => mockNetworkInfo.isConnected).thenAnswer((_) async => true);
-      when(() => mockRemoteSource.sendPasswordResetEmail(testEmail))
+      when(() => mockRemoteSource.forgotPassword(testEmail))
           .thenAnswer((_) async {});
 
       // Act
-      final result = await repository.sendPasswordResetEmail(testEmail);
+      final result = await repository.forgotPassword(testEmail);
 
       // Assert
       expect(result.isRight(), true);
@@ -402,7 +402,7 @@ void main() {
       when(() => mockNetworkInfo.isConnected).thenAnswer((_) async => false);
 
       // Act
-      final result = await repository.sendPasswordResetEmail(testEmail);
+      final result = await repository.forgotPassword(testEmail);
 
       // Assert
       expect(result.isLeft(), true);

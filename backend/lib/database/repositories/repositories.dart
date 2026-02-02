@@ -22,4 +22,5 @@ export 'session_repository.dart';
 export 'slot_repository.dart';
 export 'support_ticket_repository.dart';
 export 'user_repository.dart';
+export 'verification_repository.dart';
 export 'webhook_event_repository.dart';

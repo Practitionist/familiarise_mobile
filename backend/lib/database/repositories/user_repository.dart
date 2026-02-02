@@ -2,6 +2,10 @@ import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for user-related database operations
+///
+/// BetterAuth schema changes:
+///   - password moved to accounts table (removed from users)
+///   - emailVerified is now Boolean (not DateTime?)
 class UserRepository extends BaseRepository {
   /// Create a user repository with the given executor
   UserRepository(super._executor);
@@ -28,13 +32,16 @@ class UserRepository extends BaseRepository {
 
   /// Create a new user
   ///
+  /// In BetterAuth schema, passwords are stored in the accounts table,
+  /// not the users table. Use AccountRepository.createCredentials() for
+  /// password storage.
+  ///
   /// Optionally accepts a [TransactionExecutor] to run within a transaction.
   Future<Map<String, dynamic>> create({
     required String id,
     required String email,
     String? name,
     String? image,
-    String? hashedPassword,
     String role = 'CONSULTEE',
     TransactionExecutor? txn,
   }) async {
@@ -43,16 +50,12 @@ class UserRepository extends BaseRepository {
       'email': email,
       'name': name,
       'image': image,
+      'emailVerified': false,
       'role': role,
       'onboardingCompleted': false,
       'createdAt': nowIso8601,
       'updatedAt': nowIso8601,
     };
-
-    // Add password if provided (for credentials auth)
-    if (hashedPassword != null) {
-      data['password'] = hashedPassword;
-    }
 
     final query = JsonQueryBuilder()
         .model('users')
@@ -103,6 +106,23 @@ class UserRepository extends BaseRepository {
         .where({'id': id})
         .data(data)
         .build();
+
+    return executeQueryAsSingleMap(query);
+  }
+
+  /// Update emailVerified status
+  Future<Map<String, dynamic>?> updateEmailVerified({
+    required String id,
+    required bool verified,
+  }) async {
+    final query = JsonQueryBuilder()
+        .model('users')
+        .action(QueryAction.update)
+        .where({'id': id})
+        .data({
+      'emailVerified': verified,
+      'updatedAt': nowIso8601,
+    }).build();
 
     return executeQueryAsSingleMap(query);
   }

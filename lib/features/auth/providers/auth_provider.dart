@@ -157,14 +157,62 @@ class Auth extends _$Auth {
     );
   }
 
-  /// Send password reset email
-  Future<bool> sendPasswordResetEmail(String email) async {
+  /// Send password reset email (forgot password flow)
+  Future<bool> forgotPassword(String email) async {
     final repository = ref.read(authRepositoryProvider);
-    final result = await repository.sendPasswordResetEmail(email);
+    final result = await repository.forgotPassword(email);
 
     return result.fold(
       (failure) => false,
       (_) => true,
+    );
+  }
+
+  /// Reset password with token
+  Future<bool> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    final repository = ref.read(authRepositoryProvider);
+    final result = await repository.resetPassword(
+      token: token,
+      newPassword: newPassword,
+    );
+
+    return result.fold(
+      (failure) => false,
+      (_) => true,
+    );
+  }
+
+  /// Change password (authenticated)
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final repository = ref.read(authRepositoryProvider);
+    final result = await repository.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+
+    return result.fold(
+      (failure) => false,
+      (_) => true,
+    );
+  }
+
+  /// Delete account
+  Future<bool> deleteAccount() async {
+    final repository = ref.read(authRepositoryProvider);
+    final result = await repository.deleteAccount();
+
+    return result.fold(
+      (failure) => false,
+      (_) {
+        state = const AuthState.unauthenticated();
+        return true;
+      },
     );
   }
 

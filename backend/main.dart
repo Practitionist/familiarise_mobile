@@ -4,6 +4,8 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/services/email/email_service.dart';
+import 'package:backend/services/profile/profile_service.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -59,6 +61,21 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     apiSecret: env['STREAM_API_SECRET'],
   );
 
+  // Email service (optional — only needed for password reset + email verification)
+  final resendApiKey = env['RESEND_API_KEY'];
+  final appBaseUrl = env['APP_BASE_URL'] ?? 'https://familiarise.com';
+  EmailService? emailService;
+  ProfileService? profileService;
+  if (resendApiKey != null && resendApiKey.isNotEmpty) {
+    emailService = EmailService(apiKey: resendApiKey);
+    profileService = ProfileService(db, emailService, appBaseUrl: appBaseUrl);
+  } else {
+    SentryLogger.info(
+      'RESEND_API_KEY not configured. Email features disabled.',
+      context: 'Startup',
+    );
+  }
+
   // Create GitHub OAuth service if configured
   final GitHubOAuthService? githubOAuthService = hasGitHubOAuth
       ? GitHubOAuthService(
@@ -79,6 +96,13 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   if (githubOAuthService != null) {
     handlerWithProviders = handlerWithProviders
         .use(provider<GitHubOAuthService>((_) => githubOAuthService));
+  }
+
+  // Add profile service if email is configured
+  if (profileService != null) {
+    final ps = profileService;
+    handlerWithProviders = handlerWithProviders
+        .use(provider<ProfileService>((_) => ps));
   }
 
   // Start server

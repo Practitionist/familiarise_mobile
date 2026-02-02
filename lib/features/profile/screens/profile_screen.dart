@@ -107,6 +107,22 @@ class ProfileScreen extends ConsumerWidget {
             ),
             _buildMenuItem(
               context,
+              icon: Icons.lock_outline,
+              title: 'Change Password',
+              onTap: () {
+                context.push('/profile/change-password');
+              },
+            ),
+            _buildMenuItem(
+              context,
+              icon: Icons.devices_outlined,
+              title: 'Active Sessions',
+              onTap: () {
+                context.push('/profile/sessions');
+              },
+            ),
+            _buildMenuItem(
+              context,
               icon: Icons.info_outline,
               title: 'About',
               onTap: () {
@@ -140,6 +156,58 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 8),
+
+            // Delete account
+            _buildMenuItem(
+              context,
+              icon: Icons.delete_forever_outlined,
+              title: 'Delete Account',
+              isDestructive: true,
+              onTap: () async {
+                final shouldDelete = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Account'),
+                    content: const Text(
+                      'This action is permanent and cannot be undone. '
+                      'All your data will be deleted.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pop(context, true),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.error,
+                        ),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldDelete == true && context.mounted) {
+                  final success = await ref
+                      .read(authProvider.notifier)
+                      .deleteAccount();
+                  if (!success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Failed to delete account. '
+                          'Please try again.',
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
 
             // Sign out button
             _buildMenuItem(
