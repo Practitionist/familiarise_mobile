@@ -105,21 +105,19 @@ class ProfileService {
     required String token,
     required String newPassword,
   }) async {
-    // Find the verification token by value
-    final verifications = await _db.executeRaw(
-      r'SELECT * FROM "verifications" WHERE "value" = $1 '
-      r'AND "identifier" LIKE $2 LIMIT 1',
-      [token, 'password-reset:%'],
+    // Find the verification token by value and identifier prefix
+    final verification =
+        await _db.verifications.findByValueAndIdentifierPrefix(
+      value: token,
+      identifierPrefix: 'password-reset:',
     );
 
-    if (verifications.isEmpty) {
+    if (verification == null) {
       throw AuthException(
         'Invalid or expired reset token',
         statusCode: 400,
       );
     }
-
-    final verification = verifications.first;
     final expiresAtValue = verification['expiresAt'];
     final expiresAt = expiresAtValue is DateTime
         ? expiresAtValue
@@ -218,20 +216,19 @@ class ProfileService {
 
   /// Confirm email verification with token
   Future<void> confirmEmailVerification({required String token}) async {
-    final verifications = await _db.executeRaw(
-      r'SELECT * FROM "verifications" WHERE "value" = $1 '
-      r'AND "identifier" LIKE $2 LIMIT 1',
-      [token, 'email-verify:%'],
+    // Find the verification token by value and identifier prefix
+    final verification =
+        await _db.verifications.findByValueAndIdentifierPrefix(
+      value: token,
+      identifierPrefix: 'email-verify:',
     );
 
-    if (verifications.isEmpty) {
+    if (verification == null) {
       throw AuthException(
         'Invalid or expired verification token',
         statusCode: 400,
       );
     }
-
-    final verification = verifications.first;
     final expiresAtValue = verification['expiresAt'];
     final expiresAt = expiresAtValue is DateTime
         ? expiresAtValue

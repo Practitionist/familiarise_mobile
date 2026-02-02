@@ -25,6 +25,25 @@ class VerificationRepository extends BaseRepository {
     return executeQueryAsSingleMap(query);
   }
 
+  /// Find a verification by value and identifier prefix
+  ///
+  /// Uses `startsWith` filter to match identifiers like
+  /// "password-reset:email@example.com" or "email-verify:email@example.com".
+  Future<Map<String, dynamic>?> findByValueAndIdentifierPrefix({
+    required String value,
+    required String identifierPrefix,
+  }) async {
+    final query = JsonQueryBuilder()
+        .model('verifications')
+        .action(QueryAction.findFirst)
+        .where({
+      'value': value,
+      'identifier': FilterOperators.startsWith(identifierPrefix),
+    }).build();
+
+    return executeQueryAsSingleMap(query);
+  }
+
   /// Find a verification by ID
   Future<Map<String, dynamic>?> findById(String id) async {
     final query = JsonQueryBuilder()
@@ -84,9 +103,13 @@ class VerificationRepository extends BaseRepository {
 
   /// Delete expired verifications (cleanup)
   Future<int> deleteExpired() async {
-    return executeMutationRaw(
-      'DELETE FROM "verifications" WHERE "expiresAt" < NOW()',
-      [],
-    );
+    final query = JsonQueryBuilder()
+        .model('verifications')
+        .action(QueryAction.deleteMany)
+        .where({
+      'expiresAt': FilterOperators.lt(DateTime.now().toUtc().toIso8601String()),
+    }).build();
+
+    return executor.executeMutation(query);
   }
 }

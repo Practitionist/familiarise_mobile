@@ -111,11 +111,15 @@ class SessionRepository extends BaseRepository {
     required String userId,
     required String keepSessionId,
   }) async {
-    // Use raw SQL since Prisma JSON builder doesn't support NOT + AND easily
-    await executeMutationRaw(
-      r'DELETE FROM "sessions" WHERE "userId" = $1 AND "id" != $2',
-      [userId, keepSessionId],
-    );
+    final query = JsonQueryBuilder()
+        .model('sessions')
+        .action(QueryAction.deleteMany)
+        .where({
+      'userId': userId,
+      'id': FilterOperators.not(keepSessionId),
+    }).build();
+
+    await executeMutation(query);
   }
 
   /// Hydrate a session record with user data
