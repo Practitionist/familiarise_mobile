@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/validators.dart';
 import '../../../shared/widgets/app_text_field.dart';
@@ -69,20 +70,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   bool _roleDataLoaded = false;
 
-  static const List<String> _languageOptions = [
-    'English',
-    'Spanish',
-    'French',
-    'German',
-    'Mandarin',
-    'Hindi',
-    'Portuguese',
-    'Japanese',
-    'Korean',
-    'Arabic',
-  ];
-
-
   @override
   void initState() {
     super.initState();
@@ -95,7 +82,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _cityController = TextEditingController(text: user?.city ?? '');
     _countryController = TextEditingController(text: user?.country ?? '');
     _addressController = TextEditingController(text: user?.address ?? '');
-    _linkedinUrlController = TextEditingController(text: user?.linkedinUrl ?? '');
+    _linkedinUrlController =
+        TextEditingController(text: user?.linkedinUrl ?? '');
     _selectedDate = user?.dateOfBirth;
     _selectedGender = user?.gender;
     _pendingImageUrl = user?.image;
@@ -152,8 +140,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void _populateConsultantData(Map<String, dynamic> data) {
     _headlineController.text = data['headline'] as String? ?? '';
     final exp = data['experience'];
-    _experienceController.text =
-        exp != null ? (exp as num).toString() : '';
+    _experienceController.text = exp != null ? (exp as num).toString() : '';
     _descriptionController.text = data['description'] as String? ?? '';
     _mentoringStyleController.text = data['mentoringStyle'] as String? ?? '';
     _websiteUrlController.text = data['websiteUrl'] as String? ?? '';
@@ -162,7 +149,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _videoIntroUrlController.text = data['videoIntroUrl'] as String? ?? '';
     _languages = _parseList(data['languages']);
     _tools = _parseList(data['toolsAndTechnologies']);
-    _sessionTypes = _parseSessionTypes(data['sessionTypes']);
+    _sessionTypes = SessionTypeHelper.fromApiStrings(data['sessionTypes']);
   }
 
   void _populateConsulteeData(Map<String, dynamic> data) {
@@ -236,24 +223,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     };
   }
 
-  SessionType? _parseSessionType(String? value) {
-    if (value == null) return null;
-    return switch (value) {
-      'ONE_ON_ONE' => SessionType.oneOnOne,
-      'GROUP' => SessionType.group,
-      'ASYNC_REVIEW' => SessionType.asyncReview,
-      _ => null,
-    };
-  }
-
-  List<SessionType> _parseSessionTypes(dynamic value) {
-    final strings = _parseList(value);
-    return strings
-        .map((s) => _parseSessionType(s))
-        .whereType<SessionType>()
-        .toList();
-  }
-
   // --- Enum to API string converters ---
 
   String _careerStageToApi(CareerStage stage) {
@@ -283,14 +252,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     };
   }
 
-  String _sessionTypeToApi(SessionType type) {
-    return switch (type) {
-      SessionType.oneOnOne => 'ONE_ON_ONE',
-      SessionType.group => 'GROUP',
-      SessionType.asyncReview => 'ASYNC_REVIEW',
-    };
-  }
-
   // --- Enum display labels ---
 
   String _careerStageLabel(CareerStage stage) {
@@ -317,14 +278,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ConsultationMode.video => 'Video Call',
       ConsultationMode.audio => 'Audio Call',
       ConsultationMode.inPerson => 'In Person',
-    };
-  }
-
-  String _sessionTypeLabel(SessionType type) {
-    return switch (type) {
-      SessionType.oneOnOne => '1:1 Session',
-      SessionType.group => 'Group Session',
-      SessionType.asyncReview => 'Async Review',
     };
   }
 
@@ -435,11 +388,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       // Save role-specific fields
       bool roleSuccess = true;
       if (user.role == UserRole.consultant) {
-        roleSuccess = await notifier.saveConsultantProfile(
-            _buildConsultantFields());
+        roleSuccess =
+            await notifier.saveConsultantProfile(_buildConsultantFields());
       } else if (user.role == UserRole.consultee) {
-        roleSuccess = await notifier.saveConsulteeProfile(
-            _buildConsulteeFields());
+        roleSuccess =
+            await notifier.saveConsulteeProfile(_buildConsulteeFields());
       }
 
       if (!mounted) return;
@@ -483,7 +436,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (_languages.isNotEmpty) 'languages': _languages,
       if (_tools.isNotEmpty) 'toolsAndTechnologies': _tools,
       if (_sessionTypes.isNotEmpty)
-        'sessionTypes': _sessionTypes.map(_sessionTypeToApi).toList(),
+        'sessionTypes': SessionTypeHelper.toApiStrings(_sessionTypes),
       if (_websiteUrlController.text.trim().isNotEmpty)
         'websiteUrl': _websiteUrlController.text.trim(),
       if (_twitterUrlController.text.trim().isNotEmpty)
@@ -501,8 +454,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'occupation': _occupationController.text.trim(),
       if (_aboutMeController.text.trim().isNotEmpty)
         'aboutMe': _aboutMeController.text.trim(),
-      if (_careerStage != null)
-        'careerStage': _careerStageToApi(_careerStage!),
+      if (_careerStage != null) 'careerStage': _careerStageToApi(_careerStage!),
       if (_companyController.text.trim().isNotEmpty)
         'currentCompany': _companyController.text.trim(),
       if (_industryController.text.trim().isNotEmpty)
@@ -768,7 +720,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           selectedItems: _sessionTypes,
           label: 'Session Types',
           hint: 'Select session types you offer',
-          labelBuilder: _sessionTypeLabel,
+          labelBuilder: SessionTypeHelper.getLabel,
           onChanged: (types) => setState(() => _sessionTypes = types),
         ),
         const SizedBox(height: 24),
@@ -898,8 +850,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               child: Text(_budgetPreferenceLabel(pref)),
             );
           }).toList(),
-          onChanged: (value) =>
-              setState(() => _budgetPreference = value),
+          onChanged: (value) => setState(() => _budgetPreference = value),
         ),
         const SizedBox(height: 16),
         FormDropdown<ConsultationMode>(
@@ -912,15 +863,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               child: Text(_consultationModeLabel(mode)),
             );
           }).toList(),
-          onChanged: (value) =>
-              setState(() => _communicationMethod = value),
+          onChanged: (value) => setState(() => _communicationMethod = value),
         ),
         const SizedBox(height: 16),
         FormDropdown<String>(
           value: _preferredLanguage,
           label: 'Preferred Language',
           hint: 'Select your preferred language',
-          items: _languageOptions.map((lang) {
+          items: LanguageConstants.commonLanguages.map((lang) {
             return DropdownMenuItem(
               value: lang,
               child: Text(lang),

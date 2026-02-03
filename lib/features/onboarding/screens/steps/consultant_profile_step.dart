@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/enums.dart';
 import '../../../../domain/entities/onboarding/consultant_profile_data.dart';
 import '../../../../domain/entities/onboarding/domain_entity.dart';
 import '../../../../shared/widgets/app_text_field.dart';
@@ -30,41 +32,8 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
   List<String> _selectedSubDomainIds = [];
   List<String> _selectedLanguages = [];
   List<String> _selectedTools = [];
-  List<String> _selectedSessionTypes = [];
+  List<SessionType> _selectedSessionTypes = [];
   String? _selectedMentoringStyle;
-
-  static const List<String> _languageSuggestions = [
-    'English',
-    'Spanish',
-    'French',
-    'German',
-    'Mandarin',
-    'Hindi',
-    'Portuguese',
-    'Japanese',
-    'Korean',
-    'Arabic',
-  ];
-
-  static const List<String> _sessionTypeSuggestions = [
-    'One-on-One Mentoring',
-    'Career Coaching',
-    'Technical Review',
-    'Resume Review',
-    'Mock Interview',
-    'Portfolio Review',
-    'Group Session',
-    'Workshop',
-  ];
-
-  static const List<String> _mentoringStyles = [
-    'Hands-on',
-    'Supportive',
-    'Challenging',
-    'Structured',
-    'Flexible',
-    'Goal-oriented',
-  ];
 
   @override
   void initState() {
@@ -87,7 +56,8 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
     _selectedSubDomainIds = profile?.subDomainIds ?? [];
     _selectedLanguages = profile?.languages ?? [];
     _selectedTools = profile?.toolsAndTechnologies ?? [];
-    _selectedSessionTypes = profile?.sessionTypes ?? [];
+    _selectedSessionTypes =
+        SessionTypeHelper.fromApiStrings(profile?.sessionTypes);
     _selectedMentoringStyle = profile?.mentoringStyle;
   }
 
@@ -116,7 +86,7 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
       subDomainIds: _selectedSubDomainIds,
       languages: _selectedLanguages,
       toolsAndTechnologies: _selectedTools,
-      sessionTypes: _selectedSessionTypes,
+      sessionTypes: SessionTypeHelper.toApiStrings(_selectedSessionTypes),
       mentoringStyle: _selectedMentoringStyle,
       websiteUrl: _websiteController.text.trim().isEmpty
           ? null
@@ -241,7 +211,7 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
             tags: _selectedLanguages,
             label: 'Languages',
             hint: 'Add languages you speak',
-            suggestions: _languageSuggestions,
+            suggestions: LanguageConstants.commonLanguages,
             maxTags: 5,
             onChanged: (tags) {
               setState(() => _selectedLanguages = tags);
@@ -261,15 +231,15 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
             },
           ),
           const SizedBox(height: 24),
-          // Session Types
-          TagInput(
-            tags: _selectedSessionTypes,
+          // Session Types - uses SessionType enum
+          MultiSelectChips<SessionType>(
+            items: SessionType.values,
+            selectedItems: _selectedSessionTypes,
+            labelBuilder: SessionTypeHelper.getLabel,
             label: 'Session Types Offered',
-            hint: 'Add types of sessions you offer',
-            suggestions: _sessionTypeSuggestions,
-            maxTags: 8,
-            onChanged: (tags) {
-              setState(() => _selectedSessionTypes = tags);
+            hint: 'Select the types of sessions you offer',
+            onChanged: (types) {
+              setState(() => _selectedSessionTypes = types);
               _updateProfile();
             },
           ),
@@ -279,7 +249,7 @@ class _ConsultantProfileStepState extends ConsumerState<ConsultantProfileStep> {
             value: _selectedMentoringStyle,
             label: 'Mentoring Style',
             hint: 'Select your mentoring style',
-            items: _mentoringStyles.map((style) {
+            items: MentoringStyleConstants.styles.map((style) {
               return DropdownMenuItem(
                 value: style,
                 child: Text(style),
