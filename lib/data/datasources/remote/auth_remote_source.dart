@@ -132,8 +132,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource.signInWithEmail');
-      throw const AuthException(
-          message: 'Sign in failed. Please try again.');
+      throw const AuthException(message: 'Sign in failed. Please try again.');
     }
   }
 
@@ -156,7 +155,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
         }),
       );
 
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 && response.statusCode != 201) {
         final error = jsonDecode(response.body);
         throw AuthException(
             message: error['error']?['message'] ?? 'Sign up failed');
@@ -177,8 +176,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource.signUpWithEmail');
-      throw const AuthException(
-          message: 'Sign up failed. Please try again.');
+      throw const AuthException(message: 'Sign up failed. Please try again.');
     }
   }
 
@@ -562,8 +560,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
         throw AuthException(
-          message: error['error']?['message'] ??
-              'Failed to send verification email',
+          message:
+              error['error']?['message'] ?? 'Failed to send verification email',
         );
       }
     } catch (e, stackTrace) {
@@ -719,8 +717,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
         throw AuthException(
-          message: error['error']?['message'] ??
-              'Failed to revoke other sessions',
+          message:
+              error['error']?['message'] ?? 'Failed to revoke other sessions',
         );
       }
     } catch (e, stackTrace) {
@@ -737,7 +735,8 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   }
 
   @override
-  Future<UserModel> updateProfile(String userId, Map<String, dynamic> data) async {
+  Future<UserModel> updateProfile(
+      String userId, Map<String, dynamic> data) async {
     try {
       final baseUrl = EnvConfig.apiBaseUrl;
       final token = await AuthInterceptor.getToken();
@@ -859,9 +858,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signInWithEmail');
-      throw const AuthException(
-          message: 'Sign in failed. Please try again.');
+          stackTrace: stackTrace,
+          context: 'AuthRemoteSourceWeb.signInWithEmail');
+      throw const AuthException(message: 'Sign in failed. Please try again.');
     }
   }
 
@@ -897,9 +896,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signUpWithEmail');
-      throw const AuthException(
-          message: 'Sign up failed. Please try again.');
+          stackTrace: stackTrace,
+          context: 'AuthRemoteSourceWeb.signUpWithEmail');
+      throw const AuthException(message: 'Sign up failed. Please try again.');
     }
   }
 
@@ -953,7 +952,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signInWithGoogle');
+          stackTrace: stackTrace,
+          context: 'AuthRemoteSourceWeb.signInWithGoogle');
       throw const AuthException(
           message: 'Google sign in failed. Please try again.');
     }
@@ -1027,8 +1027,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
         throw AuthException(
-          message:
-              error['error']?['message'] ?? 'Failed to send reset email',
+          message: error['error']?['message'] ?? 'Failed to send reset email',
         );
       }
     } catch (e) {
@@ -1054,8 +1053,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
         throw AuthException(
-          message:
-              error['error']?['message'] ?? 'Failed to reset password',
+          message: error['error']?['message'] ?? 'Failed to reset password',
         );
       }
     } catch (e) {
@@ -1091,8 +1089,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message:
-            error['error']?['message'] ?? 'Failed to change password',
+        message: error['error']?['message'] ?? 'Failed to change password',
       );
     }
   }
@@ -1116,8 +1113,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message:
-            error['error']?['message'] ?? 'Failed to set password',
+        message: error['error']?['message'] ?? 'Failed to set password',
       );
     }
   }
@@ -1141,8 +1137,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message: error['error']?['message'] ??
-            'Failed to send verification email',
+        message:
+            error['error']?['message'] ?? 'Failed to send verification email',
       );
     }
   }
@@ -1165,8 +1161,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message:
-            error['error']?['message'] ?? 'Failed to delete account',
+        message: error['error']?['message'] ?? 'Failed to delete account',
       );
     }
 
@@ -1191,8 +1186,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message:
-            error['error']?['message'] ?? 'Failed to list sessions',
+        message: error['error']?['message'] ?? 'Failed to list sessions',
       );
     }
 
@@ -1220,8 +1214,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message:
-            error['error']?['message'] ?? 'Failed to revoke session',
+        message: error['error']?['message'] ?? 'Failed to revoke session',
       );
     }
   }
@@ -1244,8 +1237,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw AuthException(
-        message: error['error']?['message'] ??
-            'Failed to revoke other sessions',
+        message:
+            error['error']?['message'] ?? 'Failed to revoke other sessions',
       );
     }
   }

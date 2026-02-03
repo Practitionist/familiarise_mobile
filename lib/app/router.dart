@@ -24,6 +24,8 @@ import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 import '../features/schedule/screens/schedule_screen.dart';
+import '../features/profile/screens/active_sessions_screen.dart';
+import '../features/profile/screens/change_password_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/support/screens/support_tickets_screen.dart';
@@ -204,8 +206,7 @@ GoRouter router(Ref ref) {
             final currentPath = state.matchedLocation;
             final user = container.read(currentUserProvider);
             final role = user?.role ?? UserRole.consultee;
-            final tabIndex =
-                AppNavigationTabs.indexFromPath(currentPath, role);
+            final tabIndex = AppNavigationTabs.indexFromPath(currentPath, role);
             final currentIndex = container.read(navigationIndexProvider);
             if (currentIndex != tabIndex) {
               container
@@ -292,6 +293,16 @@ GoRouter router(Ref ref) {
                 path: 'edit',
                 name: 'editProfile',
                 builder: (context, state) => const EditProfileScreen(),
+              ),
+              GoRoute(
+                path: 'change-password',
+                name: 'changePassword',
+                builder: (context, state) => const ChangePasswordScreen(),
+              ),
+              GoRoute(
+                path: 'sessions',
+                name: 'activeSessions',
+                builder: (context, state) => const ActiveSessionsScreen(),
               ),
             ],
           ),
