@@ -65,10 +65,8 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   final resendApiKey = env['RESEND_API_KEY'];
   final appBaseUrl = env['APP_BASE_URL'] ?? 'https://familiarise.com';
   EmailService? emailService;
-  ProfileService? profileService;
   if (resendApiKey != null && resendApiKey.isNotEmpty) {
     emailService = EmailService(apiKey: resendApiKey);
-    profileService = ProfileService(db, emailService, appBaseUrl: appBaseUrl);
   } else {
     SentryLogger.info(
       'RESEND_API_KEY not configured. Email features disabled.',
@@ -76,12 +74,20 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     );
   }
 
+  // ProfileService is always created - email-dependent features will throw
+  // appropriate errors if email service is not configured
+  final profileService = ProfileService(
+    db,
+    emailService: emailService,
+    appBaseUrl: appBaseUrl,
+  );
+
   // Create GitHub OAuth service if configured
   final GitHubOAuthService? githubOAuthService = hasGitHubOAuth
       ? GitHubOAuthService(
-          clientId: githubClientId!,
-          clientSecret: githubClientSecret!,
-          redirectUri: githubRedirectUri!,
+          clientId: githubClientId,
+          clientSecret: githubClientSecret,
+          redirectUri: githubRedirectUri,
         )
       : null;
 
@@ -98,12 +104,9 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
         .use(provider<GitHubOAuthService>((_) => githubOAuthService));
   }
 
-  // Add profile service if email is configured
-  if (profileService != null) {
-    final ps = profileService;
-    handlerWithProviders = handlerWithProviders
-        .use(provider<ProfileService>((_) => ps));
-  }
+  // ProfileService is always provided
+  handlerWithProviders =
+      handlerWithProviders.use(provider<ProfileService>((_) => profileService));
 
   // Start server
   SentryLogger.info(

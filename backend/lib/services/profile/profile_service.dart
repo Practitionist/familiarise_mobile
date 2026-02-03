@@ -13,17 +13,24 @@ import 'package:uuid/uuid.dart';
 /// set password (for OAuth-only users), delete account, session management.
 class ProfileService {
   /// Creates a ProfileService with required dependencies
+  ///
+  /// [emailService] is optional - if not provided, email-dependent features
+  /// (forgot password, email verification) will throw an appropriate error.
   ProfileService(
-    this._db,
-    this._emailService, {
+    this._db, {
+    EmailService? emailService,
     required String appBaseUrl,
-  }) : _appBaseUrl = appBaseUrl;
+  })  : _emailService = emailService,
+        _appBaseUrl = appBaseUrl;
 
   final DatabaseClient _db;
-  final EmailService _emailService;
+  final EmailService? _emailService;
   final String _appBaseUrl;
   final _uuid = const Uuid();
   final _random = Random.secure();
+
+  /// Check if email service is available
+  bool get hasEmailService => _emailService != null;
 
   /// BCrypt cost factor — matches BetterAuth web config
   static const int _bcryptCost = 12;
@@ -70,6 +77,13 @@ class ProfileService {
   /// Generates a verification token and sends a reset email.
   /// Always returns success to prevent email enumeration.
   Future<void> forgotPassword({required String email}) async {
+    if (_emailService == null) {
+      throw AuthException(
+        'Email service is not configured. Password reset is unavailable.',
+        statusCode: 503,
+      );
+    }
+
     final user = await _db.users.findByEmail(email);
     if (user == null) {
       // Don't reveal whether the email exists — always return success
@@ -106,8 +120,7 @@ class ProfileService {
     required String newPassword,
   }) async {
     // Find the verification token by value and identifier prefix
-    final verification =
-        await _db.verifications.findByValueAndIdentifierPrefix(
+    final verification = await _db.verifications.findByValueAndIdentifierPrefix(
       value: token,
       identifierPrefix: 'password-reset:',
     );
@@ -136,8 +149,7 @@ class ProfileService {
     // Extract email from identifier
     // Format: "password-reset:email@example.com"
     final identifier = verification['identifier'] as String;
-    final email =
-        identifier.replaceFirst('password-reset:', '');
+    final email = identifier.replaceFirst('password-reset:', '');
 
     final user = await _db.users.findByEmail(email);
     if (user == null) {
@@ -171,14 +183,20 @@ class ProfileService {
     }
 
     // Delete the used verification token
-    await _db.verifications
-        .delete(verification['id'] as String);
+    await _db.verifications.delete(verification['id'] as String);
   }
 
   /// Request email verification
   ///
   /// Generates a token and sends a verification email.
   Future<void> requestEmailVerification({required String userId}) async {
+    if (_emailService == null) {
+      throw AuthException(
+        'Email service is not configured. Email verification is unavailable.',
+        statusCode: 503,
+      );
+    }
+
     final user = await _db.users.findById(userId);
     if (user == null) {
       throw AuthException('User not found', statusCode: 404);
@@ -217,8 +235,7 @@ class ProfileService {
   /// Confirm email verification with token
   Future<void> confirmEmailVerification({required String token}) async {
     // Find the verification token by value and identifier prefix
-    final verification =
-        await _db.verifications.findByValueAndIdentifierPrefix(
+    final verification = await _db.verifications.findByValueAndIdentifierPrefix(
       value: token,
       identifierPrefix: 'email-verify:',
     );
@@ -246,8 +263,7 @@ class ProfileService {
 
     // Extract email from identifier
     final identifier = verification['identifier'] as String;
-    final email =
-        identifier.replaceFirst('email-verify:', '');
+    final email = identifier.replaceFirst('email-verify:', '');
 
     final user = await _db.users.findByEmail(email);
     if (user == null) {
