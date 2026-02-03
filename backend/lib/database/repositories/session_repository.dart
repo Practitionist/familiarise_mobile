@@ -20,7 +20,7 @@ class SessionRepository extends BaseRepository {
   /// option for relations.
   Future<Map<String, dynamic>?> findById(String sessionId) async {
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.findUnique)
         .where({'id': sessionId}).build();
 
@@ -33,7 +33,7 @@ class SessionRepository extends BaseRepository {
   /// Find session by token with user data
   Future<Map<String, dynamic>?> findByToken(String token) async {
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.findFirst)
         .where({'token': token}).build();
 
@@ -46,7 +46,7 @@ class SessionRepository extends BaseRepository {
   /// List all active sessions for a user
   Future<List<Map<String, dynamic>>> findByUserId(String userId) async {
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.findMany)
         .where({'userId': userId}).build();
 
@@ -74,7 +74,7 @@ class SessionRepository extends BaseRepository {
     if (userAgent != null) data['userAgent'] = userAgent;
 
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.create)
         .data(data)
         .build();
@@ -89,7 +89,7 @@ class SessionRepository extends BaseRepository {
   /// Delete a session by ID
   Future<void> delete(String sessionId) async {
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.delete)
         .where({'id': sessionId}).build();
 
@@ -99,7 +99,7 @@ class SessionRepository extends BaseRepository {
   /// Delete all sessions for a user
   Future<void> deleteByUserId(String userId) async {
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.deleteMany)
         .where({'userId': userId}).build();
 
@@ -112,7 +112,7 @@ class SessionRepository extends BaseRepository {
     required String keepSessionId,
   }) async {
     final query = JsonQueryBuilder()
-        .model('Session')
+        .model('sessions')
         .action(QueryAction.deleteMany)
         .where({
       'userId': userId,
