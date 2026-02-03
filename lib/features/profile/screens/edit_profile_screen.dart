@@ -61,13 +61,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _industryController;
   late final TextEditingController _aboutMeController;
   late final TextEditingController _consulteeLinkedinController;
-  late final TextEditingController _preferredLanguageController;
+  String? _preferredLanguage;
   CareerStage? _careerStage;
   List<String> _skillsToDevelop = [];
   BudgetPreference? _budgetPreference;
   ConsultationMode? _communicationMethod;
 
   bool _roleDataLoaded = false;
+
+  static const List<String> _languageOptions = [
+    'English',
+    'Spanish',
+    'French',
+    'German',
+    'Mandarin',
+    'Hindi',
+    'Portuguese',
+    'Japanese',
+    'Korean',
+    'Arabic',
+  ];
 
 
   @override
@@ -108,7 +121,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _industryController = TextEditingController();
     _aboutMeController = TextEditingController();
     _consulteeLinkedinController = TextEditingController();
-    _preferredLanguageController = TextEditingController();
   }
 
   @override
@@ -134,7 +146,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _industryController.dispose();
     _aboutMeController.dispose();
     _consulteeLinkedinController.dispose();
-    _preferredLanguageController.dispose();
     super.dispose();
   }
 
@@ -160,8 +171,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _industryController.text = data['industry'] as String? ?? '';
     _aboutMeController.text = data['aboutMe'] as String? ?? '';
     _consulteeLinkedinController.text = data['linkedinUrl'] as String? ?? '';
-    _preferredLanguageController.text =
-        data['preferredLanguage'] as String? ?? '';
+    _preferredLanguage = data['preferredLanguage'] as String?;
     _skillsToDevelop = _parseList(data['skillsToDevelop']);
     _budgetPreference = _parseBudgetPreference(
       data['budgetPreference'] as String?,
@@ -443,10 +453,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Basic profile saved, but role profile update failed',
+              'Basic profile saved, but some updates may have failed',
             ),
           ),
         );
+        context.pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to update profile')),
@@ -502,8 +513,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (_communicationMethod != null)
         'preferredCommunicationMethod':
             _consultationModeToApi(_communicationMethod!),
-      if (_preferredLanguageController.text.trim().isNotEmpty)
-        'preferredLanguage': _preferredLanguageController.text.trim(),
+      if (_preferredLanguage != null) 'preferredLanguage': _preferredLanguage,
       if (_consulteeLinkedinController.text.trim().isNotEmpty)
         'linkedinUrl': _consulteeLinkedinController.text.trim(),
     };
@@ -906,11 +916,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               setState(() => _communicationMethod = value),
         ),
         const SizedBox(height: 16),
-        AppTextField(
-          controller: _preferredLanguageController,
+        FormDropdown<String>(
+          value: _preferredLanguage,
           label: 'Preferred Language',
-          hint: 'e.g., English, Hindi',
-          textCapitalization: TextCapitalization.words,
+          hint: 'Select your preferred language',
+          items: _languageOptions.map((lang) {
+            return DropdownMenuItem(
+              value: lang,
+              child: Text(lang),
+            );
+          }).toList(),
+          onChanged: (value) => setState(() => _preferredLanguage = value),
         ),
         const SizedBox(height: 16),
         AppTextField(

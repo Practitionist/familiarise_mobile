@@ -174,128 +174,152 @@ familiarise_mobile/
 
 For detailed architecture documentation, see [CLAUDE.md](./CLAUDE.md).
 
-## Development Commands
+## Development
 
-| Command | Description |
-|---------|-------------|
-| `flutter pub get` | Install dependencies |
-| `dart run build_runner build --delete-conflicting-outputs` | Generate code |
-| `dart run build_runner watch` | Watch and regenerate code |
-| `flutter analyze` | Run static analysis |
-| `flutter test` | Run unit tests |
-| `flutter test --coverage` | Run tests with coverage |
-| `flutter build apk` | Build Android APK |
-| `flutter build ios` | Build iOS app |
-| `cd backend && dart_frog dev` | Start backend server |
-
-## Development Environment
-
-### iOS Simulator
-
-```bash
-# List available simulators
-xcrun simctl list devices available
-
-# Boot a simulator
-xcrun simctl boot "iPhone 17 Pro"
-
-# Shutdown a simulator
-xcrun simctl shutdown "iPhone 17 Pro"
-
-# Shutdown all simulators
-xcrun simctl shutdown all
-
-# Run Flutter app on iOS simulator
-flutter run -d "iPhone 17 Pro"
-```
-
-### Android Emulator
-
-```bash
-# List available AVDs
-~/Library/Android/sdk/emulator/emulator -list-avds
-
-# Start emulator (runs in background)
-~/Library/Android/sdk/emulator/emulator -avd Medium_Phone_API_36.1 &
-
-# Kill emulator
-~/Library/Android/sdk/platform-tools/adb -s emulator-5554 emu kill
-
-# Run Flutter app on Android emulator
-flutter run -d emulator-5554
-```
-
-### Backend Server (Dart Frog)
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Build backend (required before running production server)
-~/.pub-cache/bin/dart_frog build
-
-# Run backend server on port 8080
-PORT=8080 dart build/bin/server.dart
-
-# Kill backend server
-lsof -ti:8080 | xargs kill -9
-
-# One-liner restart
-lsof -ti:8080 | xargs kill -9 2>/dev/null; PORT=8080 dart build/bin/server.dart
-
-# Development mode (with hot reload)
-~/.pub-cache/bin/dart_frog dev
-```
+This section covers daily development workflow. All commands assume you're in the repo root directory.
 
 ### Scripts (Recommended)
 
-Use these scripts from the `scripts/` directory for easy development:
+The easiest way to run the app:
 
 ```bash
-# Kill everything (backend, simulators, emulators)
-./scripts/kill-all.sh
-
-# Start iOS development (full rebuild)
-./scripts/start-ios.sh
-
-# Start Android development (full rebuild)
-./scripts/start-android.sh
-
-# Quick restart iOS (no code regeneration)
-./scripts/quick-ios.sh
-
-# Quick restart Android (no code regeneration)
-./scripts/quick-android.sh
-
-# Just regenerate freezed/riverpod code
-./scripts/rebuild.sh
+./scripts/start-android.sh    # Full rebuild + backend + Android emulator + app
+./scripts/start-ios.sh        # Full rebuild + backend + iOS simulator + app
+./scripts/kill-all.sh         # Stop everything (backend, simulators, emulators)
 ```
 
 | Script | Purpose |
 |--------|---------|
-| `kill-all.sh` | Stop backend, iOS simulators, Android emulators |
-| `start-ios.sh` | Full rebuild + start backend + run iOS app |
 | `start-android.sh` | Full rebuild + start backend + run Android app |
-| `quick-ios.sh` | Restart backend + run iOS app (skip rebuild) |
-| `quick-android.sh` | Restart backend + run Android app (skip rebuild) |
-| `rebuild.sh` | Only regenerate freezed/riverpod code |
+| `start-ios.sh` | Full rebuild + start backend + run iOS app |
+| `quick-android.sh` | Restart backend + run Android (skip rebuild) |
+| `quick-ios.sh` | Restart backend + run iOS (skip rebuild) |
+| `kill-all.sh` | Stop backend, iOS simulators, Android emulators |
+| `rebuild.sh` | Only regenerate Freezed/Riverpod code |
 
-> **Important:** If you modify files that use `@freezed` or `@riverpod` annotations (like entity classes), you MUST run `dart run build_runner build --delete-conflicting-outputs` before the changes will take effect. Hot reload will NOT pick up these changes.
+---
+
+### Manual Setup (Two Terminals)
+
+If you prefer manual control, run backend in Terminal 1 and frontend in Terminal 2.
+
+#### Kill Zombie Processes (Run First If Needed)
+
+```bash
+# Kill backend server on port 8080
+lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+
+# Kill dart_frog processes
+pkill -f dart_frog 2>/dev/null || true
+
+# Kill dart server processes
+pkill -f "dart build/bin/server.dart" 2>/dev/null || true
+
+# Kill Flutter processes
+pkill -f flutter_tools 2>/dev/null || true
+
+# Kill Android emulator
+pkill -f emulator 2>/dev/null || true
+
+# Shutdown all iOS simulators
+xcrun simctl shutdown all 2>/dev/null || true
+```
+
+#### Terminal 1 — Backend
+
+```bash
+# Kill any existing backend
+lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+
+# Navigate to backend
+cd backend
+
+# Build the backend
+~/.pub-cache/bin/dart_frog build
+
+# Start the server
+PORT=8080 dart build/bin/server.dart
+```
+
+#### Terminal 2 — Android
+
+```bash
+# Start the Android emulator (runs in background)
+~/Library/Android/sdk/emulator/emulator -avd "Medium_Phone_API_36.1" &
+
+# Wait for emulator to boot
+sleep 10
+~/Library/Android/sdk/platform-tools/adb wait-for-device
+
+# Set up port forwarding (required for emulator to reach localhost backend)
+~/Library/Android/sdk/platform-tools/adb reverse tcp:8080 tcp:8080
+
+# Run the Flutter app
+flutter run -d emulator-5554
+```
+
+#### Terminal 2 — iOS (Alternative)
+
+```bash
+# Boot the iOS simulator
+xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
+
+# Open the Simulator app (to see the window)
+open -a Simulator
+
+# Wait for simulator to be ready
+sleep 5
+
+# Run the Flutter app
+flutter run -d "iPhone 17 Pro"
+```
+
+---
+
+### Code Generation
+
+> **Important:** If you modify files with `@freezed` or `@riverpod` annotations, you MUST regenerate code. Hot reload will NOT pick up these changes.
+
+```bash
+# Full clean rebuild
+flutter clean
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+
+# Quick regenerate (no clean)
+dart run build_runner build --delete-conflicting-outputs
+
+# Watch mode (auto-regenerate on file changes)
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+---
 
 ### Quick Reference
 
 | Action | Command |
 |--------|---------|
-| **Kill Everything** | `lsof -ti:8080 \| xargs kill -9; xcrun simctl shutdown all` |
-| **Regenerate Code** | `dart run build_runner build --delete-conflicting-outputs` |
-| Start iOS Simulator | `xcrun simctl boot "iPhone 17 Pro"` |
-| Stop iOS Simulator | `xcrun simctl shutdown "iPhone 17 Pro"` |
-| Start Android Emulator | `~/Library/Android/sdk/emulator/emulator -avd Medium_Phone_API_36.1 &` |
-| Stop Android Emulator | `~/Library/Android/sdk/platform-tools/adb -s emulator-5554 emu kill` |
-| Start Backend | `cd backend && PORT=8080 dart build/bin/server.dart` |
-| Stop Backend | `lsof -ti:8080 \| xargs kill -9` |
-| Run on iOS | `flutter run -d "iPhone 17 Pro"` |
-| Run on Android | `flutter run -d emulator-5554` |
+| **List devices** | `flutter devices` |
+| **List Android AVDs** | `~/Library/Android/sdk/emulator/emulator -list-avds` |
+| **List iOS simulators** | `xcrun simctl list devices available` |
+| **Start iOS simulator** | `xcrun simctl boot "iPhone 17 Pro"` |
+| **Stop iOS simulator** | `xcrun simctl shutdown "iPhone 17 Pro"` |
+| **Stop all iOS simulators** | `xcrun simctl shutdown all` |
+| **Start Android emulator** | `~/Library/Android/sdk/emulator/emulator -avd "Medium_Phone_API_36.1" &` |
+| **Stop Android emulator** | `~/Library/Android/sdk/platform-tools/adb -s emulator-5554 emu kill` |
+| **Start backend** | `cd backend && ~/.pub-cache/bin/dart_frog build && PORT=8080 dart build/bin/server.dart` |
+| **Start backend (dev mode)** | `cd backend && ~/.pub-cache/bin/dart_frog dev` |
+| **Stop backend** | `lsof -ti:8080 \| xargs kill -9` |
+| **Check port 8080** | `lsof -i:8080` |
+| **Run on iOS** | `flutter run -d "iPhone 17 Pro"` |
+| **Run on Android** | `flutter run -d emulator-5554` |
+| **Regenerate code** | `dart run build_runner build --delete-conflicting-outputs` |
+| **Run analysis** | `flutter analyze` |
+| **Run tests** | `flutter test` |
+| **Build Android APK** | `flutter build apk` |
+| **Build iOS** | `flutter build ios` |
+
+**Flutter run controls:** `r` = hot reload, `R` = hot restart, `q` = quit
 
 ## Testing
 
