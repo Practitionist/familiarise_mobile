@@ -6,6 +6,7 @@ import '../../../../core/constants/enums.dart';
 import '../../../../core/utils/sentry_logger.dart';
 import '../../../../domain/entities/onboarding/personal_info.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../widgets/onboarding_widgets.dart';
 
@@ -36,7 +37,25 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
     final state = ref.read(onboardingProvider);
     final info = state.personalInfo;
 
-    _nameController = TextEditingController(text: info?.name ?? '');
+    // Get the authenticated user's data as fallback
+    // This pre-fills from email signup or OAuth (Google/GitHub)
+    final authState = ref.read(authProvider);
+    final authUser = authState.user;
+
+    // Use saved draft values if available, otherwise use data from auth
+    final draftName = info?.name;
+    final draftImage = info?.image;
+    final initialName = (draftName != null && draftName.isNotEmpty)
+        ? draftName
+        : (authUser?.name ?? '');
+
+    // Pre-fill image from OAuth if no draft image exists
+    // (Google/GitHub provide profile pictures)
+    final initialImage = (draftImage != null && draftImage.isNotEmpty)
+        ? draftImage
+        : authUser?.image;
+
+    _nameController = TextEditingController(text: initialName);
     _phoneController = TextEditingController(text: info?.phone ?? '');
     _cityController = TextEditingController(text: info?.city ?? '');
     _countryController = TextEditingController(text: info?.country ?? '');
@@ -45,6 +64,19 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
     _bioController = TextEditingController(text: info?.bio ?? '');
     _selectedDate = info?.dateOfBirth;
     _selectedGender = info?.gender;
+
+    // If we pre-filled data from auth, update the onboarding state
+    final nameFromAuth =
+        initialName.isNotEmpty && (draftName == null || draftName.isEmpty);
+    final imageFromAuth =
+        initialImage != null && (draftImage == null || draftImage.isEmpty);
+    final needsUpdate = nameFromAuth || imageFromAuth;
+
+    if (needsUpdate) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _updatePersonalInfoWithImage(initialImage);
+      });
+    }
   }
 
   @override
@@ -60,6 +92,14 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
   }
 
   void _updatePersonalInfo() {
+    _updatePersonalInfoWithImage(null);
+  }
+
+  void _updatePersonalInfoWithImage(String? imageOverride) {
+    // Use imageOverride if provided, otherwise keep existing image from state
+    final currentImage = ref.read(onboardingProvider).personalInfo?.image;
+    final image = imageOverride ?? currentImage;
+
     final info = PersonalInfo(
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim().isEmpty
@@ -82,7 +122,7 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
       bio: _bioController.text.trim().isEmpty
           ? null
           : _bioController.text.trim(),
-      image: ref.read(onboardingProvider).personalInfo?.image,
+      image: image,
     );
 
     ref.read(onboardingProvider.notifier).updatePersonalInfo(info);
@@ -156,6 +196,23 @@ class _PersonalInfoStepState extends ConsumerState<PersonalInfoStep> {
             ),
           ),
           const SizedBox(height: 24),
+          // Email (read-only, from authentication)
+          Builder(
+            builder: (context) {
+              final authState = ref.watch(authProvider);
+              final email = authState.user?.email ?? '';
+              return AppTextField(
+                controller: TextEditingController(text: email),
+                label: 'Email',
+                hint: 'Your email address',
+                enabled: false,
+                prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                helperText:
+                    'Email is linked to your account and cannot be changed here',
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           // Name (required)
           AppTextField(
             controller: _nameController,

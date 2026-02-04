@@ -93,14 +93,17 @@ SchemaRegistry _buildSchemaRegistry() {
   ));
 
   // Domain model
+  // Note: Fields must match the actual Prisma schema (no description column)
   schema.registerModel(ModelSchema(
     name: 'Domain',
     tableName: 'Domain',
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
-      'description': const FieldInfo(
-          name: 'description', columnName: 'description', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
     },
     relations: {
       'subDomains': RelationInfo.oneToMany(
@@ -120,6 +123,18 @@ SchemaRegistry _buildSchemaRegistry() {
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
       'domainId': const FieldInfo(
           name: 'domainId', columnName: 'domainId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'domain': RelationInfo.oneToOne(
+        name: 'domain',
+        targetModel: 'Domain',
+        foreignKey: 'domainId',
+        isOwner: true,
+      ),
     },
   ));
 
@@ -174,13 +189,9 @@ SchemaRegistry _buildSchemaRegistry() {
           columnName: 'reviewDescription',
           type: 'String'),
       'createdAt': const FieldInfo(
-          name: 'createdAt',
-          columnName: 'createdAt',
-          type: 'DateTime'),
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
-          name: 'updatedAt',
-          columnName: 'updatedAt',
-          type: 'DateTime'),
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
     },
     relations: {
       'consulteeProfile': RelationInfo.oneToOne(
@@ -275,8 +286,8 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'feedbackFromConsultant',
           columnName: 'feedbackFromConsultant',
           type: 'String'),
-      'rating': const FieldInfo(
-          name: 'rating', columnName: 'rating', type: 'Float'),
+      'rating':
+          const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
       'cancellationReason': const FieldInfo(
           name: 'cancellationReason',
           columnName: 'cancellationReason',
@@ -342,8 +353,8 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'feedbackFromConsultant',
           columnName: 'feedbackFromConsultant',
           type: 'String'),
-      'rating': const FieldInfo(
-          name: 'rating', columnName: 'rating', type: 'Float'),
+      'rating':
+          const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
       'cancellationReason': const FieldInfo(
           name: 'cancellationReason',
           columnName: 'cancellationReason',
@@ -397,10 +408,10 @@ SchemaRegistry _buildSchemaRegistry() {
     tableName: 'TrialSession',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
-      'notes': const FieldInfo(
-          name: 'notes', columnName: 'notes', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
+      'notes':
+          const FieldInfo(name: 'notes', columnName: 'notes', type: 'String'),
       'consulteeProfileId': const FieldInfo(
           name: 'consulteeProfileId',
           columnName: 'consulteeProfileId',
@@ -414,29 +425,19 @@ SchemaRegistry _buildSchemaRegistry() {
           columnName: 'subscriptionPlanId',
           type: 'String'),
       'appointmentId': const FieldInfo(
-          name: 'appointmentId',
-          columnName: 'appointmentId',
-          type: 'String'),
+          name: 'appointmentId', columnName: 'appointmentId', type: 'String'),
       'convertedToSubscriptionId': const FieldInfo(
           name: 'convertedToSubscriptionId',
           columnName: 'convertedToSubscriptionId',
           type: 'String'),
       'requestedAt': const FieldInfo(
-          name: 'requestedAt',
-          columnName: 'requestedAt',
-          type: 'DateTime'),
+          name: 'requestedAt', columnName: 'requestedAt', type: 'DateTime'),
       'completedAt': const FieldInfo(
-          name: 'completedAt',
-          columnName: 'completedAt',
-          type: 'DateTime'),
+          name: 'completedAt', columnName: 'completedAt', type: 'DateTime'),
       'createdAt': const FieldInfo(
-          name: 'createdAt',
-          columnName: 'createdAt',
-          type: 'DateTime'),
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
-          name: 'updatedAt',
-          columnName: 'updatedAt',
-          type: 'DateTime'),
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
     },
     relations: {
       'subscriptionPlan': RelationInfo.oneToOne(
