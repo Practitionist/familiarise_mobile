@@ -10,6 +10,38 @@ import '../../../domain/entities/checkout/checkout_entities.dart';
 
 part 'razorpay_service_provider.g.dart';
 
+/// Converts Razorpay error codes to user-friendly messages
+String _getRazorpayUserMessage(int code, String rawMessage) {
+  // Razorpay error codes: https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/handle-errors/
+  switch (code) {
+    case 0:
+      return 'Network error. Please check your connection and try again.';
+    case 1:
+      return 'Payment was declined. Please check your card details or try a different payment method.';
+    case 2:
+      return 'Payment was cancelled.';
+    default:
+      // Parse common error patterns from message
+      final lowerMessage = rawMessage.toLowerCase();
+      if (lowerMessage.contains('network') || lowerMessage.contains('connection')) {
+        return 'Network error. Please check your connection and try again.';
+      }
+      if (lowerMessage.contains('declined')) {
+        return 'Payment was declined. Please try a different payment method.';
+      }
+      if (lowerMessage.contains('insufficient')) {
+        return 'Insufficient funds. Please check your balance or try a different payment method.';
+      }
+      if (lowerMessage.contains('expired')) {
+        return 'Card has expired. Please use a different card.';
+      }
+      if (lowerMessage.contains('invalid')) {
+        return 'Invalid payment details. Please check and try again.';
+      }
+      return 'Payment could not be processed. Please try again.';
+  }
+}
+
 /// Result of Razorpay payment attempt
 sealed class RazorpayResult {
   const RazorpayResult();
@@ -140,11 +172,12 @@ class RazorpayService extends _$RazorpayService {
           'orderId': session.razorpayOrderId,
           'amount': session.amountInSmallestUnit,
           'currency': session.currency,
+          'rawError': e.toString(),
         },
       );
-      return RazorpayFailure(
+      return const RazorpayFailure(
         code: -1,
-        message: 'Failed to open Razorpay: $e',
+        message: 'Unable to open payment. Please try again or use a different payment method.',
       );
     }
   }
@@ -163,28 +196,30 @@ class RazorpayService extends _$RazorpayService {
   }
 
   void _handleError(PaymentFailureResponse response) {
-    debugPrint(
-        'Razorpay payment error: ${response.code} - ${response.message}');
-
     final code = response.code ?? 0;
-    final message = response.message ?? 'Payment failed';
+    final rawMessage = response.message ?? 'Payment failed';
+
+    debugPrint('Razorpay payment error: $code - $rawMessage');
 
     // Check if this is a cancellation
     // Razorpay error code 2 = Payment cancelled
-    if (code == 2 || message.toLowerCase().contains('cancel')) {
+    if (code == 2 || rawMessage.toLowerCase().contains('cancel')) {
       _paymentCompleter?.complete(const RazorpayCancelled());
     } else {
+      // Log full details to Sentry
       AppSentryLogger.captureMessage(
         'Razorpay payment failed',
         extras: {
           'code': code,
-          'message': message,
+          'rawMessage': rawMessage,
         },
       );
 
+      // Return user-friendly message
+      final userMessage = _getRazorpayUserMessage(code, rawMessage);
       _paymentCompleter?.complete(RazorpayFailure(
         code: code,
-        message: message,
+        message: userMessage,
       ));
     }
 

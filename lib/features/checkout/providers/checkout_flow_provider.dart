@@ -15,6 +15,44 @@ import 'stripe_service_provider.dart';
 part 'checkout_flow_provider.freezed.dart';
 part 'checkout_flow_provider.g.dart';
 
+/// Sanitizes error messages for user display while logging full details
+String _sanitizeCheckoutError(Object error, StackTrace stack, String context,
+    {Map<String, dynamic>? extras}) {
+  final errorString = error.toString();
+
+  // Log full details to Sentry
+  AppSentryLogger.captureException(
+    error,
+    stackTrace: stack,
+    context: context,
+    extras: {
+      'rawError': errorString,
+      'errorType': error.runtimeType.toString(),
+      ...?extras,
+    },
+  );
+
+  // Return user-friendly message based on error patterns
+  if (errorString.contains('network') ||
+      errorString.contains('connection') ||
+      errorString.contains('SocketException')) {
+    return 'Network error. Please check your connection and try again.';
+  }
+  if (errorString.contains('timeout') || errorString.contains('Timeout')) {
+    return 'Request timed out. Please try again.';
+  }
+  if (errorString.contains('unauthorized') || errorString.contains('401')) {
+    return 'Session expired. Please sign in again.';
+  }
+  if (errorString.contains('Assertion failed') ||
+      errorString.contains('assert')) {
+    return 'A configuration error occurred. Please try again or contact support.';
+  }
+
+  // Default message
+  return 'Something went wrong. Please try again.';
+}
+
 /// Checkout flow state
 @freezed
 class CheckoutFlowState with _$CheckoutFlowState {
@@ -100,17 +138,16 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      AppSentryLogger.captureException(
+      final userMessage = _sanitizeCheckoutError(
         e,
-        stackTrace: stack,
-        context: 'CheckoutFlow.initializeCheckout',
+        stack,
+        'CheckoutFlow.initializeCheckout',
         extras: {
           'bookingId': booking.id,
           'gateway': gateway.value,
         },
       );
-      state =
-          CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
+      state = CheckoutFlowState.failure(message: userMessage);
     }
   }
 
@@ -165,17 +202,16 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      AppSentryLogger.captureException(
+      final userMessage = _sanitizeCheckoutError(
         e,
-        stackTrace: stack,
-        context: 'CheckoutFlow.initializeDirectCheckout',
+        stack,
+        'CheckoutFlow.initializeDirectCheckout',
         extras: {
           'planId': planId,
           'gateway': gateway.value,
         },
       );
-      state =
-          CheckoutFlowState.failure(message: 'Failed to create checkout: $e');
+      state = CheckoutFlowState.failure(message: userMessage);
     }
   }
 
@@ -200,17 +236,16 @@ class CheckoutFlow extends _$CheckoutFlow {
         await _processStripePayment(session);
       }
     } catch (e, stack) {
-      AppSentryLogger.captureException(
+      final userMessage = _sanitizeCheckoutError(
         e,
-        stackTrace: stack,
-        context: 'CheckoutFlow.processPayment',
+        stack,
+        'CheckoutFlow.processPayment',
         extras: {
           'gateway': _currentSession?.gateway.value,
           'paymentId': _currentSession?.paymentId,
         },
       );
-      state =
-          CheckoutFlowState.failure(message: 'Payment processing failed: $e');
+      state = CheckoutFlowState.failure(message: userMessage);
     }
   }
 
@@ -313,16 +348,15 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      AppSentryLogger.captureException(
+      final userMessage = _sanitizeCheckoutError(
         e,
-        stackTrace: stack,
-        context: 'CheckoutFlow.verifyPayment',
+        stack,
+        'CheckoutFlow.verifyPayment',
         extras: {
           'paymentId': _currentSession?.paymentId,
         },
       );
-      state =
-          CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
+      state = CheckoutFlowState.failure(message: userMessage);
     }
   }
 
@@ -350,13 +384,13 @@ class CheckoutFlow extends _$CheckoutFlow {
         },
       );
     } catch (e, stack) {
-      AppSentryLogger.captureException(
+      final userMessage = _sanitizeCheckoutError(
         e,
-        stackTrace: stack,
-        context: 'CheckoutFlow.verifyPaymentExternal',
+        stack,
+        'CheckoutFlow.verifyPaymentExternal',
+        extras: {'paymentId': paymentId},
       );
-      state =
-          CheckoutFlowState.failure(message: 'Failed to verify payment: $e');
+      state = CheckoutFlowState.failure(message: userMessage);
     }
   }
 
