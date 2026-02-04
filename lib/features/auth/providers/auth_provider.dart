@@ -202,20 +202,6 @@ class Auth extends _$Auth {
     );
   }
 
-  /// Delete account
-  Future<bool> deleteAccount() async {
-    final repository = ref.read(authRepositoryProvider);
-    final result = await repository.deleteAccount();
-
-    return result.fold(
-      (failure) => false,
-      (_) {
-        state = const AuthState.unauthenticated();
-        return true;
-      },
-    );
-  }
-
   /// Clear any error message
   void clearError() {
     if (state.maybeMap(

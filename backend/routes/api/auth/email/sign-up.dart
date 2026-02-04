@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/services/auth/auth_service.dart';
+import 'package:backend/utils/request_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
@@ -47,10 +48,14 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final authService = context.read<AuthService>();
+    final ipAddress = RequestUtils.getClientIp(context.request);
+    final userAgent = RequestUtils.getUserAgent(context.request);
     final result = await authService.signUpWithEmail(
       email,
       password,
       name: name,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
     );
 
     return Response.json(

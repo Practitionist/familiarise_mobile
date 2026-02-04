@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/providers/auth_provider.dart';
+import '../providers/delete_account_provider.dart';
 
 /// Profile screen - shows user information and settings.
 /// Contains sign-out functionality and account management options.
@@ -193,16 +194,16 @@ class ProfileScreen extends ConsumerWidget {
 
                 if (shouldDelete == true && context.mounted) {
                   final success = await ref
-                      .read(authProvider.notifier)
+                      .read(deleteAccountProvider.notifier)
                       .deleteAccount();
                   if (!success && context.mounted) {
+                    final errorState = ref.read(deleteAccountProvider);
+                    final errorMessage = errorState.maybeWhen(
+                      error: (error, _) => error.toString(),
+                      orElse: () => 'Failed to delete account. Please try again.',
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Failed to delete account. '
-                          'Please try again.',
-                        ),
-                      ),
+                      SnackBar(content: Text(errorMessage)),
                     );
                   }
                 }

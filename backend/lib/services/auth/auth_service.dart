@@ -44,8 +44,10 @@ class AuthService {
   /// verifies the password stored there (not on the user row).
   Future<Map<String, dynamic>> signInWithEmail(
     String email,
-    String password,
-  ) async {
+    String password, {
+    String? ipAddress,
+    String? userAgent,
+  }) async {
     // Find user by email
     final user = await _db.findUserByEmail(email);
 
@@ -77,8 +79,12 @@ class AuthService {
       throw AuthException('Invalid email or password');
     }
 
-    // Create session
-    final session = await _createSession(userId);
+    // Create session with client info for security tracking
+    final session = await _createSession(
+      userId,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
+    );
 
     // Create JWT token
     final token = _jwtService.createToken(
@@ -105,6 +111,8 @@ class AuthService {
     String email,
     String password, {
     String? name,
+    String? ipAddress,
+    String? userAgent,
   }) async {
     // Check if user already exists
     final existing = await _db.findUserByEmail(email);
@@ -150,7 +158,11 @@ class AuthService {
     });
 
     // Create session (outside transaction - not critical for user creation)
-    final session = await _createSession(userId);
+    final session = await _createSession(
+      userId,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
+    );
 
     // Create JWT token
     final token = _jwtService.createToken(
@@ -219,6 +231,8 @@ class AuthService {
   Future<Map<String, dynamic>> signInWithGoogle({
     String? idToken,
     String? accessToken,
+    String? ipAddress,
+    String? userAgent,
   }) async {
     // Verify token and extract user info from Google
     final GoogleUserInfo googleUser;
@@ -295,7 +309,11 @@ class AuthService {
     }
 
     // Create session (outside transaction - not critical for user creation)
-    final session = await _createSession(user['id'] as String);
+    final session = await _createSession(
+      user['id'] as String,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
+    );
 
     // Create JWT token
     final token = _jwtService.createToken(
@@ -318,8 +336,10 @@ class AuthService {
   ///
   /// Exchanges the authorization code for user info and creates/updates the user.
   Future<Map<String, dynamic>> signInWithGitHub(
-    GitHubUserInfo githubUser,
-  ) async {
+    GitHubUserInfo githubUser, {
+    String? ipAddress,
+    String? userAgent,
+  }) async {
     final email = githubUser.email;
     if (email == null || email.isEmpty) {
       throw AuthException(
@@ -380,8 +400,12 @@ class AuthService {
       }
     }
 
-    // Create session
-    final session = await _createSession(user['id'] as String);
+    // Create session with client info for security tracking
+    final session = await _createSession(
+      user['id'] as String,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
+    );
 
     // Create JWT token
     final token = _jwtService.createToken(

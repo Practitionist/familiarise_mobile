@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme/app_theme.dart';
-import '../providers/linked_accounts_provider.dart';
+import '../providers/session_management_provider.dart';
 
 /// Screen for managing active sessions.
 class ActiveSessionsScreen extends ConsumerWidget {

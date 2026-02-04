@@ -5,7 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/errors/failures.dart';
 import '../../../data/repositories/auth_repository_impl.dart';
 
-part 'linked_accounts_provider.g.dart';
+part 'session_management_provider.g.dart';
 
 /// Provider for session management operations
 @riverpod
