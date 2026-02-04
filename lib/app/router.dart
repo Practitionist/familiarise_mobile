@@ -345,7 +345,8 @@ GoRouter router(Ref ref) {
         path: '/booking/success',
         name: 'bookingSuccess',
         builder: (context, state) {
-          final booking = state.extra as Booking?;
+          final booking =
+              state.extra is Booking ? state.extra as Booking : null;
           return BookingSuccessScreen(booking: booking);
         },
       ),
@@ -353,7 +354,9 @@ GoRouter router(Ref ref) {
         path: '/booking/failure',
         name: 'bookingFailure',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
+          final extra = state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null;
           return BookingFailureScreen(
             errorMessage: extra?['errorMessage'] as String?,
             consultantId: extra?['consultantId'] as String?,
@@ -365,11 +368,18 @@ GoRouter router(Ref ref) {
       ),
 
       // Checkout routes (Phase 6)
+      // Note: Using safe type checks because state.extra can be corrupted
+      // on web page refresh (becomes _JsonMap instead of the actual type)
       GoRoute(
         path: '/checkout',
         name: 'checkout',
         builder: (context, state) {
-          final booking = state.extra as Booking?;
+          final booking =
+              state.extra is Booking ? state.extra as Booking : null;
+          // If no valid booking, redirect to my-bookings
+          if (booking == null) {
+            return const _InvalidStateRedirect(redirectTo: '/my-bookings');
+          }
           return CheckoutScreen(booking: booking);
         },
       ),
@@ -377,7 +387,12 @@ GoRouter router(Ref ref) {
         path: '/checkout/direct',
         name: 'checkoutDirect',
         builder: (context, state) {
-          final params = state.extra as DirectCheckoutParams?;
+          final params = state.extra is DirectCheckoutParams
+              ? state.extra as DirectCheckoutParams
+              : null;
+          if (params == null) {
+            return const _InvalidStateRedirect(redirectTo: '/explore');
+          }
           return CheckoutScreen(directCheckoutParams: params);
         },
       ),
@@ -385,7 +400,9 @@ GoRouter router(Ref ref) {
         path: '/payment/success',
         name: 'paymentSuccess',
         builder: (context, state) {
-          final verification = state.extra as PaymentVerification?;
+          final verification = state.extra is PaymentVerification
+              ? state.extra as PaymentVerification
+              : null;
           return PaymentSuccessScreen(verification: verification);
         },
       ),
@@ -393,13 +410,17 @@ GoRouter router(Ref ref) {
         path: '/payment/failure',
         name: 'paymentFailure',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
+          final extra = state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null;
+          final bookingData = extra?['booking'];
+          final paramsData = extra?['directCheckoutParams'];
           return PaymentFailureScreen(
             errorMessage: extra?['message'] as String?,
             canRetry: extra?['canRetry'] as bool? ?? true,
-            booking: extra?['booking'] as Booking?,
+            booking: bookingData is Booking ? bookingData : null,
             directCheckoutParams:
-                extra?['directCheckoutParams'] as DirectCheckoutParams?,
+                paramsData is DirectCheckoutParams ? paramsData : null,
           );
         },
       ),
@@ -466,4 +487,47 @@ GoRouter router(Ref ref) {
       ),
     ),
   );
+}
+
+/// Helper widget that redirects to a fallback route when route state is invalid
+/// This happens on web page refresh where state.extra gets corrupted
+class _InvalidStateRedirect extends StatefulWidget {
+  final String redirectTo;
+
+  const _InvalidStateRedirect({required this.redirectTo});
+
+  @override
+  State<_InvalidStateRedirect> createState() => _InvalidStateRedirectState();
+}
+
+class _InvalidStateRedirectState extends State<_InvalidStateRedirect> {
+  @override
+  void initState() {
+    super.initState();
+    // Redirect after the current frame to avoid build-time navigation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go(widget.redirectTo);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Redirecting...',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

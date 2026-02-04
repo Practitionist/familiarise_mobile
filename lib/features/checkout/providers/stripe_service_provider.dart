@@ -12,9 +12,10 @@ part 'stripe_service_provider.g.dart';
 
 /// Sanitizes error messages for user display
 /// Logs full details to Sentry while returning user-friendly messages
-String _sanitizePaymentError(Object error, StackTrace? stackTrace, String context) {
+String _sanitizePaymentError(
+    Object error, StackTrace? stackTrace, String context) {
   final errorString = error.toString();
-  
+
   // Log full details to Sentry
   AppSentryLogger.captureException(
     error,
@@ -25,16 +26,16 @@ String _sanitizePaymentError(Object error, StackTrace? stackTrace, String contex
       'errorType': error.runtimeType.toString(),
     },
   );
-  
+
   // Map known error patterns to user-friendly messages
-  if (errorString.contains('merchantIdentifier') || 
+  if (errorString.contains('merchantIdentifier') ||
       errorString.contains('Apple Pay')) {
     return 'Apple Pay is not configured. Please use a different payment method.';
   }
   if (errorString.contains('Google Pay')) {
     return 'Google Pay is not configured. Please use a different payment method.';
   }
-  if (errorString.contains('network') || 
+  if (errorString.contains('network') ||
       errorString.contains('connection') ||
       errorString.contains('SocketException')) {
     return 'Network error. Please check your connection and try again.';
@@ -42,7 +43,7 @@ String _sanitizePaymentError(Object error, StackTrace? stackTrace, String contex
   if (errorString.contains('timeout') || errorString.contains('Timeout')) {
     return 'Request timed out. Please try again.';
   }
-  if (errorString.contains('Assertion failed') || 
+  if (errorString.contains('Assertion failed') ||
       errorString.contains('assert')) {
     return 'Payment configuration error. Please try a different payment method or contact support.';
   }
@@ -61,7 +62,7 @@ String _sanitizePaymentError(Object error, StackTrace? stackTrace, String contex
   if (errorString.contains('invalid') && errorString.contains('card')) {
     return 'Invalid card details. Please check and try again.';
   }
-  
+
   // Default user-friendly message for unknown errors
   return 'Payment could not be processed. Please try again or use a different payment method.';
 }
@@ -191,6 +192,8 @@ class StripeService extends _$StripeService {
       final merchantCountry = _getMerchantCountry(session.currency);
 
       // Initialize Payment Sheet
+      // Note: Apple Pay and Google Pay are NOT supported on Flutter Web
+      // They require native platform integration (iOS/Android)
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: session.stripeClientSecret!,
@@ -204,14 +207,19 @@ class StripeService extends _$StripeService {
               borderRadius: 12,
             ),
           ),
-          // Enable Apple Pay and Google Pay
-          applePay: PaymentSheetApplePay(
-            merchantCountryCode: merchantCountry,
-          ),
-          googlePay: PaymentSheetGooglePay(
-            merchantCountryCode: merchantCountry,
-            testEnv: kDebugMode, // Use kDebugMode for test/production switching
-          ),
+          // Only enable Apple Pay on iOS (not web)
+          applePay: kIsWeb
+              ? null
+              : PaymentSheetApplePay(
+                  merchantCountryCode: merchantCountry,
+                ),
+          // Only enable Google Pay on Android (not web)
+          googlePay: kIsWeb
+              ? null
+              : PaymentSheetGooglePay(
+                  merchantCountryCode: merchantCountry,
+                  testEnv: kDebugMode,
+                ),
         ),
       );
 
@@ -247,8 +255,8 @@ class StripeService extends _$StripeService {
     } catch (e, stackTrace) {
       // Use sanitized error message for user display
       final userMessage = _sanitizePaymentError(
-        e, 
-        stackTrace, 
+        e,
+        stackTrace,
         'StripeService.handlePaymentSheet',
       );
 
