@@ -30,7 +30,7 @@ Future<Response> onRequest(RequestContext context) async {
 
     return Response.json(body: serializeForJson(stats));
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/dashboard/stats',
       context: 'DashboardStatsRoute',
       error: e,

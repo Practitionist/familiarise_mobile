@@ -93,6 +93,7 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
 
   // Add services to handler using providers
   var handlerWithProviders = handler
+      .use(provider<DotEnv>((_) => env))
       .use(provider<DatabaseClient>((_) => db))
       .use(provider<JwtService>((_) => jwtService))
       .use(provider<AuthService>((_) => authService))

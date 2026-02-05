@@ -80,7 +80,7 @@ Future<Response> _handleEndMeeting(
       body: {'success': true, 'message': 'Meeting ended'},
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in POST /api/appointments/$appointmentId/meeting/end',
       context: 'MeetingRoute',
       error: e,

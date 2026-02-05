@@ -17,13 +17,14 @@ class Auth extends _$Auth {
   AuthState build() {
     // Listen to auth state changes from the repository
     final repository = ref.watch(authRepositoryProvider);
-    repository.authStateChanges.listen((user) {
+    final subscription = repository.authStateChanges.listen((user) {
       if (user != null) {
         state = AuthState.authenticated(user: user);
       } else {
         state = const AuthState.unauthenticated();
       }
     });
+    ref.onDispose(subscription.cancel);
 
     // Initialize by checking current session
     _initializeAuth();

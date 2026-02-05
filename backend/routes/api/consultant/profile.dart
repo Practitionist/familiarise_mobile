@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -96,8 +95,7 @@ Future<Response> _handlePatch(RequestContext context) async {
       );
     }
 
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Use the existing domainId from the profile (required by upsert)
     final domainId = existing['domainId'] as String;
@@ -130,6 +128,13 @@ Future<Response> _handlePatch(RequestContext context) async {
     }
 
     return Response.json(body: serializeForJson(updated));
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in PATCH /api/consultant/profile',

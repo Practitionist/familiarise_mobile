@@ -231,6 +231,14 @@ class CheckoutFlow extends _$CheckoutFlow {
       final session = _currentSession!;
 
       if (session.isRazorpay) {
+        if (kIsWeb) {
+          state = const CheckoutFlowState.failure(
+            message:
+                'Razorpay is not supported on web. Please use Stripe or try from the mobile app.',
+            canRetry: false,
+          );
+          return;
+        }
         await _processRazorpayPayment(session);
       } else {
         await _processStripePayment(session);

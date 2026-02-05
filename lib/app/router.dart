@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -71,8 +72,10 @@ GoRouter router(Ref ref) {
       final location = state.matchedLocation;
 
       // Debug logging
-      debugPrint(
-          '🔀 Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
+      if (kDebugMode) {
+        debugPrint(
+            'Router redirect - location: $location, isAuth: $isAuthenticated, isLoading: $isLoading, needsOnboarding: $needsOnboarding, isInitial: $isInitial');
+      }
       final isAuthRoute = location.startsWith('/auth');
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
@@ -139,24 +142,28 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/',
         name: 'splash',
-        builder: (context, state) => const Scaffold(
+        builder: (context, state) => Scaffold(
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                FlutterLogo(size: 100),
-                SizedBox(height: 24),
-                Text(
+                Icon(
+                  Icons.psychology,
+                  size: 100,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                const Text(
                   'Familiarise',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 8),
-                Text('Find Your Mentor'),
-                SizedBox(height: 32),
-                CircularProgressIndicator(),
+                const SizedBox(height: 8),
+                const Text('Find Your Mentor'),
+                const SizedBox(height: 32),
+                const CircularProgressIndicator(),
               ],
             ),
           ),

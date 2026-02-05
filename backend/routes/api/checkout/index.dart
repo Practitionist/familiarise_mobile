@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:backend/database/database_client.dart';
+import 'package:backend/database/database_client.dart' hide Platform;
 import 'package:backend/database/repositories/appointment_repository.dart';
 import 'package:backend/services/razorpay_service.dart';
 import 'package:backend/services/stripe_service.dart';
@@ -11,6 +10,7 @@ import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
+
 
 /// Checkout endpoints
 ///
@@ -80,8 +80,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
     }
 
     // Parse request body
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Validate required fields
     final appointmentType = data['appointmentType'] as String?;
@@ -356,10 +355,13 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       }
     }
 
+    // Convert to smallest unit (paise/cents) once
+    final amountInSmallestUnit = (amount * 100).round();
+
     // Create payment record
     final paymentInfo = await db.checkout.createPayment(
       userId: userId,
-      amount: (amount * 100).round(), // Convert to smallest unit (paise/cents)
+      amount: amountInSmallestUnit,
       currency: currency,
       paymentGateway: paymentGateway.toUpperCase(),
       appointmentId: appointmentId,
@@ -374,12 +376,12 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
     if (paymentGateway.toUpperCase() == 'RAZORPAY') {
       // Create a real Razorpay order via API
-      final env = DotEnv(includePlatformEnvironment: true)..load();
+      final env = context.read<DotEnv>();
       final razorpayKeyId = env['RAZORPAY_KEY_ID'];
       final razorpayKeySecret = env['RAZORPAY_KEY_SECRET'];
 
       if (razorpayKeyId == null || razorpayKeySecret == null) {
-        SentryLogger.error(
+        await SentryLogger.error(
           'Razorpay credentials not configured',
           context: 'CheckoutRoute',
         );
@@ -401,11 +403,10 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
           keySecret: razorpayKeySecret,
         );
 
-        final amountInPaise = (amount * 100).round();
         // Razorpay receipt max length is 40 chars. UUID is 36 chars, so use short prefix.
         final paymentIdStr = paymentInfo['paymentId'] as String;
         final razorpayOrder = await razorpayService.createOrder(
-          amountInPaise: amountInPaise,
+          amountInPaise: amountInSmallestUnit,
           currency: currency,
           receipt: 'r_$paymentIdStr',
           notes: {
@@ -417,7 +418,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         razorpayOrderId = razorpayOrder.id;
 
         SentryLogger.info(
-          'Created Razorpay order: $razorpayOrderId for amount: $amountInPaise $currency',
+          'Created Razorpay order: $razorpayOrderId for amount: $amountInSmallestUnit $currency',
           context: 'CheckoutRoute',
         );
       } on RazorpayException catch (e, stackTrace) {
@@ -441,11 +442,11 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       }
     } else if (paymentGateway.toUpperCase() == 'STRIPE') {
       // Create a real Stripe PaymentIntent
-      final env = DotEnv(includePlatformEnvironment: true)..load();
+      final env = context.read<DotEnv>();
       final stripeSecretKey = env['STRIPE_SECRET_KEY'];
 
       if (stripeSecretKey == null || stripeSecretKey.isEmpty) {
-        SentryLogger.error(
+        await SentryLogger.error(
           'Stripe credentials not configured',
           context: 'CheckoutRoute',
         );
@@ -464,7 +465,6 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       try {
         final stripeService = StripeService(secretKey: stripeSecretKey);
 
-        final amountInSmallestUnit = (amount * 100).round();
         final paymentIdStr = paymentInfo['paymentId'] as String;
 
         final paymentIntent = await stripeService.createPaymentIntent(
@@ -494,6 +494,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         SentryLogger.info(
           'Created Stripe PaymentIntent: ${paymentIntent.id} '
           'for amount: $amountInSmallestUnit $currency',
+
           context: 'CheckoutRoute',
         );
       } on StripeException catch (e, stackTrace) {
@@ -535,8 +536,15 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         'bookingType': appointmentType.toUpperCase(),
       }),
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in POST /api/checkout',
       context: 'CheckoutRoute',
       error: e,
@@ -557,14 +565,16 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       );
     }
 
+    final isProduction =
+        Platform.environment['DART_ENV'] == 'production';
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
         'error': {
           'code': 'INTERNAL_ERROR',
           'message': 'Failed to create checkout session',
-          'details': errorMessage,
-          'type': e.runtimeType.toString(),
+          if (!isProduction) 'details': errorMessage,
+          if (!isProduction) 'type': e.runtimeType.toString(),
         },
       },
     );

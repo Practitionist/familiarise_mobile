@@ -37,6 +37,17 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
+    // Validate email format
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(email)) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Invalid email format'},
+        },
+      );
+    }
+
     // Validate password strength
     if (password.length < 8) {
       return Response.json(

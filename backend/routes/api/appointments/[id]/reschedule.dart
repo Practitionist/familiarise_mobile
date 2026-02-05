@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -68,11 +67,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
     // Parse request body for optional slotId (individual session reschedule)
     String? slotId;
     try {
-      final body = await context.request.body();
-      if (body.isNotEmpty) {
-        final data = jsonDecode(body) as Map<String, dynamic>;
-        slotId = data['slotId'] as String?;
-      }
+      final data = await context.request.json() as Map<String, dynamic>;
+      slotId = data['slotId'] as String?;
     } catch (_) {
       // Body parsing failed, slotId will be null (full reschedule)
     }
@@ -93,6 +89,13 @@ Future<Response> onRequest(RequestContext context, String id) async {
             : 'Booking rescheduled. Please select new time slots.',
         'booking': booking,
       }),
+    );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
     );
   } catch (e, stackTrace) {
     final errorMessage = e.toString();

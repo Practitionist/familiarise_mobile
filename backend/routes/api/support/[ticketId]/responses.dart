@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -44,8 +43,7 @@ Future<Response> _handleAddResponse(
       );
     }
 
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     final message = data['message'] as String?;
     if (message == null || message.isEmpty) {
@@ -68,6 +66,13 @@ Future<Response> _handleAddResponse(
     return Response.json(
       statusCode: HttpStatus.created,
       body: serializeForJson(response),
+    );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
     );
   } on RecordNotFoundException {
     return Response.json(

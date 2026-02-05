@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -52,8 +51,7 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
     }
 
     // Parse request body
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     final appointmentId = data['appointmentId'] as String?;
     if (appointmentId == null || appointmentId.isEmpty) {
@@ -93,7 +91,7 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
     final streamService = context.read<StreamService>();
 
     if (!streamService.isConfigured) {
-      SentryLogger.error(
+      await SentryLogger.error(
         'Stream API not configured',
         context: 'StreamTokenRoute',
       );
@@ -116,8 +114,15 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
         'userId': userId,
       },
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in POST /api/stream/token',
       context: 'StreamTokenRoute',
       error: e,

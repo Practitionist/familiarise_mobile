@@ -144,6 +144,19 @@ class StripeService extends _$StripeService {
       _initializeStripe();
     }
 
+    // On web, Payment Sheet uses Platform._operatingSystem which crashes.
+    // Always use Hosted Checkout on web.
+    if (kIsWeb) {
+      if (session.canUseStripeHostedCheckout) {
+        return await _handleHostedCheckout(session.stripeCheckoutUrl!);
+      }
+      return const StripeFailure(
+        code: 'web_no_checkout_url',
+        message:
+            'Stripe Payment Sheet is not supported on web. Please try again.',
+      );
+    }
+
     // Primary: Use Payment Sheet if client secret is available
     if (session.canUseStripePaymentSheet) {
       return await _handlePaymentSheet(session);

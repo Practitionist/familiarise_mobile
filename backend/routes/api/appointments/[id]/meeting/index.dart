@@ -102,7 +102,7 @@ Future<Response> _handleGetMeeting(
 
     return Response.json(body: serializeForJson(response));
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/appointments/$appointmentId/meeting',
       context: 'MeetingRoute',
       error: e,

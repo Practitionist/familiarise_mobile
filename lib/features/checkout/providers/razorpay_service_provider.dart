@@ -191,7 +191,9 @@ class RazorpayService extends _$RazorpayService {
       signature: response.signature ?? '',
     );
 
-    _paymentCompleter?.complete(result);
+    if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
+      _paymentCompleter!.complete(result);
+    }
     _paymentCompleter = null;
   }
 
@@ -201,10 +203,15 @@ class RazorpayService extends _$RazorpayService {
 
     debugPrint('Razorpay payment error: $code - $rawMessage');
 
+    if (_paymentCompleter == null || _paymentCompleter!.isCompleted) {
+      _paymentCompleter = null;
+      return;
+    }
+
     // Check if this is a cancellation
     // Razorpay error code 2 = Payment cancelled
     if (code == 2 || rawMessage.toLowerCase().contains('cancel')) {
-      _paymentCompleter?.complete(const RazorpayCancelled());
+      _paymentCompleter!.complete(const RazorpayCancelled());
     } else {
       // Log full details to Sentry
       AppSentryLogger.captureMessage(
@@ -217,7 +224,7 @@ class RazorpayService extends _$RazorpayService {
 
       // Return user-friendly message
       final userMessage = _getRazorpayUserMessage(code, rawMessage);
-      _paymentCompleter?.complete(RazorpayFailure(
+      _paymentCompleter!.complete(RazorpayFailure(
         code: code,
         message: userMessage,
       ));

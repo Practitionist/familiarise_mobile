@@ -44,6 +44,14 @@ class GoogleTokenVerifier {
 
   final http.Client _httpClient;
 
+  /// Parse email_verified from different Google endpoint formats.
+  /// tokeninfo returns a String ('true'/'false'), userinfo returns a bool.
+  static bool _parseEmailVerified(dynamic value) {
+    if (value is bool) return value;
+    if (value is String) return value.toLowerCase() == 'true';
+    return false;
+  }
+
   /// Google's token verification endpoint
   static const _tokenInfoUrl = 'https://oauth2.googleapis.com/tokeninfo';
 
@@ -110,7 +118,7 @@ class GoogleTokenVerifier {
         email: email,
         name: data['name'] as String?,
         picture: data['picture'] as String?,
-        emailVerified: data['email_verified'] == 'true',
+        emailVerified: _parseEmailVerified(data['email_verified']),
       );
     } on AuthException {
       rethrow;
@@ -168,7 +176,7 @@ class GoogleTokenVerifier {
         email: email,
         name: data['name'] as String?,
         picture: data['picture'] as String?,
-        emailVerified: data['email_verified'] as bool? ?? false,
+        emailVerified: _parseEmailVerified(data['email_verified']),
       );
     } on AuthException {
       rethrow;

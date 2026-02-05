@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -46,8 +45,7 @@ Future<Response> _handleCreateReview(RequestContext context) async {
       );
     }
 
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Validate required fields
     final consultantProfileId = data['consultantProfileId'] as String?;
@@ -116,6 +114,13 @@ Future<Response> _handleCreateReview(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: serializeForJson(review),
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } on AlreadyExistsException catch (e) {
     return Response.json(
       statusCode: HttpStatus.conflict,
@@ -127,7 +132,7 @@ Future<Response> _handleCreateReview(RequestContext context) async {
       },
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in POST /api/reviews',
       context: 'ReviewsRoute',
       error: e,
@@ -216,7 +221,7 @@ Future<Response> _handleGetReviews(RequestContext context) async {
       body: serializeForJson(result),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/reviews',
       context: 'ReviewsRoute',
       error: e,

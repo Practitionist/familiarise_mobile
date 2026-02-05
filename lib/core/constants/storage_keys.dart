@@ -7,6 +7,7 @@
 abstract final class StorageKeys {
   // Auth keys (SecureStorage)
   static const String authToken = 'auth_token';
+  static const String authUser = 'auth_user';
   static const String refreshToken = 'refresh_token';
   static const String userId = 'user_id';
 

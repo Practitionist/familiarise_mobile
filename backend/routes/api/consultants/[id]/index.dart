@@ -43,7 +43,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       body: {'consultant': serializedConsultant},
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/consultants/$id',
       context: 'ConsultantDetailsRoute',
       error: e,

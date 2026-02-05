@@ -76,7 +76,7 @@ Future<Response> onRequest(RequestContext context, String paymentId) async {
       }),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error fetching refunds for payment: $paymentId',
       context: 'RefundsRoute',
       error: e,

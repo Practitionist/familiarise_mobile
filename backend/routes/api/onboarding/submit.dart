@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -57,8 +56,7 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     // Parse request body
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Validate required fields
     final role = data['role'] as String?;
@@ -145,6 +143,13 @@ Future<Response> onRequest(RequestContext context) async {
         'success': true,
         'user': serializedUser,
         'profileId': profileId,
+      },
+    );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
       },
     );
   } catch (e, stackTrace) {

@@ -54,9 +54,6 @@ dependencies:
   skeletonizer: ^2.1.2
   flutter_animate: ^4.5.0
 
-  # Forms & Validation
-  reactive_forms: ^17.0.1
-
   # Functional Programming
   fpdart: ^1.1.0
 
