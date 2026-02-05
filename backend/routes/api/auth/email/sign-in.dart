@@ -46,6 +46,13 @@ Future<Response> onRequest(RequestContext context) async {
     );
 
     return Response.json(body: result);
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } on AuthException catch (e) {
     return Response.json(
       statusCode: e.statusCode,

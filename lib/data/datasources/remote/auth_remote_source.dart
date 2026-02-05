@@ -229,6 +229,11 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      // Don't report popup_closed to Sentry — it's just the user dismissing
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('popup_closed') || msg.contains('popup closed')) {
+        throw const AuthException(message: 'Google sign in cancelled');
+      }
       AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource.signInWithGoogle');
       throw const AuthException(
@@ -953,6 +958,11 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
       return userModel;
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
+      // Don't report popup_closed to Sentry — it's just the user dismissing
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('popup_closed') || msg.contains('popup closed')) {
+        throw const AuthException(message: 'Google sign in cancelled');
+      }
       AppSentryLogger.captureException(e,
           stackTrace: stackTrace,
           context: 'AuthRemoteSourceWeb.signInWithGoogle');

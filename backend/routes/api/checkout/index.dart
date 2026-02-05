@@ -536,6 +536,13 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         'bookingType': appointmentType.toUpperCase(),
       }),
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in POST /api/checkout',

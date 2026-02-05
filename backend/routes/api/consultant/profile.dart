@@ -128,6 +128,13 @@ Future<Response> _handlePatch(RequestContext context) async {
     }
 
     return Response.json(body: serializeForJson(updated));
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in PATCH /api/consultant/profile',

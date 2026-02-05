@@ -67,6 +67,13 @@ Future<Response> _handleAddResponse(
       statusCode: HttpStatus.created,
       body: serializeForJson(response),
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } on RecordNotFoundException {
     return Response.json(
       statusCode: HttpStatus.notFound,

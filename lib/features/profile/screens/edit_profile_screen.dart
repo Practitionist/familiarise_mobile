@@ -149,7 +149,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _videoIntroUrlController.text = data['videoIntroUrl'] as String? ?? '';
     _languages = _parseList(data['languages']);
     _tools = _parseList(data['toolsAndTechnologies']);
-    _sessionTypes = SessionTypeHelper.fromApiStrings(data['sessionTypes']);
+    _sessionTypes = SessionTypeHelper.fromApiStrings(
+      data['sessionTypes'] is List ? data['sessionTypes'] as List : null,
+    );
   }
 
   void _populateConsulteeData(Map<String, dynamic> data) {

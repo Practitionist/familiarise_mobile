@@ -85,6 +85,13 @@ Future<Response> onRequest(RequestContext context, String id) async {
         'message': 'Booking cancelled successfully',
       },
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in POST /api/appointments/$id/cancel',

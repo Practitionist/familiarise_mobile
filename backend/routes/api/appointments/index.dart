@@ -260,6 +260,13 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: serializeForJson(booking),
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } on DuplicateBookingException catch (e) {
     // 409 Conflict for duplicate bookings
     return Response.json(

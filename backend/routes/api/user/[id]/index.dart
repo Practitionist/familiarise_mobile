@@ -144,6 +144,13 @@ Future<Response> onRequest(RequestContext context, String id) async {
     return Response.json(
       body: {'data': serializedUser},
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Failed to update user profile',

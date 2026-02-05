@@ -114,6 +114,13 @@ Future<Response> _handleCreateReview(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: serializeForJson(review),
     );
+  } on FormatException catch (_) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid request body format'},
+      },
+    );
   } on AlreadyExistsException catch (e) {
     return Response.json(
       statusCode: HttpStatus.conflict,
