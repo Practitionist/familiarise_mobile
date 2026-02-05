@@ -69,7 +69,7 @@ Future<Response> onRequest(RequestContext context) async {
       },
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/consultants',
       context: 'ConsultantsRoute',
       error: e,

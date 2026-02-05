@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -59,7 +58,7 @@ Future<Response> _handleListTickets(RequestContext context) async {
       body: serializeForJson(result),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/support',
       context: 'SupportRoute',
       error: e,
@@ -103,8 +102,7 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       );
     }
 
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Validate required fields
     final title = data['title'] as String?;
@@ -147,7 +145,7 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       body: serializeForJson(ticket),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in POST /api/support',
       context: 'SupportRoute',
       error: e,

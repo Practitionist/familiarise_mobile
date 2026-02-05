@@ -36,7 +36,7 @@ Future<Response> onRequest(RequestContext context) async {
     final webhookSecret = env['RAZORPAY_WEBHOOK_SECRET'];
 
     if (webhookSecret == null || webhookSecret.isEmpty) {
-      SentryLogger.error(
+      await SentryLogger.error(
         'RAZORPAY_WEBHOOK_SECRET not configured',
         context: 'RazorpayWebhook',
       );
@@ -186,7 +186,7 @@ Future<Response> onRequest(RequestContext context) async {
     } catch (e, stackTrace) {
       // Mark event as failed
       await db.webhookEvents.markFailed(eventId, e.toString());
-      SentryLogger.error(
+      await SentryLogger.error(
         'Error processing Razorpay webhook: $eventType',
         context: 'RazorpayWebhook',
         error: e,
@@ -196,7 +196,7 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(body: {'status': 'error', 'message': e.toString()});
     }
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Razorpay webhook error',
       context: 'RazorpayWebhook',
       error: e,

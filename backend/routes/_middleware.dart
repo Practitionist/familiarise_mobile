@@ -6,7 +6,8 @@ import 'package:dart_frog/dart_frog.dart';
 /// Handles CORS for Flutter web and provides services
 Handler middleware(Handler handler) {
   return (context) async {
-    final corsHeaders = _getCorsHeaders();
+    final origin = context.request.headers['origin'];
+    final corsHeaders = _getCorsHeaders(origin);
 
     // Handle CORS preflight requests
     if (context.request.method == HttpMethod.options) {
@@ -28,13 +29,30 @@ Handler middleware(Handler handler) {
   };
 }
 
+/// Localhost origins allowed in development mode
+const _devAllowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080',
+];
+
 /// Get CORS headers based on environment
-/// In production, restricts origins; in development, allows all
-Map<String, String> _getCorsHeaders() {
+/// In production, restricts origins; in development, allows localhost variants
+Map<String, String> _getCorsHeaders(String? requestOrigin) {
   final isProduction = Platform.environment['DART_ENV'] == 'production';
-  final allowedOrigin = isProduction
-      ? Platform.environment['ALLOWED_ORIGINS'] ?? 'https://familiarise.com'
-      : '*'; // Allow all origins in development
+
+  String allowedOrigin;
+  if (isProduction) {
+    allowedOrigin = Platform.environment['ALLOWED_ORIGINS'] ??
+        'https://familiarise.com';
+  } else {
+    // Reflect the request origin if it matches a known localhost variant
+    allowedOrigin = (requestOrigin != null &&
+            _devAllowedOrigins.contains(requestOrigin))
+        ? requestOrigin
+        : _devAllowedOrigins.first;
+  }
 
   return {
     'Access-Control-Allow-Origin': allowedOrigin,

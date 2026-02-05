@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -44,8 +43,7 @@ Future<Response> _handleAddResponse(
       );
     }
 
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     final message = data['message'] as String?;
     if (message == null || message.isEmpty) {

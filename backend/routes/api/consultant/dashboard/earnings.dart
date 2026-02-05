@@ -32,7 +32,7 @@ Future<Response> onRequest(RequestContext context) async {
 
     return Response.json(body: serializeForJson(earnings));
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/consultant/dashboard/earnings',
       context: 'ConsultantEarningsRoute',
       error: e,

@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/env_config.dart';
+import '../../../core/constants/storage_keys.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../core/network/dio_client.dart' show AuthInterceptor;
@@ -20,10 +21,9 @@ part 'auth_remote_source.g.dart';
 /// Provider for AuthRemoteSource
 @riverpod
 AuthRemoteSource authRemoteSource(Ref ref) {
-  if (kIsWeb) {
-    return AuthRemoteSourceWebImpl();
-  }
-  return AuthRemoteSourceImpl();
+  final source = kIsWeb ? AuthRemoteSourceWebImpl() : AuthRemoteSourceImpl();
+  ref.onDispose(source.dispose);
+  return source;
 }
 
 /// Remote data source interface for authentication
@@ -79,6 +79,9 @@ abstract class AuthRemoteSource {
 
   /// Stream of auth state changes
   Stream<UserModel?> get authStateChanges;
+
+  /// Dispose of resources (StreamControllers, etc.)
+  void dispose() {}
 }
 
 /// Implementation using direct HTTP calls to the backend API
@@ -124,7 +127,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Store token for future requests (uses SecureStorage on mobile)
       await AuthInterceptor.saveToken(token);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+      await prefs.setString(StorageKeys.authUser, jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);
       return userModel;
@@ -168,7 +171,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Store token for future requests (uses SecureStorage on mobile)
       await AuthInterceptor.saveToken(token);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+      await prefs.setString(StorageKeys.authUser, jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);
       return userModel;
@@ -220,7 +223,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Store token for future requests (uses SecureStorage on mobile, SharedPrefs on web)
       await AuthInterceptor.saveToken(token);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+      await prefs.setString(StorageKeys.authUser, jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);
       return userModel;
@@ -298,7 +301,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       // Store token for future requests
       await AuthInterceptor.saveToken(token);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+      await prefs.setString(StorageKeys.authUser, jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);
       return userModel;
@@ -350,7 +353,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
             final userModel = UserModel.fromJson(data['user']);
             // Update cached user data
             final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+            await prefs.setString(StorageKeys.authUser, jsonEncode(userModel.toJson()));
             return userModel;
           }
 
@@ -377,7 +380,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   Future<UserModel?> _getCachedUser() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString('auth_user');
+      final userJson = prefs.getString(StorageKeys.authUser);
       if (userJson != null && userJson.isNotEmpty) {
         return UserModel.fromJson(jsonDecode(userJson));
       }
@@ -391,7 +394,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   Future<void> _clearLocalAuth() async {
     await AuthInterceptor.clearToken();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_user');
+    await prefs.remove(StorageKeys.authUser);
     _authStateController.add(null);
   }
 
@@ -766,7 +769,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
 
       // Update cached user
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_user', jsonEncode(userModel.toJson()));
+      await prefs.setString(StorageKeys.authUser, jsonEncode(userModel.toJson()));
 
       _authStateController.add(userModel);
       return userModel;
@@ -783,6 +786,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   @override
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
 
+  @override
   void dispose() {
     _authStateController.close();
   }
@@ -790,8 +794,6 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
 
 /// Web-specific implementation using direct HTTP calls
 class AuthRemoteSourceWebImpl implements AuthRemoteSource {
-  static const String _tokenKey = 'auth_token';
-  static const String _userKey = 'auth_user';
 
   GoogleSignIn? _googleSignIn;
   final StreamController<UserModel?> _authStateController =
@@ -812,23 +814,23 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
 
   Future<String?> _getToken() async {
     final prefs = await _prefs;
-    return prefs.getString(_tokenKey);
+    return prefs.getString(StorageKeys.authToken);
   }
 
   Future<void> _saveToken(String token) async {
     final prefs = await _prefs;
-    await prefs.setString(_tokenKey, token);
+    await prefs.setString(StorageKeys.authToken, token);
   }
 
   Future<void> _saveUser(UserModel user) async {
     final prefs = await _prefs;
-    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    await prefs.setString(StorageKeys.authUser, jsonEncode(user.toJson()));
   }
 
   Future<void> _clearAuth() async {
     final prefs = await _prefs;
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
+    await prefs.remove(StorageKeys.authToken);
+    await prefs.remove(StorageKeys.authUser);
   }
 
   @override
@@ -1292,6 +1294,7 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   @override
   Stream<UserModel?> get authStateChanges => _authStateController.stream;
 
+  @override
   void dispose() {
     _authStateController.close();
   }

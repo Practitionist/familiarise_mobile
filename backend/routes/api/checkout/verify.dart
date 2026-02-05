@@ -124,7 +124,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     final env = io.Platform.environment;
     final razorpayKeySecret = env['RAZORPAY_KEY_SECRET'];
     if (razorpayKeySecret == null || razorpayKeySecret.isEmpty) {
-      SentryLogger.error(
+      await SentryLogger.error(
         'RAZORPAY_KEY_SECRET not configured',
         context: 'CheckoutVerifyRoute',
       );
@@ -210,7 +210,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     final updatedPayment = await db.checkout.getPaymentById(paymentId);
     return _buildVerificationResponse(db, updatedPayment ?? payment, true);
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/checkout/verify',
       context: 'CheckoutVerifyRoute',
       error: e,

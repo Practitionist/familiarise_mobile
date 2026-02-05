@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -46,8 +45,7 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       );
     }
 
-    final body = await context.request.body();
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Validate required fields
     final title = data['title'] as String?;
@@ -97,7 +95,7 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       body: serializeForJson(feedback),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in POST /api/feedback',
       context: 'FeedbackRoute',
       error: e,
@@ -136,7 +134,7 @@ Future<Response> _handleGetFeedback(RequestContext context) async {
       body: serializeForJson({'data': feedbackList}),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/feedback',
       context: 'FeedbackRoute',
       error: e,

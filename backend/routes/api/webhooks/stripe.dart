@@ -34,7 +34,7 @@ Future<Response> onRequest(RequestContext context) async {
     final webhookSecret = env['STRIPE_WEBHOOK_SECRET'];
 
     if (webhookSecret == null || webhookSecret.isEmpty) {
-      SentryLogger.error(
+      await SentryLogger.error(
         'STRIPE_WEBHOOK_SECRET not configured',
         context: 'StripeWebhook',
       );
@@ -183,7 +183,7 @@ Future<Response> onRequest(RequestContext context) async {
     } catch (e, stackTrace) {
       // Mark event as failed
       await db.webhookEvents.markFailed(eventId, e.toString());
-      SentryLogger.error(
+      await SentryLogger.error(
         'Error processing Stripe webhook: $eventType',
         context: 'StripeWebhook',
         error: e,
@@ -193,7 +193,7 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(body: {'status': 'error', 'message': e.toString()});
     }
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Stripe webhook error',
       context: 'StripeWebhook',
       error: e,

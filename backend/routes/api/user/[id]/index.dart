@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
@@ -57,17 +56,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
     }
 
     // Parse request body
-    final body = await context.request.body();
-    if (body.isEmpty) {
-      return Response.json(
-        statusCode: HttpStatus.badRequest,
-        body: {
-          'error': {'message': 'Request body is required'},
-        },
-      );
-    }
-
-    final data = jsonDecode(body) as Map<String, dynamic>;
+    final data = await context.request.json() as Map<String, dynamic>;
 
     // Extract allowed fields
     final name = data['name'] as String?;

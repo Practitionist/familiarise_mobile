@@ -93,7 +93,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       body: serializeForJson(booking),
     );
   } catch (e, stackTrace) {
-    SentryLogger.error(
+    await SentryLogger.error(
       'Error in GET /api/appointments/$id',
       context: 'AppointmentDetailRoute',
       error: e,
