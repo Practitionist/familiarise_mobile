@@ -29,16 +29,12 @@ Handler middleware(Handler handler) {
   };
 }
 
-/// Localhost origins allowed in development mode
-const _devAllowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:8080',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:8080',
-];
+/// Pattern to match any localhost or 127.0.0.1 origin (any port)
+final _localhostPattern =
+    RegExp(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$');
 
 /// Get CORS headers based on environment
-/// In production, restricts origins; in development, allows localhost variants
+/// In production, restricts origins; in development, allows any localhost
 Map<String, String> _getCorsHeaders(String? requestOrigin) {
   final isProduction = Platform.environment['DART_ENV'] == 'production';
 
@@ -47,11 +43,11 @@ Map<String, String> _getCorsHeaders(String? requestOrigin) {
     allowedOrigin = Platform.environment['ALLOWED_ORIGINS'] ??
         'https://familiarise.com';
   } else {
-    // Reflect the request origin if it matches a known localhost variant
+    // Reflect the request origin if it's any localhost variant
     allowedOrigin = (requestOrigin != null &&
-            _devAllowedOrigins.contains(requestOrigin))
+            _localhostPattern.hasMatch(requestOrigin))
         ? requestOrigin
-        : _devAllowedOrigins.first;
+        : 'http://localhost:3000';
   }
 
   return {
