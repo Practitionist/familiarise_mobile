@@ -257,6 +257,8 @@ class _TagInputState extends State<TagInput> {
                     onTapDown: (_) {
                       // Add tag immediately on tap down, before focus changes
                       _addTag(suggestion);
+                      // Unfocus to close the dropdown
+                      _focusNode.unfocus();
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(

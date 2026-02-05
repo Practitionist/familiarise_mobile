@@ -3,6 +3,10 @@ import 'package:backend/database/repositories/user_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for session-related database operations
+///
+/// Uses BetterAuth-compatible column names:
+///   sessionToken → token
+///   expires → expiresAt
 class SessionRepository extends BaseRepository {
   /// Create a session repository with the given executor and user repository
   SessionRepository(super._executor, this._userRepository);
@@ -27,11 +31,11 @@ class SessionRepository extends BaseRepository {
   }
 
   /// Find session by token with user data
-  Future<Map<String, dynamic>?> findByToken(String sessionToken) async {
+  Future<Map<String, dynamic>?> findByToken(String token) async {
     final query = JsonQueryBuilder()
         .model('sessions')
         .action(QueryAction.findFirst)
-        .where({'sessionToken': sessionToken}).build();
+        .where({'token': token}).build();
 
     final session = await executeQueryAsSingleMap(query);
     if (session == null) return null;
@@ -39,20 +43,41 @@ class SessionRepository extends BaseRepository {
     return _hydrateWithUser(session);
   }
 
+  /// List all active sessions for a user
+  Future<List<Map<String, dynamic>>> findByUserId(String userId) async {
+    final query = JsonQueryBuilder()
+        .model('sessions')
+        .action(QueryAction.findMany)
+        .where({'userId': userId}).build();
+
+    return executeQueryAsMaps(query);
+  }
+
   /// Create a new session
   Future<Map<String, dynamic>> create({
     required String id,
-    required String sessionToken,
+    required String token,
     required String userId,
-    required DateTime expires,
+    required DateTime expiresAt,
+    String? ipAddress,
+    String? userAgent,
   }) async {
-    final query =
-        JsonQueryBuilder().model('sessions').action(QueryAction.create).data({
+    final data = <String, dynamic>{
       'id': id,
-      'sessionToken': sessionToken,
+      'token': token,
       'userId': userId,
-      'expires': expires.toIso8601String(),
-    }).build();
+      'expiresAt': expiresAt.toIso8601String(),
+      'createdAt': nowIso8601,
+      'updatedAt': nowIso8601,
+    };
+    if (ipAddress != null) data['ipAddress'] = ipAddress;
+    if (userAgent != null) data['userAgent'] = userAgent;
+
+    final query = JsonQueryBuilder()
+        .model('sessions')
+        .action(QueryAction.create)
+        .data(data)
+        .build();
 
     final result = await executeQueryAsSingleMap(query);
     if (result == null) {
@@ -81,15 +106,32 @@ class SessionRepository extends BaseRepository {
     await executeMutation(query);
   }
 
+  /// Delete all sessions for a user except a specific session
+  Future<void> deleteOtherSessions({
+    required String userId,
+    required String keepSessionId,
+  }) async {
+    final query = JsonQueryBuilder()
+        .model('sessions')
+        .action(QueryAction.deleteMany)
+        .where({
+      'userId': userId,
+      'id': FilterOperators.not(keepSessionId),
+    }).build();
+
+    await executeMutation(query);
+  }
+
   /// Hydrate a session record with user data
   Future<Map<String, dynamic>?> _hydrateWithUser(
     Map<String, dynamic> session,
   ) async {
     // Check if expired
-    final expires = session['expires'];
-    if (expires != null) {
-      final expiresAt =
-          expires is DateTime ? expires : DateTime.parse(expires.toString());
+    final expiresAtValue = session['expiresAt'];
+    if (expiresAtValue != null) {
+      final expiresAt = expiresAtValue is DateTime
+          ? expiresAtValue
+          : DateTime.parse(expiresAtValue.toString());
       if (expiresAt.isBefore(DateTime.now().toUtc())) {
         return null;
       }

@@ -152,13 +152,13 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<void>> sendPasswordResetEmail(String email) async {
+  Future<Result<void>> forgotPassword(String email) async {
     if (!await networkInfo.isConnected) {
       return const Left(Failure.network());
     }
 
     try {
-      await remoteSource.sendPasswordResetEmail(email);
+      await remoteSource.forgotPassword(email);
       return const Right(null);
     } on AuthException catch (e) {
       return Left(Failure.auth(message: e.message));
@@ -174,11 +174,150 @@ class AuthRepositoryImpl implements AuthRepository {
     required String token,
     required String newPassword,
   }) async {
-    // Note: Better Auth handles this through the web flow
-    // This method may not be directly callable from the app
-    return const Left(
-      Failure.auth(message: 'Use the password reset link from your email'),
-    );
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.resetPassword(token, newPassword);
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.changePassword(currentPassword, newPassword);
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> setPassword(String newPassword) async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.setPassword(newPassword);
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> requestEmailVerification() async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.requestEmailVerification();
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteAccount() async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.deleteAccount();
+      await localSource.clearAll();
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> listSessions() async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      final sessions = await remoteSource.listSessions();
+      return Right(sessions);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> revokeSession(String sessionId) async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.revokeSession(sessionId);
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> revokeOtherSessions() async {
+    if (!await networkInfo.isConnected) {
+      return const Left(Failure.network());
+    }
+
+    try {
+      await remoteSource.revokeOtherSessions();
+      return const Right(null);
+    } on AuthException catch (e) {
+      return Left(Failure.auth(message: e.message));
+    } catch (e, stackTrace) {
+      AppSentryLogger.captureException(e,
+          stackTrace: stackTrace, context: 'AuthRepository');
+      return Left(Failure.unknown(message: e.toString()));
+    }
   }
 
   @override

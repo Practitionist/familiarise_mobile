@@ -4,6 +4,8 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/services/email/email_service.dart';
+import 'package:backend/services/profile/profile_service.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -59,12 +61,33 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     apiSecret: env['STREAM_API_SECRET'],
   );
 
+  // Email service (optional — only needed for password reset + email verification)
+  final resendApiKey = env['RESEND_API_KEY'];
+  final appBaseUrl = env['APP_BASE_URL'] ?? 'https://familiarise.com';
+  EmailService? emailService;
+  if (resendApiKey != null && resendApiKey.isNotEmpty) {
+    emailService = EmailService(apiKey: resendApiKey);
+  } else {
+    SentryLogger.info(
+      'RESEND_API_KEY not configured. Email features disabled.',
+      context: 'Startup',
+    );
+  }
+
+  // ProfileService is always created - email-dependent features will throw
+  // appropriate errors if email service is not configured
+  final profileService = ProfileService(
+    db,
+    emailService: emailService,
+    appBaseUrl: appBaseUrl,
+  );
+
   // Create GitHub OAuth service if configured
   final GitHubOAuthService? githubOAuthService = hasGitHubOAuth
       ? GitHubOAuthService(
-          clientId: githubClientId!,
-          clientSecret: githubClientSecret!,
-          redirectUri: githubRedirectUri!,
+          clientId: githubClientId,
+          clientSecret: githubClientSecret,
+          redirectUri: githubRedirectUri,
         )
       : null;
 
@@ -80,6 +103,10 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     handlerWithProviders = handlerWithProviders
         .use(provider<GitHubOAuthService>((_) => githubOAuthService));
   }
+
+  // ProfileService is always provided
+  handlerWithProviders =
+      handlerWithProviders.use(provider<ProfileService>((_) => profileService));
 
   // Start server
   SentryLogger.info(

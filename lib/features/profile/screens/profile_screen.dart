@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/providers/auth_provider.dart';
+import '../providers/delete_account_provider.dart';
 
 /// Profile screen - shows user information and settings.
 /// Contains sign-out functionality and account management options.
@@ -107,6 +108,22 @@ class ProfileScreen extends ConsumerWidget {
             ),
             _buildMenuItem(
               context,
+              icon: Icons.lock_outline,
+              title: 'Change Password',
+              onTap: () {
+                context.push('/profile/change-password');
+              },
+            ),
+            _buildMenuItem(
+              context,
+              icon: Icons.devices_outlined,
+              title: 'Active Sessions',
+              onTap: () {
+                context.push('/profile/sessions');
+              },
+            ),
+            _buildMenuItem(
+              context,
               icon: Icons.info_outline,
               title: 'About',
               onTap: () {
@@ -140,6 +157,58 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 8),
+
+            // Delete account
+            _buildMenuItem(
+              context,
+              icon: Icons.delete_forever_outlined,
+              title: 'Delete Account',
+              isDestructive: true,
+              onTap: () async {
+                final shouldDelete = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Account'),
+                    content: const Text(
+                      'This action is permanent and cannot be undone. '
+                      'All your data will be deleted.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pop(context, true),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.error,
+                        ),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldDelete == true && context.mounted) {
+                  final success = await ref
+                      .read(deleteAccountProvider.notifier)
+                      .deleteAccount();
+                  if (!success && context.mounted) {
+                    final errorState = ref.read(deleteAccountProvider);
+                    final errorMessage = errorState.maybeWhen(
+                      error: (error, _) => error.toString(),
+                      orElse: () => 'Failed to delete account. Please try again.',
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(errorMessage)),
+                    );
+                  }
+                }
+              },
+            ),
 
             // Sign out button
             _buildMenuItem(

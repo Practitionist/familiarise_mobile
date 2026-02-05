@@ -25,6 +25,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _acceptedTerms = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Clear any error message from previous screen (e.g., sign-in)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();

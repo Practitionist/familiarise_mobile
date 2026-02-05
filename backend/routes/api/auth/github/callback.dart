@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
+import 'package:backend/utils/request_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
@@ -59,12 +60,18 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final authService = context.read<AuthService>();
+    final ipAddress = RequestUtils.getClientIp(context.request);
+    final userAgent = RequestUtils.getUserAgent(context.request);
 
     // Exchange code for user info
     final githubUser = await githubService.exchangeCodeForUser(code, state);
 
     // Create/update user and generate token
-    final result = await authService.signInWithGitHub(githubUser);
+    final result = await authService.signInWithGitHub(
+      githubUser,
+      ipAddress: ipAddress,
+      userAgent: userAgent,
+    );
 
     return Response.json(body: result);
   } on GitHubOAuthException catch (e) {

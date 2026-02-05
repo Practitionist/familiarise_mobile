@@ -93,14 +93,17 @@ SchemaRegistry _buildSchemaRegistry() {
   ));
 
   // Domain model
+  // Note: Fields must match the actual Prisma schema (no description column)
   schema.registerModel(ModelSchema(
     name: 'Domain',
     tableName: 'Domain',
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
-      'description': const FieldInfo(
-          name: 'description', columnName: 'description', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
     },
     relations: {
       'subDomains': RelationInfo.oneToMany(
@@ -120,6 +123,18 @@ SchemaRegistry _buildSchemaRegistry() {
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
       'domainId': const FieldInfo(
           name: 'domainId', columnName: 'domainId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'domain': RelationInfo.oneToOne(
+        name: 'domain',
+        targetModel: 'Domain',
+        foreignKey: 'domainId',
+        isOwner: true,
+      ),
     },
   ));
 
@@ -174,13 +189,9 @@ SchemaRegistry _buildSchemaRegistry() {
           columnName: 'reviewDescription',
           type: 'String'),
       'createdAt': const FieldInfo(
-          name: 'createdAt',
-          columnName: 'createdAt',
-          type: 'DateTime'),
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
-          name: 'updatedAt',
-          columnName: 'updatedAt',
-          type: 'DateTime'),
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
     },
     relations: {
       'consulteeProfile': RelationInfo.oneToOne(
@@ -275,8 +286,8 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'feedbackFromConsultant',
           columnName: 'feedbackFromConsultant',
           type: 'String'),
-      'rating': const FieldInfo(
-          name: 'rating', columnName: 'rating', type: 'Float'),
+      'rating':
+          const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
       'cancellationReason': const FieldInfo(
           name: 'cancellationReason',
           columnName: 'cancellationReason',
@@ -342,8 +353,8 @@ SchemaRegistry _buildSchemaRegistry() {
           name: 'feedbackFromConsultant',
           columnName: 'feedbackFromConsultant',
           type: 'String'),
-      'rating': const FieldInfo(
-          name: 'rating', columnName: 'rating', type: 'Float'),
+      'rating':
+          const FieldInfo(name: 'rating', columnName: 'rating', type: 'Float'),
       'cancellationReason': const FieldInfo(
           name: 'cancellationReason',
           columnName: 'cancellationReason',
@@ -397,10 +408,10 @@ SchemaRegistry _buildSchemaRegistry() {
     tableName: 'TrialSession',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
-      'notes': const FieldInfo(
-          name: 'notes', columnName: 'notes', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
+      'notes':
+          const FieldInfo(name: 'notes', columnName: 'notes', type: 'String'),
       'consulteeProfileId': const FieldInfo(
           name: 'consulteeProfileId',
           columnName: 'consulteeProfileId',
@@ -414,29 +425,19 @@ SchemaRegistry _buildSchemaRegistry() {
           columnName: 'subscriptionPlanId',
           type: 'String'),
       'appointmentId': const FieldInfo(
-          name: 'appointmentId',
-          columnName: 'appointmentId',
-          type: 'String'),
+          name: 'appointmentId', columnName: 'appointmentId', type: 'String'),
       'convertedToSubscriptionId': const FieldInfo(
           name: 'convertedToSubscriptionId',
           columnName: 'convertedToSubscriptionId',
           type: 'String'),
       'requestedAt': const FieldInfo(
-          name: 'requestedAt',
-          columnName: 'requestedAt',
-          type: 'DateTime'),
+          name: 'requestedAt', columnName: 'requestedAt', type: 'DateTime'),
       'completedAt': const FieldInfo(
-          name: 'completedAt',
-          columnName: 'completedAt',
-          type: 'DateTime'),
+          name: 'completedAt', columnName: 'completedAt', type: 'DateTime'),
       'createdAt': const FieldInfo(
-          name: 'createdAt',
-          columnName: 'createdAt',
-          type: 'DateTime'),
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
-          name: 'updatedAt',
-          columnName: 'updatedAt',
-          type: 'DateTime'),
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
     },
     relations: {
       'subscriptionPlan': RelationInfo.oneToOne(
@@ -1007,6 +1008,7 @@ class DatabaseClient {
     _feedbackRepository = FeedbackRepository(_executor);
     _meetingSessionRepository = MeetingSessionRepository(_executor);
     _dashboardRepository = DashboardRepository(_executor);
+    _verificationRepository = VerificationRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -1037,6 +1039,7 @@ class DatabaseClient {
   late final FeedbackRepository _feedbackRepository;
   late final MeetingSessionRepository _meetingSessionRepository;
   late final DashboardRepository _dashboardRepository;
+  late final VerificationRepository _verificationRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -1149,6 +1152,17 @@ class DatabaseClient {
   /// Dashboard repository (for aggregated dashboard data)
   DashboardRepository get dashboard => _dashboardRepository;
 
+  /// Verification repository (for password reset + email verification)
+  VerificationRepository get verifications => _verificationRepository;
+
+  /// Execute raw SQL query and return results as maps
+  Future<List<Map<String, dynamic>>> executeRaw(
+    String sql,
+    List<dynamic> parameters,
+  ) async {
+    return _executor.executeRaw(sql, parameters);
+  }
+
   // ==================== Legacy Methods ====================
   // These methods delegate to repositories. They will be deprecated once all
   // services are updated to use repositories directly.
@@ -1167,7 +1181,6 @@ class DatabaseClient {
     required String email,
     String? name,
     String? image,
-    String? hashedPassword,
     String role = 'CONSULTEE',
     TransactionExecutor? executor,
   }) =>
@@ -1176,7 +1189,6 @@ class DatabaseClient {
         email: email,
         name: name,
         image: image,
-        hashedPassword: hashedPassword,
         role: role,
         txn: executor,
       );
@@ -1187,9 +1199,9 @@ class DatabaseClient {
   /// @deprecated Use accounts.findByUserAndProvider instead
   Future<Map<String, dynamic>?> findAccountByUserAndProvider(
     String userId,
-    String provider,
+    String providerId,
   ) =>
-      _accountRepository.findByUserAndProvider(userId, provider);
+      _accountRepository.findByUserAndProvider(userId, providerId);
 
   /// @deprecated Use users.update instead
   Future<Map<String, dynamic>?> updateUser({
@@ -1203,8 +1215,8 @@ class DatabaseClient {
   Future<Map<String, dynamic>> createOAuthAccount({
     required String id,
     required String userId,
-    required String provider,
-    required String providerAccountId,
+    required String providerId,
+    required String accountId,
     String? accessToken,
     String? idToken,
     TransactionExecutor? executor,
@@ -1212,22 +1224,10 @@ class DatabaseClient {
       _accountRepository.createOAuth(
         id: id,
         userId: userId,
-        provider: provider,
-        providerAccountId: providerAccountId,
+        providerId: providerId,
+        accountId: accountId,
         accessToken: accessToken,
         idToken: idToken,
-        txn: executor,
-      );
-
-  /// @deprecated Use accounts.createCredentials instead
-  Future<Map<String, dynamic>> createCredentialsAccount({
-    required String id,
-    required String userId,
-    TransactionExecutor? executor,
-  }) =>
-      _accountRepository.createCredentials(
-        id: id,
-        userId: userId,
         txn: executor,
       );
 
@@ -1236,21 +1236,21 @@ class DatabaseClient {
       _sessionRepository.findById(sessionId);
 
   /// @deprecated Use sessions.findByToken instead
-  Future<Map<String, dynamic>?> findSessionByToken(String sessionToken) =>
-      _sessionRepository.findByToken(sessionToken);
+  Future<Map<String, dynamic>?> findSessionByToken(String token) =>
+      _sessionRepository.findByToken(token);
 
   /// @deprecated Use sessions.create instead
   Future<Map<String, dynamic>> createSession({
     required String id,
-    required String sessionToken,
+    required String token,
     required String userId,
-    required DateTime expires,
+    required DateTime expiresAt,
   }) =>
       _sessionRepository.create(
         id: id,
-        sessionToken: sessionToken,
+        token: token,
         userId: userId,
-        expires: expires,
+        expiresAt: expiresAt,
       );
 
   /// @deprecated Use sessions.delete instead

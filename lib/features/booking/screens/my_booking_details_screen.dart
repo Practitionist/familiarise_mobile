@@ -510,8 +510,8 @@ class _MyBookingDetailsScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(o,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant)),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: colorScheme.onSurfaceVariant)),
                   ),
                 ],
               ),
@@ -639,14 +639,15 @@ class _MyBookingDetailsScreenState
 
     final metrics = <_Metric>[];
     if (booking.planDuration != null) {
+      // planDuration is in hours, convert to minutes for display
       metrics.add(_Metric(Icons.schedule_rounded, 'Duration',
-          '${booking.planDuration!.toInt()} min'));
+          '${(booking.planDuration! * 60).toInt()} min'));
     } else if (booking.sessionDurationInHours != null) {
       metrics.add(_Metric(Icons.schedule_rounded, 'Per Session',
           '${(booking.sessionDurationInHours! * 60).toInt()} min'));
     }
-    metrics.add(_Metric(
-        Icons.currency_rupee_rounded, 'Price', booking.formattedPrice));
+    metrics.add(
+        _Metric(Icons.currency_rupee_rounded, 'Price', booking.formattedPrice));
     if (booking.totalSessions != null) {
       metrics.add(_Metric(Icons.calendar_view_week_rounded, 'Sessions',
           '${booking.totalSessions}'));
@@ -656,8 +657,8 @@ class _MyBookingDetailsScreenState
           Icons.repeat_rounded, 'Per Week', '${booking.meetingsPerWeek}'));
     }
     if (booking.durationInMonths != null) {
-      metrics.add(_Metric(
-          Icons.date_range_rounded, 'Duration', '${booking.durationInMonths} mo'));
+      metrics.add(_Metric(Icons.date_range_rounded, 'Duration',
+          '${booking.durationInMonths} mo'));
     }
     if (booking.totalHours != null) {
       metrics.add(_Metric(Icons.hourglass_bottom_rounded, 'Total',
@@ -790,8 +791,8 @@ class _MyBookingDetailsScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(o,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant)),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: colorScheme.onSurfaceVariant)),
                   ),
                 ],
               ),
@@ -1093,9 +1094,8 @@ class _MyBookingDetailsScreenState
     // Chat button (shows "Talk to Expert" for consultees,
     // "Message Client" for consultants)
     final isConsultant = _isConsultantView;
-    final chatUserId = isConsultant
-        ? booking.consulteeUserId
-        : booking.consultantUserId;
+    final chatUserId =
+        isConsultant ? booking.consulteeUserId : booking.consultantUserId;
     if (chatUserId != null &&
         booking.status != RequestStatus.cancelled &&
         booking.status != RequestStatus.rejected &&
@@ -1448,9 +1448,10 @@ class _MyBookingDetailsScreenState
 
   void _handleReportIssue() {
     // Navigate to create ticket screen with booking context
-    final bookingTypeStr = _fetchedBooking!.bookingType == BookingType.consultation
-        ? 'CONSULTATION'
-        : 'SUBSCRIPTION';
+    final bookingTypeStr =
+        _fetchedBooking!.bookingType == BookingType.consultation
+            ? 'CONSULTATION'
+            : 'SUBSCRIPTION';
     context.push(
         '/support/create?bookingId=${_fetchedBooking!.id}&bookingType=$bookingTypeStr');
   }

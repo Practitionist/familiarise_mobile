@@ -47,8 +47,32 @@ abstract class AuthRemoteSource {
   /// Get current user from session
   Future<UserModel?> getCurrentUser();
 
-  /// Send password reset email
-  Future<void> sendPasswordResetEmail(String email);
+  /// Send password reset email (forgot password flow)
+  Future<void> forgotPassword(String email);
+
+  /// Reset password with token
+  Future<void> resetPassword(String token, String newPassword);
+
+  /// Change password (authenticated)
+  Future<void> changePassword(String currentPassword, String newPassword);
+
+  /// Set password for OAuth-only users
+  Future<void> setPassword(String newPassword);
+
+  /// Request email verification
+  Future<void> requestEmailVerification();
+
+  /// Delete account
+  Future<void> deleteAccount();
+
+  /// List active sessions
+  Future<List<Map<String, dynamic>>> listSessions();
+
+  /// Revoke a specific session
+  Future<void> revokeSession(String sessionId);
+
+  /// Revoke all other sessions
+  Future<void> revokeOtherSessions();
 
   /// Update user profile
   Future<UserModel> updateProfile(String userId, Map<String, dynamic> data);
@@ -108,8 +132,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource.signInWithEmail');
-      throw const AuthException(
-          message: 'Sign in failed. Please try again.');
+      throw const AuthException(message: 'Sign in failed. Please try again.');
     }
   }
 
@@ -132,7 +155,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
         }),
       );
 
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 && response.statusCode != 201) {
         final error = jsonDecode(response.body);
         throw AuthException(
             message: error['error']?['message'] ?? 'Sign up failed');
@@ -153,8 +176,7 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
           stackTrace: stackTrace, context: 'AuthRemoteSource.signUpWithEmail');
-      throw const AuthException(
-          message: 'Sign up failed. Please try again.');
+      throw const AuthException(message: 'Sign up failed. Please try again.');
     }
   }
 
@@ -374,17 +396,347 @@ class AuthRemoteSourceImpl implements AuthRemoteSource {
   }
 
   @override
-  Future<void> sendPasswordResetEmail(String email) async {
-    // Better Auth handles forgot password through web interface
-    // The client may not expose this directly
-    throw const AuthException(
-      message:
-          'Please use the "Forgot Password" link on the web to reset your password.',
-    );
+  Future<void> forgotPassword(String email) async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to send reset email',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.forgotPassword',
+      );
+      throw const AuthException(
+        message: 'Failed to send reset email. Please try again.',
+      );
+    }
   }
 
   @override
-  Future<UserModel> updateProfile(String userId, Map<String, dynamic> data) async {
+  Future<void> resetPassword(String token, String newPassword) async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': token,
+          'newPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to reset password',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.resetPassword',
+      );
+      throw const AuthException(
+        message: 'Failed to reset password. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to change password',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.changePassword',
+      );
+      throw const AuthException(
+        message: 'Failed to change password. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> setPassword(String newPassword) async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/set-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'newPassword': newPassword}),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to set password',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.setPassword',
+      );
+      throw const AuthException(
+        message: 'Failed to set password. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> requestEmailVerification() async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/verify-email'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({}),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message:
+              error['error']?['message'] ?? 'Failed to send verification email',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.requestEmailVerification',
+      );
+      throw const AuthException(
+        message: 'Failed to send verification email. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/delete-account'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to delete account',
+        );
+      }
+
+      // Clear local auth data
+      await _clearLocalAuth();
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.deleteAccount',
+      );
+      throw const AuthException(
+        message: 'Failed to delete account. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listSessions() async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/auth/sessions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to list sessions',
+        );
+      }
+
+      final data = jsonDecode(response.body);
+      final sessions = data['sessions'] as List<dynamic>;
+      return sessions.cast<Map<String, dynamic>>();
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.listSessions',
+      );
+      throw const AuthException(
+        message: 'Failed to list sessions. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> revokeSession(String sessionId) async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/revoke-session'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'sessionId': sessionId}),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to revoke session',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.revokeSession',
+      );
+      throw const AuthException(
+        message: 'Failed to revoke session. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> revokeOtherSessions() async {
+    try {
+      final baseUrl = EnvConfig.apiBaseUrl;
+      final token = await AuthInterceptor.getToken();
+
+      if (token == null || token.isEmpty) {
+        throw const AuthException(message: 'Not authenticated');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/revoke-other-sessions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message:
+              error['error']?['message'] ?? 'Failed to revoke other sessions',
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is AuthException) rethrow;
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.revokeOtherSessions',
+      );
+      throw const AuthException(
+        message: 'Failed to revoke other sessions. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<UserModel> updateProfile(
+      String userId, Map<String, dynamic> data) async {
     try {
       final baseUrl = EnvConfig.apiBaseUrl;
       final token = await AuthInterceptor.getToken();
@@ -506,9 +858,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signInWithEmail');
-      throw const AuthException(
-          message: 'Sign in failed. Please try again.');
+          stackTrace: stackTrace,
+          context: 'AuthRemoteSourceWeb.signInWithEmail');
+      throw const AuthException(message: 'Sign in failed. Please try again.');
     }
   }
 
@@ -544,9 +896,9 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signUpWithEmail');
-      throw const AuthException(
-          message: 'Sign up failed. Please try again.');
+          stackTrace: stackTrace,
+          context: 'AuthRemoteSourceWeb.signUpWithEmail');
+      throw const AuthException(message: 'Sign up failed. Please try again.');
     }
   }
 
@@ -600,7 +952,8 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSourceWeb.signInWithGoogle');
+          stackTrace: stackTrace,
+          context: 'AuthRemoteSourceWeb.signInWithGoogle');
       throw const AuthException(
           message: 'Google sign in failed. Please try again.');
     }
@@ -663,15 +1016,238 @@ class AuthRemoteSourceWebImpl implements AuthRemoteSource {
   }
 
   @override
-  Future<void> sendPasswordResetEmail(String email) async {
-    throw const AuthException(
-      message:
-          'Please use the "Forgot Password" link on the web to reset your password.',
-    );
+  Future<void> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to send reset email',
+        );
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthException(
+        message: 'Failed to send reset email. Please try again.',
+      );
+    }
   }
 
   @override
-  Future<UserModel> updateProfile(String userId, Map<String, dynamic> data) async {
+  Future<void> resetPassword(String token, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': token,
+          'newPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw AuthException(
+          message: error['error']?['message'] ?? 'Failed to reset password',
+        );
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw const AuthException(
+        message: 'Failed to reset password. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message: error['error']?['message'] ?? 'Failed to change password',
+      );
+    }
+  }
+
+  @override
+  Future<void> setPassword(String newPassword) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/set-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'newPassword': newPassword}),
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message: error['error']?['message'] ?? 'Failed to set password',
+      );
+    }
+  }
+
+  @override
+  Future<void> requestEmailVerification() async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/verify-email'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({}),
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message:
+            error['error']?['message'] ?? 'Failed to send verification email',
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/delete-account'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message: error['error']?['message'] ?? 'Failed to delete account',
+      );
+    }
+
+    await _clearAuth();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listSessions() async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/auth/sessions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message: error['error']?['message'] ?? 'Failed to list sessions',
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    final sessions = data['sessions'] as List<dynamic>;
+    return sessions.cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<void> revokeSession(String sessionId) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/revoke-session'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'sessionId': sessionId}),
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message: error['error']?['message'] ?? 'Failed to revoke session',
+      );
+    }
+  }
+
+  @override
+  Future<void> revokeOtherSessions() async {
+    final token = await _getToken();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/revoke-other-sessions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw AuthException(
+        message:
+            error['error']?['message'] ?? 'Failed to revoke other sessions',
+      );
+    }
+  }
+
+  @override
+  Future<UserModel> updateProfile(
+    String userId,
+    Map<String, dynamic> data,
+  ) async {
     try {
       final token = await _getToken();
 

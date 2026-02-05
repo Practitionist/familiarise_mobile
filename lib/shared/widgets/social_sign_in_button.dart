@@ -24,12 +24,16 @@ class SocialSignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+
+    // Use white background with dark text for consistent visibility
+    // in both light and dark modes
+    const buttonBackground = Colors.white;
+    const textColor = Colors.black87;
 
     return OutlinedButton(
       onPressed: isLoading ? null : onPressed,
       style: OutlinedButton.styleFrom(
-        backgroundColor: isDark ? theme.colorScheme.secondary : Colors.white,
+        backgroundColor: buttonBackground,
         side: BorderSide(color: theme.colorScheme.outline),
         minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(
@@ -37,14 +41,12 @@ class SocialSignInButton extends StatelessWidget {
         ),
       ),
       child: isLoading
-          ? SizedBox(
+          ? const SizedBox(
               height: 20,
               width: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.onSurface,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(textColor),
               ),
             )
           : Row(
@@ -55,7 +57,8 @@ class SocialSignInButton extends StatelessWidget {
                 Text(
                   label ?? _getDefaultLabel(),
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onSurface,
+                    color: textColor,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -64,8 +67,7 @@ class SocialSignInButton extends StatelessWidget {
   }
 
   Widget _buildIcon(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    // Icons should always be dark since button background is always white
     switch (provider) {
       case SocialProvider.google:
         return SvgPicture.asset(
@@ -78,15 +80,14 @@ class SocialSignInButton extends StatelessWidget {
           'assets/icons/github.svg',
           width: 20,
           height: 20,
-          colorFilter: isDark
-              ? const ColorFilter.mode(Colors.white, BlendMode.srcIn)
-              : null,
+          // GitHub icon should be dark on white background
+          colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
         );
       case SocialProvider.apple:
-        return Icon(
+        return const Icon(
           Icons.apple,
           size: 24,
-          color: isDark ? Colors.white : Colors.black,
+          color: Colors.black,
         );
     }
   }

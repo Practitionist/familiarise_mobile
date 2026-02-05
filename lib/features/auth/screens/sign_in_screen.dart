@@ -22,6 +22,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   SocialProvider? _loadingSocialProvider;
 
   @override
+  void initState() {
+    super.initState();
+    // Clear any error message from previous screen (e.g., sign-up)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

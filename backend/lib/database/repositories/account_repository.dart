@@ -4,21 +4,52 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Repository for account-related database operations
 ///
 /// Handles OAuth and credentials account linking.
+/// Uses BetterAuth-compatible column names:
+///   provider → providerId
+///   providerAccountId → accountId
+///   access_token → accessToken
+///   id_token → idToken
 class AccountRepository extends BaseRepository {
   /// Create an account repository with the given executor
   AccountRepository(super._executor);
 
-  /// Find account by userId and provider
+  /// Find account by userId and providerId
   Future<Map<String, dynamic>?> findByUserAndProvider(
     String userId,
-    String provider,
+    String providerId,
   ) async {
     final query = JsonQueryBuilder()
         .model('accounts')
         .action(QueryAction.findFirst)
         .where({
       'userId': userId,
-      'provider': provider,
+      'providerId': providerId,
+    }).build();
+
+    return executeQueryAsSingleMap(query);
+  }
+
+  /// Find credential account by userId
+  ///
+  /// Shorthand for finding the account with providerId: "credential".
+  Future<Map<String, dynamic>?> findCredentialAccount(String userId) async {
+    return findByUserAndProvider(userId, 'credential');
+  }
+
+  /// Update an account's password
+  ///
+  /// Used for change-password and reset-password flows.
+  Future<Map<String, dynamic>?> updatePassword({
+    required String accountId,
+    required String hashedPassword,
+  }) async {
+    final query = JsonQueryBuilder()
+        .model('accounts')
+        .action(QueryAction.update)
+        .where({'id': accountId})
+        .data({
+      'password': hashedPassword,
+      'updatedAt': nowIso8601,
     }).build();
 
     return executeQueryAsSingleMap(query);
@@ -30,8 +61,8 @@ class AccountRepository extends BaseRepository {
   Future<Map<String, dynamic>> createOAuth({
     required String id,
     required String userId,
-    required String provider,
-    required String providerAccountId,
+    required String providerId,
+    required String accountId,
     String? accessToken,
     String? idToken,
     TransactionExecutor? txn,
@@ -40,11 +71,12 @@ class AccountRepository extends BaseRepository {
         JsonQueryBuilder().model('accounts').action(QueryAction.create).data({
       'id': id,
       'userId': userId,
-      'type': 'oauth',
-      'provider': provider,
-      'providerAccountId': providerAccountId,
-      'access_token': accessToken,
-      'id_token': idToken,
+      'providerId': providerId,
+      'accountId': accountId,
+      'accessToken': accessToken,
+      'idToken': idToken,
+      'createdAt': nowIso8601,
+      'updatedAt': nowIso8601,
     }).build();
 
     final result = await executeQueryAsSingleMap(query, txn: txn);
@@ -56,20 +88,23 @@ class AccountRepository extends BaseRepository {
 
   /// Create a credentials account for email/password users
   ///
-  /// Note: The password is stored in the users table, not accounts table.
-  /// This method creates the account record for provider tracking.
+  /// In BetterAuth schema, the password is stored in the accounts table
+  /// with providerId: "credential" and accountId: <userId>.
   Future<Map<String, dynamic>> createCredentials({
     required String id,
     required String userId,
+    required String hashedPassword,
     TransactionExecutor? txn,
   }) async {
     final query =
         JsonQueryBuilder().model('accounts').action(QueryAction.create).data({
       'id': id,
       'userId': userId,
-      'type': 'credentials',
-      'provider': 'credentials',
-      'providerAccountId': userId,
+      'providerId': 'credential',
+      'accountId': userId,
+      'password': hashedPassword,
+      'createdAt': nowIso8601,
+      'updatedAt': nowIso8601,
     }).build();
 
     final result = await executeQueryAsSingleMap(query, txn: txn);
