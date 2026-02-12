@@ -28,12 +28,9 @@ Future<Response> onRequest(RequestContext context) async {
     final db = context.read<DatabaseClient>();
 
     // Look up consultant profile for this user
-    final profiles = await db.executeRaw(
-      'SELECT id FROM "ConsultantProfile" WHERE "userId" = \$1',
-      [userId],
-    );
+    final profile = await db.consultantProfiles.findByUserId(userId);
 
-    if (profiles.isEmpty) {
+    if (profile == null) {
       return Response.json(
         body: {
           'webinarCollaborations': <dynamic>[],
@@ -43,7 +40,7 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    final consultantProfileId = profiles.first['id'] as String;
+    final consultantProfileId = profile['id'] as String;
     final result =
         await db.collaborators.getMyCollaborations(consultantProfileId);
 

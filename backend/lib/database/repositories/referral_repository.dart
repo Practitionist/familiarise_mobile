@@ -1,10 +1,12 @@
 import 'dart:math';
 
-import 'base_repository.dart';
+import 'package:backend/database/repositories/base_repository.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for referral operations (ReferralCode, Referral, ReferralCredit)
 class ReferralRepository extends BaseRepository {
-  ReferralRepository(super.executor);
+  /// Create a referral repository with the given executor
+  ReferralRepository(super._executor);
 
   static const int _defaultRefereeReward = 20000; // paise (200 INR)
   static const int _defaultReferrerReward = 50000; // paise (500 INR)
@@ -16,21 +18,24 @@ class ReferralRepository extends BaseRepository {
     required String code,
   }) async {
     // Find the referral code (check both code and customCode)
-    final codeResults = await executeRaw(
-      '''
-      SELECT rc.id, rc."userId", rc."isActive", rc."maxReferrals",
-             rc."totalReferrals", rc."defaultRefereeReward"
-      FROM "ReferralCode" rc
-      WHERE (rc.code = \$1 OR rc."customCode" = \$1) AND rc."isActive" = true
-      ''',
-      [code.toUpperCase()],
-    );
+    final codeQuery = JsonQueryBuilder()
+        .model('ReferralCode')
+        .action(QueryAction.findFirst)
+        .where({
+          'isActive': true,
+          'OR': [
+            {'code': code.toUpperCase()},
+            {'customCode': code.toUpperCase()},
+          ],
+        })
+        .build();
 
-    if (codeResults.isEmpty) {
+    final referralCode = await executeQueryAsSingleMap(codeQuery);
+
+    if (referralCode == null) {
       throw Exception('Invalid or inactive referral code');
     }
 
-    final referralCode = codeResults.first;
     final referrerId = referralCode['userId'] as String;
 
     // Cannot refer yourself
@@ -39,67 +44,76 @@ class ReferralRepository extends BaseRepository {
     }
 
     // Check max referrals cap
-    final maxReferrals = referralCode['maxReferrals'] as int?;
+    final maxReferrals = (referralCode['maxReferrals'] as num?)?.toInt();
     final totalReferrals =
         (referralCode['totalReferrals'] as num?)?.toInt() ?? 0;
     if (maxReferrals != null && totalReferrals >= maxReferrals) {
       throw Exception('This referral code has reached its maximum uses');
     }
 
-    // Check if user was already referred
-    final existingReferral = await executeRaw(
-      '''
-      SELECT id FROM "Referral"
-      WHERE "referredUserId" = \$1
-      ''',
-      [userId],
-    );
+    // Check if user was already referred (referredUserId is @unique)
+    final existingQuery = JsonQueryBuilder()
+        .model('Referral')
+        .action(QueryAction.findFirst)
+        .where({'referredUserId': userId})
+        .build();
 
-    if (existingReferral.isNotEmpty) {
+    final existingReferral = await executeQueryAsSingleMap(existingQuery);
+
+    if (existingReferral != null) {
       throw Exception('You have already used a referral code');
     }
 
-    // Execute in transaction: create referral + increment counter + create credit
+    // Transaction: create referral + increment counter + credit
     return executeInTransaction((txn) async {
       final referralCodeId = referralCode['id'] as String;
       final refereeReward =
-          (referralCode['defaultRefereeReward'] as num?)?.toInt() ??
+          (referralCode['refereeReward'] as num?)?.toInt() ??
               _defaultRefereeReward;
 
       // Create Referral record
-      await txn.executeMutationRaw(
-        r'''
-        INSERT INTO "Referral" (id, "referralCodeId", "referredUserId",
-                                status, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), $1, $2, 'SIGNED_UP', NOW(), NOW())
-        ''',
-        [referralCodeId, userId],
-      );
+      final createReferralQuery = JsonQueryBuilder()
+          .model('Referral')
+          .action(QueryAction.create)
+          .data({
+            'referralCodeId': referralCodeId,
+            'referredUserId': userId,
+            'status': 'SIGNED_UP',
+          })
+          .build();
+
+      await txn.executeMutation(createReferralQuery);
 
       // Increment totalReferrals on ReferralCode
-      await txn.executeMutationRaw(
-        r'''
-        UPDATE "ReferralCode"
-        SET "totalReferrals" = "totalReferrals" + 1, "updatedAt" = NOW()
-        WHERE id = $1
-        ''',
-        [referralCodeId],
-      );
+      final updateCodeQuery = JsonQueryBuilder()
+          .model('ReferralCode')
+          .action(QueryAction.update)
+          .where({'id': referralCodeId})
+          .data({
+            'totalReferrals': totalReferrals + 1,
+          })
+          .build();
+
+      await txn.executeMutation(updateCodeQuery);
 
       // Create ReferralCredit for the referee (signup bonus)
-      final expiresAt = DateTime.now()
-          .toUtc()
-          .add(Duration(days: _creditExpiryMonths * 30));
-      await txn.executeMutationRaw(
-        r'''
-        INSERT INTO "ReferralCredit" (id, "userId", amount, "remainingAmount",
-                                      source, description, "expiresAt",
-                                      "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), $1, $2, $2, 'REFEREE_BONUS',
-                'Signup referral bonus', $3, NOW(), NOW())
-        ''',
-        [userId, refereeReward, expiresAt.toIso8601String()],
-      );
+      final expiresAt = DateTime.now().toUtc().add(
+            const Duration(days: _creditExpiryMonths * 30),
+          );
+
+      final createCreditQuery = JsonQueryBuilder()
+          .model('ReferralCredit')
+          .action(QueryAction.create)
+          .data({
+            'userId': userId,
+            'amount': refereeReward,
+            'remainingAmount': refereeReward,
+            'source': 'REFEREE_BONUS',
+            'expiresAt': expiresAt.toIso8601String(),
+          })
+          .build();
+
+      await txn.executeMutation(createCreditQuery);
 
       return {
         'success': true,
@@ -111,18 +125,13 @@ class ReferralRepository extends BaseRepository {
 
   /// Get user's referral code
   Future<Map<String, dynamic>?> getReferralCode(String userId) async {
-    final results = await executeRaw(
-      '''
-      SELECT id, code, "customCode", "totalReferrals", "successfulReferrals",
-             "totalEarned", "maxReferrals", "isActive",
-             "createdAt", "updatedAt"
-      FROM "ReferralCode"
-      WHERE "userId" = \$1
-      ''',
-      [userId],
-    );
+    final query = JsonQueryBuilder()
+        .model('ReferralCode')
+        .action(QueryAction.findFirst)
+        .where({'userId': userId})
+        .build();
 
-    return results.isNotEmpty ? results.first : null;
+    return executeQueryAsSingleMap(query);
   }
 
   /// Create a referral code for a user
@@ -138,35 +147,46 @@ class ReferralRepository extends BaseRepository {
 
     final code = _generateCode(userName);
 
-    final results = await executeRaw(
-      '''
-      INSERT INTO "ReferralCode" (id, "userId", code, "defaultReferrerReward",
-                                   "defaultRefereeReward", "isActive",
-                                   "totalReferrals", "successfulReferrals",
-                                   "totalEarned", "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), \$1, \$2, \$3, \$4, true, 0, 0, 0, NOW(), NOW())
-      RETURNING id, code, "customCode", "totalReferrals", "successfulReferrals",
-                "totalEarned", "maxReferrals", "isActive"
-      ''',
-      [userId, code, _defaultReferrerReward, _defaultRefereeReward],
-    );
+    final query = JsonQueryBuilder()
+        .model('ReferralCode')
+        .action(QueryAction.create)
+        .data({
+          'userId': userId,
+          'code': code,
+          'referrerReward': _defaultReferrerReward,
+          'refereeReward': _defaultRefereeReward,
+          'isActive': true,
+          'totalReferrals': 0,
+          'successfulReferrals': 0,
+          'totalEarned': 0,
+        })
+        .build();
 
-    return results.first;
+    final result = await executeQueryAsSingleMap(query);
+    return result!;
   }
 
   /// Get available (unexpired, unspent) credit balance for a user
   Future<Map<String, dynamic>> getAvailableCredits(String userId) async {
-    final results = await executeRaw(
-      '''
-      SELECT COALESCE(SUM("remainingAmount"), 0) as "totalAvailable"
-      FROM "ReferralCredit"
-      WHERE "userId" = \$1 AND "remainingAmount" > 0 AND "expiresAt" > NOW()
-      ''',
-      [userId],
-    );
+    final now = DateTime.now().toUtc().toIso8601String();
 
-    final totalAvailable =
-        (results.first['totalAvailable'] as num?)?.toInt() ?? 0;
+    final query = JsonQueryBuilder()
+        .model('ReferralCredit')
+        .action(QueryAction.findMany)
+        .where({
+          'userId': userId,
+          'remainingAmount': FilterOperators.gt(0),
+          'expiresAt': FilterOperators.gt(now),
+        })
+        .build();
+
+    final credits = await executeQueryAsMaps(query);
+
+    final totalAvailable = credits.fold<int>(0, (sum, credit) {
+      final remaining =
+          (credit['remainingAmount'] as num?)?.toInt() ?? 0;
+      return sum + remaining;
+    });
 
     return {
       'totalAvailable': totalAvailable,

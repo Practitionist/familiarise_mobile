@@ -1,50 +1,69 @@
-import 'base_repository.dart';
+import 'package:backend/database/repositories/base_repository.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
-/// Repository for collaborator operations (WebinarCollaborator + ClassCollaborator)
+/// Repository for collaborator operations
+/// (WebinarCollaborator + ClassCollaborator)
 class CollaboratorRepository extends BaseRepository {
-  CollaboratorRepository(super.executor);
+  /// Create a collaborator repository with the given executor
+  CollaboratorRepository(super._executor);
 
   /// Get all collaborations for a consultant (both webinar and class)
   Future<Map<String, dynamic>> getMyCollaborations(
     String consultantProfileId,
   ) async {
-    final webinarCollaborations = await executeRaw(
-      '''
-      SELECT wc.id, wc.role, wc.status, wc."revenueSharePercentage", wc."createdAt",
-             wp.id as "planId", wp.title as "planTitle", wp.price as "planPrice",
-             wp."durationInHours", wp."maxParticipants",
-             u.name as "hostName", u.image as "hostImage",
-             iu.name as "inviterName"
-      FROM "WebinarCollaborator" wc
-      JOIN "WebinarPlan" wp ON wc."webinarPlanId" = wp.id
-      JOIN "ConsultantProfile" cp ON wp."consultantProfileId" = cp.id
-      JOIN "users" u ON cp."userId" = u.id
-      JOIN "ConsultantProfile" icp ON wc."invitedById" = icp.id
-      JOIN "users" iu ON icp."userId" = iu.id
-      WHERE wc."consultantProfileId" = \$1 AND wc.status IN ('PENDING', 'ACCEPTED')
-      ORDER BY wc."createdAt" DESC
-      ''',
-      [consultantProfileId],
-    );
+    // Webinar collaborations with nested includes
+    final webinarQuery = JsonQueryBuilder()
+        .model('WebinarCollaborator')
+        .action(QueryAction.findMany)
+        .where({
+          'consultantProfileId': consultantProfileId,
+          'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
+        })
+        .include({
+          'webinarPlan': {
+            'include': {
+              'consultantProfile': {
+                'include': {'user': true},
+              },
+            },
+          },
+          'invitedBy': {
+            'include': {'user': true},
+          },
+        })
+        .orderBy({'createdAt': 'desc'})
+        .build();
 
-    final classCollaborations = await executeRaw(
-      '''
-      SELECT cc.id, cc.role, cc.status, cc."revenueSharePercentage", cc."createdAt",
-             clp.id as "planId", clp.title as "planTitle", clp.price as "planPrice",
-             clp."sessionDurationInHours", clp."maxParticipants",
-             u.name as "hostName", u.image as "hostImage",
-             iu.name as "inviterName"
-      FROM "ClassCollaborator" cc
-      JOIN "ClassPlan" clp ON cc."classPlanId" = clp.id
-      JOIN "ConsultantProfile" cp ON clp."consultantProfileId" = cp.id
-      JOIN "users" u ON cp."userId" = u.id
-      JOIN "ConsultantProfile" icp ON cc."invitedById" = icp.id
-      JOIN "users" iu ON icp."userId" = iu.id
-      WHERE cc."consultantProfileId" = \$1 AND cc.status IN ('PENDING', 'ACCEPTED')
-      ORDER BY cc."createdAt" DESC
-      ''',
-      [consultantProfileId],
-    );
+    final webinarResults = await executeQueryAsMaps(webinarQuery);
+    final webinarCollaborations =
+        webinarResults.map(_flattenWebinarCollaboration).toList();
+
+    // Class collaborations with nested includes
+    final classQuery = JsonQueryBuilder()
+        .model('ClassCollaborator')
+        .action(QueryAction.findMany)
+        .where({
+          'consultantProfileId': consultantProfileId,
+          'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
+        })
+        .include({
+          'classPlan': {
+            'include': {
+              'consultantProfile': {
+                'include': {'user': true},
+              },
+            },
+          },
+          'invitedBy': {
+            'include': {'user': true},
+          },
+        })
+        .orderBy({'createdAt': 'desc'})
+        .build();
+
+    final classResults = await executeQueryAsMaps(classQuery);
+    final classCollaborations =
+        classResults.map(_flattenClassCollaboration).toList();
 
     final counts = await getCollaborationCounts(consultantProfileId);
 
@@ -62,51 +81,152 @@ class CollaboratorRepository extends BaseRepository {
     required String response,
     required String planType,
   }) async {
-    final table = planType == 'webinar'
-        ? 'WebinarCollaborator'
-        : 'ClassCollaborator';
+    final model =
+        planType == 'webinar' ? 'WebinarCollaborator' : 'ClassCollaborator';
+    final now = DateTime.now().toUtc().toIso8601String();
 
-    final results = await executeRaw(
-      '''
-      UPDATE "$table"
-      SET status = \$1, "respondedAt" = NOW()
-      WHERE id = \$2 AND "consultantProfileId" = \$3 AND status = 'PENDING'
-      RETURNING id, status, "respondedAt"
-      ''',
-      [response, id, consultantProfileId],
-    );
+    // First check the record exists and is PENDING for this consultant
+    final findQuery = JsonQueryBuilder()
+        .model(model)
+        .action(QueryAction.findFirst)
+        .where({
+          'id': id,
+          'consultantProfileId': consultantProfileId,
+          'status': 'PENDING',
+        })
+        .build();
 
-    return results.isNotEmpty ? results.first : null;
+    final existing = await executeQueryAsSingleMap(findQuery);
+    if (existing == null) return null;
+
+    // Update the record
+    final updateQuery = JsonQueryBuilder()
+        .model(model)
+        .action(QueryAction.update)
+        .where({'id': id})
+        .data({
+          'status': response,
+          'respondedAt': now,
+        })
+        .build();
+
+    await executeMutation(updateQuery);
+
+    return {
+      'id': id,
+      'status': response,
+      'respondedAt': now,
+    };
   }
 
   /// Get collaboration counts for dashboard summary
   Future<Map<String, int>> getCollaborationCounts(
     String consultantProfileId,
   ) async {
-    final results = await executeRaw(
-      '''
-      SELECT
-        COALESCE(SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END), 0) as "pendingCount",
-        COALESCE(SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END), 0) as "acceptedCount"
-      FROM (
-        SELECT status FROM "WebinarCollaborator"
-        WHERE "consultantProfileId" = \$1 AND status IN ('PENDING', 'ACCEPTED')
-        UNION ALL
-        SELECT status FROM "ClassCollaborator"
-        WHERE "consultantProfileId" = \$1 AND status IN ('PENDING', 'ACCEPTED')
-      ) combined
-      ''',
-      [consultantProfileId],
-    );
+    // Count webinar collaborations by status
+    final webinarPendingQuery = JsonQueryBuilder()
+        .model('WebinarCollaborator')
+        .action(QueryAction.count)
+        .where({
+          'consultantProfileId': consultantProfileId,
+          'status': 'PENDING',
+        })
+        .build();
 
-    if (results.isEmpty) {
-      return {'pendingCount': 0, 'acceptedCount': 0};
-    }
+    final webinarAcceptedQuery = JsonQueryBuilder()
+        .model('WebinarCollaborator')
+        .action(QueryAction.count)
+        .where({
+          'consultantProfileId': consultantProfileId,
+          'status': 'ACCEPTED',
+        })
+        .build();
 
-    final row = results.first;
+    // Count class collaborations by status
+    final classPendingQuery = JsonQueryBuilder()
+        .model('ClassCollaborator')
+        .action(QueryAction.count)
+        .where({
+          'consultantProfileId': consultantProfileId,
+          'status': 'PENDING',
+        })
+        .build();
+
+    final classAcceptedQuery = JsonQueryBuilder()
+        .model('ClassCollaborator')
+        .action(QueryAction.count)
+        .where({
+          'consultantProfileId': consultantProfileId,
+          'status': 'ACCEPTED',
+        })
+        .build();
+
+    final results = await Future.wait([
+      executeCount(webinarPendingQuery),
+      executeCount(webinarAcceptedQuery),
+      executeCount(classPendingQuery),
+      executeCount(classAcceptedQuery),
+    ]);
+
     return {
-      'pendingCount': (row['pendingCount'] as num?)?.toInt() ?? 0,
-      'acceptedCount': (row['acceptedCount'] as num?)?.toInt() ?? 0,
+      'pendingCount': results[0] + results[2],
+      'acceptedCount': results[1] + results[3],
+    };
+  }
+
+  /// Flatten a nested WebinarCollaborator include result to the flat shape
+  /// expected by the frontend (planTitle, planPrice, hostName, etc.)
+  Map<String, dynamic> _flattenWebinarCollaboration(Map<String, dynamic> wc) {
+    final plan = wc['webinarPlan'] as Map<String, dynamic>? ?? {};
+    final hostProfile =
+        plan['consultantProfile'] as Map<String, dynamic>? ?? {};
+    final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
+    final invitedByProfile = wc['invitedBy'] as Map<String, dynamic>? ?? {};
+    final inviterUser =
+        invitedByProfile['user'] as Map<String, dynamic>? ?? {};
+
+    return {
+      'id': wc['id'],
+      'role': wc['role'],
+      'status': wc['status'],
+      'revenueSharePercentage': wc['revenueSharePercentage'],
+      'createdAt': wc['createdAt'],
+      'planId': plan['id'],
+      'planTitle': plan['title'],
+      'planPrice': plan['price'],
+      'durationInHours': plan['durationInHours'],
+      'maxParticipants': plan['maxParticipants'],
+      'hostName': hostUser['name'],
+      'hostImage': hostUser['image'],
+      'inviterName': inviterUser['name'],
+    };
+  }
+
+  /// Flatten a nested ClassCollaborator include result to the flat shape
+  /// expected by the frontend (planTitle, planPrice, hostName, etc.)
+  Map<String, dynamic> _flattenClassCollaboration(Map<String, dynamic> cc) {
+    final plan = cc['classPlan'] as Map<String, dynamic>? ?? {};
+    final hostProfile =
+        plan['consultantProfile'] as Map<String, dynamic>? ?? {};
+    final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
+    final invitedByProfile = cc['invitedBy'] as Map<String, dynamic>? ?? {};
+    final inviterUser =
+        invitedByProfile['user'] as Map<String, dynamic>? ?? {};
+
+    return {
+      'id': cc['id'],
+      'role': cc['role'],
+      'status': cc['status'],
+      'revenueSharePercentage': cc['revenueSharePercentage'],
+      'createdAt': cc['createdAt'],
+      'planId': plan['id'],
+      'planTitle': plan['title'],
+      'planPrice': plan['price'],
+      'sessionDurationInHours': plan['sessionDurationInHours'],
+      'maxParticipants': plan['maxParticipants'],
+      'hostName': hostUser['name'],
+      'hostImage': hostUser['image'],
+      'inviterName': inviterUser['name'],
     };
   }
 }
