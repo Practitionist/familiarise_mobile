@@ -1009,6 +1009,8 @@ class DatabaseClient {
     _meetingSessionRepository = MeetingSessionRepository(_executor);
     _dashboardRepository = DashboardRepository(_executor);
     _verificationRepository = VerificationRepository(_executor);
+    _collaboratorRepository = CollaboratorRepository(_executor);
+    _referralRepository = ReferralRepository(_executor);
   }
 
   static DatabaseClient? _instance;
@@ -1040,6 +1042,8 @@ class DatabaseClient {
   late final MeetingSessionRepository _meetingSessionRepository;
   late final DashboardRepository _dashboardRepository;
   late final VerificationRepository _verificationRepository;
+  late final CollaboratorRepository _collaboratorRepository;
+  late final ReferralRepository _referralRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -1154,6 +1158,12 @@ class DatabaseClient {
 
   /// Verification repository (for password reset + email verification)
   VerificationRepository get verifications => _verificationRepository;
+
+  /// Collaborator repository (for webinar/class collaborations)
+  CollaboratorRepository get collaborators => _collaboratorRepository;
+
+  /// Referral repository (for referral codes and credits)
+  ReferralRepository get referrals => _referralRepository;
 
   /// Execute raw SQL query and return results as maps
   Future<List<Map<String, dynamic>>> executeRaw(

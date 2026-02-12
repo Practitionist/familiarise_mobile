@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../data/repositories/referral_repository_impl.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/loading_button.dart';
 import '../../../shared/widgets/social_sign_in_button.dart';
@@ -21,6 +22,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   SocialProvider? _loadingSocialProvider;
   bool _acceptedTerms = false;
 
@@ -39,6 +41,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -53,6 +56,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     ref.listen(authProvider, (previous, next) {
       if (!next.isLoading && _loadingSocialProvider != null) {
         setState(() => _loadingSocialProvider = null);
+      }
+      // Fire-and-forget referral code application on successful signup
+      if (next.isAuthenticated && _referralCodeController.text.trim().isNotEmpty) {
+        final code = _referralCodeController.text.trim();
+        ref.read(referralRepositoryProvider).applyReferralCode(code);
       }
     });
 
@@ -209,6 +217,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     }
                     return null;
                   },
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
+                // Referral code (optional)
+                AppTextField(
+                  controller: _referralCodeController,
+                  label: 'Referral Code (optional)',
+                  hint: 'Enter referral code',
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.done,
+                  prefixIcon: const Icon(Icons.card_giftcard_outlined),
+                  enabled: !isLoading,
                 ),
 
                 const SizedBox(height: AppSpacing.md),

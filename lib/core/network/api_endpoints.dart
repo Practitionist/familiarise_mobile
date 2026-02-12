@@ -104,4 +104,15 @@ abstract final class ApiEndpoints {
   // Profile update (role-specific)
   static const String consultantProfile = '$api/consultant/profile';
   static const String consulteeProfile = '$api/consultee/profile';
+
+  // Collaborations
+  static const String collaborations = '$api/collaborations';
+  static String collaborationRespond(String id) =>
+      '$collaborations/$id/respond';
+
+  // Referrals
+  static const String referralApply = '$api/referrals/apply';
+  static const String referralCode = '$api/referrals/code';
+  static const String referralCreditsAvailable =
+      '$api/referrals/credits/available';
 }

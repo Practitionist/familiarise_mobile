@@ -46,7 +46,7 @@ void main() {
 
     service = ProfileService(
       mockDb,
-      mockEmailService,
+      emailService: mockEmailService,
       appBaseUrl: 'https://example.com',
     );
   });

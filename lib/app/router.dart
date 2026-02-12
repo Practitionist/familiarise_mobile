@@ -15,6 +15,7 @@ import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
 import '../features/booking/screens/booking_screens.dart';
 import '../features/chat/screens/chat_list_screen.dart';
+import '../features/collaborations/screens/collaborations_screen.dart';
 import '../features/chat/screens/chat_room_screen.dart';
 import '../features/checkout/screens/checkout_screens.dart';
 import '../features/explore/screens/consultant_profile_screen.dart';
@@ -91,6 +92,7 @@ GoRouter router(Ref ref) {
           location.startsWith('/messages') ||
           location.startsWith('/chat') ||
           location.startsWith('/profile') ||
+          location.startsWith('/collaborations') ||
           location.startsWith('/checkout') ||
           location.startsWith('/payment') ||
           location.startsWith('/support') ||
@@ -312,6 +314,12 @@ GoRouter router(Ref ref) {
                 builder: (context, state) => const ActiveSessionsScreen(),
               ),
             ],
+          ),
+          // Collaborations
+          GoRoute(
+            path: '/collaborations',
+            name: 'collaborations',
+            builder: (context, state) => const CollaborationsScreen(),
           ),
           // My Bookings (inside shell for bottom nav)
           GoRoute(

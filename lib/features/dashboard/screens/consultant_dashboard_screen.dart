@@ -4,13 +4,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../domain/entities/referral/referral_entities.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../referrals/providers/referral_provider.dart';
 import '../providers/consultant_dashboard_provider.dart';
+import '../widgets/collaborations_summary_card.dart';
 import '../widgets/dashboard_section_header.dart';
 import '../widgets/earnings_summary_card.dart';
 import '../widgets/pending_request_card.dart';
 import '../widgets/recent_review_card.dart';
+import '../widgets/referral_summary_card.dart';
 import '../widgets/stats_overview_card.dart';
 import '../widgets/upcoming_session_card.dart';
 
@@ -107,6 +111,13 @@ class ConsultantDashboardScreen extends ConsumerWidget {
         // Web App features banner
         const _WebAppBanner(),
 
+        // Collaborations summary card
+        if (data.collaborationCounts.pendingCount > 0 ||
+            data.collaborationCounts.acceptedCount > 0) ...[
+          CollaborationsSummaryCard(counts: data.collaborationCounts),
+          const SizedBox(height: 16),
+        ],
+
         // Pending booking requests (most urgent — needs action)
         if (data.pendingRequests.isNotEmpty) ...[
           DashboardSectionHeader(
@@ -164,6 +175,12 @@ class ConsultantDashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ],
+
+        // Referral card
+        _ReferralCardWrapper(
+          referralCode: data.referralCode,
+          credits: data.referralCredits,
+        ),
       ],
     );
   }
@@ -340,6 +357,44 @@ class _WebAppBannerState extends State<_WebAppBanner> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Wrapper for ReferralSummaryCard that handles code generation
+class _ReferralCardWrapper extends ConsumerWidget {
+  const _ReferralCardWrapper({
+    this.referralCode,
+    this.credits,
+  });
+
+  final ReferralCodeInfo? referralCode;
+  final ReferralCreditsAvailable? credits;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final createState = ref.watch(createReferralCodeProvider);
+    final isGenerating = createState is AsyncLoading;
+
+    return ReferralSummaryCard(
+      referralCode: referralCode,
+      credits: credits,
+      isGenerating: isGenerating,
+      onGenerateCode: () async {
+        final success =
+            await ref.read(createReferralCodeProvider.notifier).create();
+        if (context.mounted) {
+          if (success) {
+            ref.invalidate(consultantDashboardProvider);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to generate referral code'),
+              ),
+            );
+          }
+        }
+      },
     );
   }
 }

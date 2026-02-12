@@ -342,3 +342,40 @@ enum ConsultantVerificationStatus {
   verified,
   rejected,
 }
+
+enum CollaboratorStatus {
+  pending,
+  accepted,
+  declined,
+  removed,
+}
+
+enum WebinarCollaboratorRole {
+  coHost,
+  moderator,
+  guestSpeaker,
+  technicalSupport,
+}
+
+enum ClassCollaboratorRole {
+  coInstructor,
+  teachingAssistant,
+  guestLecturer,
+  contentCreator,
+}
+
+enum ReferralStatus {
+  signedUp,
+  qualified,
+  rewarded,
+  expired,
+  fraudulent,
+}
+
+enum CreditSource {
+  referralBonus,
+  refereeBonus,
+  promotion,
+  compensation,
+  manual,
+}
