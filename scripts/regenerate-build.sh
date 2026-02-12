@@ -1,11 +1,11 @@
 #!/bin/bash
-# Regenerate all build systems (Prisma client, Dart Frog, Flutter codegen)
+# Regenerate all build systems (Prisma client, backend codegen, Dart Frog, Flutter codegen)
 #
 # Usage:
-#   ./scripts/regenerate-build.sh            # all three
-#   ./scripts/regenerate-build.sh --backend   # Prisma client + Dart Frog build only
+#   ./scripts/regenerate-build.sh            # all four
+#   ./scripts/regenerate-build.sh --backend   # Prisma client + backend codegen + Dart Frog only
 #   ./scripts/regenerate-build.sh --frontend  # Flutter codegen only
-#   ./scripts/regenerate-build.sh --prisma    # Prisma client only
+#   ./scripts/regenerate-build.sh --prisma    # Prisma client + backend codegen only
 
 set -e
 cd "$(dirname "$0")/.."
@@ -50,7 +50,7 @@ fi
 # ============================================
 if [ "$RUN_PRISMA" = true ]; then
   echo ""
-  echo "=== [1/3] Prisma Dart Client ==="
+  echo "=== [1/4] Prisma Dart Client ==="
   echo "Deleting backend/lib/generated/..."
   rm -rf backend/lib/generated
 
@@ -66,14 +66,29 @@ if [ "$RUN_PRISMA" = true ]; then
 
   cd "$ROOT_DIR"
   echo "Prisma client generated."
+
+  # ============================================
+  # 2. Backend CodeGen (freezed/json for generated models)
+  # ============================================
+  echo ""
+  echo "=== [2/4] Backend CodeGen (freezed/json for Prisma models) ==="
+  echo "Deleting backend *.g.dart and *.freezed.dart files..."
+  cd "$ROOT_DIR/backend"
+  find lib -name "*.g.dart" -o -name "*.freezed.dart" | xargs rm -f 2>/dev/null || true
+
+  echo "Running build_runner in backend/..."
+  dart run build_runner build --delete-conflicting-outputs
+
+  cd "$ROOT_DIR"
+  echo "Backend codegen complete."
 fi
 
 # ============================================
-# 2. Dart Frog Build (backend/build/)
+# 3. Dart Frog Build (backend/build/)
 # ============================================
 if [ "$RUN_DARTFROG" = true ]; then
   echo ""
-  echo "=== [2/3] Dart Frog Build ==="
+  echo "=== [3/4] Dart Frog Build ==="
   echo "Deleting backend/build/..."
   rm -rf backend/build
 
@@ -86,11 +101,11 @@ if [ "$RUN_DARTFROG" = true ]; then
 fi
 
 # ============================================
-# 3. Flutter CodeGen (*.g.dart, *.freezed.dart)
+# 4. Flutter CodeGen (*.g.dart, *.freezed.dart)
 # ============================================
 if [ "$RUN_FLUTTER" = true ]; then
   echo ""
-  echo "=== [3/3] Flutter CodeGen ==="
+  echo "=== [4/4] Flutter CodeGen ==="
   echo "Deleting *.g.dart and *.freezed.dart files..."
   find lib -name "*.g.dart" -o -name "*.freezed.dart" | xargs rm -f 2>/dev/null || true
 
