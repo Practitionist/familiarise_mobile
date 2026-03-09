@@ -31,6 +31,7 @@ class CheckoutRepository extends BaseRepository {
         JsonQueryBuilder().model('Payment').action(QueryAction.create).data({
       'id': paymentId,
       'amount': amount,
+      'originalAmount': amount,
       'currency': currency,
       'paymentMethod': 'CARD',
       'paymentIntent': paymentIntent,

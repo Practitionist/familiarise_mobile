@@ -150,14 +150,14 @@ class SlotRepository extends BaseRepository {
       'consultantProfileId': consultantProfileId,
       'AND': [
         {
-          'availabilityStartsAt':
+          'startsAt':
               FilterOperators.gte(startDate.toIso8601String()),
         },
         {
-          'availabilityStartsAt': FilterOperators.lt(endDate.toIso8601String()),
+          'startsAt': FilterOperators.lt(endDate.toIso8601String()),
         },
       ],
-    }).orderBy({'availabilityStartsAt': 'asc'}).build();
+    }).orderBy({'startsAt': 'asc'}).build();
 
     final results = await executeQueryAsMaps(query);
 
@@ -172,8 +172,8 @@ class SlotRepository extends BaseRepository {
     const slotIncrement = Duration(minutes: 30);
 
     for (final customSlot in mergedResults) {
-      final windowStart = _parseDateTime(customSlot['availabilityStartsAt']);
-      final windowEnd = _parseDateTime(customSlot['availabilityEndsAt']);
+      final windowStart = _parseDateTime(customSlot['startsAt']);
+      final windowEnd = _parseDateTime(customSlot['endsAt']);
 
       var slotStart = windowStart;
       while (slotStart.add(slotDuration).isBefore(windowEnd) ||
@@ -218,7 +218,7 @@ class SlotRepository extends BaseRepository {
         .model('SlotOfAvailabilityWeekly')
         .action(QueryAction.findMany)
         .where({'consultantProfileId': consultantProfileId}).orderBy(
-      {'dayOfWeekForStartsAt': 'asc'},
+      {'startDay': 'asc'},
     ).build();
 
     final weeklySlots = await executeQueryAsMaps(query);
@@ -243,7 +243,7 @@ class SlotRepository extends BaseRepository {
 
       // Filter windows that START on this day
       final dayWindows = weeklySlots
-          .where((s) => s['dayOfWeekForStartsAt'] == dayOfWeek)
+          .where((s) => s['startDay'] == dayOfWeek)
           .toList();
 
       // Also get cross-day windows that END on this day (started on previous day)
@@ -251,19 +251,19 @@ class SlotRepository extends BaseRepository {
       // when the query range starts on Tuesday
       final crossDayWindows = weeklySlots
           .where((s) =>
-              s['dayOfWeekForEndsAt'] == dayOfWeek &&
-              s['dayOfWeekForStartsAt'] == previousDayOfWeek)
+              s['endDay'] == dayOfWeek &&
+              s['startDay'] == previousDayOfWeek)
           .toList();
 
       // Process cross-day windows: only the post-midnight portion
       for (final crossDaySlot in crossDayWindows) {
-        final windowEnd = _parseTimeForDate(
-          crossDaySlot['availabilityEndsAt'],
+        final windowEnd = _minutesToDateTimeUtc(
+          (crossDaySlot['endTimeUtc'] as num).toInt(),
           currentDate,
         );
 
         // Generate slots from midnight to windowEnd (the post-midnight portion)
-        final windowStart = DateTime(
+        final windowStart = DateTime.utc(
           currentDate.year,
           currentDate.month,
           currentDate.day,
@@ -300,12 +300,12 @@ class SlotRepository extends BaseRepository {
 
       for (final weeklySlot in mergedWindows) {
         // Parse the availability window times using helper
-        var windowStart = _parseTimeForDate(
-          weeklySlot['availabilityStartsAt'],
+        var windowStart = _minutesToDateTimeUtc(
+          (weeklySlot['startTimeUtc'] as num).toInt(),
           currentDate,
         );
-        var windowEnd = _parseTimeForDate(
-          weeklySlot['availabilityEndsAt'],
+        var windowEnd = _minutesToDateTimeUtc(
+          (weeklySlot['endTimeUtc'] as num).toInt(),
           currentDate,
         );
 
@@ -377,20 +377,14 @@ class SlotRepository extends BaseRepository {
     return DateTime.parse(value.toString());
   }
 
-  /// Parse time from availability window and apply to a specific date
-  DateTime _parseTimeForDate(dynamic value, DateTime date) {
-    DateTime parsed;
-    if (value is DateTime) {
-      parsed = value;
-    } else {
-      parsed = DateTime.parse(value.toString());
-    }
-    return DateTime(
+  /// Convert minutes-since-midnight-UTC to a DateTime on the given date.
+  DateTime _minutesToDateTimeUtc(int minutesSinceMidnight, DateTime date) {
+    return DateTime.utc(
       date.year,
       date.month,
       date.day,
-      parsed.hour,
-      parsed.minute,
+      minutesSinceMidnight ~/ 60,
+      minutesSinceMidnight % 60,
     );
   }
 
@@ -407,8 +401,10 @@ class SlotRepository extends BaseRepository {
     // Sort windows by start time
     final sortedWindows = List<Map<String, dynamic>>.from(windows);
     sortedWindows.sort((a, b) {
-      final aStart = _parseTimeForDate(a['availabilityStartsAt'], currentDate);
-      final bStart = _parseTimeForDate(b['availabilityStartsAt'], currentDate);
+      final aStart = _minutesToDateTimeUtc(
+          (a['startTimeUtc'] as num).toInt(), currentDate);
+      final bStart = _minutesToDateTimeUtc(
+          (b['startTimeUtc'] as num).toInt(), currentDate);
       return aStart.compareTo(bStart);
     });
 
@@ -417,20 +413,19 @@ class SlotRepository extends BaseRepository {
 
     for (var i = 1; i < sortedWindows.length; i++) {
       final nextWindow = sortedWindows[i];
-      final currentEnd =
-          _parseTimeForDate(currentWindow['availabilityEndsAt'], currentDate);
-      final nextStart =
-          _parseTimeForDate(nextWindow['availabilityStartsAt'], currentDate);
+      final currentEnd = _minutesToDateTimeUtc(
+          (currentWindow['endTimeUtc'] as num).toInt(), currentDate);
+      final nextStart = _minutesToDateTimeUtc(
+          (nextWindow['startTimeUtc'] as num).toInt(), currentDate);
 
       // If consecutive (ends at same time as next starts or overlaps), merge
       if (currentEnd.isAtSameMomentAs(nextStart) ||
           currentEnd.isAfter(nextStart)) {
         // Extend current window's end time to the later of the two
-        final nextEnd =
-            _parseTimeForDate(nextWindow['availabilityEndsAt'], currentDate);
+        final nextEnd = _minutesToDateTimeUtc(
+            (nextWindow['endTimeUtc'] as num).toInt(), currentDate);
         if (nextEnd.isAfter(currentEnd)) {
-          currentWindow['availabilityEndsAt'] =
-              nextWindow['availabilityEndsAt'];
+          currentWindow['endTimeUtc'] = nextWindow['endTimeUtc'];
         }
       } else {
         // Gap between windows, save current and start new
@@ -452,23 +447,22 @@ class SlotRepository extends BaseRepository {
   ) {
     if (windows.isEmpty) return [];
 
-    // Windows are already sorted by availabilityStartsAt from the query
+    // Windows are already sorted by startsAt from the query
     final merged = <Map<String, dynamic>>[];
     var currentWindow = Map<String, dynamic>.from(windows.first);
 
     for (var i = 1; i < windows.length; i++) {
       final nextWindow = windows[i];
-      final currentEnd = _parseDateTime(currentWindow['availabilityEndsAt']);
-      final nextStart = _parseDateTime(nextWindow['availabilityStartsAt']);
+      final currentEnd = _parseDateTime(currentWindow['endsAt']);
+      final nextStart = _parseDateTime(nextWindow['startsAt']);
 
       // If consecutive (ends at same time as next starts or overlaps), merge
       if (currentEnd.isAtSameMomentAs(nextStart) ||
           currentEnd.isAfter(nextStart)) {
         // Extend current window's end time to the later of the two
-        final nextEnd = _parseDateTime(nextWindow['availabilityEndsAt']);
+        final nextEnd = _parseDateTime(nextWindow['endsAt']);
         if (nextEnd.isAfter(currentEnd)) {
-          currentWindow['availabilityEndsAt'] =
-              nextWindow['availabilityEndsAt'];
+          currentWindow['endsAt'] = nextWindow['endsAt'];
         }
       } else {
         // Gap between windows, save current and start new

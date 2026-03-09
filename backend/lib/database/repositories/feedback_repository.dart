@@ -1,21 +1,21 @@
 import 'package:backend/database/repositories/base_repository.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
+import 'package:backend/generated/index.dart';
 
-/// Repository for app feedback operations using Prisma ORM
+/// Repository for app feedback operations using typed PrismaClient delegates
 ///
 /// Handles creation and retrieval of user feedback.
-/// Uses JsonQueryBuilder for type-safe queries.
+/// Uses typed delegates for compile-time safety while returning
+/// Map<String, dynamic> for backward compatibility with routes.
 class FeedbackRepository extends BaseRepository {
-  /// Create a feedback repository with the given executor
-  FeedbackRepository(super._executor);
+  /// Create a feedback repository with the given executor and PrismaClient
+  FeedbackRepository(super._executor, this._prisma);
 
-  final _uuid = const Uuid();
+  final PrismaClient _prisma;
 
   /// Submit app feedback
   ///
   /// Creates a new feedback entry from a user.
-  /// Returns the created feedback.
+  /// Returns the created feedback as a map.
   Future<Map<String, dynamic>> createFeedback({
     required String userId,
     required String title,
@@ -23,53 +23,29 @@ class FeedbackRepository extends BaseRepository {
     String? category,
     int? rating,
   }) async {
-    final now = nowIso8601;
-    final feedbackId = _uuid.v4();
+    final feedback = await _prisma.feedback.create(
+      data: CreateFeedbackInput(
+        userId: userId,
+        title: title,
+        description: description,
+        category: category,
+        rating: rating != null ? rating.clamp(1, 5) : null,
+        status: FeedbackStatus.pending,
+      ),
+    );
 
-    final data = <String, dynamic>{
-      'id': feedbackId,
-      'userId': userId,
-      'title': title,
-      'description': description,
-      'status': 'PENDING',
-      'createdAt': now,
-      'updatedAt': now,
-    };
-
-    // Add optional fields
-    if (category != null) data['category'] = category;
-    if (rating != null) data['rating'] = rating.clamp(1, 5);
-
-    final createQuery = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.create)
-        .data(data)
-        .build();
-
-    await executeMutation(createQuery);
-
-    // Return the created feedback
-    final resultQuery = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.findUnique)
-        .where({'id': feedbackId}).build();
-
-    final result = await executeQueryAsSingleMap(resultQuery);
-
-    if (result == null) {
-      throw Exception('Failed to create feedback');
-    }
-
-    return result;
+    return feedback.toJson();
   }
 
   /// Get feedback submitted by a user
   Future<List<Map<String, dynamic>>> getFeedbackByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.findMany)
-        .where({'userId': userId}).orderBy({'createdAt': 'desc'}).build();
+    final feedbacks = await _prisma.feedback.findMany(
+      where: FeedbackWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+      orderBy: const FeedbackOrderByInput(createdAt: SortOrder.desc),
+    );
 
-    return executeQueryAsMaps(query);
+    return feedbacks.map((f) => f.toJson()).toList();
   }
 }
