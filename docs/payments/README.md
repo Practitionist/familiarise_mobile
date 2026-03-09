@@ -1,30 +1,44 @@
-# Checkout & Payments Documentation
+# Payments Documentation
 
-This folder contains comprehensive documentation for the checkout and payment system in the Familiarise mobile app.
+This folder contains all checkout and payment documentation for the Familiarise mobile app — from checkout flows and gateway integration to post-payment operations (cancellations, refunds, disputes, payouts).
 
 ## Reading Order
 
-Read the docs in this order for the best understanding:
-
 ```
-docs/checkout/
-├── 01-architecture/           # Start here - understand the system
-│   └── 01-checkout-flow-architecture.md
+docs/payments/
+├── 01-checkout-flow-architecture.md    # Start here — frontend state machine, component architecture
+├── 02-payment-processing.md           # Backend payment flow, webhooks, verification
+├── 03-gateway-configuration.md        # Razorpay & Stripe setup
+├── 04-testing-guide.md                # Test cards and testing strategies
 │
-├── 02-setup/                  # Then configure payment gateways
-│   └── 01-payment-gateway-configuration.md
-│
-└── 03-testing/                # Reference for testing payments
-    └── 01-payment-testing-guide.md
+├── cancellations/                     # Post-payment operations
+│   ├── architecture.md
+│   └── flow.md
+├── refunds/
+│   ├── api-reference.md
+│   ├── architecture.md
+│   └── flow.md
+├── disputes/
+│   ├── api-reference.md
+│   ├── architecture.md
+│   └── flow.md
+└── payouts/
+    ├── architecture.md
+    └── flow.md
 ```
 
 ## Quick Links
 
 | Topic | Document |
 |-------|----------|
-| System Overview | [Checkout Flow Architecture](./01-architecture/01-checkout-flow-architecture.md) |
-| Gateway Setup | [Payment Gateway Configuration](./02-setup/01-payment-gateway-configuration.md) |
-| Testing Guide | [Payment Testing Guide](./03-testing/01-payment-testing-guide.md) |
+| Checkout Flow Architecture | [01-checkout-flow-architecture.md](./01-checkout-flow-architecture.md) |
+| Payment Processing | [02-payment-processing.md](./02-payment-processing.md) |
+| Gateway Configuration | [03-gateway-configuration.md](./03-gateway-configuration.md) |
+| Testing Guide | [04-testing-guide.md](./04-testing-guide.md) |
+| Cancellations | [cancellations/flow.md](./cancellations/flow.md) |
+| Refunds | [refunds/flow.md](./refunds/flow.md) |
+| Disputes | [disputes/flow.md](./disputes/flow.md) |
+| Payouts | [payouts/flow.md](./payouts/flow.md) |
 
 ## Key Concepts
 
@@ -32,7 +46,7 @@ docs/checkout/
 
 The system supports two checkout flows:
 
-1. **Request-then-Pay Flow**: User requests a booking → Consultant approves → User pays
+1. **Request-then-Pay Flow**: User requests a booking -> Consultant approves -> User pays
 2. **Direct Checkout Flow**: User pays directly (for plans with auto-approval)
 
 ### Payment Gateways
@@ -45,10 +59,10 @@ The app automatically selects the appropriate gateway based on currency.
 ### State Machine
 
 ```
-initial → loading → sessionCreated → processing → verifying → success/failure/cancelled
+initial -> loading -> sessionCreated -> processing -> verifying -> success/failure/cancelled
 ```
 
-## Related Files
+## Related Source Files
 
 ### Presentation Layer
 - `lib/features/checkout/screens/checkout_screen.dart` - Main checkout UI
