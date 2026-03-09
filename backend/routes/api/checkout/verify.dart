@@ -89,6 +89,19 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
       );
     }
 
+    // Verify the payment belongs to the authenticated user
+    final paymentUserId = payment['userId'] as String?;
+    if (paymentUserId != userId) {
+      return Response.json(
+        statusCode: io.HttpStatus.notFound,
+        body: {
+          'success': false,
+          'paymentStatus': 'FAILED',
+          'message': 'Payment not found',
+        },
+      );
+    }
+
     final paymentId = payment['id'] as String;
     final appointmentId = payment['appointmentId'] as String?;
     final currentStatus = payment['paymentStatus'] as String?;
@@ -327,7 +340,9 @@ Future<Response> _buildVerificationResponse(
   return Response.json(
     body: serializeForJson({
       'success': success,
-      'paymentStatus': success ? 'SUCCEEDED' : 'FAILED',
+      'paymentStatus': success
+          ? 'SUCCEEDED'
+          : (pendingMessage != null ? 'PENDING' : 'FAILED'),
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (bookingType != null) 'bookingType': bookingType,
       'message': pendingMessage ??

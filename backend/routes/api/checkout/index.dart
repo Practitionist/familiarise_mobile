@@ -418,14 +418,10 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
         // Update payment record with Razorpay order ID (mirrors Stripe logic)
         // This is critical: webhook looks up payment by paymentIntent field
-        final updateRzpQuery = JsonQueryBuilder()
-            .model('Payment')
-            .action(QueryAction.update)
-            .where({'id': paymentIdStr}).data({
-          'paymentIntent': razorpayOrderId,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        }).build();
-        await db.executor.executeMutation(updateRzpQuery);
+        await db.checkout.updatePaymentIntent(
+          paymentId: paymentIdStr,
+          paymentIntent: razorpayOrderId,
+        );
 
         SentryLogger.info(
           'Created Razorpay order: $razorpayOrderId for amount: $amountInSmallestUnit $currency',

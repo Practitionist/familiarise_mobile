@@ -89,6 +89,21 @@ class CheckoutRepository extends BaseRepository {
     await executeMutation(updateQuery);
   }
 
+  /// Update payment intent (e.g., with Razorpay order ID)
+  Future<void> updatePaymentIntent({
+    required String paymentId,
+    required String paymentIntent,
+  }) async {
+    final updateQuery = JsonQueryBuilder()
+        .model('Payment')
+        .action(QueryAction.update)
+        .where({'id': paymentId}).data({
+      'paymentIntent': paymentIntent,
+      'updatedAt': nowIso8601,
+    }).build();
+    await executeMutation(updateQuery);
+  }
+
   /// Get plan price and details
   Future<Map<String, dynamic>?> getConsultationPlan(String planId) async {
     final query = JsonQueryBuilder()
