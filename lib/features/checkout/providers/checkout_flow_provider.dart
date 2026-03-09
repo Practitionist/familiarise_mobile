@@ -280,9 +280,10 @@ class CheckoutFlow extends _$CheckoutFlow {
     debugPrint('Razorpay result: $result');
 
     switch (result) {
-      case RazorpaySuccess(:final paymentId, :final signature):
+      case RazorpaySuccess(:final paymentId, :final orderId, :final signature):
         await _verifyPayment(
           razorpayPaymentId: paymentId,
+          razorpayOrderId: orderId,
           razorpaySignature: signature,
         );
       case RazorpayFailure(:final message):
@@ -319,6 +320,7 @@ class CheckoutFlow extends _$CheckoutFlow {
   /// Verify payment after gateway callback
   Future<void> _verifyPayment({
     String? razorpayPaymentId,
+    String? razorpayOrderId,
     String? razorpaySignature,
   }) async {
     if (_currentSession == null) return;
@@ -331,6 +333,7 @@ class CheckoutFlow extends _$CheckoutFlow {
       final result = await repository.verifyPayment(
         paymentId: _currentSession!.paymentId,
         razorpayPaymentId: razorpayPaymentId,
+        razorpayOrderId: razorpayOrderId,
         razorpaySignature: razorpaySignature,
       );
 

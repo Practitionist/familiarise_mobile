@@ -45,6 +45,7 @@ abstract class CheckoutRemoteSource {
   Future<PaymentVerificationModel> verifyPayment({
     required String paymentId,
     String? razorpayPaymentId,
+    String? razorpayOrderId,
     String? razorpaySignature,
   });
 
@@ -168,6 +169,7 @@ class CheckoutRemoteSourceImpl implements CheckoutRemoteSource {
   Future<PaymentVerificationModel> verifyPayment({
     required String paymentId,
     String? razorpayPaymentId,
+    String? razorpayOrderId,
     String? razorpaySignature,
   }) async {
     try {
@@ -177,6 +179,9 @@ class CheckoutRemoteSourceImpl implements CheckoutRemoteSource {
 
       if (razorpayPaymentId != null) {
         queryParams['razorpay_payment_id'] = razorpayPaymentId;
+      }
+      if (razorpayOrderId != null) {
+        queryParams['razorpay_order_id'] = razorpayOrderId;
       }
       if (razorpaySignature != null) {
         queryParams['razorpay_signature'] = razorpaySignature;

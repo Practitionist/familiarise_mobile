@@ -6,6 +6,7 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:dotenv/dotenv.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Checkout verification endpoint
@@ -69,11 +70,12 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
 
     final db = context.read<DatabaseClient>();
 
-    // Find payment by payment intent
+    // BUG FIX: Frontend sends payment UUID as payment_intent param.
+    // Look up by primary key `id`, not by `paymentIntent` field.
     final paymentQuery = JsonQueryBuilder()
         .model('Payment')
-        .action(QueryAction.findFirst)
-        .where({'paymentIntent': paymentIntent}).build();
+        .action(QueryAction.findUnique)
+        .where({'id': paymentIntent}).build();
     final payment = await db.executor.executeQueryAsSingleMap(paymentQuery);
 
     if (payment == null) {
@@ -90,6 +92,7 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     final paymentId = payment['id'] as String;
     final appointmentId = payment['appointmentId'] as String?;
     final currentStatus = payment['paymentStatus'] as String?;
+    final paymentGateway = payment['paymentGateway'] as String?;
 
     // If already processed, return current status
     if (currentStatus == 'SUCCEEDED' || currentStatus == 'FAILED') {
@@ -97,6 +100,20 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
         db,
         payment,
         currentStatus == 'SUCCEEDED',
+      );
+    }
+
+    // Gateway-specific verification
+    if (paymentGateway == 'STRIPE') {
+      // Stripe payments are verified via webhook — return current status.
+      // PENDING means webhook hasn't arrived yet; don't mark as FAILED.
+      return _buildVerificationResponse(
+        db,
+        payment,
+        currentStatus == 'SUCCEEDED',
+        pendingMessage: currentStatus == 'PENDING'
+            ? 'Payment is being processed. Please wait a moment.'
+            : null,
       );
     }
 
@@ -120,8 +137,8 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
       );
     }
 
-    // Get Razorpay secret from environment
-    final env = io.Platform.environment;
+    // BUG FIX: Use DotEnv instead of io.Platform.environment
+    final env = context.read<DotEnv>();
     final razorpayKeySecret = env['RAZORPAY_KEY_SECRET'];
     if (razorpayKeySecret == null || razorpayKeySecret.isEmpty) {
       await SentryLogger.error(
@@ -233,8 +250,9 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
 Future<Response> _buildVerificationResponse(
   DatabaseClient db,
   Map<String, dynamic> payment,
-  bool success,
-) async {
+  bool success, {
+  String? pendingMessage,
+}) async {
   final appointmentId = payment['appointmentId'] as String?;
   String? bookingType;
   String? consultantName;
@@ -312,7 +330,8 @@ Future<Response> _buildVerificationResponse(
       'paymentStatus': success ? 'SUCCEEDED' : 'FAILED',
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (bookingType != null) 'bookingType': bookingType,
-      'message': success ? 'Payment successful' : 'Payment failed',
+      'message': pendingMessage ??
+          (success ? 'Payment successful' : 'Payment failed'),
       if (consultantName != null) 'consultantName': consultantName,
       if (planTitle != null) 'planTitle': planTitle,
       if (scheduledAt != null) 'scheduledAt': scheduledAt,
