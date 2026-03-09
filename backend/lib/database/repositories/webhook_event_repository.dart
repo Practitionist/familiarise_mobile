@@ -1,22 +1,21 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Repository for webhook event tracking and idempotency
 ///
-/// This repository handles storing and checking webhook events to prevent
+/// Uses typed PrismaClient delegates for compile-time safety.
+/// Handles storing and checking webhook events to prevent
 /// duplicate processing when both mobile and web backends receive the same webhook.
 class WebhookEventRepository extends BaseRepository {
-  WebhookEventRepository(super._executor);
+  WebhookEventRepository(super._executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   /// Record a webhook event and check if it was already processed
   ///
   /// Returns true if this is a new event that should be processed.
   /// Returns false if the event was already processed (duplicate).
-  ///
-  /// This method is idempotent - calling it multiple times with the same
-  /// eventId will only return true on the first call.
   Future<bool> recordEvent({
     required String eventId,
     required String provider,
@@ -25,35 +24,29 @@ class WebhookEventRepository extends BaseRepository {
     String? signature,
   }) async {
     // First check if event already exists
-    final existingEvent = await _findByEventId(eventId);
-    if (existingEvent != null) {
+    final existing = await _prisma.webhookEvent.findUnique(
+      where: WebhookEventWhereUniqueInput(eventId: eventId),
+    );
+    if (existing != null) {
       return false; // Already processed
     }
 
     // Try to create the event record
-    // If another process created it first, this will fail with unique constraint violation
+    // If another process created it first, this will fail with unique constraint
     try {
-      const uuid = Uuid();
-      final createQuery = JsonQueryBuilder()
-          .model('WebhookEvent')
-          .action(QueryAction.create)
-          .data({
-        'id': uuid.v4(), // Generate UUID for id field
-        'eventId': eventId,
-        'provider': provider,
-        'eventType': eventType,
-        'payload': payload, // Json type - pass object directly
-        'signature': signature,
-        'processed': false,
-        'receivedAt': nowIso8601,
-      }).build();
-
-      await executeMutation(createQuery);
+      await _prisma.webhookEvent.create(
+        data: CreateWebhookEventInput(
+          eventId: eventId,
+          provider: provider,
+          eventType: eventType,
+          payload: payload,
+          signature: signature,
+          processed: false,
+        ),
+      );
       return true; // New event, should be processed
     } catch (e) {
-      // Log to help diagnose if this is NOT a unique constraint violation
-      // Unique constraint violations are expected in distributed systems
-      SentryLogger.warning(
+      await SentryLogger.warning(
         'Error recording webhook event (possibly duplicate): $eventId - $e',
         context: 'WebhookEventRepository',
       );
@@ -63,44 +56,32 @@ class WebhookEventRepository extends BaseRepository {
 
   /// Check if an event has been recorded in the database
   Future<bool> isEventRecorded(String eventId) async {
-    final event = await _findByEventId(eventId);
+    final event = await _prisma.webhookEvent.findUnique(
+      where: WebhookEventWhereUniqueInput(eventId: eventId),
+    );
     return event != null;
   }
 
   /// Mark an event as successfully processed
   Future<void> markProcessed(String eventId) async {
-    final updateQuery = JsonQueryBuilder()
-        .model('WebhookEvent')
-        .action(QueryAction.update)
-        .where({'eventId': eventId}).data({
-      'processed': true,
-      'processedAt': nowIso8601,
-    }).build();
-
-    await executeMutation(updateQuery);
+    await _prisma.webhookEvent.update(
+      where: WebhookEventWhereUniqueInput(eventId: eventId),
+      data: UpdateWebhookEventInput(
+        processed: true,
+        processedAt: DateTime.now().toUtc(),
+      ),
+    );
   }
 
   /// Mark an event as failed with error message
   Future<void> markFailed(String eventId, String error) async {
-    final updateQuery = JsonQueryBuilder()
-        .model('WebhookEvent')
-        .action(QueryAction.update)
-        .where({'eventId': eventId}).data({
-      'processed': false,
-      'error': error,
-    }).build();
-
-    await executeMutation(updateQuery);
-  }
-
-  /// Find an event by its gateway-specific ID
-  Future<Map<String, dynamic>?> _findByEventId(String eventId) async {
-    final query = JsonQueryBuilder()
-        .model('WebhookEvent')
-        .action(QueryAction.findUnique)
-        .where({'eventId': eventId}).build();
-
-    return executeQueryAsSingleMap(query);
+    await _prisma.webhookEvent.update(
+      where: WebhookEventWhereUniqueInput(eventId: eventId),
+      data: UpdateWebhookEventInput(
+        processed: false,
+        error: error,
+      ),
+    );
   }
 
   /// Get all unprocessed events (for retry mechanisms)
@@ -108,22 +89,19 @@ class WebhookEventRepository extends BaseRepository {
     String? provider,
     int limit = 100,
   }) async {
-    final whereClause = <String, dynamic>{
-      'processed': false,
-    };
+    final where = WebhookEventWhereInput(
+      processed: const BooleanFilter(equals: false),
+      provider: provider != null
+          ? StringFilter(equals: provider)
+          : null,
+    );
 
-    if (provider != null) {
-      whereClause['provider'] = provider;
-    }
+    final events = await _prisma.webhookEvent.findMany(
+      where: where,
+      orderBy: const WebhookEventOrderByInput(receivedAt: SortOrder.asc),
+      take: limit,
+    );
 
-    final query = JsonQueryBuilder()
-        .model('WebhookEvent')
-        .action(QueryAction.findMany)
-        .where(whereClause)
-        .orderBy({'receivedAt': 'asc'})
-        .take(limit)
-        .build();
-
-    return executeQueryAsMaps(query);
+    return events.map((e) => e.toJson()).toList();
   }
 }

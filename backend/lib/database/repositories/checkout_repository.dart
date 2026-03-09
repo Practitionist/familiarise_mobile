@@ -31,6 +31,7 @@ class CheckoutRepository extends BaseRepository {
         JsonQueryBuilder().model('Payment').action(QueryAction.create).data({
       'id': paymentId,
       'amount': amount,
+      'originalAmount': amount,
       'currency': currency,
       'paymentMethod': 'CARD',
       'paymentIntent': paymentIntent,
@@ -85,6 +86,21 @@ class CheckoutRepository extends BaseRepository {
       'updatedAt': nowIso8601,
     }).build();
 
+    await executeMutation(updateQuery);
+  }
+
+  /// Update payment intent (e.g., with Razorpay order ID)
+  Future<void> updatePaymentIntent({
+    required String paymentId,
+    required String paymentIntent,
+  }) async {
+    final updateQuery = JsonQueryBuilder()
+        .model('Payment')
+        .action(QueryAction.update)
+        .where({'id': paymentId}).data({
+      'paymentIntent': paymentIntent,
+      'updatedAt': nowIso8601,
+    }).build();
     await executeMutation(updateQuery);
   }
 

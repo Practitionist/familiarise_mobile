@@ -79,6 +79,7 @@ class ReferralRepository extends BaseRepository {
             'referralCodeId': referralCodeId,
             'referredUserId': userId,
             'status': 'SIGNED_UP',
+            'signedUpAt': nowIso8601,
           })
           .build();
 

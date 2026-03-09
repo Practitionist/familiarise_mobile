@@ -139,6 +139,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
   Future<Result<PaymentVerification>> verifyPayment({
     required String paymentId,
     String? razorpayPaymentId,
+    String? razorpayOrderId,
     String? razorpaySignature,
   }) async {
     if (!await _networkInfo.isConnected) {
@@ -149,6 +150,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       final response = await _remoteSource.verifyPayment(
         paymentId: paymentId,
         razorpayPaymentId: razorpayPaymentId,
+        razorpayOrderId: razorpayOrderId,
         razorpaySignature: razorpaySignature,
       );
       return Right(response.toEntity());

@@ -57,6 +57,6 @@ When adding new troubleshooting entries:
 
 ## Related Documentation
 
-- [Platform Setup](../PLATFORM_SETUP.md) - Initial platform configuration
-- [Phase 07: Video Meetings](../architecture/phase-07-video-meetings.md) - Video feature implementation
-- [Mobile Development Setup](../mobile-development-setup.md) - Development environment
+- [Platform Setup](../getting-started/02-platform-setup.md) - Initial platform configuration
+- [Phase 07: Video Meetings](../implementation-guides/phase-07-video-meetings.md) - Video feature implementation
+- [Mobile Development Setup](../getting-started/01-mobile-development-setup.md) - Development environment

@@ -382,8 +382,8 @@ PHYSICAL_DEVICE_API_URL=http://192.168.x.x:8080
 
 ## Related Documentation
 
-- [Mobile Development Setup](../mobile-development-setup.md)
-- [Platform Setup](../PLATFORM_SETUP.md)
+- [Mobile Development Setup](./01-mobile-development-setup.md)
+- [Platform Setup](./02-platform-setup.md)
 - [Troubleshooting](../troubleshooting/)
 
 ---

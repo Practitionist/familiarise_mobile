@@ -24,6 +24,7 @@ abstract class CheckoutRepository {
   Future<Result<PaymentVerification>> verifyPayment({
     required String paymentId,
     String? razorpayPaymentId,
+    String? razorpayOrderId,
     String? razorpaySignature,
   });
 

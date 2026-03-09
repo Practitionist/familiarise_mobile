@@ -7,6 +7,7 @@ import 'package:backend/services/stripe_service.dart';
 import 'package:backend/services/webhook_handlers.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:dotenv/dotenv.dart';
 
 /// Stripe webhook endpoint
 ///
@@ -24,7 +25,7 @@ Future<Response> onRequest(RequestContext context) async {
 
   try {
     final db = context.read<DatabaseClient>();
-    final env = io.Platform.environment;
+    final env = context.read<DotEnv>();
 
     // Read raw body for signature verification
     final rawBody = await context.request.body();

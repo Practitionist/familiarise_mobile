@@ -315,8 +315,9 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       );
     }
 
-    // Calculate amount
-    var amount = (plan?['price'] as num?)?.toDouble() ?? 0;
+    // Calculate amount in smallest unit (paise/cents) early to avoid float issues
+    final priceValue = (plan?['price'] as num?)?.toDouble() ?? 0;
+    var amountInSmallestUnit = (priceValue * 100).round();
     final currency = plan?['priceCurrency'] as String? ?? 'INR';
 
     // Handle discount code
@@ -327,15 +328,16 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
     if (discountCode != null && discountCode.isNotEmpty) {
       final discount = await db.checkout.validateDiscountCode(
         code: discountCode,
-        amount: amount,
+        amount: priceValue,
       );
 
       if (discount != null && discount['valid'] == true) {
         discountCodeId = discount['id'] as String?;
         discountAmount = (discount['discountAmount'] as num?)?.toDouble();
         if (discountAmount != null) {
-          amount = amount - discountAmount;
-          if (amount < 0) amount = 0;
+          final discountInSmallestUnit = (discountAmount * 100).round();
+          amountInSmallestUnit = amountInSmallestUnit - discountInSmallestUnit;
+          if (amountInSmallestUnit < 0) amountInSmallestUnit = 0;
         }
       }
     }
@@ -354,9 +356,6 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         appointmentId = appointmentResult['id'] as String?;
       }
     }
-
-    // Convert to smallest unit (paise/cents) once
-    final amountInSmallestUnit = (amount * 100).round();
 
     // Create payment record
     final paymentInfo = await db.checkout.createPayment(
@@ -416,6 +415,13 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         );
 
         razorpayOrderId = razorpayOrder.id;
+
+        // Update payment record with Razorpay order ID (mirrors Stripe logic)
+        // This is critical: webhook looks up payment by paymentIntent field
+        await db.checkout.updatePaymentIntent(
+          paymentId: paymentIdStr,
+          paymentIntent: razorpayOrderId,
+        );
 
         SentryLogger.info(
           'Created Razorpay order: $razorpayOrderId for amount: $amountInSmallestUnit $currency',
@@ -523,7 +529,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       body: serializeForJson({
         'paymentId': paymentInfo['paymentId'],
         'gateway': paymentGateway.toUpperCase(),
-        'amount': amount,
+        'amount': amountInSmallestUnit / 100,
         'currency': currency,
         if (razorpayOrderId != null) 'razorpayOrderId': razorpayOrderId,
         if (stripeClientSecret != null)
