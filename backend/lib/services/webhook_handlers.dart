@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/novu/notification_triggers.dart';
+import 'package:backend/services/novu/novu_service.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
@@ -10,9 +14,14 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 class WebhookHandlers {
   final DatabaseClient _db;
   final StreamService? _streamService;
+  final NovuService? _novuService;
 
-  WebhookHandlers(this._db, {StreamService? streamService})
-      : _streamService = streamService;
+  WebhookHandlers(
+    this._db, {
+    StreamService? streamService,
+    NovuService? novuService,
+  })  : _streamService = streamService,
+        _novuService = novuService;
 
   /// Handle successful payment from webhook
   ///
@@ -67,6 +76,23 @@ class WebhookHandlers {
       'Payment confirmed via webhook: $paymentId ($gateway)',
       context: 'WebhookHandlers',
     );
+
+    // Fire-and-forget notification
+    final novuService = _novuService;
+    if (novuService != null && novuService.isConfigured) {
+      final userInfo = await _getPaymentRecipientInfo(payment);
+      if (userInfo != null) {
+        final amount = payment['amount']?.toString() ?? '0';
+        final currency = payment['currency'] as String? ?? 'INR';
+        unawaited(NotificationTriggers.paymentSuccess(
+          novuService,
+          consulteeUserId: userInfo['userId'] as String,
+          amount: amount,
+          currency: currency,
+          paymentId: paymentId,
+        ));
+      }
+    }
   }
 
   /// Handle failed payment from webhook
@@ -109,6 +135,24 @@ class WebhookHandlers {
       'Payment marked failed via webhook: $paymentId, reason: $reason',
       context: 'WebhookHandlers',
     );
+
+    // Fire-and-forget notification
+    final novuService = _novuService;
+    if (novuService != null && novuService.isConfigured) {
+      final userInfo = await _getPaymentRecipientInfo(payment);
+      if (userInfo != null) {
+        final amount = payment['amount']?.toString() ?? '0';
+        final currency = payment['currency'] as String? ?? 'INR';
+        unawaited(NotificationTriggers.paymentFailed(
+          novuService,
+          consulteeUserId: userInfo['userId'] as String,
+          amount: amount,
+          currency: currency,
+          reason: reason,
+          paymentId: paymentId,
+        ));
+      }
+    }
   }
 
   /// Handle refund processed event from webhook
@@ -155,6 +199,22 @@ class WebhookHandlers {
       'Refund processed: $refundId for payment $paymentId',
       context: 'WebhookHandlers',
     );
+
+    // Fire-and-forget notification
+    final novuService = _novuService;
+    if (novuService != null && novuService.isConfigured) {
+      final userInfo = await _getPaymentRecipientInfo(payment);
+      if (userInfo != null) {
+        unawaited(NotificationTriggers.refundProcessed(
+          novuService,
+          consulteeUserId: userInfo['userId'] as String,
+          amount: amount.toString(),
+          currency: currency,
+          reason: reason,
+          refundId: refundId,
+        ));
+      }
+    }
   }
 
   /// Handle dispute created from webhook
@@ -204,6 +264,24 @@ class WebhookHandlers {
       'Dispute created: $disputeId for payment $paymentId',
       context: 'WebhookHandlers',
     );
+
+    // Fire-and-forget notification to consultant
+    final novuService = _novuService;
+    if (novuService != null && novuService.isConfigured) {
+      final consultantInfo =
+          await _getPaymentConsultantInfo(payment);
+      if (consultantInfo != null) {
+        unawaited(NotificationTriggers.disputeCreated(
+          novuService,
+          consultantUserId: consultantInfo['userId'] as String,
+          disputeId: disputeId,
+          amount: amount.toString(),
+          currency: currency,
+          reason: reason,
+          dueBy: dueBy?.toIso8601String(),
+        ));
+      }
+    }
   }
 
   /// Find payment by paymentIntent field
@@ -465,6 +543,135 @@ class WebhookHandlers {
       'name': user['name'],
       'image': user['image'],
     };
+  }
+
+  /// Get the consultee user info from a payment record
+  ///
+  /// Follows: payment → appointment → consultation/subscription
+  /// → consulteeProfile → user
+  Future<Map<String, dynamic>?> _getPaymentRecipientInfo(
+    Map<String, dynamic> payment,
+  ) async {
+    try {
+      final appointmentId = payment['appointmentId'] as String?;
+      if (appointmentId == null) return null;
+
+      final query = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findUnique)
+          .where({'id': appointmentId})
+          .include({
+        'consultation': {
+          'include': {
+            'requestedBy': {'include': {'user': true}},
+          },
+        },
+        'subscription': {
+          'include': {
+            'requestedBy': {'include': {'user': true}},
+          },
+        },
+      }).build();
+
+      final appointment =
+          await _db.executor.executeQueryAsSingleMap(query);
+      if (appointment == null) return null;
+
+      // Try consultation path
+      final consultation =
+          appointment['consultation'] as Map<String, dynamic>?;
+      if (consultation != null) {
+        final requestedBy =
+            consultation['requestedBy'] as Map<String, dynamic>?;
+        final user = requestedBy?['user'] as Map<String, dynamic>?;
+        if (user != null) {
+          return {'userId': user['id'], 'name': user['name']};
+        }
+      }
+
+      // Try subscription path
+      final subscription =
+          appointment['subscription'] as Map<String, dynamic>?;
+      if (subscription != null) {
+        final requestedBy =
+            subscription['requestedBy'] as Map<String, dynamic>?;
+        final user = requestedBy?['user'] as Map<String, dynamic>?;
+        if (user != null) {
+          return {'userId': user['id'], 'name': user['name']};
+        }
+      }
+
+      return null;
+    } catch (e) {
+      SentryLogger.warning(
+        'Failed to get payment recipient info: $e',
+        context: 'WebhookHandlers',
+      );
+      return null;
+    }
+  }
+
+  /// Get the consultant user info from a payment record
+  Future<Map<String, dynamic>?> _getPaymentConsultantInfo(
+    Map<String, dynamic> payment,
+  ) async {
+    try {
+      final appointmentId = payment['appointmentId'] as String?;
+      if (appointmentId == null) return null;
+
+      final query = JsonQueryBuilder()
+          .model('Appointment')
+          .action(QueryAction.findUnique)
+          .where({'id': appointmentId})
+          .include({
+        'consultation': {
+          'include': {
+            'consultantProfile': {'include': {'user': true}},
+          },
+        },
+        'subscription': {
+          'include': {
+            'consultantProfile': {'include': {'user': true}},
+          },
+        },
+      }).build();
+
+      final appointment =
+          await _db.executor.executeQueryAsSingleMap(query);
+      if (appointment == null) return null;
+
+      // Try consultation path
+      final consultation =
+          appointment['consultation'] as Map<String, dynamic>?;
+      if (consultation != null) {
+        final profile =
+            consultation['consultantProfile'] as Map<String, dynamic>?;
+        final user = profile?['user'] as Map<String, dynamic>?;
+        if (user != null) {
+          return {'userId': user['id'], 'name': user['name']};
+        }
+      }
+
+      // Try subscription path
+      final subscription =
+          appointment['subscription'] as Map<String, dynamic>?;
+      if (subscription != null) {
+        final profile =
+            subscription['consultantProfile'] as Map<String, dynamic>?;
+        final user = profile?['user'] as Map<String, dynamic>?;
+        if (user != null) {
+          return {'userId': user['id'], 'name': user['name']};
+        }
+      }
+
+      return null;
+    } catch (e) {
+      SentryLogger.warning(
+        'Failed to get payment consultant info: $e',
+        context: 'WebhookHandlers',
+      );
+      return null;
+    }
   }
 
   /// Map gateway-specific refund status to our enum

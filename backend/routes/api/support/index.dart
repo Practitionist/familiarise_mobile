@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/novu/notification_triggers.dart';
+import 'package:backend/services/novu/novu_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -139,6 +142,18 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       subscriptionId: data['subscriptionId'] as String?,
       paymentId: data['paymentId'] as String?,
     );
+
+    // Fire-and-forget: send confirmation notification to user
+    final novuService = context.read<NovuService>();
+    if (novuService.isConfigured) {
+      final ticketId = ticket['id'] as String? ?? '';
+      unawaited(NotificationTriggers.supportTicketCreated(
+        novuService,
+        userId: userId,
+        ticketTitle: title,
+        ticketId: ticketId,
+      ));
+    }
 
     return Response.json(
       statusCode: HttpStatus.created,

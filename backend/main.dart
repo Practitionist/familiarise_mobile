@@ -5,6 +5,9 @@ import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
 import 'package:backend/services/email/email_service.dart';
+import 'package:backend/services/novu/novu_config.dart';
+import 'package:backend/services/novu/novu_service.dart';
+import 'package:backend/services/novu/subscriber_service.dart';
 import 'package:backend/services/profile/profile_service.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -61,6 +64,22 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     apiSecret: env['STREAM_API_SECRET'],
   );
 
+  // Novu notification services (optional — push/email/in-app notifications)
+  final novuConfig = NovuConfig(
+    secretKey: env['NOVU_SECRET_KEY'],
+    apiUrl: env['NOVU_API_URL'],
+    appId: env['NOVU_APP_ID'],
+  );
+  final novuService = NovuService(novuConfig);
+  final subscriberService = SubscriberService(novuConfig);
+
+  if (!novuConfig.isConfigured) {
+    SentryLogger.info(
+      'NOVU_SECRET_KEY not configured. Notification features disabled.',
+      context: 'Startup',
+    );
+  }
+
   // Email service (optional — only needed for password reset + email verification)
   final resendApiKey = env['RESEND_API_KEY'];
   final appBaseUrl = env['APP_BASE_URL'] ?? 'https://familiarise.com';
@@ -97,7 +116,9 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
       .use(provider<DatabaseClient>((_) => db))
       .use(provider<JwtService>((_) => jwtService))
       .use(provider<AuthService>((_) => authService))
-      .use(provider<StreamService>((_) => streamService));
+      .use(provider<StreamService>((_) => streamService))
+      .use(provider<NovuService>((_) => novuService))
+      .use(provider<SubscriberService>((_) => subscriberService));
 
   // Add GitHub OAuth service if configured
   if (githubOAuthService != null) {

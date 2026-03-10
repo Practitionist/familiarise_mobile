@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../domain/entities/referral/referral_entities.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/widgets/notification_bell_widget.dart';
 import '../../referrals/providers/referral_provider.dart';
 import '../providers/consultant_dashboard_provider.dart';
 import '../widgets/collaborations_summary_card.dart';
@@ -49,11 +50,8 @@ class ConsultantDashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
-          ),
+        actions: const [
+          NotificationBellWidget(),
         ],
       ),
       body: RefreshIndicator(

@@ -33,6 +33,8 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/support/screens/support_tickets_screen.dart';
 import '../features/support/screens/support_ticket_detail_screen.dart';
 import '../features/support/screens/create_ticket_screen.dart';
+import '../features/notifications/screens/notification_inbox_screen.dart';
+import '../features/notifications/screens/notification_preferences_screen.dart';
 import '../features/feedback/screens/feedback_screen.dart';
 import '../features/meetings/screens/meeting_screen.dart';
 import 'providers/navigation_provider.dart';
@@ -96,6 +98,7 @@ GoRouter router(Ref ref) {
           location.startsWith('/checkout') ||
           location.startsWith('/payment') ||
           location.startsWith('/support') ||
+          location.startsWith('/notifications') ||
           location.startsWith('/feedback') ||
           location.startsWith('/meeting') ||
           location == '/booking/failure' ||
@@ -464,6 +467,21 @@ GoRouter router(Ref ref) {
             builder: (context, state) => SupportTicketDetailScreen(
               ticketId: state.pathParameters['ticketId']!,
             ),
+          ),
+        ],
+      ),
+
+      // Notification routes
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const NotificationInboxScreen(),
+        routes: [
+          GoRoute(
+            path: 'preferences',
+            name: 'notificationPreferences',
+            builder: (context, state) =>
+                const NotificationPreferencesScreen(),
           ),
         ],
       ),

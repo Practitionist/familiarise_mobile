@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/novu/notification_triggers.dart';
+import 'package:backend/services/novu/novu_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/exceptions.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Consultant reviews endpoint
 ///
@@ -109,6 +113,48 @@ Future<Response> _handleCreateReview(RequestContext context) async {
       rating: rating,
       reviewDescription: data['reviewDescription'] as String?,
     );
+
+    // Fire-and-forget: notify consultant about new review
+    final novuService = context.read<NovuService>();
+    if (novuService.isConfigured) {
+      unawaited(() async {
+        try {
+          // Look up consultant's user ID
+          final consultantQuery = JsonQueryBuilder()
+              .model('ConsultantProfile')
+              .action(QueryAction.findUnique)
+              .where({'id': consultantProfileId})
+              .include({'user': true}).build();
+          final consultant =
+              await db.executor.executeQueryAsSingleMap(consultantQuery);
+          final consultantUser =
+              consultant?['user'] as Map<String, dynamic>?;
+
+          if (consultantUser != null) {
+            // Get reviewer's name
+            final reviewerQuery = JsonQueryBuilder()
+                .model('User')
+                .action(QueryAction.findUnique)
+                .where({'id': userId}).build();
+            final reviewer =
+                await db.executor.executeQueryAsSingleMap(reviewerQuery);
+
+            await NotificationTriggers.newReviewReceived(
+              novuService,
+              consultantUserId: consultantUser['id'] as String,
+              reviewerName: reviewer?['name'] as String? ?? 'A user',
+              rating: rating,
+              reviewText: data['reviewDescription'] as String?,
+            );
+          }
+        } catch (e) {
+          SentryLogger.warning(
+            'Failed to send review notification: $e',
+            context: 'ReviewsRoute',
+          );
+        }
+      }());
+    }
 
     return Response.json(
       statusCode: HttpStatus.created,

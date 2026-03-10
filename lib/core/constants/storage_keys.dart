@@ -16,4 +16,8 @@ abstract final class StorageKeys {
   static const String themeMode = 'theme_mode';
   static const String locale = 'locale';
   static const String notificationsEnabled = 'notifications_enabled';
+
+  // Notification keys
+  static const String fcmToken = 'fcm_token';
+  static const String novuSubscriberHash = 'novu_subscriber_hash';
 }

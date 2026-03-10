@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/appointment_repository.dart';
+import 'package:backend/services/novu/notification_triggers.dart';
+import 'package:backend/services/novu/novu_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Appointments endpoints
 ///
@@ -254,6 +258,64 @@ Future<Response> _handleCreateBooking(RequestContext context) async {
           },
         },
       );
+    }
+
+    // Fire-and-forget: notify consultant about new booking
+    final novuService = context.read<NovuService>();
+    if (novuService.isConfigured) {
+      final bookingStatus = booking['status'] as String?;
+      final bookingConsultantId =
+          booking['consultantProfileId'] as String? ??
+              consultantProfileId;
+      final appointmentId = booking['appointmentId'] as String? ??
+          booking['id'] as String? ??
+          '';
+
+      // Look up consultant's user ID
+      unawaited(() async {
+        try {
+          final cQuery = JsonQueryBuilder()
+              .model('ConsultantProfile')
+              .action(QueryAction.findUnique)
+              .where({'id': bookingConsultantId})
+              .include({'user': true}).build();
+          final cProfile =
+              await db.executor.executeQueryAsSingleMap(cQuery);
+          final consultantUser =
+              cProfile?['user'] as Map<String, dynamic>?;
+          if (consultantUser == null) return;
+
+          final consultantUserId =
+              consultantUser['id'] as String;
+
+          if (bookingStatus == 'PENDING') {
+            await NotificationTriggers.newBookingRequest(
+              novuService,
+              consultantUserId: consultantUserId,
+              consulteeUserName:
+                  consulteeProfile['name'] as String? ?? 'A user',
+              appointmentType: type,
+              message: message,
+              appointmentId: appointmentId,
+            );
+          } else if (bookingStatus == 'SCHEDULED') {
+            await NotificationTriggers.appointmentBooked(
+              novuService,
+              consultantUserId: consultantUserId,
+              consulteeUserName:
+                  consulteeProfile['name'] as String? ?? 'A user',
+              appointmentType: type,
+              appointmentDate: DateTime.now().toIso8601String(),
+              appointmentId: appointmentId,
+            );
+          }
+        } catch (e) {
+          SentryLogger.warning(
+            'Failed to send booking notification: $e',
+            context: 'AppointmentsRoute',
+          );
+        }
+      }());
     }
 
     return Response.json(
