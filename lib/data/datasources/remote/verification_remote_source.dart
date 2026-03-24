@@ -27,6 +27,12 @@ abstract class VerificationRemoteSource {
     required String storagePath,
     String? description,
   });
+
+  /// Get a signed upload URL for a verification document.
+  Future<Map<String, dynamic>> getSignedUploadUrl({
+    required String fileName,
+    required String contentType,
+  });
 }
 
 class VerificationRemoteSourceImpl implements VerificationRemoteSource {
@@ -137,6 +143,29 @@ class VerificationRemoteSourceImpl implements VerificationRemoteSource {
       throw ServerException(
         message: e.response?.data?['error']?['message'] ??
             'Failed to upload document',
+      );
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getSignedUploadUrl({
+    required String fileName,
+    required String contentType,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/upload/document',
+        data: {
+          'fileName': fileName,
+          'contentType': contentType,
+          'bucket': 'verification-docs',
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw ServerException(
+        message: e.response?.data?['error']?['message'] ??
+            'Failed to get upload URL',
       );
     }
   }

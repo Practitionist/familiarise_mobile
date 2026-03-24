@@ -58,6 +58,11 @@ class VerificationState extends _$VerificationState {
       final result = await source.getStatus();
       state = AsyncData(result);
     } catch (e, stack) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stack,
+        context: 'VerificationState.refresh',
+      );
       state = AsyncError(e, stack);
     }
   }

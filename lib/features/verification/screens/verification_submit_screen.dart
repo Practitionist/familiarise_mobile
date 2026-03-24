@@ -1,16 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 
-import '../../../core/config/env_config.dart';
-import '../../../core/network/dio_client.dart' show AuthInterceptor;
 import '../../../core/utils/file_upload_helper.dart';
 import '../../../core/utils/sentry_logger.dart';
+import '../../../data/datasources/remote/verification_remote_source.dart';
 import '../providers/verification_provider.dart';
 
 class VerificationSubmitScreen extends ConsumerStatefulWidget {
@@ -143,27 +140,12 @@ class _VerificationSubmitScreenState
       // Get description from user
       final description = await _askDescription();
 
-      // Get signed URL from backend
-      final token = await AuthInterceptor.getToken();
-      final signedUrlResponse = await http.post(
-        Uri.parse('${EnvConfig.apiBaseUrl}/api/upload/document'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'fileName': file.name,
-          'contentType': _getMimeType(file.extension ?? 'bin'),
-          'bucket': 'verification-docs',
-        }),
+      // Get signed URL from backend via remote source
+      final source = ref.read(verificationRemoteSourceProvider);
+      final urlData = await source.getSignedUploadUrl(
+        fileName: file.name,
+        contentType: _getMimeType(file.extension ?? 'bin'),
       );
-
-      if (signedUrlResponse.statusCode != 200) {
-        throw Exception('Failed to get upload URL');
-      }
-
-      final urlData =
-          jsonDecode(signedUrlResponse.body) as Map<String, dynamic>;
       final signedUrl = urlData['signedUrl'] as String;
       final publicUrl = urlData['publicUrl'] as String;
       final storagePath = urlData['path'] as String;

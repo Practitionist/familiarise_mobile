@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../domain/entities/verification/verification_entities.dart';
 import '../providers/verification_provider.dart';
@@ -222,6 +223,6 @@ class VerificationStatusScreen extends ConsumerWidget {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return DateFormat.yMMMd().format(date);
   }
 }
