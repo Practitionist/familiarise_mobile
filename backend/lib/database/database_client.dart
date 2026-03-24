@@ -113,6 +113,8 @@ class DatabaseClient {
         ConsultantVerificationRepository(_executor, _prisma);
     _trialRepository = TrialRepository(_executor, _prisma);
     _waitlistRepository = WaitlistRepository(_executor, _prisma);
+    _appointmentDocumentRepository =
+        AppointmentDocumentRepository(_executor, _prisma);
   }
 
   static DatabaseClient? _instance;
@@ -150,6 +152,8 @@ class DatabaseClient {
       _consultantVerificationRepository;
   late final TrialRepository _trialRepository;
   late final WaitlistRepository _waitlistRepository;
+  late final AppointmentDocumentRepository
+      _appointmentDocumentRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -288,6 +292,10 @@ class DatabaseClient {
 
   /// Waitlist repository (for webinar/class waitlists)
   WaitlistRepository get waitlists => _waitlistRepository;
+
+  /// Appointment document repository (for document review workflow)
+  AppointmentDocumentRepository get appointmentDocuments =>
+      _appointmentDocumentRepository;
 
   /// Execute raw SQL query and return results as maps
   Future<List<Map<String, dynamic>>> executeRaw(
