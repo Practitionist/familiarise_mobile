@@ -56,42 +56,51 @@ class OnboardingState with _$OnboardingState {
   factory OnboardingState.fromJson(Map<String, dynamic> json) =>
       _$OnboardingStateFromJson(json);
 
-  /// Total number of steps (same for both roles)
-  /// Steps: 0=Role, 1=Personal Info, 2=Profile, 3=Preferences/Availability, 4=Agreement, 5=Review
-  int get totalSteps => 6;
+  /// Total number of steps (varies by role).
+  /// Consultee: 0=Role, 1=Personal, 2=Profile, 3=Preferences, 4=Agreement, 5=Review (6 steps)
+  /// Consultant: 0=Role, 1=Personal, 2=Profile, 3=Background, 4=Availability, 5=Agreement, 6=Review (7 steps)
+  int get totalSteps =>
+      selectedRole == UserRole.consultant ? 7 : 6;
 
   /// Progress as a fraction (0.0 to 1.0)
   double get progress => (currentStep + 1) / totalSteps;
 
-  /// Check if current step is valid and user can proceed
+  /// Check if current step is valid and user can proceed.
+  ///
+  /// Step indices differ by role:
+  /// Consultee: 0=Role, 1=Personal, 2=Profile, 3=Preferences, 4=Agreement, 5=Review
+  /// Consultant: 0=Role, 1=Personal, 2=Profile, 3=Background, 4=Availability, 5=Agreement, 6=Review
   bool get canProceed {
+    final isConsultant = selectedRole == UserRole.consultant;
+
     switch (currentStep) {
       case 0:
-        // Role selection step: always valid (default role is set)
-        return true;
+        return true; // Role selection
       case 1:
-        // Personal info step: name is required
-        return personalInfo?.isValid ?? false;
+        return personalInfo?.isValid ?? false; // Personal info
       case 2:
-        // Profile step: depends on role
-        if (selectedRole == UserRole.consultee) {
-          return consulteeProfile?.isValid ?? true; // All optional
-        } else {
-          return consultantProfile?.isValid ?? false; // Domain required
+        // Profile step
+        if (isConsultant) {
+          return consultantProfile?.isValid ?? false;
         }
+        return consulteeProfile?.isValid ?? true;
       case 3:
-        // Preferences (consultee) or Availability info (consultant)
-        if (selectedRole == UserRole.consultee) {
-          return preferences?.isValid ?? true;
-        } else {
-          return true; // Info screen, always valid
+        if (isConsultant) {
+          return true; // Professional background (all optional)
         }
+        return preferences?.isValid ?? true; // Consultee preferences
       case 4:
-        // Agreement step
-        return agreement?.isAccepted ?? false;
+        if (isConsultant) {
+          return true; // Availability info
+        }
+        return agreement?.isAccepted ?? false; // Consultee agreement
       case 5:
-        // Review step - can always proceed (submit)
-        return true;
+        if (isConsultant) {
+          return agreement?.isAccepted ?? false; // Consultant agreement
+        }
+        return true; // Consultee review
+      case 6:
+        return true; // Consultant review
       default:
         return false;
     }

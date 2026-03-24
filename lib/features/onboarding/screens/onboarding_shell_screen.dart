@@ -123,6 +123,7 @@ class OnboardingShellScreen extends ConsumerWidget {
         'Role',
         'Personal Info',
         'Professional',
+        'Background',
         'Availability',
         'Agreement',
         'Review',
@@ -131,29 +132,29 @@ class OnboardingShellScreen extends ConsumerWidget {
   }
 
   Widget _buildStepContent(int step, UserRole role) {
-    switch (step) {
-      case 0:
-        return const RoleSelectionStep();
-      case 1:
-        return const PersonalInfoStep();
-      case 2:
-        if (role == UserRole.consultee) {
-          return const ConsulteeProfileStep();
-        } else {
-          return const ConsultantProfileStep();
-        }
-      case 3:
-        if (role == UserRole.consultee) {
-          return const PreferencesStep();
-        } else {
-          return const AvailabilityInfoStep();
-        }
-      case 4:
-        return const AgreementStep();
-      case 5:
-        return const ReviewStep();
-      default:
-        return const SizedBox.shrink();
+    // Consultee: 0=Role, 1=Personal, 2=Profile, 3=Preferences, 4=Agreement, 5=Review
+    // Consultant: 0=Role, 1=Personal, 2=Profile, 3=Background, 4=Availability, 5=Agreement, 6=Review
+    if (role == UserRole.consultee) {
+      return switch (step) {
+        0 => const RoleSelectionStep(),
+        1 => const PersonalInfoStep(),
+        2 => const ConsulteeProfileStep(),
+        3 => const PreferencesStep(),
+        4 => const AgreementStep(),
+        5 => const ReviewStep(),
+        _ => const SizedBox.shrink(),
+      };
+    } else {
+      return switch (step) {
+        0 => const RoleSelectionStep(),
+        1 => const PersonalInfoStep(),
+        2 => const ConsultantProfileStep(),
+        3 => const ProfessionalBackgroundStep(),
+        4 => const AvailabilityInfoStep(),
+        5 => const AgreementStep(),
+        6 => const ReviewStep(),
+        _ => const SizedBox.shrink(),
+      };
     }
   }
 
