@@ -2111,5 +2111,134 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // WorkExperience (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'WorkExperience',
+    tableName: 'WorkExperience',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'company': const FieldInfo(
+          name: 'company', columnName: 'company', type: 'String'),
+      'companyDomain': const FieldInfo(
+          name: 'companyDomain',
+          columnName: 'companyDomain',
+          type: 'String'),
+      'title': const FieldInfo(
+          name: 'title', columnName: 'title', type: 'String'),
+      'location': const FieldInfo(
+          name: 'location', columnName: 'location', type: 'String'),
+      'startDate': const FieldInfo(
+          name: 'startDate', columnName: 'startDate', type: 'DateTime'),
+      'endDate': const FieldInfo(
+          name: 'endDate', columnName: 'endDate', type: 'DateTime'),
+      'isCurrent': const FieldInfo(
+          name: 'isCurrent', columnName: 'isCurrent', type: 'Boolean'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'userId': const FieldInfo(
+          name: 'userId', columnName: 'userId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // Certification (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'Certification',
+    tableName: 'Certification',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'name': const FieldInfo(
+          name: 'name', columnName: 'name', type: 'String'),
+      'issuingOrganization': const FieldInfo(
+          name: 'issuingOrganization',
+          columnName: 'issuingOrganization',
+          type: 'String'),
+      'issueDate': const FieldInfo(
+          name: 'issueDate', columnName: 'issueDate', type: 'DateTime'),
+      'expiryDate': const FieldInfo(
+          name: 'expiryDate', columnName: 'expiryDate', type: 'DateTime'),
+      'credentialId': const FieldInfo(
+          name: 'credentialId',
+          columnName: 'credentialId',
+          type: 'String'),
+      'credentialUrl': const FieldInfo(
+          name: 'credentialUrl',
+          columnName: 'credentialUrl',
+          type: 'String'),
+      'userId': const FieldInfo(
+          name: 'userId', columnName: 'userId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // Education (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'Education',
+    tableName: 'Education',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'institution': const FieldInfo(
+          name: 'institution',
+          columnName: 'institution',
+          type: 'String'),
+      'institutionDomain': const FieldInfo(
+          name: 'institutionDomain',
+          columnName: 'institutionDomain',
+          type: 'String'),
+      'degree': const FieldInfo(
+          name: 'degree', columnName: 'degree', type: 'String'),
+      'fieldOfStudy': const FieldInfo(
+          name: 'fieldOfStudy',
+          columnName: 'fieldOfStudy',
+          type: 'String'),
+      'startYear': const FieldInfo(
+          name: 'startYear', columnName: 'startYear', type: 'Int'),
+      'endYear': const FieldInfo(
+          name: 'endYear', columnName: 'endYear', type: 'Int'),
+      'grade': const FieldInfo(
+          name: 'grade', columnName: 'grade', type: 'String'),
+      'activities': const FieldInfo(
+          name: 'activities', columnName: 'activities', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'userId': const FieldInfo(
+          name: 'userId', columnName: 'userId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   return schema;
 }

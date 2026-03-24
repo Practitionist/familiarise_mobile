@@ -88,6 +88,47 @@ class OnboardingRequestModel with _$OnboardingRequestModel {
               twitterUrl: state.consultantProfile!.twitterUrl,
               githubUrl: state.consultantProfile!.githubUrl,
               videoIntroUrl: state.consultantProfile!.videoIntroUrl,
+              workExperiences: state.consultantProfile!.workExperiences
+                  .map(
+                    (we) => WorkExperienceRequest(
+                      company: we.company,
+                      companyDomain: we.companyDomain,
+                      title: we.title,
+                      location: we.location,
+                      startDate: we.startDate.toIso8601String(),
+                      endDate: we.endDate?.toIso8601String(),
+                      isCurrent: we.isCurrent,
+                      description: we.description,
+                    ),
+                  )
+                  .toList(),
+              education: state.consultantProfile!.education
+                  .map(
+                    (edu) => EducationRequest(
+                      institution: edu.institution,
+                      institutionDomain: edu.institutionDomain,
+                      degree: edu.degree,
+                      fieldOfStudy: edu.fieldOfStudy,
+                      startYear: edu.startYear,
+                      endYear: edu.endYear,
+                      grade: edu.grade,
+                      activities: edu.activities,
+                      description: edu.description,
+                    ),
+                  )
+                  .toList(),
+              certifications: state.consultantProfile!.certifications
+                  .map(
+                    (cert) => CertificationRequest(
+                      name: cert.name,
+                      issuingOrganization: cert.issuingOrganization,
+                      issueDate: cert.issueDate.toIso8601String(),
+                      expiryDate: cert.expiryDate?.toIso8601String(),
+                      credentialId: cert.credentialId,
+                      credentialUrl: cert.credentialUrl,
+                    ),
+                  )
+                  .toList(),
             )
           : null,
       agreement: AgreementRequest(
@@ -155,10 +196,63 @@ class ConsultantProfileRequest with _$ConsultantProfileRequest {
     String? twitterUrl,
     String? githubUrl,
     String? videoIntroUrl,
+    @Default([]) List<WorkExperienceRequest> workExperiences,
+    @Default([]) List<EducationRequest> education,
+    @Default([]) List<CertificationRequest> certifications,
   }) = _ConsultantProfileRequest;
 
   factory ConsultantProfileRequest.fromJson(Map<String, dynamic> json) =>
       _$ConsultantProfileRequestFromJson(json);
+}
+
+@freezed
+class WorkExperienceRequest with _$WorkExperienceRequest {
+  const factory WorkExperienceRequest({
+    required String company,
+    String? companyDomain,
+    required String title,
+    String? location,
+    required String startDate,
+    String? endDate,
+    @Default(false) bool isCurrent,
+    String? description,
+  }) = _WorkExperienceRequest;
+
+  factory WorkExperienceRequest.fromJson(Map<String, dynamic> json) =>
+      _$WorkExperienceRequestFromJson(json);
+}
+
+@freezed
+class EducationRequest with _$EducationRequest {
+  const factory EducationRequest({
+    required String institution,
+    String? institutionDomain,
+    required String degree,
+    String? fieldOfStudy,
+    int? startYear,
+    int? endYear,
+    String? grade,
+    String? activities,
+    String? description,
+  }) = _EducationRequest;
+
+  factory EducationRequest.fromJson(Map<String, dynamic> json) =>
+      _$EducationRequestFromJson(json);
+}
+
+@freezed
+class CertificationRequest with _$CertificationRequest {
+  const factory CertificationRequest({
+    required String name,
+    required String issuingOrganization,
+    required String issueDate,
+    String? expiryDate,
+    String? credentialId,
+    String? credentialUrl,
+  }) = _CertificationRequest;
+
+  factory CertificationRequest.fromJson(Map<String, dynamic> json) =>
+      _$CertificationRequestFromJson(json);
 }
 
 @freezed

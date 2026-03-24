@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/professional_background_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// POST /api/onboarding/submit
 ///
@@ -278,6 +280,17 @@ Future<String> _processConsultantOnboarding(
       bio: personalInfo['bio'] as String?,
       consultantProfileId: profileId,
       txn: txn,
+    );
+
+    // Create professional background records if provided
+    await ProfessionalBackgroundUtils.createRecords(
+      userId: userId,
+      txn: txn,
+      workExperiences:
+          consultantProfile['workExperiences'] as List<dynamic>?,
+      education: consultantProfile['education'] as List<dynamic>?,
+      certifications:
+          consultantProfile['certifications'] as List<dynamic>?,
     );
 
     return profileId;
