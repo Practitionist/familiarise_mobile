@@ -35,6 +35,8 @@ import '../features/support/screens/support_ticket_detail_screen.dart';
 import '../features/support/screens/create_ticket_screen.dart';
 import '../features/feedback/screens/feedback_screen.dart';
 import '../features/meetings/screens/meeting_screen.dart';
+import '../features/trials/screens/trial_list_screen.dart';
+import '../features/trials/screens/trial_request_screen.dart';
 import '../features/verification/screens/verification_status_screen.dart';
 import '../features/verification/screens/verification_submit_screen.dart';
 import 'providers/navigation_provider.dart';
@@ -453,6 +455,29 @@ GoRouter router(Ref ref) {
             name: 'verificationSubmit',
             builder: (context, state) =>
                 const VerificationSubmitScreen(),
+          ),
+        ],
+      ),
+
+      // Trial routes
+      GoRoute(
+        path: '/trials',
+        name: 'trials',
+        builder: (context, state) => const TrialListScreen(),
+        routes: [
+          GoRoute(
+            path: 'request',
+            name: 'trialRequest',
+            builder: (context, state) {
+              final consultantProfileId =
+                  state.uri.queryParameters['consultantProfileId']!;
+              final subscriptionPlanId =
+                  state.uri.queryParameters['subscriptionPlanId']!;
+              return TrialRequestScreen(
+                consultantProfileId: consultantProfileId,
+                subscriptionPlanId: subscriptionPlanId,
+              );
+            },
           ),
         ],
       ),
