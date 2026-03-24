@@ -4,6 +4,7 @@
 library;
 
 export 'account_repository.dart';
+export 'appointment_document_repository.dart';
 export 'appointment_repository.dart';
 export 'base_repository.dart';
 export 'checkout_repository.dart';
