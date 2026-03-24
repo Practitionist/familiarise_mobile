@@ -2303,5 +2303,76 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // AppointmentDocument (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'AppointmentDocument',
+    tableName: 'AppointmentDocument',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'fileName': const FieldInfo(
+          name: 'fileName', columnName: 'fileName', type: 'String'),
+      'originalName': const FieldInfo(
+          name: 'originalName',
+          columnName: 'originalName',
+          type: 'String'),
+      'fileSize': const FieldInfo(
+          name: 'fileSize', columnName: 'fileSize', type: 'Int'),
+      'mimeType': const FieldInfo(
+          name: 'mimeType', columnName: 'mimeType', type: 'String'),
+      'fileUrl': const FieldInfo(
+          name: 'fileUrl', columnName: 'fileUrl', type: 'String'),
+      'storagePath': const FieldInfo(
+          name: 'storagePath',
+          columnName: 'storagePath',
+          type: 'String'),
+      'description': const FieldInfo(
+          name: 'description',
+          columnName: 'description',
+          type: 'String'),
+      'reviewStatus': const FieldInfo(
+          name: 'reviewStatus',
+          columnName: 'reviewStatus',
+          type: 'String'),
+      'reviewNotes': const FieldInfo(
+          name: 'reviewNotes',
+          columnName: 'reviewNotes',
+          type: 'String'),
+      'reviewedAt': const FieldInfo(
+          name: 'reviewedAt',
+          columnName: 'reviewedAt',
+          type: 'DateTime'),
+      'reviewedBy': const FieldInfo(
+          name: 'reviewedBy',
+          columnName: 'reviewedBy',
+          type: 'String'),
+      'uploadedByRole': const FieldInfo(
+          name: 'uploadedByRole',
+          columnName: 'uploadedByRole',
+          type: 'String'),
+      'responseToDocumentId': const FieldInfo(
+          name: 'responseToDocumentId',
+          columnName: 'responseToDocumentId',
+          type: 'String'),
+      'appointmentId': const FieldInfo(
+          name: 'appointmentId',
+          columnName: 'appointmentId',
+          type: 'String'),
+      'uploadedAt': const FieldInfo(
+          name: 'uploadedAt',
+          columnName: 'uploadedAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'appointment': RelationInfo.oneToOne(
+        name: 'appointment',
+        targetModel: 'Appointment',
+        foreignKey: 'appointmentId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   return schema;
 }
