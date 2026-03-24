@@ -1,5 +1,5 @@
-import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 
 /// Repository for trial session operations using PrismaClient typed delegates.
 class TrialRepository extends BaseRepository {
