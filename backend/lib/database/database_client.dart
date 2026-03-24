@@ -113,6 +113,8 @@ class DatabaseClient {
         ConsultantVerificationRepository(_executor, _prisma);
     _trialRepository = TrialRepository(_executor, _prisma);
     _waitlistRepository = WaitlistRepository(_executor, _prisma);
+    _payoutAccountRepository =
+        PayoutAccountRepository(_executor, _prisma);
     _appointmentDocumentRepository =
         AppointmentDocumentRepository(_executor, _prisma);
   }
@@ -152,6 +154,7 @@ class DatabaseClient {
       _consultantVerificationRepository;
   late final TrialRepository _trialRepository;
   late final WaitlistRepository _waitlistRepository;
+  late final PayoutAccountRepository _payoutAccountRepository;
   late final AppointmentDocumentRepository
       _appointmentDocumentRepository;
 
@@ -292,6 +295,10 @@ class DatabaseClient {
 
   /// Waitlist repository (for webinar/class waitlists)
   WaitlistRepository get waitlists => _waitlistRepository;
+
+  /// Payout account repository (for consultant bank/UPI accounts)
+  PayoutAccountRepository get payoutAccounts =>
+      _payoutAccountRepository;
 
   /// Appointment document repository (for document review workflow)
   AppointmentDocumentRepository get appointmentDocuments =>

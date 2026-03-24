@@ -2303,6 +2303,73 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // PayoutAccount (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'PayoutAccount',
+    tableName: 'PayoutAccount',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'provider': const FieldInfo(
+          name: 'provider', columnName: 'provider', type: 'String'),
+      'accountType': const FieldInfo(
+          name: 'accountType',
+          columnName: 'accountType',
+          type: 'String'),
+      'accountHolderName': const FieldInfo(
+          name: 'accountHolderName',
+          columnName: 'accountHolderName',
+          type: 'String'),
+      'bankName': const FieldInfo(
+          name: 'bankName', columnName: 'bankName', type: 'String'),
+      'accountNumberLast4': const FieldInfo(
+          name: 'accountNumberLast4',
+          columnName: 'accountNumberLast4',
+          type: 'String'),
+      'ifscCode': const FieldInfo(
+          name: 'ifscCode', columnName: 'ifscCode', type: 'String'),
+      'upiId': const FieldInfo(
+          name: 'upiId', columnName: 'upiId', type: 'String'),
+      'stripeAccountId': const FieldInfo(
+          name: 'stripeAccountId',
+          columnName: 'stripeAccountId',
+          type: 'String'),
+      'stripeAccountStatus': const FieldInfo(
+          name: 'stripeAccountStatus',
+          columnName: 'stripeAccountStatus',
+          type: 'String'),
+      'razorpayContactId': const FieldInfo(
+          name: 'razorpayContactId',
+          columnName: 'razorpayContactId',
+          type: 'String'),
+      'razorpayFundAccId': const FieldInfo(
+          name: 'razorpayFundAccId',
+          columnName: 'razorpayFundAccId',
+          type: 'String'),
+      'isVerified': const FieldInfo(
+          name: 'isVerified',
+          columnName: 'isVerified',
+          type: 'Boolean'),
+      'isDefault': const FieldInfo(
+          name: 'isDefault', columnName: 'isDefault', type: 'Boolean'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   // AppointmentDocument (no @@map)
   schema.registerModel(ModelSchema(
     name: 'AppointmentDocument',
