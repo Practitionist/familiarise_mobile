@@ -40,27 +40,33 @@ Future<Response> onRequest(RequestContext context, String id) async {
   return Response(statusCode: HttpStatus.methodNotAllowed);
 }
 
+/// Verify authentication and ownership. Returns the userId if valid,
+/// or a [Response] to return early.
+Object _authenticateOwner(RequestContext context, String id) {
+  final userId = getUserIdFromToken(context);
+  if (userId == null) {
+    return Response.json(
+      statusCode: HttpStatus.unauthorized,
+      body: {
+        'error': {'message': 'Unauthorized'},
+      },
+    );
+  }
+  if (userId != id) {
+    return Response.json(
+      statusCode: HttpStatus.forbidden,
+      body: {
+        'error': {'message': 'You can only access your own profile'},
+      },
+    );
+  }
+  return userId;
+}
+
 Future<Response> _handleGet(RequestContext context, String id) async {
   try {
-    final userId = getUserIdFromToken(context);
-    if (userId == null) {
-      return Response.json(
-        statusCode: HttpStatus.unauthorized,
-        body: {
-          'error': {'message': 'Unauthorized'},
-        },
-      );
-    }
-
-    // Users can only view their own profile via this route
-    if (userId != id) {
-      return Response.json(
-        statusCode: HttpStatus.forbidden,
-        body: {
-          'error': {'message': 'You can only view your own profile'},
-        },
-      );
-    }
+    final authResult = _authenticateOwner(context, id);
+    if (authResult is Response) return authResult;
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(id);
@@ -95,26 +101,8 @@ Future<Response> _handleGet(RequestContext context, String id) async {
 
 Future<Response> _handlePut(RequestContext context, String id) async {
   try {
-    // Verify authentication
-    final userId = getUserIdFromToken(context);
-    if (userId == null) {
-      return Response.json(
-        statusCode: HttpStatus.unauthorized,
-        body: {
-          'error': {'message': 'Unauthorized'},
-        },
-      );
-    }
-
-    // Users can only update their own profile
-    if (userId != id) {
-      return Response.json(
-        statusCode: HttpStatus.forbidden,
-        body: {
-          'error': {'message': 'You can only update your own profile'},
-        },
-      );
-    }
+    final authResult = _authenticateOwner(context, id);
+    if (authResult is Response) return authResult;
 
     // Parse request body
     final data = await context.request.json() as Map<String, dynamic>;
