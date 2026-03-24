@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:io' hide Platform;
-import 'dart:io' as io show Platform;
 
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
+import 'package:backend/utils/storage_utils.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:http/http.dart' as http;
 
 /// POST /api/upload/document
 ///
@@ -17,7 +15,7 @@ import 'package:http/http.dart' as http;
 /// {
 ///   "fileName": "report.pdf",
 ///   "contentType": "application/pdf",
-///   "bucket": "verification-docs" | "appointment-docs" | "support-attachments",
+///   "bucket": "verification-docs",
 ///   "prefix": "optional/subfolder"
 /// }
 /// ```
@@ -55,7 +53,6 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    // Validate bucket is allowed
     const allowedBuckets = {
       'verification-docs',
       'appointment-docs',
@@ -75,60 +72,26 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final extension = fileName.split('.').lastOrNull ?? 'bin';
+    final ext = StorageUtils.extractExtension(fileName);
     final basePath = prefix != null ? '$userId/$prefix' : userId;
-    final storagePath = '$basePath/$timestamp.$extension';
+    final storagePath = '$basePath/$timestamp.$ext';
 
-    final supabaseUrl = io.Platform.environment['SUPABASE_URL'];
-    final supabaseServiceKey =
-        io.Platform.environment['SUPABASE_SERVICE_ROLE_KEY'];
-
-    if (supabaseUrl == null || supabaseServiceKey == null) {
-      return Response.json(
-        statusCode: HttpStatus.internalServerError,
-        body: {
-          'error': {'message': 'Supabase configuration missing'},
-        },
-      );
-    }
-
-    final signedUrlResponse = await http.post(
-      Uri.parse(
-        '$supabaseUrl/storage/v1/object/upload/sign/$bucket/$storagePath',
-      ),
-      headers: {
-        'Authorization': 'Bearer $supabaseServiceKey',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'expiresIn': 3600}),
+    final urls = await StorageUtils.generateSignedUploadUrl(
+      bucket: bucket,
+      storagePath: storagePath,
     );
-
-    if (signedUrlResponse.statusCode != 200) {
-      return Response.json(
-        statusCode: HttpStatus.internalServerError,
-        body: {
-          'error': {'message': 'Failed to generate signed URL'},
-        },
-      );
-    }
-
-    final signedUrlData =
-        jsonDecode(signedUrlResponse.body) as Map<String, dynamic>;
-    final token = signedUrlData['token'] as String?;
-    final publicUrl =
-        '$supabaseUrl/storage/v1/object/public/$bucket/$storagePath';
-    final fullSignedUrl = token != null
-        ? '$supabaseUrl/storage/v1/object/upload/sign/$bucket/'
-            '$storagePath?token=$token'
-        : signedUrlData['url'] as String;
 
     return Response.json(
       body: {
-        'signedUrl': fullSignedUrl,
-        'publicUrl': publicUrl,
-        'path': storagePath,
-        'bucket': bucket,
+        ...urls,
         'contentType': contentType,
+      },
+    );
+  } on StorageConfigException {
+    return Response.json(
+      statusCode: HttpStatus.internalServerError,
+      body: {
+        'error': {'message': 'Supabase configuration missing'},
       },
     );
   } catch (e, stackTrace) {

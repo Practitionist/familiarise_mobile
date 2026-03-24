@@ -11,26 +11,29 @@ import 'package:http/http.dart' as http;
 ///
 /// This helper handles step 2. Steps 1 and 3 are handled by the caller.
 class FileUploadHelper {
-  /// Upload a file to a signed URL.
+  /// Upload a file to a signed URL using streaming to avoid
+  /// loading the entire file into memory.
   ///
   /// Returns true if the upload succeeded (HTTP 200).
-  /// Throws on network errors.
   static Future<bool> uploadToSignedUrl({
     required String signedUrl,
     required File file,
     required String contentType,
   }) async {
-    final bytes = await file.readAsBytes();
+    final request = http.StreamedRequest('PUT', Uri.parse(signedUrl));
+    request.headers.addAll({
+      'Content-Type': contentType,
+      'x-upsert': 'true',
+    });
+    request.contentLength = await file.length();
 
-    final response = await http.put(
-      Uri.parse(signedUrl),
-      headers: {
-        'Content-Type': contentType,
-        'x-upsert': 'true',
-      },
-      body: bytes,
-    );
+    file.openRead().listen(
+          request.sink.add,
+          onDone: request.sink.close,
+          onError: request.sink.addError,
+        );
 
+    final response = await request.send();
     return response.statusCode == 200;
   }
 
