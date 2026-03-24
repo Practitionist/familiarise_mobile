@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/database/repositories/consultant_verification_repository.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -55,26 +56,11 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    // Check if there's already a pending verification
-    final existing = await db.consultantVerifications.findLatest(
-      consultantProfileId,
-    );
-    if (existing != null &&
-        existing.status == ProfileVerificationStatus.pending) {
-      return Response.json(
-        statusCode: HttpStatus.conflict,
-        body: {
-          'error': {
-            'message': 'A verification request is already pending',
-          },
-        },
-      );
-    }
-
     final body = await context.request.json() as Map<String, dynamic>;
     final notes = body['notes'] as String?;
 
-    final verification = await db.consultantVerifications.submit(
+    // Atomic check-and-submit to prevent race conditions
+    final verification = await db.consultantVerifications.submitIfNoPending(
       consultantProfileId: consultantProfileId,
       notes: notes,
     );
@@ -82,6 +68,15 @@ Future<Response> onRequest(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.created,
       body: {'data': verification.toJson()},
+    );
+  } on VerificationConflictException {
+    return Response.json(
+      statusCode: HttpStatus.conflict,
+      body: {
+        'error': {
+          'message': 'A verification request is already pending',
+        },
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(

@@ -1,11 +1,21 @@
 import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
+
+/// Thrown when a verification submission conflicts with an existing pending one.
+class VerificationConflictException implements Exception {
+  const VerificationConflictException();
+
+  @override
+  String toString() => 'A verification request is already pending';
+}
 
 /// Repository for consultant profile verification operations.
 ///
 /// Uses PrismaClient typed delegates for type-safe CRUD.
 /// Maps to `ConsultantProfileVerification` and `ProfileVerificationDocument`.
 class ConsultantVerificationRepository extends BaseRepository {
+  /// Creates a repository with query executor and PrismaClient.
   ConsultantVerificationRepository(super._executor, this._prisma);
 
   final PrismaClient _prisma;
@@ -21,6 +31,52 @@ class ConsultantVerificationRepository extends BaseRepository {
         notes: notes,
       ),
     );
+  }
+
+  /// Atomically check for pending verification and submit a new one.
+  ///
+  /// Wraps the findLatest + submit in a transaction to prevent
+  /// race conditions where concurrent requests both pass the check.
+  /// Throws [VerificationConflictException] if a pending one exists.
+  Future<ConsultantProfileVerification> submitIfNoPending({
+    required String consultantProfileId,
+    String? notes,
+  }) async {
+    return executeInTransaction((txn) async {
+      // Check for existing pending verification within transaction
+      final checkQuery = JsonQueryBuilder()
+          .model('ConsultantProfileVerification')
+          .action(QueryAction.findFirst)
+          .where({
+        'consultantProfileId': consultantProfileId,
+        'status': 'PENDING',
+      }).build();
+
+      final existing = await txn.executeQueryAsSingleMap(checkQuery);
+      if (existing != null) {
+        throw const VerificationConflictException();
+      }
+
+      // Create new verification within same transaction
+      final now = nowIso8601;
+      final createQuery = JsonQueryBuilder()
+          .model('ConsultantProfileVerification')
+          .action(QueryAction.create)
+          .data({
+        'consultantProfileId': consultantProfileId,
+        'status': 'PENDING',
+        'notes': notes,
+        'submittedAt': now,
+        'createdAt': now,
+        'updatedAt': now,
+      }).build();
+
+      final result = await txn.executeQueryAsSingleMap(createQuery);
+      if (result == null) {
+        throw Exception('Failed to create verification');
+      }
+      return ConsultantProfileVerification.fromJson(result);
+    });
   }
 
   /// Get the latest verification for a consultant profile.
