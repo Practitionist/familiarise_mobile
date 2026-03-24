@@ -5,6 +5,7 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// POST /api/onboarding/submit
 ///
@@ -280,8 +281,104 @@ Future<String> _processConsultantOnboarding(
       txn: txn,
     );
 
+    // Create professional background records if provided
+    final workExperiences =
+        consultantProfile['workExperiences'] as List<dynamic>?;
+    final education = consultantProfile['education'] as List<dynamic>?;
+    final certifications =
+        consultantProfile['certifications'] as List<dynamic>?;
+
+    await _createProfessionalBackground(
+      db: db,
+      userId: userId,
+      workExperiences: workExperiences,
+      education: education,
+      certifications: certifications,
+      txn: txn,
+    );
+
     return profileId;
   });
+}
+
+/// Create professional background records within a transaction.
+Future<void> _createProfessionalBackground({
+  required DatabaseClient db,
+  required String userId,
+  List<dynamic>? workExperiences,
+  List<dynamic>? education,
+  List<dynamic>? certifications,
+  required TransactionExecutor txn,
+}) async {
+  final now = DateTime.now().toUtc().toIso8601String();
+
+  if (workExperiences != null) {
+    for (final we in workExperiences) {
+      final item = we as Map<String, dynamic>;
+      final query = JsonQueryBuilder()
+          .model('WorkExperience')
+          .action(QueryAction.create)
+          .data({
+        'userId': userId,
+        'company': item['company'],
+        'companyDomain': item['companyDomain'],
+        'title': item['title'],
+        'location': item['location'],
+        'startDate': item['startDate'],
+        'endDate': item['endDate'],
+        'isCurrent': item['isCurrent'] ?? false,
+        'description': item['description'],
+        'createdAt': now,
+        'updatedAt': now,
+      }).build();
+      await txn.executeMutation(query);
+    }
+  }
+
+  if (education != null) {
+    for (final edu in education) {
+      final item = edu as Map<String, dynamic>;
+      final query = JsonQueryBuilder()
+          .model('Education')
+          .action(QueryAction.create)
+          .data({
+        'userId': userId,
+        'institution': item['institution'],
+        'institutionDomain': item['institutionDomain'],
+        'degree': item['degree'],
+        'fieldOfStudy': item['fieldOfStudy'],
+        'startYear': item['startYear'],
+        'endYear': item['endYear'],
+        'grade': item['grade'],
+        'activities': item['activities'],
+        'description': item['description'],
+        'createdAt': now,
+        'updatedAt': now,
+      }).build();
+      await txn.executeMutation(query);
+    }
+  }
+
+  if (certifications != null) {
+    for (final cert in certifications) {
+      final item = cert as Map<String, dynamic>;
+      final query = JsonQueryBuilder()
+          .model('Certification')
+          .action(QueryAction.create)
+          .data({
+        'userId': userId,
+        'name': item['name'],
+        'issuingOrganization': item['issuingOrganization'],
+        'issueDate': item['issueDate'],
+        'expiryDate': item['expiryDate'],
+        'credentialId': item['credentialId'],
+        'credentialUrl': item['credentialUrl'],
+        'createdAt': now,
+        'updatedAt': now,
+      }).build();
+      await txn.executeMutation(query);
+    }
+  }
 }
 
 /// Parse a value as List<String>
