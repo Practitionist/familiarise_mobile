@@ -35,6 +35,8 @@ import '../features/support/screens/support_ticket_detail_screen.dart';
 import '../features/support/screens/create_ticket_screen.dart';
 import '../features/feedback/screens/feedback_screen.dart';
 import '../features/meetings/screens/meeting_screen.dart';
+import '../features/trials/screens/trial_list_screen.dart';
+import '../features/trials/screens/trial_request_screen.dart';
 import '../features/verification/screens/verification_status_screen.dart';
 import '../features/verification/screens/verification_submit_screen.dart';
 import '../features/waitlist/screens/waitlist_screen.dart';
@@ -463,6 +465,37 @@ GoRouter router(Ref ref) {
         path: '/waitlist',
         name: 'waitlist',
         builder: (context, state) => const WaitlistScreen(),
+      ),
+
+      // Trial routes
+      GoRoute(
+        path: '/trials',
+        name: 'trials',
+        builder: (context, state) => const TrialListScreen(),
+        routes: [
+          GoRoute(
+            path: 'request',
+            name: 'trialRequest',
+            builder: (context, state) {
+              final consultantProfileId =
+                  state.uri.queryParameters['consultantProfileId'];
+              final subscriptionPlanId =
+                  state.uri.queryParameters['subscriptionPlanId'];
+              if (consultantProfileId == null ||
+                  subscriptionPlanId == null) {
+                return const Scaffold(
+                  body: Center(
+                    child: Text('Missing required parameters'),
+                  ),
+                );
+              }
+              return TrialRequestScreen(
+                consultantProfileId: consultantProfileId,
+                subscriptionPlanId: subscriptionPlanId,
+              );
+            },
+          ),
+        ],
       ),
 
       // Support routes (PR#15)
