@@ -125,8 +125,8 @@ SchemaRegistry buildSchemaRegistry() {
       'role': const FieldInfo(name: 'role', columnName: 'role', type: 'String'),
       'dateOfBirth': const FieldInfo(
           name: 'dateOfBirth', columnName: 'dateOfBirth', type: 'DateTime'),
-      'gender': const FieldInfo(
-          name: 'gender', columnName: 'gender', type: 'String'),
+      'gender':
+          const FieldInfo(name: 'gender', columnName: 'gender', type: 'String'),
       'city': const FieldInfo(name: 'city', columnName: 'city', type: 'String'),
       'country': const FieldInfo(
           name: 'country', columnName: 'country', type: 'String'),
@@ -302,15 +302,11 @@ SchemaRegistry buildSchemaRegistry() {
       'careerStage': const FieldInfo(
           name: 'careerStage', columnName: 'careerStage', type: 'String'),
       'currentCompany': const FieldInfo(
-          name: 'currentCompany',
-          columnName: 'currentCompany',
-          type: 'String'),
+          name: 'currentCompany', columnName: 'currentCompany', type: 'String'),
       'industry': const FieldInfo(
           name: 'industry', columnName: 'industry', type: 'String'),
       'skillsToDevelop': const FieldInfo(
-          name: 'skillsToDevelop',
-          columnName: 'skillsToDevelop',
-          type: 'Json'),
+          name: 'skillsToDevelop', columnName: 'skillsToDevelop', type: 'Json'),
       'linkedinUrl': const FieldInfo(
           name: 'linkedinUrl', columnName: 'linkedinUrl', type: 'String'),
       'budgetPreference': const FieldInfo(
@@ -325,8 +321,8 @@ SchemaRegistry buildSchemaRegistry() {
           name: 'preferredLanguage',
           columnName: 'preferredLanguage',
           type: 'String'),
-      'goals': const FieldInfo(
-          name: 'goals', columnName: 'goals', type: 'String'),
+      'goals':
+          const FieldInfo(name: 'goals', columnName: 'goals', type: 'String'),
       'createdAt': const FieldInfo(
           name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
@@ -362,7 +358,9 @@ SchemaRegistry buildSchemaRegistry() {
       'priceCurrency': const FieldInfo(
           name: 'priceCurrency', columnName: 'priceCurrency', type: 'String'),
       'durationInMonths': const FieldInfo(
-          name: 'durationInMonths', columnName: 'durationInMonths', type: 'Int'),
+          name: 'durationInMonths',
+          columnName: 'durationInMonths',
+          type: 'Int'),
       'callsPerWeek': const FieldInfo(
           name: 'callsPerWeek', columnName: 'callsPerWeek', type: 'Int'),
       'sessionDurationInHours': const FieldInfo(
@@ -733,13 +731,9 @@ SchemaRegistry buildSchemaRegistry() {
           columnName: 'consultantProfileId',
           type: 'String'),
       'startsAt': const FieldInfo(
-          name: 'startsAt',
-          columnName: 'startsAt',
-          type: 'DateTime'),
+          name: 'startsAt', columnName: 'startsAt', type: 'DateTime'),
       'endsAt': const FieldInfo(
-          name: 'endsAt',
-          columnName: 'endsAt',
-          type: 'DateTime'),
+          name: 'endsAt', columnName: 'endsAt', type: 'DateTime'),
       'createdAt': const FieldInfo(
           name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
@@ -758,21 +752,13 @@ SchemaRegistry buildSchemaRegistry() {
           columnName: 'consultantProfileId',
           type: 'String'),
       'startDay': const FieldInfo(
-          name: 'startDay',
-          columnName: 'startDay',
-          type: 'String'),
+          name: 'startDay', columnName: 'startDay', type: 'String'),
       'startTimeUtc': const FieldInfo(
-          name: 'startTimeUtc',
-          columnName: 'startTimeUtc',
-          type: 'Int'),
-      'endDay': const FieldInfo(
-          name: 'endDay',
-          columnName: 'endDay',
-          type: 'String'),
+          name: 'startTimeUtc', columnName: 'startTimeUtc', type: 'Int'),
+      'endDay':
+          const FieldInfo(name: 'endDay', columnName: 'endDay', type: 'String'),
       'endTimeUtc': const FieldInfo(
-          name: 'endTimeUtc',
-          columnName: 'endTimeUtc',
-          type: 'Int'),
+          name: 'endTimeUtc', columnName: 'endTimeUtc', type: 'Int'),
       'utcOffsetMinutes': const FieldInfo(
           name: 'utcOffsetMinutes',
           columnName: 'utcOffsetMinutes',
@@ -1299,25 +1285,19 @@ SchemaRegistry buildSchemaRegistry() {
       'paymentIntent': const FieldInfo(
           name: 'paymentIntent', columnName: 'paymentIntent', type: 'String'),
       'paymentGateway': const FieldInfo(
-          name: 'paymentGateway',
-          columnName: 'paymentGateway',
-          type: 'String'),
+          name: 'paymentGateway', columnName: 'paymentGateway', type: 'String'),
       'paymentStatus': const FieldInfo(
           name: 'paymentStatus', columnName: 'paymentStatus', type: 'String'),
       'expiresAt': const FieldInfo(
           name: 'expiresAt', columnName: 'expiresAt', type: 'DateTime'),
       'isMockPayment': const FieldInfo(
-          name: 'isMockPayment',
-          columnName: 'isMockPayment',
-          type: 'Boolean'),
+          name: 'isMockPayment', columnName: 'isMockPayment', type: 'Boolean'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'appointmentId': const FieldInfo(
           name: 'appointmentId', columnName: 'appointmentId', type: 'String'),
       'discountCodeId': const FieldInfo(
-          name: 'discountCodeId',
-          columnName: 'discountCodeId',
-          type: 'String'),
+          name: 'discountCodeId', columnName: 'discountCodeId', type: 'String'),
       'createdAt': const FieldInfo(
           name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
@@ -1385,16 +1365,14 @@ SchemaRegistry buildSchemaRegistry() {
           const FieldInfo(name: 'amount', columnName: 'amount', type: 'Int'),
       'currency': const FieldInfo(
           name: 'currency', columnName: 'currency', type: 'String'),
-      'reason': const FieldInfo(
-          name: 'reason', columnName: 'reason', type: 'String'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
+      'reason':
+          const FieldInfo(name: 'reason', columnName: 'reason', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'refundId': const FieldInfo(
           name: 'refundId', columnName: 'refundId', type: 'String'),
       'paymentGateway': const FieldInfo(
-          name: 'paymentGateway',
-          columnName: 'paymentGateway',
-          type: 'String'),
+          name: 'paymentGateway', columnName: 'paymentGateway', type: 'String'),
       'metadata': const FieldInfo(
           name: 'metadata', columnName: 'metadata', type: 'Json'),
       'paymentId': const FieldInfo(
@@ -1424,20 +1402,18 @@ SchemaRegistry buildSchemaRegistry() {
           const FieldInfo(name: 'amount', columnName: 'amount', type: 'Int'),
       'currency': const FieldInfo(
           name: 'currency', columnName: 'currency', type: 'String'),
-      'reason': const FieldInfo(
-          name: 'reason', columnName: 'reason', type: 'String'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
+      'reason':
+          const FieldInfo(name: 'reason', columnName: 'reason', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'disputeId': const FieldInfo(
           name: 'disputeId', columnName: 'disputeId', type: 'String'),
       'paymentGateway': const FieldInfo(
-          name: 'paymentGateway',
-          columnName: 'paymentGateway',
-          type: 'String'),
+          name: 'paymentGateway', columnName: 'paymentGateway', type: 'String'),
       'evidence': const FieldInfo(
           name: 'evidence', columnName: 'evidence', type: 'Json'),
-      'dueBy': const FieldInfo(
-          name: 'dueBy', columnName: 'dueBy', type: 'DateTime'),
+      'dueBy':
+          const FieldInfo(name: 'dueBy', columnName: 'dueBy', type: 'DateTime'),
       'isChargeRefundable': const FieldInfo(
           name: 'isChargeRefundable',
           columnName: 'isChargeRefundable',
@@ -1475,8 +1451,8 @@ SchemaRegistry buildSchemaRegistry() {
           const FieldInfo(name: 'rating', columnName: 'rating', type: 'Int'),
       'category': const FieldInfo(
           name: 'category', columnName: 'category', type: 'String'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'createdAt': const FieldInfo(
@@ -1506,8 +1482,8 @@ SchemaRegistry buildSchemaRegistry() {
           name: 'eventId', columnName: 'eventId', type: 'String'),
       'eventType': const FieldInfo(
           name: 'eventType', columnName: 'eventType', type: 'String'),
-      'payload': const FieldInfo(
-          name: 'payload', columnName: 'payload', type: 'Json'),
+      'payload':
+          const FieldInfo(name: 'payload', columnName: 'payload', type: 'Json'),
       'signature': const FieldInfo(
           name: 'signature', columnName: 'signature', type: 'String'),
       'processed': const FieldInfo(
@@ -1572,15 +1548,11 @@ SchemaRegistry buildSchemaRegistry() {
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'referralCodeId': const FieldInfo(
-          name: 'referralCodeId',
-          columnName: 'referralCodeId',
-          type: 'String'),
+          name: 'referralCodeId', columnName: 'referralCodeId', type: 'String'),
       'referredUserId': const FieldInfo(
-          name: 'referredUserId',
-          columnName: 'referredUserId',
-          type: 'String'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
+          name: 'referredUserId', columnName: 'referredUserId', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'referrerRewardAmount': const FieldInfo(
           name: 'referrerRewardAmount',
           columnName: 'referrerRewardAmount',
@@ -1638,8 +1610,8 @@ SchemaRegistry buildSchemaRegistry() {
           const FieldInfo(name: 'amount', columnName: 'amount', type: 'Int'),
       'currency': const FieldInfo(
           name: 'currency', columnName: 'currency', type: 'String'),
-      'source': const FieldInfo(
-          name: 'source', columnName: 'source', type: 'String'),
+      'source':
+          const FieldInfo(name: 'source', columnName: 'source', type: 'String'),
       'referralId': const FieldInfo(
           name: 'referralId', columnName: 'referralId', type: 'String'),
       'usedAmount': const FieldInfo(
@@ -1684,8 +1656,8 @@ SchemaRegistry buildSchemaRegistry() {
           name: 'revenueSharePercentage',
           columnName: 'revenueSharePercentage',
           type: 'Float'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'invitedById': const FieldInfo(
           name: 'invitedById', columnName: 'invitedById', type: 'String'),
       'respondedAt': const FieldInfo(
@@ -1736,8 +1708,8 @@ SchemaRegistry buildSchemaRegistry() {
           name: 'revenueSharePercentage',
           columnName: 'revenueSharePercentage',
           type: 'Float'),
-      'status': const FieldInfo(
-          name: 'status', columnName: 'status', type: 'String'),
+      'status':
+          const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'invitedById': const FieldInfo(
           name: 'invitedById', columnName: 'invitedById', type: 'String'),
       'respondedAt': const FieldInfo(
@@ -1800,8 +1772,8 @@ SchemaRegistry buildSchemaRegistry() {
       'role': const FieldInfo(name: 'role', columnName: 'role', type: 'String'),
       'dateOfBirth': const FieldInfo(
           name: 'dateOfBirth', columnName: 'dateOfBirth', type: 'DateTime'),
-      'gender': const FieldInfo(
-          name: 'gender', columnName: 'gender', type: 'String'),
+      'gender':
+          const FieldInfo(name: 'gender', columnName: 'gender', type: 'String'),
       'city': const FieldInfo(name: 'city', columnName: 'city', type: 'String'),
       'country': const FieldInfo(
           name: 'country', columnName: 'country', type: 'String'),
@@ -1923,6 +1895,122 @@ SchemaRegistry buildSchemaRegistry() {
           name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
       'updatedAt': const FieldInfo(
           name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+  ));
+
+  // CookiePreference (@@map → cookie_preferences)
+  schema.registerModel(ModelSchema(
+    name: 'CookiePreference',
+    tableName: 'cookie_preferences',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'userId':
+          const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'sessionId': const FieldInfo(
+          name: 'sessionId', columnName: 'sessionId', type: 'String'),
+      'essential': const FieldInfo(
+          name: 'essential', columnName: 'essential', type: 'Boolean'),
+      'analytics': const FieldInfo(
+          name: 'analytics', columnName: 'analytics', type: 'Boolean'),
+      'marketing': const FieldInfo(
+          name: 'marketing', columnName: 'marketing', type: 'Boolean'),
+      'functional': const FieldInfo(
+          name: 'functional', columnName: 'functional', type: 'Boolean'),
+      'consentGivenAt': const FieldInfo(
+          name: 'consentGivenAt',
+          columnName: 'consentGivenAt',
+          type: 'DateTime'),
+      'consentUpdatedAt': const FieldInfo(
+          name: 'consentUpdatedAt',
+          columnName: 'consentUpdatedAt',
+          type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+    },
+  ));
+
+  // NotificationPreference (@@map → notification_preferences)
+  schema.registerModel(ModelSchema(
+    name: 'NotificationPreference',
+    tableName: 'notification_preferences',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'userId':
+          const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
+      'allNotifications': const FieldInfo(
+          name: 'allNotifications',
+          columnName: 'allNotifications',
+          type: 'Boolean'),
+      'inAppEnabled': const FieldInfo(
+          name: 'inAppEnabled', columnName: 'inAppEnabled', type: 'Boolean'),
+      'emailEnabled': const FieldInfo(
+          name: 'emailEnabled', columnName: 'emailEnabled', type: 'Boolean'),
+      'pushEnabled': const FieldInfo(
+          name: 'pushEnabled', columnName: 'pushEnabled', type: 'Boolean'),
+      'mentions': const FieldInfo(
+          name: 'mentions', columnName: 'mentions', type: 'Boolean'),
+      'directMessages': const FieldInfo(
+          name: 'directMessages',
+          columnName: 'directMessages',
+          type: 'Boolean'),
+      'updates': const FieldInfo(
+          name: 'updates', columnName: 'updates', type: 'Boolean'),
+      'appointmentReminders': const FieldInfo(
+          name: 'appointmentReminders',
+          columnName: 'appointmentReminders',
+          type: 'Boolean'),
+      'paymentNotifications': const FieldInfo(
+          name: 'paymentNotifications',
+          columnName: 'paymentNotifications',
+          type: 'Boolean'),
+      'supportUpdates': const FieldInfo(
+          name: 'supportUpdates',
+          columnName: 'supportUpdates',
+          type: 'Boolean'),
+      'feedbackAlerts': const FieldInfo(
+          name: 'feedbackAlerts',
+          columnName: 'feedbackAlerts',
+          type: 'Boolean'),
+      'trialNotifications': const FieldInfo(
+          name: 'trialNotifications',
+          columnName: 'trialNotifications',
+          type: 'Boolean'),
+      'subscriptionAlerts': const FieldInfo(
+          name: 'subscriptionAlerts',
+          columnName: 'subscriptionAlerts',
+          type: 'Boolean'),
+      'marketingEmails': const FieldInfo(
+          name: 'marketingEmails',
+          columnName: 'marketingEmails',
+          type: 'Boolean'),
+      'quietHoursEnabled': const FieldInfo(
+          name: 'quietHoursEnabled',
+          columnName: 'quietHoursEnabled',
+          type: 'Boolean'),
+      'quietHoursStart': const FieldInfo(
+          name: 'quietHoursStart',
+          columnName: 'quietHoursStart',
+          type: 'String'),
+      'quietHoursEnd': const FieldInfo(
+          name: 'quietHoursEnd', columnName: 'quietHoursEnd', type: 'String'),
+      'quietHoursTimezone': const FieldInfo(
+          name: 'quietHoursTimezone',
+          columnName: 'quietHoursTimezone',
+          type: 'String'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
     },
   ));
 

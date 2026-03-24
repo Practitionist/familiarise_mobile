@@ -58,6 +58,12 @@ void main() {
     when(() => mockDb.sessions).thenReturn(mockSessions);
     when(() => mockDb.consulteeProfiles).thenReturn(mockConsulteeProfiles);
 
+    // Default stub for createDefaultPreferences (called during signup)
+    when(() => mockUsers.createDefaultPreferences(
+          any(),
+          txn: any(named: 'txn'),
+        )).thenAnswer((_) async {});
+
     service = AuthService(mockDb, mockJwtService);
   });
 

@@ -186,6 +186,58 @@ class UserRepository extends BaseRepository {
     return executeQueryAsSingleMap(query, txn: txn);
   }
 
+  /// Create default CookiePreference and NotificationPreference for a user.
+  ///
+  /// Matches the web app's BetterAuth databaseHooks.user.create behavior.
+  /// Should be called within the signup transaction for data consistency.
+  Future<void> createDefaultPreferences(
+    String userId, {
+    TransactionExecutor? txn,
+  }) async {
+    final now = nowIso8601;
+
+    // Create CookiePreference with defaults (essential: true, rest: false)
+    final cookieQuery = JsonQueryBuilder()
+        .model('cookie_preferences')
+        .action(QueryAction.create)
+        .data({
+      'userId': userId,
+      'essential': true,
+      'analytics': false,
+      'marketing': false,
+      'functional': false,
+      'consentGivenAt': now,
+      'consentUpdatedAt': now,
+    }).build();
+
+    await executeMutation(cookieQuery, txn: txn);
+
+    // Create NotificationPreference with defaults
+    final notifQuery = JsonQueryBuilder()
+        .model('notification_preferences')
+        .action(QueryAction.create)
+        .data({
+      'userId': userId,
+      'allNotifications': true,
+      'inAppEnabled': true,
+      'emailEnabled': true,
+      'pushEnabled': false,
+      'mentions': false,
+      'directMessages': false,
+      'updates': false,
+      'appointmentReminders': true,
+      'paymentNotifications': true,
+      'supportUpdates': true,
+      'feedbackAlerts': true,
+      'trialNotifications': true,
+      'subscriptionAlerts': true,
+      'marketingEmails': false,
+      'quietHoursEnabled': false,
+    }).build();
+
+    await executeMutation(notifQuery, txn: txn);
+  }
+
   /// Delete a user by ID (for cleanup on failed registration)
   Future<void> delete(String id) async {
     final query = JsonQueryBuilder()
