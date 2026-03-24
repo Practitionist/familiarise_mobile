@@ -51,6 +51,18 @@ Object? _readOnlineStatus(Map json, String key) {
   return false;
 }
 
+Object? _readStaffProfileId(Map json, String key) =>
+    json['staffProfileId'] ?? json['staff_profile_id'];
+
+Object? _readAdminProfileId(Map json, String key) =>
+    json['adminProfileId'] ?? json['admin_profile_id'];
+
+Object? _readTermsAcceptedAt(Map json, String key) =>
+    json['termsAcceptedAt'] ?? json['terms_accepted_at'];
+
+Object? _readPrivacyAcceptedAt(Map json, String key) =>
+    json['privacyAcceptedAt'] ?? json['privacy_accepted_at'];
+
 /// User data transfer object for API serialization
 @freezed
 class UserModel with _$UserModel {
@@ -78,6 +90,10 @@ class UserModel with _$UserModel {
     @JsonKey(readValue: _readProfileDisplayImage) String? profileDisplayImage,
     String? address,
     @JsonKey(readValue: _readOnlineStatus) @Default(false) bool onlineStatus,
+    @JsonKey(readValue: _readStaffProfileId) String? staffProfileId,
+    @JsonKey(readValue: _readAdminProfileId) String? adminProfileId,
+    @JsonKey(readValue: _readTermsAcceptedAt) DateTime? termsAcceptedAt,
+    @JsonKey(readValue: _readPrivacyAcceptedAt) DateTime? privacyAcceptedAt,
     @JsonKey(readValue: _readCreatedAt) DateTime? createdAt,
     @JsonKey(readValue: _readUpdatedAt) DateTime? updatedAt,
   }) = _UserModel;
@@ -110,6 +126,10 @@ class UserModel with _$UserModel {
       profileDisplayImage: profileDisplayImage,
       address: address,
       onlineStatus: onlineStatus,
+      staffProfileId: staffProfileId,
+      adminProfileId: adminProfileId,
+      termsAcceptedAt: termsAcceptedAt,
+      privacyAcceptedAt: privacyAcceptedAt,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
