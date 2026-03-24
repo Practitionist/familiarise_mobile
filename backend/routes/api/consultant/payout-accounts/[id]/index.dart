@@ -11,88 +11,18 @@ import 'package:dart_frog/dart_frog.dart';
 Future<Response> onRequest(RequestContext context, String id) async {
   final method = context.request.method;
 
-  if (method == HttpMethod.get) return _handleGet(context, id);
-  if (method == HttpMethod.put) return _handlePut(context, id);
-  if (method == HttpMethod.delete) return _handleDelete(context, id);
+  if (method == HttpMethod.get) return _handle(context, id, method);
+  if (method == HttpMethod.put) return _handle(context, id, method);
+  if (method == HttpMethod.delete) return _handle(context, id, method);
 
   return Response(statusCode: HttpStatus.methodNotAllowed);
 }
 
-Future<Response> _handleGet(RequestContext context, String id) async {
-  try {
-    final userId = getUserIdFromToken(context);
-    if (userId == null) {
-      return Response.json(
-        statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
-      );
-    }
-
-    final db = context.read<DatabaseClient>();
-    final account = await db.payoutAccounts.findById(id);
-
-    if (account == null) {
-      return Response.json(
-        statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Account not found'}},
-      );
-    }
-
-    return Response.json(body: {'data': account.toJson()});
-  } catch (e, stackTrace) {
-    await SentryLogger.severe(
-      'Payout account get failed',
-      context: 'PayoutAccountGet',
-      error: e,
-      stackTrace: stackTrace,
-    );
-    return Response.json(
-      statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get account'}},
-    );
-  }
-}
-
-Future<Response> _handlePut(RequestContext context, String id) async {
-  try {
-    final userId = getUserIdFromToken(context);
-    if (userId == null) {
-      return Response.json(
-        statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
-      );
-    }
-
-    final body = await context.request.json() as Map<String, dynamic>;
-    final db = context.read<DatabaseClient>();
-
-    final updated = await db.payoutAccounts.update(
-      id: id,
-      accountHolderName: body['accountHolderName'] as String?,
-      bankName: body['bankName'] as String?,
-      accountNumberLast4: body['accountNumberLast4'] as String?,
-      ifscCode: body['ifscCode'] as String?,
-      upiId: body['upiId'] as String?,
-    );
-
-    return Response.json(body: {'data': updated.toJson()});
-  } catch (e, stackTrace) {
-    await SentryLogger.severe(
-      'Payout account update failed',
-      context: 'PayoutAccountPut',
-      error: e,
-      stackTrace: stackTrace,
-    );
-    return Response.json(
-      statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update account'}},
-    );
-  }
-}
-
-Future<Response> _handleDelete(
+/// Shared auth + ownership verification for all handlers.
+Future<Response> _handle(
   RequestContext context,
   String id,
+  HttpMethod method,
 ) async {
   try {
     final userId = getUserIdFromToken(context);
@@ -104,19 +34,75 @@ Future<Response> _handleDelete(
     }
 
     final db = context.read<DatabaseClient>();
-    await db.payoutAccounts.delete(id);
 
+    // Get user's consultant profile ID
+    final user = await db.users.findById(userId);
+    final consultantProfileId =
+        user?['consultantProfileId'] as String?;
+    if (consultantProfileId == null) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Only consultants can manage payouts'},
+        },
+      );
+    }
+
+    // Fetch account and verify ownership
+    final account = await db.payoutAccounts.findById(id);
+    if (account == null) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {'error': {'message': 'Account not found'}},
+      );
+    }
+
+    final accountJson = account.toJson();
+    if (accountJson['consultantProfileId'] != consultantProfileId) {
+      // Return 404 to avoid leaking that the account exists
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {'error': {'message': 'Account not found'}},
+      );
+    }
+
+    // Dispatch to handler
+    if (method == HttpMethod.get) {
+      return Response.json(body: {'data': accountJson});
+    }
+    if (method == HttpMethod.put) {
+      return _handlePut(context, db, id);
+    }
+    // DELETE
+    await db.payoutAccounts.delete(id);
     return Response.json(body: {'message': 'Account deleted'});
   } catch (e, stackTrace) {
     await SentryLogger.severe(
-      'Payout account delete failed',
-      context: 'PayoutAccountDelete',
+      'Payout account operation failed',
+      context: 'PayoutAccount',
       error: e,
       stackTrace: stackTrace,
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to delete account'}},
+      body: {'error': {'message': 'Operation failed'}},
     );
   }
+}
+
+Future<Response> _handlePut(
+  RequestContext context,
+  DatabaseClient db,
+  String id,
+) async {
+  final body = await context.request.json() as Map<String, dynamic>;
+  final updated = await db.payoutAccounts.update(
+    id: id,
+    accountHolderName: body['accountHolderName'] as String?,
+    bankName: body['bankName'] as String?,
+    accountNumberLast4: body['accountNumberLast4'] as String?,
+    ifscCode: body['ifscCode'] as String?,
+    upiId: body['upiId'] as String?,
+  );
+  return Response.json(body: {'data': updated.toJson()});
 }

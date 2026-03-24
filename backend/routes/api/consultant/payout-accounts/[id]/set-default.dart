@@ -33,6 +33,22 @@ Future<Response> onRequest(RequestContext context, String id) async {
       );
     }
 
+    // Verify the account belongs to this consultant
+    final account = await db.payoutAccounts.findById(id);
+    if (account == null) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {'error': {'message': 'Account not found'}},
+      );
+    }
+    final acctJson = account.toJson();
+    if (acctJson['consultantProfileId'] != consultantProfileId) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {'error': {'message': 'Account not found'}},
+      );
+    }
+
     await db.payoutAccounts.setDefault(
       id: id,
       consultantProfileId: consultantProfileId,
