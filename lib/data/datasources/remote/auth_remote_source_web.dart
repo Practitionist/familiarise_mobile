@@ -125,26 +125,11 @@ class AuthRemoteSourceWebImpl
   }
 
   @override
-  Future<void> signOut() async {
+  Future<void> signOutGoogleSdk() async {
     try {
       await googleSignIn.signOut();
-      // On web, also notify the backend to invalidate the session
-      final token = await getAuthToken();
-      if (token != null) {
-        await http.post(
-          Uri.parse('${EnvConfig.apiBaseUrl}/api/auth/sign-out'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
-      }
-      await clearAuthCredentials();
-      authStateController.add(null);
     } catch (_) {
-      // Even if sign out fails on server, clear local auth
-      await clearAuthCredentials();
-      authStateController.add(null);
+      // Google SDK sign-out failure is non-critical
     }
   }
 }

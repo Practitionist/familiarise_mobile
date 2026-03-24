@@ -154,6 +154,9 @@ class AuthService {
         executor: txn,
       );
 
+      // Create default preferences (matches web BetterAuth databaseHooks)
+      await _db.users.createDefaultPreferences(userId, txn: txn);
+
       return newUser;
     });
 
@@ -291,6 +294,9 @@ class AuthService {
           executor: txn,
         );
 
+        // Create default preferences (matches web BetterAuth databaseHooks)
+        await _db.users.createDefaultPreferences(userId, txn: txn);
+
         return newUser;
       });
     } else {
@@ -383,6 +389,9 @@ class AuthService {
           userId: userId,
           executor: txn,
         );
+
+        // Create default preferences (matches web BetterAuth databaseHooks)
+        await _db.users.createDefaultPreferences(userId, txn: txn);
 
         return newUser;
       });

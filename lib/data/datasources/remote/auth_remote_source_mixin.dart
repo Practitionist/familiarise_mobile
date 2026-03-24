@@ -30,6 +30,10 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   /// Must NOT touch the auth state controller — the mixin handles that.
   Future<void> clearAuthCredentials();
 
+  /// Sign out of the Google SDK (platform-specific).
+  /// Should NOT clear credentials or update auth state — the mixin handles that.
+  Future<void> signOutGoogleSdk();
+
   /// The broadcast controller that drives [authStateChanges].
   StreamController<UserModel?> get authStateController;
 
@@ -465,6 +469,39 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
           stackTrace: stackTrace, context: 'AuthRemoteSource.updateProfile');
       throw const AuthException(
         message: 'Failed to update profile. Please try again.',
+      );
+    }
+  }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      // Invalidate server-side session
+      final token = await getAuthToken();
+      if (token != null && token.isNotEmpty) {
+        try {
+          await http.post(
+            Uri.parse('$baseUrl/api/auth/sign-out'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+        } catch (_) {
+          // Server sign-out failure is non-critical — still clear local auth
+        }
+      }
+      await signOutGoogleSdk();
+      await clearAuthCredentials();
+      authStateController.add(null);
+    } catch (e, stackTrace) {
+      // Even if sign out fails, still clear local auth
+      await clearAuthCredentials();
+      authStateController.add(null);
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stackTrace,
+        context: 'AuthRemoteSource.signOut',
       );
     }
   }

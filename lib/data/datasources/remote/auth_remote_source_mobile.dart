@@ -188,17 +188,11 @@ class AuthRemoteSourceImpl with AuthRemoteSourceMixin implements AuthRemoteSourc
   }
 
   @override
-  Future<void> signOut() async {
+  Future<void> signOutGoogleSdk() async {
     try {
       await googleSignIn.signOut();
-      await clearAuthCredentials();
-      authStateController.add(null);
-    } catch (e, stackTrace) {
-      // Even if sign out fails, still clear local auth
-      await clearAuthCredentials();
-      authStateController.add(null);
-      AppSentryLogger.captureException(e,
-          stackTrace: stackTrace, context: 'AuthRemoteSource.signOut');
+    } catch (_) {
+      // Google SDK sign-out failure is non-critical
     }
   }
 }
