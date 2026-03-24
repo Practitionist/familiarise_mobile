@@ -2014,5 +2014,102 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // ConsultantProfileVerification (no @@map, uses model name as table)
+  schema.registerModel(ModelSchema(
+    name: 'ConsultantProfileVerification',
+    tableName: 'ConsultantProfileVerification',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'status': const FieldInfo(
+          name: 'status', columnName: 'status', type: 'String'),
+      'consultantProfileId': const FieldInfo(
+          name: 'consultantProfileId',
+          columnName: 'consultantProfileId',
+          type: 'String'),
+      'submittedAt': const FieldInfo(
+          name: 'submittedAt', columnName: 'submittedAt', type: 'DateTime'),
+      'notes': const FieldInfo(
+          name: 'notes', columnName: 'notes', type: 'String'),
+      'reviewedAt': const FieldInfo(
+          name: 'reviewedAt', columnName: 'reviewedAt', type: 'DateTime'),
+      'reviewedById': const FieldInfo(
+          name: 'reviewedById',
+          columnName: 'reviewedById',
+          type: 'String'),
+      'reviewNotes': const FieldInfo(
+          name: 'reviewNotes', columnName: 'reviewNotes', type: 'String'),
+      'rejectionReason': const FieldInfo(
+          name: 'rejectionReason',
+          columnName: 'rejectionReason',
+          type: 'String'),
+      'feedbackDetails': const FieldInfo(
+          name: 'feedbackDetails',
+          columnName: 'feedbackDetails',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'consultantProfile': RelationInfo.oneToOne(
+        name: 'consultantProfile',
+        targetModel: 'ConsultantProfile',
+        foreignKey: 'consultantProfileId',
+        isOwner: true,
+      ),
+      'documents': RelationInfo.oneToMany(
+        name: 'documents',
+        targetModel: 'ProfileVerificationDocument',
+        foreignKey: 'verificationId',
+      ),
+    },
+  ));
+
+  // ProfileVerificationDocument (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'ProfileVerificationDocument',
+    tableName: 'ProfileVerificationDocument',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'fileName': const FieldInfo(
+          name: 'fileName', columnName: 'fileName', type: 'String'),
+      'originalName': const FieldInfo(
+          name: 'originalName',
+          columnName: 'originalName',
+          type: 'String'),
+      'fileSize': const FieldInfo(
+          name: 'fileSize', columnName: 'fileSize', type: 'Int'),
+      'mimeType': const FieldInfo(
+          name: 'mimeType', columnName: 'mimeType', type: 'String'),
+      'fileUrl': const FieldInfo(
+          name: 'fileUrl', columnName: 'fileUrl', type: 'String'),
+      'storagePath': const FieldInfo(
+          name: 'storagePath', columnName: 'storagePath', type: 'String'),
+      'description': const FieldInfo(
+          name: 'description', columnName: 'description', type: 'String'),
+      'isValid': const FieldInfo(
+          name: 'isValid', columnName: 'isValid', type: 'Boolean'),
+      'staffFeedback': const FieldInfo(
+          name: 'staffFeedback',
+          columnName: 'staffFeedback',
+          type: 'String'),
+      'verificationId': const FieldInfo(
+          name: 'verificationId',
+          columnName: 'verificationId',
+          type: 'String'),
+      'uploadedAt': const FieldInfo(
+          name: 'uploadedAt', columnName: 'uploadedAt', type: 'DateTime'),
+    },
+    relations: {
+      'verification': RelationInfo.oneToOne(
+        name: 'verification',
+        targetModel: 'ConsultantProfileVerification',
+        foreignKey: 'verificationId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   return schema;
 }
