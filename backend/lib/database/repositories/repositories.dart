@@ -4,6 +4,7 @@
 library;
 
 export 'account_repository.dart';
+export 'announcement_repository.dart';
 export 'appointment_document_repository.dart';
 export 'appointment_repository.dart';
 export 'base_repository.dart';
@@ -17,8 +18,10 @@ export 'consultee_profile_repository.dart';
 export 'dispute_repository.dart';
 export 'domain_repository.dart';
 export 'feedback_repository.dart';
+export 'maintenance_repository.dart';
 export 'meeting_session_repository.dart';
 export 'programs_repository.dart';
+export 'recording_repository.dart';
 export 'referral_repository.dart';
 export 'refund_repository.dart';
 export 'review_repository.dart';

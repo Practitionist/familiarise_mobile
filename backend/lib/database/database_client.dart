@@ -117,6 +117,9 @@ class DatabaseClient {
         PayoutAccountRepository(_executor, _prisma);
     _appointmentDocumentRepository =
         AppointmentDocumentRepository(_executor, _prisma);
+    _announcementRepository = AnnouncementRepository(_executor);
+    _maintenanceRepository = MaintenanceRepository(_executor);
+    _recordingRepository = RecordingRepository(_executor, _prisma);
   }
 
   static DatabaseClient? _instance;
@@ -157,6 +160,9 @@ class DatabaseClient {
   late final PayoutAccountRepository _payoutAccountRepository;
   late final AppointmentDocumentRepository
       _appointmentDocumentRepository;
+  late final AnnouncementRepository _announcementRepository;
+  late final MaintenanceRepository _maintenanceRepository;
+  late final RecordingRepository _recordingRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -303,6 +309,15 @@ class DatabaseClient {
   /// Appointment document repository (for document review workflow)
   AppointmentDocumentRepository get appointmentDocuments =>
       _appointmentDocumentRepository;
+
+  /// Announcement repository (read-only on mobile)
+  AnnouncementRepository get announcements => _announcementRepository;
+
+  /// Maintenance window repository (read-only)
+  MaintenanceRepository get maintenance => _maintenanceRepository;
+
+  /// Recording repository (for meeting recordings)
+  RecordingRepository get recordings => _recordingRepository;
 
   /// Execute raw SQL query and return results as maps
   Future<List<Map<String, dynamic>>> executeRaw(
