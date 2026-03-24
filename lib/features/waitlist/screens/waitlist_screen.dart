@@ -94,7 +94,9 @@ class WaitlistScreen extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
+          const SnackBar(
+            content: Text('Failed to leave waitlist. Please try again.'),
+          ),
         );
       }
     }
