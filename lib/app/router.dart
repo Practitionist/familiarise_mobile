@@ -470,9 +470,17 @@ GoRouter router(Ref ref) {
             name: 'trialRequest',
             builder: (context, state) {
               final consultantProfileId =
-                  state.uri.queryParameters['consultantProfileId']!;
+                  state.uri.queryParameters['consultantProfileId'];
               final subscriptionPlanId =
-                  state.uri.queryParameters['subscriptionPlanId']!;
+                  state.uri.queryParameters['subscriptionPlanId'];
+              if (consultantProfileId == null ||
+                  subscriptionPlanId == null) {
+                return const Scaffold(
+                  body: Center(
+                    child: Text('Missing required parameters'),
+                  ),
+                );
+              }
               return TrialRequestScreen(
                 consultantProfileId: consultantProfileId,
                 subscriptionPlanId: subscriptionPlanId,

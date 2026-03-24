@@ -23,7 +23,7 @@ abstract class TrialRemoteSource {
   Future<TrialSession> getTrialById(String trialId);
   Future<TrialSession> updateTrialStatus({
     required String trialId,
-    required String status,
+    required TrialStatus status,
   });
   Future<TrialEligibility> checkEligibility(String consultantProfileId);
   Future<TrialStats> getStats();
@@ -94,12 +94,12 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
   @override
   Future<TrialSession> updateTrialStatus({
     required String trialId,
-    required String status,
+    required TrialStatus status,
   }) async {
     try {
       final response = await _dio.put(
         '/api/trials/$trialId',
-        data: {'status': status},
+        data: {'status': status.name.toUpperCase()},
       );
       return TrialSession.fromJson(
         response.data['data'] as Map<String, dynamic>,

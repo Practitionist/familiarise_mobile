@@ -32,7 +32,7 @@ class TrialList extends _$TrialList {
   }
 
   /// Request a new trial and add it to the list
-  Future<TrialSession?> requestTrial({
+  Future<TrialSession> requestTrial({
     required String consultantProfileId,
     required String subscriptionPlanId,
     String? notes,
@@ -60,7 +60,7 @@ class TrialList extends _$TrialList {
   /// Update a trial's status (accept/reject for consultants)
   Future<void> updateStatus({
     required String trialId,
-    required String status,
+    required TrialStatus status,
   }) async {
     try {
       final source = ref.read(trialRemoteSourceProvider);

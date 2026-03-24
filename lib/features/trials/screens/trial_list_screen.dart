@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/trial/trial_entities.dart';
+import '../../../domain/entities/trial/trial_status.dart';
 import '../providers/trial_provider.dart';
 import '../widgets/trial_card.dart';
 
@@ -43,13 +44,13 @@ class TrialListScreen extends ConsumerWidget {
                     ref,
                     context,
                     trial.id,
-                    'SCHEDULED',
+                    TrialStatus.scheduled,
                   ),
                   onReject: () => _updateStatus(
                     ref,
                     context,
                     trial.id,
-                    'REJECTED',
+                    TrialStatus.rejected,
                   ),
                 );
               },
@@ -79,7 +80,7 @@ class TrialListScreen extends ConsumerWidget {
     WidgetRef ref,
     BuildContext context,
     String trialId,
-    String status,
+    TrialStatus status,
   ) async {
     try {
       await ref
@@ -87,7 +88,7 @@ class TrialListScreen extends ConsumerWidget {
           .updateStatus(trialId: trialId, status: status);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Trial ${status.toLowerCase()}')),
+          SnackBar(content: Text('Trial ${status.displayLabel}')),
         );
       }
     } catch (e) {
