@@ -111,6 +111,7 @@ class DatabaseClient {
     _referralRepository = ReferralRepository(_executor);
     _consultantVerificationRepository =
         ConsultantVerificationRepository(_executor, _prisma);
+    _trialRepository = TrialRepository(_executor, _prisma);
   }
 
   static DatabaseClient? _instance;
@@ -146,6 +147,7 @@ class DatabaseClient {
   late final ReferralRepository _referralRepository;
   late final ConsultantVerificationRepository
       _consultantVerificationRepository;
+  late final TrialRepository _trialRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -278,6 +280,9 @@ class DatabaseClient {
   /// Consultant verification repository (for profile verification workflow)
   ConsultantVerificationRepository get consultantVerifications =>
       _consultantVerificationRepository;
+
+  /// Trial session repository (for free trial management)
+  TrialRepository get trials => _trialRepository;
 
   /// Execute raw SQL query and return results as maps
   Future<List<Map<String, dynamic>>> executeRaw(
