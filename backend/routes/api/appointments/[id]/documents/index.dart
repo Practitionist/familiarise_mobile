@@ -5,22 +5,10 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
-/// GET /api/appointments/:id/documents — List documents for an appointment
+/// GET /api/appointments/:id/documents — List documents
 /// POST /api/appointments/:id/documents — Upload a document
-///
-/// POST body:
-/// {
-///   "fileName": "resume.pdf",
-///   "originalName": "My Resume.pdf",
-///   "fileSize": 102400,
-///   "mimeType": "application/pdf",
-///   "fileUrl": "https://...",
-///   "storagePath": "userId/123.pdf",
-///   "description": "Resume for review",
-///   "uploadedByRole": "CONSULTEE" | "CONSULTANT",
-///   "responseToDocumentId": "optional-doc-id"
-/// }
 Future<Response> onRequest(RequestContext context, String id) async {
   final method = context.request.method;
 
@@ -28,6 +16,56 @@ Future<Response> onRequest(RequestContext context, String id) async {
   if (method == HttpMethod.post) return _handlePost(context, id);
 
   return Response(statusCode: HttpStatus.methodNotAllowed);
+}
+
+/// Verify user is a participant in the appointment.
+/// Returns the user's role ('CONSULTEE'|'CONSULTANT') or a Response.
+Future<Object> _authorizeParticipant(
+  RequestContext context,
+  String appointmentId,
+  String userId,
+) async {
+  final db = context.read<DatabaseClient>();
+  final apptQuery = JsonQueryBuilder()
+      .model('Appointment')
+      .action(QueryAction.findFirst)
+      .where({'id': appointmentId})
+      .build();
+  final appointment = await db.executor.executeQueryAsSingleMap(
+    apptQuery,
+  );
+  if (appointment == null) {
+    return Response.json(
+      statusCode: HttpStatus.notFound,
+      body: {'error': {'message': 'Appointment not found'}},
+    );
+  }
+
+  final user = await db.users.findById(userId);
+  final consulteeProfileId = user?['consulteeProfileId'] as String?;
+  final consultantProfileId = user?['consultantProfileId'] as String?;
+  final apptConsulteeId =
+      appointment['consulteeProfileId'] as String?;
+  final apptConsultantId =
+      appointment['consultantProfileId'] as String?;
+
+  if (consulteeProfileId != null &&
+      consulteeProfileId == apptConsulteeId) {
+    return 'CONSULTEE';
+  }
+  if (consultantProfileId != null &&
+      consultantProfileId == apptConsultantId) {
+    return 'CONSULTANT';
+  }
+
+  return Response.json(
+    statusCode: HttpStatus.forbidden,
+    body: {
+      'error': {
+        'message': 'You are not a participant in this appointment',
+      },
+    },
+  );
 }
 
 Future<Response> _handleGet(RequestContext context, String id) async {
@@ -39,6 +77,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
         body: {'error': {'message': 'Unauthorized'}},
       );
     }
+
+    final authResult = await _authorizeParticipant(context, id, userId);
+    if (authResult is Response) return authResult;
 
     final db = context.read<DatabaseClient>();
     final docs = await db.appointmentDocuments.findByAppointment(id);
@@ -70,8 +111,12 @@ Future<Response> _handlePost(RequestContext context, String id) async {
       );
     }
 
-    final body = await context.request.json() as Map<String, dynamic>;
+    // Authorize and determine role server-side (not from client)
+    final authResult = await _authorizeParticipant(context, id, userId);
+    if (authResult is Response) return authResult;
+    final uploadedByRole = authResult as String;
 
+    final body = await context.request.json() as Map<String, dynamic>;
     final fileName = body['fileName'] as String?;
     final originalName = body['originalName'] as String?;
     final fileSize = body['fileSize'] as int?;
@@ -106,7 +151,7 @@ Future<Response> _handlePost(RequestContext context, String id) async {
       fileUrl: fileUrl,
       storagePath: storagePath,
       description: body['description'] as String?,
-      uploadedByRole: body['uploadedByRole'] as String? ?? 'CONSULTEE',
+      uploadedByRole: uploadedByRole,
       responseToDocumentId:
           body['responseToDocumentId'] as String?,
     );
