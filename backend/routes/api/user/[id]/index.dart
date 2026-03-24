@@ -6,11 +6,10 @@ import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
-/// PUT /api/user/:id
+/// GET /api/user/:id — Retrieve user profile
+/// PUT /api/user/:id — Update user profile
 ///
-/// Updates the authenticated user's profile fields.
-///
-/// Request body (all fields optional):
+/// PUT request body (all fields optional):
 /// ```json
 /// {
 ///   "name": "string",
@@ -23,16 +22,78 @@ import 'package:dart_frog/dart_frog.dart';
 ///   "country": "string",
 ///   "address": "string",
 ///   "linkedinUrl": "string (URL)",
-///   "timezone": "string"
+///   "timezone": "string",
+///   "profileDisplayImage": "string (URL)"
 /// }
 /// ```
 ///
-/// Returns the updated user object in `{ "data": { ... } }`.
+/// Returns the user object in `{ "data": { ... } }`.
 Future<Response> onRequest(RequestContext context, String id) async {
-  if (context.request.method != HttpMethod.put) {
-    return Response(statusCode: HttpStatus.methodNotAllowed);
+  final method = context.request.method;
+
+  if (method == HttpMethod.get) {
+    return _handleGet(context, id);
+  } else if (method == HttpMethod.put) {
+    return _handlePut(context, id);
   }
 
+  return Response(statusCode: HttpStatus.methodNotAllowed);
+}
+
+Future<Response> _handleGet(RequestContext context, String id) async {
+  try {
+    final userId = getUserIdFromToken(context);
+    if (userId == null) {
+      return Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {
+          'error': {'message': 'Unauthorized'},
+        },
+      );
+    }
+
+    // Users can only view their own profile via this route
+    if (userId != id) {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {
+          'error': {'message': 'You can only view your own profile'},
+        },
+      );
+    }
+
+    final db = context.read<DatabaseClient>();
+    final user = await db.users.findById(id);
+
+    if (user == null) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {
+          'error': {'message': 'User not found'},
+        },
+      );
+    }
+
+    user.remove('password');
+    return Response.json(body: {'data': serializeForJson(user)});
+  } catch (e, stackTrace) {
+    await SentryLogger.severe(
+      'Failed to get user profile',
+      context: 'UserGetRoute',
+      error: e,
+      stackTrace: stackTrace,
+    );
+
+    return Response.json(
+      statusCode: HttpStatus.internalServerError,
+      body: {
+        'error': {'message': 'Failed to get profile'},
+      },
+    );
+  }
+}
+
+Future<Response> _handlePut(RequestContext context, String id) async {
   try {
     // Verify authentication
     final userId = getUserIdFromToken(context);
@@ -70,6 +131,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
     final address = data['address'] as String?;
     final linkedinUrl = data['linkedinUrl'] as String?;
     final timezone = data['timezone'] as String?;
+    final profileDisplayImage = data['profileDisplayImage'] as String?;
 
     // Validate name if provided (must not be empty)
     if (name != null && name.trim().isEmpty) {
@@ -125,6 +187,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       address: address,
       linkedinUrl: linkedinUrl,
       timezone: timezone,
+      profileDisplayImage: profileDisplayImage,
     );
 
     if (updatedUser == null) {

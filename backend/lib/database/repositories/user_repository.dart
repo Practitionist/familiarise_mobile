@@ -84,6 +84,7 @@ class UserRepository extends BaseRepository {
     String? address,
     String? linkedinUrl,
     String? timezone,
+    String? profileDisplayImage,
   }) async {
     final data = <String, dynamic>{
       'updatedAt': nowIso8601,
@@ -99,6 +100,9 @@ class UserRepository extends BaseRepository {
     if (address != null) data['address'] = address;
     if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
     if (timezone != null) data['timezone'] = timezone;
+    if (profileDisplayImage != null) {
+      data['profileDisplayImage'] = profileDisplayImage;
+    }
 
     final query = JsonQueryBuilder()
         .model('users')

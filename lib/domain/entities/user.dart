@@ -28,6 +28,10 @@ class User with _$User {
     String? profileDisplayImage,
     String? address,
     @Default(false) bool onlineStatus,
+    String? staffProfileId,
+    String? adminProfileId,
+    DateTime? termsAcceptedAt,
+    DateTime? privacyAcceptedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) = _User;
