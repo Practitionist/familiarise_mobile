@@ -35,6 +35,8 @@ import '../features/support/screens/support_ticket_detail_screen.dart';
 import '../features/support/screens/create_ticket_screen.dart';
 import '../features/feedback/screens/feedback_screen.dart';
 import '../features/meetings/screens/meeting_screen.dart';
+import '../features/verification/screens/verification_status_screen.dart';
+import '../features/verification/screens/verification_submit_screen.dart';
 import 'providers/navigation_provider.dart';
 import 'shells/main_shell.dart';
 
@@ -438,6 +440,21 @@ GoRouter router(Ref ref) {
                 paramsData is DirectCheckoutParams ? paramsData : null,
           );
         },
+      ),
+
+      // Verification routes
+      GoRoute(
+        path: '/verification',
+        name: 'verification',
+        builder: (context, state) => const VerificationStatusScreen(),
+        routes: [
+          GoRoute(
+            path: 'submit',
+            name: 'verificationSubmit',
+            builder: (context, state) =>
+                const VerificationSubmitScreen(),
+          ),
+        ],
       ),
 
       // Support routes (PR#15)
