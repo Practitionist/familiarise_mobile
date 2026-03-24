@@ -39,6 +39,7 @@ import '../features/trials/screens/trial_list_screen.dart';
 import '../features/trials/screens/trial_request_screen.dart';
 import '../features/verification/screens/verification_status_screen.dart';
 import '../features/verification/screens/verification_submit_screen.dart';
+import '../features/waitlist/screens/waitlist_screen.dart';
 import 'providers/navigation_provider.dart';
 import 'shells/main_shell.dart';
 
@@ -457,6 +458,13 @@ GoRouter router(Ref ref) {
                 const VerificationSubmitScreen(),
           ),
         ],
+      ),
+
+      // Waitlist routes
+      GoRoute(
+        path: '/waitlist',
+        name: 'waitlist',
+        builder: (context, state) => const WaitlistScreen(),
       ),
 
       // Trial routes

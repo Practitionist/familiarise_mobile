@@ -2240,5 +2240,68 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // Waitlist (no @@map)
+  schema.registerModel(ModelSchema(
+    name: 'Waitlist',
+    tableName: 'Waitlist',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'joinedAt': const FieldInfo(
+          name: 'joinedAt', columnName: 'joinedAt', type: 'DateTime'),
+      'position': const FieldInfo(
+          name: 'position', columnName: 'position', type: 'Int'),
+      'status': const FieldInfo(
+          name: 'status', columnName: 'status', type: 'String'),
+      'priority': const FieldInfo(
+          name: 'priority', columnName: 'priority', type: 'Int'),
+      'notifiedAt': const FieldInfo(
+          name: 'notifiedAt', columnName: 'notifiedAt', type: 'DateTime'),
+      'expiresAt': const FieldInfo(
+          name: 'expiresAt', columnName: 'expiresAt', type: 'DateTime'),
+      'reminderSentAt': const FieldInfo(
+          name: 'reminderSentAt',
+          columnName: 'reminderSentAt',
+          type: 'DateTime'),
+      'bookedAt': const FieldInfo(
+          name: 'bookedAt', columnName: 'bookedAt', type: 'DateTime'),
+      'respondedAt': const FieldInfo(
+          name: 'respondedAt',
+          columnName: 'respondedAt',
+          type: 'DateTime'),
+      'preferences': const FieldInfo(
+          name: 'preferences', columnName: 'preferences', type: 'Json'),
+      'userId': const FieldInfo(
+          name: 'userId', columnName: 'userId', type: 'String'),
+      'webinarId': const FieldInfo(
+          name: 'webinarId', columnName: 'webinarId', type: 'String'),
+      'classId': const FieldInfo(
+          name: 'classId', columnName: 'classId', type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+    },
+    relations: {
+      'user': RelationInfo.oneToOne(
+        name: 'user',
+        targetModel: 'users',
+        foreignKey: 'userId',
+        isOwner: true,
+      ),
+      'webinar': RelationInfo.oneToOne(
+        name: 'webinar',
+        targetModel: 'Webinar',
+        foreignKey: 'webinarId',
+        isOwner: true,
+      ),
+      'class': RelationInfo.oneToOne(
+        name: 'class',
+        targetModel: 'Class',
+        foreignKey: 'classId',
+        isOwner: true,
+      ),
+    },
+  ));
+
   return schema;
 }
