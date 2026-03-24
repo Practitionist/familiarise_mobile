@@ -81,6 +81,15 @@ abstract final class ApiEndpoints {
   // Notifications
   static const String notifications = '$api/notifications';
   static const String notificationsMarkRead = '$notifications/mark-read';
+  static const String notificationsPreferences = '$notifications/preferences';
+  static const String notificationsRegisterToken =
+      '$notifications/register-token';
+  static const String notificationsUnregisterToken =
+      '$notifications/unregister-token';
+  static const String notificationsSubscriberHash =
+      '$notifications/subscriber-hash';
+  static const String notificationsSubscriberSync =
+      '$notifications/subscriber/sync';
 
   // Reviews
   static const String reviews = '$api/reviews';

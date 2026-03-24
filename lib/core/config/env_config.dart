@@ -125,6 +125,10 @@ abstract class EnvConfig {
     return googleClientIdWeb;
   }
 
+  // Novu
+  @EnviedField(varName: 'NOVU_APP_ID', defaultValue: '')
+  static String novuAppId = _EnvConfig.novuAppId;
+
   // Sentry
   @EnviedField(varName: 'SENTRY_DSN', defaultValue: '')
   static String sentryDsn = _EnvConfig.sentryDsn;

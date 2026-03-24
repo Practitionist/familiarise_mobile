@@ -84,10 +84,7 @@ class ProfileScreen extends ConsumerWidget {
               icon: Icons.notifications_outlined,
               title: 'Notifications',
               onTap: () {
-                // TODO: Navigate to notifications settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon')),
-                );
+                context.push('/notifications');
               },
             ),
             _buildMenuItem(

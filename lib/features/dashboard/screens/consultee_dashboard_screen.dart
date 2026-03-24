@@ -5,6 +5,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/widgets/notification_bell_widget.dart';
 import '../providers/consultee_dashboard_provider.dart';
 import '../widgets/dashboard_section_header.dart';
 import '../widgets/pending_payment_card.dart';
@@ -41,11 +42,8 @@ class ConsulteeDashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
-          ),
+        actions: const [
+          NotificationBellWidget(),
         ],
       ),
       body: RefreshIndicator(

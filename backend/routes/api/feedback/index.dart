@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/services/novu/notification_triggers.dart';
+import 'package:backend/services/novu/novu_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// App feedback endpoint
 ///
@@ -89,6 +93,39 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       category: data['category'] as String?,
       rating: rating,
     );
+
+    // Fire-and-forget: notify admin about new feedback
+    final novuService = context.read<NovuService>();
+    if (novuService.isConfigured) {
+      unawaited(() async {
+        try {
+          // Get the user's name
+          final userQuery = JsonQueryBuilder()
+              .model('User')
+              .action(QueryAction.findUnique)
+              .where({'id': userId}).build();
+          final user =
+              await db.executor.executeQueryAsSingleMap(userQuery);
+
+          // Send to admin (use a well-known admin user ID or skip)
+          // For now, just trigger the workflow — Novu will route to
+          // the configured admin topic/subscriber
+          await NotificationTriggers.feedbackReceived(
+            novuService,
+            adminUserId: 'admin',
+            userName: user?['name'] as String? ?? 'A user',
+            feedbackTitle: title,
+            category: data['category'] as String?,
+            rating: rating,
+          );
+        } catch (e) {
+          SentryLogger.warning(
+            'Failed to send feedback notification: $e',
+            context: 'FeedbackRoute',
+          );
+        }
+      }());
+    }
 
     return Response.json(
       statusCode: HttpStatus.created,
