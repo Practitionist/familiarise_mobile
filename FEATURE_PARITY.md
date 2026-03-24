@@ -38,9 +38,9 @@
 | Personal info (name, phone, DOB, gender, etc.) | ✅ | ✅ |
 | Consultant profile (headline, description, domains) | ✅ | ✅ |
 | Consultee profile (career stage, preferences) | ✅ | ✅ |
-| Professional background — Work experience | ✅ | ❌ |
-| Professional background — Education | ✅ | ❌ |
-| Professional background — Certifications | ✅ | ❌ |
+| Professional background — Work experience | ✅ | ✅ |
+| Professional background — Education | ✅ | ✅ |
+| Professional background — Certifications | ✅ | ✅ |
 | Professional background — Achievements | ✅ | ❌ |
 | Verification document upload during onboarding | ✅ | ❌ |
 | Review step with navigation back to specific steps | ✅ | ❌ |
