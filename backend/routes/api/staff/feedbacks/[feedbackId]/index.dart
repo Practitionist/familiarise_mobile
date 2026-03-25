@@ -42,7 +42,7 @@ Future<Response> onRequest(
     if (body.containsKey('status')) data['status'] = body['status'];
 
     final query = JsonQueryBuilder()
-        .model('feedbacks')
+        .model('Feedback')
         .action(QueryAction.update)
         .where({'id': feedbackId})
         .data(data)

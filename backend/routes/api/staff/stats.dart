@@ -34,7 +34,7 @@ Future<Response> onRequest(RequestContext context) async {
 
     // Gather basic metrics
     final openTicketsQuery = JsonQueryBuilder()
-        .model('support_tickets')
+        .model('SupportTicket')
         .action(QueryAction.count)
         .where({'status': 'OPEN'})
         .build();
@@ -50,7 +50,7 @@ Future<Response> onRequest(RequestContext context) async {
         await db.executor.executeCount(pendingVerificationsQuery);
 
     final pendingFeedbackQuery = JsonQueryBuilder()
-        .model('feedbacks')
+        .model('Feedback')
         .action(QueryAction.count)
         .where({'status': 'PENDING'})
         .build();
