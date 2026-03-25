@@ -2431,5 +2431,81 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // Announcement (@@map → announcements)
+  schema.registerModel(ModelSchema(
+    name: 'Announcement',
+    tableName: 'announcements',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'title': const FieldInfo(
+          name: 'title', columnName: 'title', type: 'String'),
+      'content': const FieldInfo(
+          name: 'content', columnName: 'content', type: 'String'),
+      'isActive': const FieldInfo(
+          name: 'isActive', columnName: 'isActive', type: 'Boolean'),
+      'startDate': const FieldInfo(
+          name: 'startDate',
+          columnName: 'startDate',
+          type: 'DateTime'),
+      'endDate': const FieldInfo(
+          name: 'endDate', columnName: 'endDate', type: 'DateTime'),
+      'backgroundColor': const FieldInfo(
+          name: 'backgroundColor',
+          columnName: 'backgroundColor',
+          type: 'String'),
+      'textColor': const FieldInfo(
+          name: 'textColor',
+          columnName: 'textColor',
+          type: 'String'),
+      'linkUrl': const FieldInfo(
+          name: 'linkUrl', columnName: 'linkUrl', type: 'String'),
+      'linkText': const FieldInfo(
+          name: 'linkText', columnName: 'linkText', type: 'String'),
+      'createdBy': const FieldInfo(
+          name: 'createdBy',
+          columnName: 'createdBy',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt',
+          columnName: 'createdAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt',
+          columnName: 'updatedAt',
+          type: 'DateTime'),
+    },
+  ));
+
+  // MaintenanceWindow (@@map → maintenance_windows)
+  schema.registerModel(ModelSchema(
+    name: 'MaintenanceWindow',
+    tableName: 'maintenance_windows',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'title': const FieldInfo(
+          name: 'title', columnName: 'title', type: 'String'),
+      'message': const FieldInfo(
+          name: 'message', columnName: 'message', type: 'String'),
+      'isActive': const FieldInfo(
+          name: 'isActive', columnName: 'isActive', type: 'Boolean'),
+      'phase': const FieldInfo(
+          name: 'phase', columnName: 'phase', type: 'String'),
+      'startTime': const FieldInfo(
+          name: 'startTime',
+          columnName: 'startTime',
+          type: 'DateTime'),
+      'endTime': const FieldInfo(
+          name: 'endTime', columnName: 'endTime', type: 'DateTime'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt',
+          columnName: 'createdAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt',
+          columnName: 'updatedAt',
+          type: 'DateTime'),
+    },
+  ));
+
   return schema;
 }
