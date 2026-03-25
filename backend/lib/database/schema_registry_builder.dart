@@ -2431,5 +2431,99 @@ SchemaRegistry buildSchemaRegistry() {
     },
   ));
 
+  // Announcement (@@map → announcements)
+  schema.registerModel(ModelSchema(
+    name: 'Announcement',
+    tableName: 'announcements',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'title': const FieldInfo(
+          name: 'title', columnName: 'title', type: 'String'),
+      'content': const FieldInfo(
+          name: 'content', columnName: 'content', type: 'String'),
+      'isActive': const FieldInfo(
+          name: 'isActive', columnName: 'isActive', type: 'Boolean'),
+      'startDate': const FieldInfo(
+          name: 'startDate',
+          columnName: 'startDate',
+          type: 'DateTime'),
+      'endDate': const FieldInfo(
+          name: 'endDate', columnName: 'endDate', type: 'DateTime'),
+      'backgroundColor': const FieldInfo(
+          name: 'backgroundColor',
+          columnName: 'backgroundColor',
+          type: 'String'),
+      'textColor': const FieldInfo(
+          name: 'textColor',
+          columnName: 'textColor',
+          type: 'String'),
+      'linkUrl': const FieldInfo(
+          name: 'linkUrl', columnName: 'linkUrl', type: 'String'),
+      'linkText': const FieldInfo(
+          name: 'linkText', columnName: 'linkText', type: 'String'),
+      'createdBy': const FieldInfo(
+          name: 'createdBy',
+          columnName: 'createdBy',
+          type: 'String'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt',
+          columnName: 'createdAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt',
+          columnName: 'updatedAt',
+          type: 'DateTime'),
+    },
+  ));
+
+  // MaintenanceWindow (@@map → maintenance_windows)
+  schema.registerModel(ModelSchema(
+    name: 'MaintenanceWindow',
+    tableName: 'maintenance_windows',
+    fields: {
+      'id': FieldInfo.id(name: 'id'),
+      'phase': const FieldInfo(
+          name: 'phase', columnName: 'phase', type: 'String'),
+      'reason': const FieldInfo(
+          name: 'reason', columnName: 'reason', type: 'String'),
+      'scheduledAt': const FieldInfo(
+          name: 'scheduledAt',
+          columnName: 'scheduledAt',
+          type: 'DateTime'),
+      'startedAt': const FieldInfo(
+          name: 'startedAt',
+          columnName: 'startedAt',
+          type: 'DateTime'),
+      'endedAt': const FieldInfo(
+          name: 'endedAt',
+          columnName: 'endedAt',
+          type: 'DateTime'),
+      'estimatedEnd': const FieldInfo(
+          name: 'estimatedEnd',
+          columnName: 'estimatedEnd',
+          type: 'DateTime'),
+      'startedBy': const FieldInfo(
+          name: 'startedBy',
+          columnName: 'startedBy',
+          type: 'String'),
+      'endedBy': const FieldInfo(
+          name: 'endedBy',
+          columnName: 'endedBy',
+          type: 'String'),
+      'metadata': const FieldInfo(
+          name: 'metadata',
+          columnName: 'metadata',
+          type: 'Json'),
+      'createdAt': const FieldInfo(
+          name: 'createdAt',
+          columnName: 'createdAt',
+          type: 'DateTime'),
+      'updatedAt': const FieldInfo(
+          name: 'updatedAt',
+          columnName: 'updatedAt',
+          type: 'DateTime'),
+    },
+  ));
+
   return schema;
 }
