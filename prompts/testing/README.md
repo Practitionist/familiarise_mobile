@@ -6,39 +6,39 @@ Comprehensive end-to-end testing for the Familiarise mobile app before productio
 
 ```
 testing/
-├── unit/                    (one prompt per feature, isolated)
-│   ├── auth.md              Sign up, sign in, passwords, sessions
-│   ├── onboarding.md        Consultee + consultant onboarding flows
-│   ├── profile.md           Edit profile, image, professional background
-│   ├── verification.md      Consultant verification submit/status
-│   ├── plans.md             Plan CRUD (all 4 types)
-│   ├── slots.md             Weekly + custom availability slots
-│   ├── explore.md           Browse consultants, filters, profiles
-│   ├── booking.md           Request booking, view list/detail
-│   ├── checkout.md          Checkout screen, price display
-│   ├── trials.md            Trial eligibility, request, accept/reject
-│   ├── waitlist.md          Join, view, leave waitlist
-│   ├── documents.md         Appointment document upload/review
-│   ├── chat.md              Chat list page (UI rendering)
-│   ├── referrals.md         Code generation, apply, credits
-│   ├── reviews.md           Submit/view consultant reviews
-│   ├── support.md           Create/view tickets, add responses
-│   ├── feedback.md          Submit app feedback
-│   ├── payout.md            Payout account CRUD (bank/UPI)
-│   ├── tax.md               Tax info (PAN/GST)
-│   ├── staff.md             Staff dashboard, moderation, tickets
-│   ├── announcements.md     Announcement banner display
-│   ├── collaborations.md    Collaboration invitations
-│   └── dashboard.md         Consultee + consultant dashboards
+├── unit/                          (one prompt per feature, isolated)
+│   ├── 01-auth.md                 Sign up, sign in, passwords, sessions
+│   ├── 02-onboarding.md           Consultee + consultant onboarding flows
+│   ├── 03-profile.md              Edit profile, image, professional background
+│   ├── 04-verification.md         Consultant verification submit/status
+│   ├── 05-plans.md                Plan CRUD (all 4 types)
+│   ├── 06-slots.md                Weekly + custom availability slots
+│   ├── 07-explore.md              Browse consultants, filters, profiles
+│   ├── 08-booking.md              Request booking, view list/detail
+│   ├── 09-checkout.md             Checkout screen, price display
+│   ├── 10-trials.md               Trial eligibility, request, accept/reject
+│   ├── 11-waitlist.md             Join, view, leave waitlist
+│   ├── 12-documents.md            Appointment document upload/review
+│   ├── 13-chat.md                 Chat list page (UI rendering)
+│   ├── 14-referrals.md            Code generation, apply, credits
+│   ├── 15-reviews.md              Submit/view consultant reviews
+│   ├── 16-support.md              Create/view tickets, add responses
+│   ├── 17-feedback.md             Submit app feedback
+│   ├── 18-payout.md               Payout account CRUD (bank/UPI)
+│   ├── 19-tax.md                  Tax info (PAN/GST)
+│   ├── 20-staff.md                Staff dashboard, moderation, tickets
+│   ├── 21-announcements.md        Announcement banner display
+│   ├── 22-collaborations.md       Collaboration invitations
+│   └── 23-dashboard.md            Consultee + consultant dashboards
 │
-├── integration/             (cross-feature user journeys)
-│   ├── consultant-lifecycle.md       Sign up → onboard → plans → slots → trial → payout → tax → verify
-│   ├── consultee-booking-journey.md  Sign up → onboard → explore → trial → book → pay → review → refer → waitlist
-│   ├── staff-moderation-flow.md      Dashboard → verify profile → respond ticket → review feedback
-│   ├── payment-payout-flow.md        Book → checkout → discount → pay → earnings → payout → invoice
-│   └── edge-cases-regression.md      Invalid inputs, auth guards, role access, duplicates, empty states
+├── integration/                   (cross-feature user journeys)
+│   ├── 01-consultant-lifecycle.md          Sign up → onboard → plans → slots → trial → payout → tax → verify
+│   ├── 02-consultee-booking-journey.md     Sign up → explore → trial → book → pay → review → refer → waitlist
+│   ├── 03-staff-moderation-flow.md         Dashboard → verify profile → respond ticket → review feedback
+│   ├── 04-payment-payout-flow.md           Book → checkout → discount → pay → earnings → payout → invoice
+│   └── 05-edge-cases-regression.md         Invalid inputs, auth guards, role access, duplicates, empty states
 │
-└── README.md                (this file)
+└── README.md                      (this file)
 ```
 
 ## How to Run
