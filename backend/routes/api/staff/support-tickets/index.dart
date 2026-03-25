@@ -40,6 +40,7 @@ Future<Response> onRequest(RequestContext context) async {
         .model('SupportTicket')
         .action(QueryAction.findMany)
         .where(where)
+        .orderBy({'createdAt': 'desc'})
         .build();
     final tickets = await db.executor.executeQueryAsMaps(query);
 

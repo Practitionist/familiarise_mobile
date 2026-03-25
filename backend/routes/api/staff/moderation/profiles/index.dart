@@ -18,7 +18,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -28,21 +30,42 @@ Future<Response> onRequest(RequestContext context) async {
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
     final query = JsonQueryBuilder()
         .model('ConsultantProfileVerification')
         .action(QueryAction.findMany)
-        .where({'status': 'PENDING'})
-        .build();
-    final verifications =
-        await db.executor.executeQueryAsMaps(query);
+        .where({'status': 'PENDING'}).build();
+    final verifications = await db.executor.executeQueryAsMaps(query);
+
+    final enriched = <Map<String, dynamic>>[];
+    for (final verification in verifications) {
+      final json = serializeForJson(verification);
+      final consultantProfileId =
+          verification['consultantProfileId'] as String?;
+      if (consultantProfileId != null) {
+        final profileQuery = JsonQueryBuilder()
+            .model('ConsultantProfile')
+            .action(QueryAction.findUnique)
+            .where({'id': consultantProfileId}).build();
+        final profile = await db.executor.executeQueryAsSingleMap(profileQuery);
+        final consultantUserId = profile?['userId'] as String?;
+        if (consultantUserId != null) {
+          final consultantUser = await db.users.findById(consultantUserId);
+          json['consultantName'] = consultantUser?['name'];
+          json['consultantEmail'] = consultantUser?['email'];
+        }
+      }
+      enriched.add(json);
+    }
 
     return Response.json(
       body: {
-        'data': verifications.map(serializeForJson).toList(),
+        'data': enriched,
       },
     );
   } catch (e, stackTrace) {

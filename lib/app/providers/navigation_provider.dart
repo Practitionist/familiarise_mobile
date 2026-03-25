@@ -129,10 +129,46 @@ class AppNavigationTabs {
     ),
   ];
 
+  static const _staffTabs = [
+    AppNavTab(
+      path: '/staff',
+      label: 'Staff',
+      icon: Icons.admin_panel_settings_outlined,
+      selectedIcon: Icons.admin_panel_settings,
+    ),
+    AppNavTab(
+      path: '/staff/verifications',
+      label: 'Verify',
+      icon: Icons.verified_user_outlined,
+      selectedIcon: Icons.verified_user,
+    ),
+    AppNavTab(
+      path: '/staff/tickets',
+      label: 'Tickets',
+      icon: Icons.support_agent_outlined,
+      selectedIcon: Icons.support_agent,
+    ),
+    AppNavTab(
+      path: '/staff/feedback',
+      label: 'Feedback',
+      icon: Icons.feedback_outlined,
+      selectedIcon: Icons.feedback,
+    ),
+    AppNavTab(
+      path: '/profile',
+      label: 'Profile',
+      icon: Icons.person_outline,
+      selectedIcon: Icons.person,
+    ),
+  ];
+
   /// Get the tab list for a given user role
   static List<AppNavTab> forRole(UserRole role) {
     if (role == UserRole.consultant) {
       return _consultantTabs;
+    }
+    if (role == UserRole.staff || role == UserRole.admin) {
+      return _staffTabs;
     }
     return _consulteeTabs;
   }
