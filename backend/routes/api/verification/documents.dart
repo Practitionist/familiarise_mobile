@@ -68,7 +68,7 @@ Future<Response> _handleGet(RequestContext context) async {
     );
 
     return Response.json(
-      body: {'data': documents.map((d) => d.toJson()).toList()},
+      body: {'data': documents},
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(

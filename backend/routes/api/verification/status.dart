@@ -77,8 +77,7 @@ Future<Response> onRequest(RequestContext context) async {
     );
 
     final verificationJson = verification.toJson();
-    verificationJson['documents'] =
-        documents.map((d) => d.toJson()).toList();
+    verificationJson['documents'] = documents;
 
     return Response.json(body: {'data': verificationJson});
   } catch (e, stackTrace) {

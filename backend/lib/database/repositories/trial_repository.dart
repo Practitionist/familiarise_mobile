@@ -1,27 +1,44 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:uuid/uuid.dart';
 
-/// Repository for trial session operations using PrismaClient typed delegates.
+/// Repository for trial session operations.
+///
+/// Uses JsonQueryBuilder for queries with filters (connector can't
+/// serialize StringFilter objects — teetangh/prisma-flutter-connector#25).
+/// Uses PrismaClient for findUnique/update (which work correctly).
 class TrialRepository extends BaseRepository {
   TrialRepository(super._executor, this._prisma);
 
   final PrismaClient _prisma;
+  static const _uuid = Uuid();
 
   /// Request a new trial session.
-  Future<TrialSession> create({
+  Future<Map<String, dynamic>> create({
     required String consulteeProfileId,
     required String consultantProfileId,
     required String subscriptionPlanId,
     String? notes,
   }) async {
-    return _prisma.trialSession.create(
-      data: CreateTrialSessionInput(
-        consulteeProfileId: consulteeProfileId,
-        consultantProfileId: consultantProfileId,
-        subscriptionPlanId: subscriptionPlanId,
-        notes: notes,
-      ),
-    );
+    final now = nowIso8601;
+    final query = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.create)
+        .data({
+      'id': _uuid.v4(),
+      'consulteeProfileId': consulteeProfileId,
+      'consultantProfileId': consultantProfileId,
+      'subscriptionPlanId': subscriptionPlanId,
+      'notes': notes,
+      'status': 'PENDING',
+      'requestedAt': now,
+      'createdAt': now,
+      'updatedAt': now,
+    }).build();
+    final result = await executeQueryAsSingleMap(query);
+    if (result == null) throw Exception('Failed to create trial');
+    return result;
   }
 
   /// Find a trial by ID.
@@ -32,36 +49,33 @@ class TrialRepository extends BaseRepository {
   }
 
   /// List trials for a consultant.
-  Future<List<TrialSession>> findByConsultant(
+  Future<List<Map<String, dynamic>>> findByConsultant(
     String consultantProfileId, {
-    TrialSessionStatus? status,
+    String? status,
   }) async {
-    return _prisma.trialSession.findMany(
-      where: TrialSessionWhereInput(
-        consultantProfileId:
-            StringFilter(equals: consultantProfileId),
-        status: status != null
-            ? TrialSessionStatusFilter(equals: status)
-            : null,
-      ),
-      orderBy: const TrialSessionOrderByInput(
-        createdAt: SortOrder.desc,
-      ),
-    );
+    final where = <String, dynamic>{
+      'consultantProfileId': consultantProfileId,
+    };
+    if (status != null) where['status'] = status;
+
+    final query = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.findMany)
+        .where(where)
+        .build();
+    return executeQueryAsMaps(query);
   }
 
   /// List trials for a consultee.
-  Future<List<TrialSession>> findByConsultee(
+  Future<List<Map<String, dynamic>>> findByConsultee(
     String consulteeProfileId,
   ) async {
-    return _prisma.trialSession.findMany(
-      where: TrialSessionWhereInput(
-        consulteeProfileId: StringFilter(equals: consulteeProfileId),
-      ),
-      orderBy: const TrialSessionOrderByInput(
-        createdAt: SortOrder.desc,
-      ),
-    );
+    final query = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.findMany)
+        .where({'consulteeProfileId': consulteeProfileId})
+        .build();
+    return executeQueryAsMaps(query);
   }
 
   /// Check if a trial already exists for this consultant-consultee pair.
@@ -69,39 +83,42 @@ class TrialRepository extends BaseRepository {
     required String consulteeProfileId,
     required String consultantProfileId,
   }) async {
-    final count = await _prisma.trialSession.count(
-      where: TrialSessionWhereInput(
-        consulteeProfileId: StringFilter(equals: consulteeProfileId),
-        consultantProfileId:
-            StringFilter(equals: consultantProfileId),
-      ),
-    );
+    final query = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.count)
+        .where({
+      'consulteeProfileId': consulteeProfileId,
+      'consultantProfileId': consultantProfileId,
+    }).build();
+    final count = await executeCount(query);
     return count > 0;
   }
 
   /// Update trial status.
-  Future<TrialSession> updateStatus({
+  Future<Map<String, dynamic>?> updateStatus({
     required String id,
-    required TrialSessionStatus status,
+    required String status,
   }) async {
-    return _prisma.trialSession.update(
-      where: TrialSessionWhereUniqueInput(id: id),
-      data: UpdateTrialSessionInput(status: status),
-    );
+    final query = JsonQueryBuilder()
+        .model('TrialSession')
+        .action(QueryAction.update)
+        .where({'id': id})
+        .data({
+      'status': status,
+      'updatedAt': nowIso8601,
+    }).build();
+    return executeQueryAsSingleMap(query);
   }
 
   /// Get trial stats for a consultant.
   Future<Map<String, int>> getStats(String consultantProfileId) async {
     final all = await findByConsultant(consultantProfileId);
-    final pending = all
-        .where((t) => t.status == TrialSessionStatus.pending)
-        .length;
-    final completed = all
-        .where((t) => t.status == TrialSessionStatus.completed)
-        .length;
-    final converted = all
-        .where((t) => t.status == TrialSessionStatus.converted)
-        .length;
+    final pending =
+        all.where((t) => t['status'] == 'PENDING').length;
+    final completed =
+        all.where((t) => t['status'] == 'COMPLETED').length;
+    final converted =
+        all.where((t) => t['status'] == 'CONVERTED').length;
     return {
       'total': all.length,
       'pending': pending,
