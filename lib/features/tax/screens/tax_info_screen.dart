@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/sentry_logger.dart';
 import '../providers/tax_provider.dart';
@@ -113,6 +114,7 @@ class _TaxInfoScreenState extends ConsumerState<TaxInfoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tax info saved')),
         );
+        if (context.canPop()) context.pop();
       }
     } catch (e, stack) {
       AppSentryLogger.captureException(e,
