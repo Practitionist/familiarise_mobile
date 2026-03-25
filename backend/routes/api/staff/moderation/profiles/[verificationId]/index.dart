@@ -67,7 +67,7 @@ Future<Response> _handleGet(
         await db.consultantVerifications.getDocuments(verificationId);
 
     final json = verification.toJson();
-    json['documents'] = docs.map((d) => d.toJson()).toList();
+    json['documents'] = docs;
 
     return Response.json(body: {'data': json});
   } catch (e, stackTrace) {

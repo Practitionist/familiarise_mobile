@@ -83,16 +83,16 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<ConsultantProfileVerification?> findLatest(
     String consultantProfileId,
   ) async {
-    final results = await _prisma.consultantProfileVerification.findMany(
-      where: ConsultantProfileVerificationWhereInput(
-        consultantProfileId: StringFilter(equals: consultantProfileId),
-      ),
-      orderBy: const ConsultantProfileVerificationOrderByInput(
-        createdAt: SortOrder.desc,
-      ),
-      take: 1,
-    );
-    return results.isEmpty ? null : results.first;
+    // Use JsonQueryBuilder — PrismaClient StringFilter not serializable
+    // (connector issue teetangh/prisma-flutter-connector#25)
+    final query = JsonQueryBuilder()
+        .model('ConsultantProfileVerification')
+        .action(QueryAction.findFirst)
+        .where({'consultantProfileId': consultantProfileId})
+        .build();
+    final result = await executeQueryAsSingleMap(query);
+    if (result == null) return null;
+    return ConsultantProfileVerification.fromJson(result);
   }
 
   /// Get a verification by ID.
@@ -103,17 +103,15 @@ class ConsultantVerificationRepository extends BaseRepository {
   }
 
   /// Get all verifications for a consultant profile.
-  Future<List<ConsultantProfileVerification>> findAll(
+  Future<List<Map<String, dynamic>>> findAll(
     String consultantProfileId,
   ) async {
-    return _prisma.consultantProfileVerification.findMany(
-      where: ConsultantProfileVerificationWhereInput(
-        consultantProfileId: StringFilter(equals: consultantProfileId),
-      ),
-      orderBy: const ConsultantProfileVerificationOrderByInput(
-        createdAt: SortOrder.desc,
-      ),
-    );
+    final query = JsonQueryBuilder()
+        .model('ConsultantProfileVerification')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .build();
+    return executeQueryAsMaps(query);
   }
 
   /// Add a document to an existing verification.
@@ -142,14 +140,15 @@ class ConsultantVerificationRepository extends BaseRepository {
   }
 
   /// Get all documents for a verification.
-  Future<List<ProfileVerificationDocument>> getDocuments(
+  Future<List<Map<String, dynamic>>> getDocuments(
     String verificationId,
   ) async {
-    return _prisma.profileVerificationDocument.findMany(
-      where: ProfileVerificationDocumentWhereInput(
-        verificationId: StringFilter(equals: verificationId),
-      ),
-    );
+    final query = JsonQueryBuilder()
+        .model('ProfileVerificationDocument')
+        .action(QueryAction.findMany)
+        .where({'verificationId': verificationId})
+        .build();
+    return executeQueryAsMaps(query);
   }
 
   /// Resubmit a verification (creates a new one, supersedes the old).

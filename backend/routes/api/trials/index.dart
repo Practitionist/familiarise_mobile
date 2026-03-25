@@ -42,7 +42,7 @@ Future<Response> _handleGet(RequestContext context) async {
     final consulteeProfileId =
         user?['consulteeProfileId'] as String?;
 
-    List<TrialSession> trials;
+    List<Map<String, dynamic>> trials;
     if (consultantProfileId != null) {
       trials = await db.trials.findByConsultant(consultantProfileId);
     } else if (consulteeProfileId != null) {
@@ -52,7 +52,7 @@ Future<Response> _handleGet(RequestContext context) async {
     }
 
     return Response.json(
-      body: {'data': trials.map((t) => t.toJson()).toList()},
+      body: {'data': trials.map(serializeForJson).toList()},
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -137,7 +137,7 @@ Future<Response> _handlePost(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.created,
-      body: {'data': trial.toJson()},
+      body: {'data': serializeForJson(trial)},
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(

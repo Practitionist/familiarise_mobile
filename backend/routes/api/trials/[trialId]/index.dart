@@ -80,18 +80,17 @@ Future<Response> _handlePut(
       );
     }
 
-    final status = TrialSessionStatus.values.firstWhere(
-      (s) => s.name.toUpperCase() == statusStr.toUpperCase(),
-      orElse: () => throw FormatException('Invalid status: $statusStr'),
-    );
-
     final db = context.read<DatabaseClient>();
     final trial = await db.trials.updateStatus(
       id: trialId,
-      status: status,
+      status: statusStr.toUpperCase(),
     );
 
-    return Response.json(body: {'data': trial.toJson()});
+    return Response.json(
+      body: {
+        'data': trial != null ? serializeForJson(trial) : null,
+      },
+    );
   } on FormatException catch (e) {
     return Response.json(
       statusCode: HttpStatus.badRequest,
