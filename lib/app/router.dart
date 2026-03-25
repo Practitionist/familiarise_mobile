@@ -37,6 +37,10 @@ import '../features/feedback/screens/feedback_screen.dart';
 import '../features/meetings/screens/meeting_screen.dart';
 import '../features/trials/screens/trial_list_screen.dart';
 import '../features/trials/screens/trial_request_screen.dart';
+import '../features/maintenance/screens/maintenance_screen.dart';
+import '../features/payout/screens/add_payout_account_screen.dart';
+import '../features/payout/screens/payout_accounts_screen.dart';
+import '../features/tax/screens/tax_info_screen.dart';
 import '../features/verification/screens/verification_status_screen.dart';
 import '../features/verification/screens/verification_submit_screen.dart';
 import '../features/waitlist/screens/waitlist_screen.dart';
@@ -496,6 +500,35 @@ GoRouter router(Ref ref) {
             },
           ),
         ],
+      ),
+
+      // Payout routes
+      GoRoute(
+        path: '/payout-accounts',
+        name: 'payoutAccounts',
+        builder: (context, state) => const PayoutAccountsScreen(),
+        routes: [
+          GoRoute(
+            path: 'add',
+            name: 'addPayoutAccount',
+            builder: (context, state) =>
+                const AddPayoutAccountScreen(),
+          ),
+        ],
+      ),
+
+      // Tax info routes
+      GoRoute(
+        path: '/tax-info',
+        name: 'taxInfo',
+        builder: (context, state) => const TaxInfoScreen(),
+      ),
+
+      // Maintenance route
+      GoRoute(
+        path: '/maintenance',
+        name: 'maintenance',
+        builder: (context, state) => const MaintenanceScreen(),
       ),
 
       // Support routes (PR#15)
