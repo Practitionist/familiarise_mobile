@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/enums.dart';
+import '../../features/announcements/widgets/announcement_banner.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/timezone_indicator.dart';
 import '../providers/navigation_provider.dart';
@@ -26,7 +27,12 @@ class MainShell extends ConsumerWidget {
     final tabs = AppNavigationTabs.forRole(role);
 
     return Scaffold(
-      body: child,
+      body: Column(
+        children: [
+          const AnnouncementBanner(),
+          Expanded(child: child),
+        ],
+      ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

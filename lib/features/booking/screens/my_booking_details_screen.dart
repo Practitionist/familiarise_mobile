@@ -279,6 +279,19 @@ class _MyBookingDetailsScreenState
                 BookingFeedbackContent(booking: booking),
               ],
 
+              const SizedBox(height: 24),
+
+              // Documents
+              if (booking.appointmentId != null)
+                OutlinedButton.icon(
+                  onPressed: () => context.push(
+                    '/bookings/${widget.bookingId}/documents'
+                    '?appointmentId=${booking.appointmentId}',
+                  ),
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('View Documents'),
+                ),
+
               const SizedBox(height: 32),
 
               // Actions
