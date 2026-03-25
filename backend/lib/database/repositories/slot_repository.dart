@@ -518,4 +518,148 @@ class SlotRepository extends BaseRepository {
       };
     }).toList();
   }
+
+  // ===========================================================================
+  // Weekly Slot CRUD (consultant self-management)
+  // ===========================================================================
+
+  /// List weekly slots for a consultant.
+  Future<List<Map<String, dynamic>>> listWeeklySlots(
+    String consultantProfileId,
+  ) async {
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityWeekly')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .build();
+    return executeQueryAsMaps(query);
+  }
+
+  /// Create a weekly availability slot.
+  Future<Map<String, dynamic>> createWeeklySlot({
+    required String consultantProfileId,
+    required String startDay,
+    required String endDay,
+    required int startTimeUtc,
+    required int endTimeUtc,
+    int utcOffsetMinutes = 0,
+  }) async {
+    final now = nowIso8601;
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityWeekly')
+        .action(QueryAction.create)
+        .data({
+      'consultantProfileId': consultantProfileId,
+      'startDay': startDay,
+      'endDay': endDay,
+      'startTimeUtc': startTimeUtc,
+      'endTimeUtc': endTimeUtc,
+      'utcOffsetMinutes': utcOffsetMinutes,
+      'createdAt': now,
+      'updatedAt': now,
+    }).build();
+    final result = await executeQueryAsSingleMap(query);
+    if (result == null) throw Exception('Failed to create slot');
+    return result;
+  }
+
+  /// Update a weekly slot.
+  Future<Map<String, dynamic>?> updateWeeklySlot({
+    required String id,
+    String? startDay,
+    String? endDay,
+    int? startTimeUtc,
+    int? endTimeUtc,
+  }) async {
+    final data = <String, dynamic>{'updatedAt': nowIso8601};
+    if (startDay != null) data['startDay'] = startDay;
+    if (endDay != null) data['endDay'] = endDay;
+    if (startTimeUtc != null) data['startTimeUtc'] = startTimeUtc;
+    if (endTimeUtc != null) data['endTimeUtc'] = endTimeUtc;
+
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityWeekly')
+        .action(QueryAction.update)
+        .where({'id': id})
+        .data(data)
+        .build();
+    return executeQueryAsSingleMap(query);
+  }
+
+  /// Delete a weekly slot.
+  Future<void> deleteWeeklySlot(String id) async {
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityWeekly')
+        .action(QueryAction.delete)
+        .where({'id': id})
+        .build();
+    await executeMutation(query);
+  }
+
+  // ===========================================================================
+  // Custom Slot CRUD
+  // ===========================================================================
+
+  /// List custom slots for a consultant.
+  Future<List<Map<String, dynamic>>> listCustomSlots(
+    String consultantProfileId,
+  ) async {
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityCustom')
+        .action(QueryAction.findMany)
+        .where({'consultantProfileId': consultantProfileId})
+        .build();
+    return executeQueryAsMaps(query);
+  }
+
+  /// Create a custom availability slot.
+  Future<Map<String, dynamic>> createCustomSlot({
+    required String consultantProfileId,
+    required String startsAt,
+    required String endsAt,
+  }) async {
+    final now = nowIso8601;
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityCustom')
+        .action(QueryAction.create)
+        .data({
+      'consultantProfileId': consultantProfileId,
+      'startsAt': startsAt,
+      'endsAt': endsAt,
+      'createdAt': now,
+      'updatedAt': now,
+    }).build();
+    final result = await executeQueryAsSingleMap(query);
+    if (result == null) throw Exception('Failed to create slot');
+    return result;
+  }
+
+  /// Update a custom slot.
+  Future<Map<String, dynamic>?> updateCustomSlot({
+    required String id,
+    String? startsAt,
+    String? endsAt,
+  }) async {
+    final data = <String, dynamic>{'updatedAt': nowIso8601};
+    if (startsAt != null) data['startsAt'] = startsAt;
+    if (endsAt != null) data['endsAt'] = endsAt;
+
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityCustom')
+        .action(QueryAction.update)
+        .where({'id': id})
+        .data(data)
+        .build();
+    return executeQueryAsSingleMap(query);
+  }
+
+  /// Delete a custom slot.
+  Future<void> deleteCustomSlot(String id) async {
+    final query = JsonQueryBuilder()
+        .model('SlotOfAvailabilityCustom')
+        .action(QueryAction.delete)
+        .where({'id': id})
+        .build();
+    await executeMutation(query);
+  }
 }
