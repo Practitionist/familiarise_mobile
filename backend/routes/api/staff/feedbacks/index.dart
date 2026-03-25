@@ -33,7 +33,7 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final query = JsonQueryBuilder()
-        .model('feedbacks')
+        .model('Feedback')
         .action(QueryAction.findMany)
         .where({})
         .build();

@@ -37,7 +37,7 @@ Future<Response> onRequest(RequestContext context) async {
     if (status != null) where['status'] = status;
 
     final query = JsonQueryBuilder()
-        .model('support_tickets')
+        .model('SupportTicket')
         .action(QueryAction.findMany)
         .where(where)
         .build();

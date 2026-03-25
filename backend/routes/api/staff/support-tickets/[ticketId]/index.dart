@@ -36,7 +36,7 @@ Future<Response> onRequest(
 
     if (method == HttpMethod.get) {
       final query = JsonQueryBuilder()
-          .model('support_tickets')
+          .model('SupportTicket')
           .action(QueryAction.findFirst)
           .where({'id': ticketId})
           .build();
@@ -71,7 +71,7 @@ Future<Response> onRequest(
       }
 
       final query = JsonQueryBuilder()
-          .model('support_tickets')
+          .model('SupportTicket')
           .action(QueryAction.update)
           .where({'id': ticketId})
           .data(data)
