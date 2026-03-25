@@ -20,6 +20,7 @@ export 'domain_repository.dart';
 export 'feedback_repository.dart';
 export 'maintenance_repository.dart';
 export 'meeting_session_repository.dart';
+export 'plan_repository.dart';
 export 'programs_repository.dart';
 export 'recording_repository.dart';
 export 'referral_repository.dart';

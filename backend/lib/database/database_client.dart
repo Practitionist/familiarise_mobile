@@ -120,6 +120,7 @@ class DatabaseClient {
     _announcementRepository = AnnouncementRepository(_executor);
     _maintenanceRepository = MaintenanceRepository(_executor);
     _recordingRepository = RecordingRepository(_executor, _prisma);
+    _planRepository = PlanRepository(_executor, _prisma);
   }
 
   static DatabaseClient? _instance;
@@ -163,6 +164,7 @@ class DatabaseClient {
   late final AnnouncementRepository _announcementRepository;
   late final MaintenanceRepository _maintenanceRepository;
   late final RecordingRepository _recordingRepository;
+  late final PlanRepository _planRepository;
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -318,6 +320,9 @@ class DatabaseClient {
 
   /// Recording repository (for meeting recordings)
   RecordingRepository get recordings => _recordingRepository;
+
+  /// Plan repository (consultation, subscription, webinar, class plans)
+  PlanRepository get plans => _planRepository;
 
   /// Execute raw SQL query and return results as maps
   Future<List<Map<String, dynamic>>> executeRaw(
