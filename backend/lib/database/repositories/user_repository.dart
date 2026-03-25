@@ -1,5 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:uuid/uuid.dart';
 
 /// Repository for user-related database operations
 ///
@@ -200,11 +201,14 @@ class UserRepository extends BaseRepository {
   }) async {
     final now = nowIso8601;
 
+    const uuid = Uuid();
+
     // Create CookiePreference with defaults (essential: true, rest: false)
     final cookieQuery = JsonQueryBuilder()
         .model('cookie_preferences')
         .action(QueryAction.create)
         .data({
+      'id': uuid.v4(),
       'userId': userId,
       'essential': true,
       'analytics': false,
@@ -221,6 +225,7 @@ class UserRepository extends BaseRepository {
         .model('notification_preferences')
         .action(QueryAction.create)
         .data({
+      'id': uuid.v4(),
       'userId': userId,
       'allNotifications': true,
       'inAppEnabled': true,
