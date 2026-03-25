@@ -291,31 +291,21 @@ SchemaRegistry buildSchemaRegistry() {
   schema.registerModel(ModelSchema(
     name: 'ConsulteeProfile',
     tableName: 'ConsulteeProfile',
+    // Only columns that exist in the DB (no occupation, currentCompany,
+    // industry, linkedinUrl, preferredCommunicationMethod — see PR #88)
     fields: {
       'id': FieldInfo.id(name: 'id'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
-      'occupation': const FieldInfo(
-          name: 'occupation', columnName: 'occupation', type: 'String'),
       'aboutMe': const FieldInfo(
           name: 'aboutMe', columnName: 'aboutMe', type: 'String'),
       'careerStage': const FieldInfo(
           name: 'careerStage', columnName: 'careerStage', type: 'String'),
-      'currentCompany': const FieldInfo(
-          name: 'currentCompany', columnName: 'currentCompany', type: 'String'),
-      'industry': const FieldInfo(
-          name: 'industry', columnName: 'industry', type: 'String'),
       'skillsToDevelop': const FieldInfo(
           name: 'skillsToDevelop', columnName: 'skillsToDevelop', type: 'Json'),
-      'linkedinUrl': const FieldInfo(
-          name: 'linkedinUrl', columnName: 'linkedinUrl', type: 'String'),
       'budgetPreference': const FieldInfo(
           name: 'budgetPreference',
           columnName: 'budgetPreference',
-          type: 'String'),
-      'preferredCommunicationMethod': const FieldInfo(
-          name: 'preferredCommunicationMethod',
-          columnName: 'preferredCommunicationMethod',
           type: 'String'),
       'preferredLanguage': const FieldInfo(
           name: 'preferredLanguage',
