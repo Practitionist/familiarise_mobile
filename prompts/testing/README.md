@@ -2,77 +2,96 @@
 
 Comprehensive end-to-end testing for the Familiarise mobile app before production release.
 
-## How to Use
+## Structure
 
-Each prompt file is **self-contained** — it seeds its own test data, runs tests, files bugs, and cleans up. Run them independently or sequentially.
+```
+testing/
+├── unit/                    (one prompt per feature, isolated)
+│   ├── auth.md              Sign up, sign in, passwords, sessions
+│   ├── onboarding.md        Consultee + consultant onboarding flows
+│   ├── profile.md           Edit profile, image, professional background
+│   ├── verification.md      Consultant verification submit/status
+│   ├── plans.md             Plan CRUD (all 4 types)
+│   ├── slots.md             Weekly + custom availability slots
+│   ├── explore.md           Browse consultants, filters, profiles
+│   ├── booking.md           Request booking, view list/detail
+│   ├── checkout.md          Checkout screen, price display
+│   ├── trials.md            Trial eligibility, request, accept/reject
+│   ├── waitlist.md          Join, view, leave waitlist
+│   ├── documents.md         Appointment document upload/review
+│   ├── chat.md              Chat list page (UI rendering)
+│   ├── referrals.md         Code generation, apply, credits
+│   ├── reviews.md           Submit/view consultant reviews
+│   ├── support.md           Create/view tickets, add responses
+│   ├── feedback.md          Submit app feedback
+│   ├── payout.md            Payout account CRUD (bank/UPI)
+│   ├── tax.md               Tax info (PAN/GST)
+│   ├── staff.md             Staff dashboard, moderation, tickets
+│   ├── announcements.md     Announcement banner display
+│   ├── collaborations.md    Collaboration invitations
+│   └── dashboard.md         Consultee + consultant dashboards
+│
+├── integration/             (cross-feature user journeys)
+│   ├── consultant-lifecycle.md       Sign up → onboard → plans → slots → trial → payout → tax → verify
+│   ├── consultee-booking-journey.md  Sign up → onboard → explore → trial → book → pay → review → refer → waitlist
+│   ├── staff-moderation-flow.md      Dashboard → verify profile → respond ticket → review feedback
+│   ├── payment-payout-flow.md        Book → checkout → discount → pay → earnings → payout → invoice
+│   └── edge-cases-regression.md      Invalid inputs, auth guards, role access, duplicates, empty states
+│
+└── README.md                (this file)
+```
+
+## How to Run
 
 ### Prerequisites
-
-1. Flutter web running at `http://localhost:3000`
-2. Dart Frog backend running at `http://localhost:8080`
-3. Supabase MCP connected to the project
-4. Chrome DevTools MCP connected to port 3000
+1. Flutter web at `http://localhost:3000`
+2. Dart Frog backend at `http://localhost:8080`
+3. Supabase MCP connected
+4. Chrome DevTools MCP connected
 5. GitHub CLI authenticated (`gh auth status`)
 
-### Prompt Files
-
-| # | File | Scope | Est. Time |
-|---|------|-------|-----------|
-| 0 | `00-setup-and-auth.md` | Sign up, sign in, password flows, sessions | 10 min |
-| 1 | `01-onboarding-and-profiles.md` | Onboarding (consultee + consultant), profile editing, verification | 15 min |
-| 2 | `02-plans-slots-explore.md` | Plan CRUD, slot management, explore page, consultant profiles | 15 min |
-| 3 | `03-booking-checkout-appointments.md` | Booking flow, discounts, checkout, trials, waitlist, documents | 20 min |
-| 4 | `04-social-support-staff.md` | Chat, referrals, support, feedback, payouts, tax, staff dashboard | 15 min |
-
-### Running Order
-
-**Recommended:** Run sequentially (0 → 1 → 2 → 3 → 4) for the most realistic user journey.
-
-**Parallel:** Files 2, 3, 4 can run in parallel if using different test user prefixes (they already do).
-
-### Test Data Conventions
-
-- All test IDs prefixed with `test_e2e_` for easy identification
-- Each file uses a unique sub-prefix: `test_e2e_auth_`, `test_e2e_onb_`, `test_e2e_plan_`, `test_e2e_bk_`, `test_e2e_soc_`
-- Password for all test users: `TestPassword123`
-- Cleanup SQL deletes everything with the matching prefix
-
-### Bug Reporting
-
-When any test fails, the agent creates a GitHub issue:
+### Run a single feature test
 ```
+# Tell the AI agent to follow:
+prompts/testing/unit/auth.md
+```
+
+### Run all unit tests
+Run each `unit/*.md` file sequentially or in parallel (each is self-contained).
+
+### Run integration tests
+Run `integration/*.md` files sequentially for realistic user journey testing.
+
+### Recommended testing order
+1. **Unit tests first** — catch feature-level bugs
+2. **Integration tests second** — catch cross-feature interaction bugs
+3. **Edge cases last** — catch error handling gaps
+
+## Conventions
+
+| Convention | Value |
+|-----------|-------|
+| Test ID prefix | `test_unit_` (unit), `test_intg_` (integration) |
+| Password | `TestPassword123` |
+| APP_URL | `http://localhost:3000` |
+| GitHub repo | `Practitionist/familiarise_mobile` |
+
+### Table names (SQL)
+- **Lowercase mapped:** `"users"`, `"accounts"`, `"sessions"`, `"support_tickets"`, `"cookie_preferences"`, `"notification_preferences"`, `"feedbacks"`, `"announcements"`
+- **PascalCase unmapped:** `"ConsultantProfile"`, `"ConsulteeProfile"`, `"ConsultationPlan"`, `"SubscriptionPlan"`, `"WebinarPlan"`, `"ClassPlan"`, `"Appointment"`, `"TrialSession"`, `"PayoutAccount"`, `"DiscountCode"`, `"Waitlist"`, `"ReferralCode"`, `"ConsultantReview"`, `"ConsultantProfileVerification"`, etc.
+
+## Bug Reporting
+
+When a test fails, the agent creates a GitHub issue:
+```bash
 gh issue create --repo Practitionist/familiarise_mobile \
   --title "E2E Bug: [description]" \
-  --body "[steps, expected, actual, screenshot]" \
+  --body "[steps to reproduce, expected vs actual, screenshot]" \
   --label "bug,e2e-test"
 ```
 
-### Coverage Summary
+## Coverage
 
-| Feature | Auth | Onboard | Plans | Booking | Social |
-|---------|------|---------|-------|---------|--------|
-| Sign up/in | x | | | | |
-| Onboarding | | x | | | |
-| Profile edit | | x | | | |
-| Verification | | x | | | |
-| Plan CRUD | | | x | | |
-| Slots CRUD | | | x | | |
-| Explore | | | x | | |
-| Programs | | | x | | |
-| Booking | | | | x | |
-| Checkout | | | | x | |
-| Discounts | | | | x | |
-| Trials | | | | x | |
-| Waitlist | | | | x | |
-| Documents | | | | x | |
-| Chat | | | | | x |
-| Referrals | | | | | x |
-| Support | | | | | x |
-| Feedback | | | | | x |
-| Payouts | | | | | x |
-| Tax info | | | | | x |
-| Staff dash | | | | | x |
-| Announcements | | | | | x |
-| Maintenance | | | | | x |
-| Collaborations | | | | | x |
-| Dashboard | | | | | x |
+**23 unit prompts** testing every feature in isolation
+**5 integration prompts** testing realistic user journeys
+**~80+ total test scenarios** covering all 27 features and 122 backend routes
