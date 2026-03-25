@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -7,7 +8,6 @@ import 'package:dart_frog/dart_frog.dart';
 /// POST /api/stream/recordings/start — Start recording a meeting
 ///
 /// Body: { "callId": "..." }
-/// This delegates to the Stream SDK to start recording.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
@@ -32,9 +32,8 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    // TODO: Call Stream SDK to start recording
-    // final streamService = context.read<StreamService>();
-    // await streamService.startRecording(callId);
+    final streamService = context.read<StreamService>();
+    await streamService.startRecording(callId);
 
     return Response.json(
       body: {'message': 'Recording started', 'callId': callId},

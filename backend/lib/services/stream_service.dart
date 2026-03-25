@@ -484,6 +484,117 @@ class StreamService {
       rethrow;
     }
   }
+
+  // ===========================================================================
+  // Video Recording API
+  // ===========================================================================
+
+  /// Stream Video API base URL
+  static const _videoApiBaseUrl = 'https://video.stream-io-api.com';
+
+  /// Start recording a call.
+  ///
+  /// See: https://getstream.io/video/docs/api/recording/start/
+  Future<void> startRecording(String callId) async {
+    if (!isConfigured) {
+      throw StateError('Stream API key and secret must be configured');
+    }
+
+    final serverToken = _createServerToken();
+    final response = await http.post(
+      Uri.parse(
+        '$_videoApiBaseUrl/api/v2/video/call/default/$callId'
+        '/start_recording',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': serverToken,
+        'Stream-Auth-Type': 'jwt',
+        'api_key': _apiKey,
+      },
+      body: jsonEncode({}),
+    );
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      final body = response.body;
+      SentryLogger.info(
+        'Stream start recording error: $body',
+        context: 'StreamService.startRecording',
+      );
+      throw Exception(
+        'Failed to start recording: ${response.statusCode}',
+      );
+    }
+  }
+
+  /// Stop recording a call.
+  ///
+  /// See: https://getstream.io/video/docs/api/recording/stop/
+  Future<void> stopRecording(String callId) async {
+    if (!isConfigured) {
+      throw StateError('Stream API key and secret must be configured');
+    }
+
+    final serverToken = _createServerToken();
+    final response = await http.post(
+      Uri.parse(
+        '$_videoApiBaseUrl/api/v2/video/call/default/$callId'
+        '/stop_recording',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': serverToken,
+        'Stream-Auth-Type': 'jwt',
+        'api_key': _apiKey,
+      },
+      body: jsonEncode({}),
+    );
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      final body = response.body;
+      SentryLogger.info(
+        'Stream stop recording error: $body',
+        context: 'StreamService.stopRecording',
+      );
+      throw Exception(
+        'Failed to stop recording: ${response.statusCode}',
+      );
+    }
+  }
+
+  /// List recordings for a call.
+  ///
+  /// See: https://getstream.io/video/docs/api/recording/list/
+  Future<List<Map<String, dynamic>>> listRecordings(
+    String callId,
+  ) async {
+    if (!isConfigured) {
+      throw StateError('Stream API key and secret must be configured');
+    }
+
+    final serverToken = _createServerToken();
+    final response = await http.get(
+      Uri.parse(
+        '$_videoApiBaseUrl/api/v2/video/call/default/$callId'
+        '/recordings',
+      ),
+      headers: {
+        'Authorization': serverToken,
+        'Stream-Auth-Type': 'jwt',
+        'api_key': _apiKey,
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to list recordings: ${response.statusCode}',
+      );
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final recordings = data['recordings'] as List<dynamic>?;
+    return recordings?.cast<Map<String, dynamic>>() ?? [];
+  }
 }
 
 /// Data class for Stream token response
