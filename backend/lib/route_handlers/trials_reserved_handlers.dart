@@ -5,11 +5,8 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
-/// GET /api/trials/check-eligibility?consultantProfileId=...
-///
-/// Check if the authenticated consultee is eligible for a trial
-/// with the given consultant (one trial per pair).
-Future<Response> onRequest(RequestContext context) async {
+/// Handles GET /api/trials/check-eligibility and the legacy /eligibility alias.
+Future<Response> handleTrialEligibility(RequestContext context) async {
   if (context.request.method != HttpMethod.get) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
   }
@@ -38,8 +35,7 @@ Future<Response> onRequest(RequestContext context) async {
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consulteeProfileId =
-        user?['consulteeProfileId'] as String?;
+    final consulteeProfileId = user?['consulteeProfileId'] as String?;
 
     if (consulteeProfileId == null) {
       return Response.json(
@@ -55,9 +51,7 @@ Future<Response> onRequest(RequestContext context) async {
     return Response.json(
       body: {
         'eligible': !exists,
-        'reason': exists
-            ? 'Already have a trial with this consultant'
-            : null,
+        'reason': exists ? 'Already have a trial with this consultant' : null,
       },
     );
   } catch (e, stackTrace) {
@@ -70,6 +64,52 @@ Future<Response> onRequest(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {'error': {'message': 'Failed to check eligibility'}},
+    );
+  }
+}
+
+/// Handles GET /api/trials/stats.
+Future<Response> handleTrialStats(RequestContext context) async {
+  if (context.request.method != HttpMethod.get) {
+    return Response(statusCode: HttpStatus.methodNotAllowed);
+  }
+
+  try {
+    final userId = getUserIdFromToken(context);
+    if (userId == null) {
+      return Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': {'message': 'Unauthorized'}},
+      );
+    }
+
+    final db = context.read<DatabaseClient>();
+    final user = await db.users.findById(userId);
+    final consultantProfileId = user?['consultantProfileId'] as String?;
+
+    if (consultantProfileId == null) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Only consultants can view trial stats',
+          },
+        },
+      );
+    }
+
+    final stats = await db.trials.getStats(consultantProfileId);
+    return Response.json(body: {'data': stats});
+  } catch (e, stackTrace) {
+    await SentryLogger.severe(
+      'Failed to get trial stats',
+      context: 'TrialStats',
+      error: e,
+      stackTrace: stackTrace,
+    );
+    return Response.json(
+      statusCode: HttpStatus.internalServerError,
+      body: {'error': {'message': 'Failed to get trial stats'}},
     );
   }
 }

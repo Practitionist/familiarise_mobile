@@ -80,6 +80,16 @@ Run `integration/*.md` files sequentially for realistic user journey testing.
 - **Lowercase mapped:** `"users"`, `"accounts"`, `"sessions"`, `"support_tickets"`, `"cookie_preferences"`, `"notification_preferences"`, `"feedbacks"`, `"announcements"`
 - **PascalCase unmapped:** `"ConsultantProfile"`, `"ConsulteeProfile"`, `"ConsultationPlan"`, `"SubscriptionPlan"`, `"WebinarPlan"`, `"ClassPlan"`, `"Appointment"`, `"TrialSession"`, `"PayoutAccount"`, `"DiscountCode"`, `"Waitlist"`, `"ReferralCode"`, `"ConsultantReview"`, `"ConsultantProfileVerification"`, etc.
 
+## Known MCP Friction
+
+The main thing that slowed prompt execution was not backend logic, but Chrome DevTools MCP interacting with Flutter web:
+
+- `fill` and `fill_form` were unreliable on Flutter text fields and sometimes dropped leading characters, especially in password inputs.
+- Standard DevTools `click` occasionally failed on Flutter semantics buttons even when the button was visibly enabled.
+- When that happens, the faster path is: take a screenshot, confirm the UI state, use keyboard typing instead of `fill`, and fall back to direct JS event dispatch only if a normal click still does not fire.
+
+Treat those as test-driver issues first, not immediate product bugs, unless the same behavior is reproducible outside MCP.
+
 ## Bug Reporting
 
 When a test fails, the agent creates a GitHub issue:

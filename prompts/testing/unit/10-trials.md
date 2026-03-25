@@ -50,7 +50,7 @@ VALUES ('test_unit_trials_np1', 'test_unit_trials_u1'), ('test_unit_trials_np2',
 ### 1. Check Trial Eligibility (as Consultee)
 Sign in as `test_unit_trials_cee@test.com` / `TestPassword123`.
 ```
-fetch('/api/trials/eligibility?consultantProfileId=test_unit_trials_cp1&subscriptionPlanId=test_unit_trials_sp1', {
+fetch('/api/trials/check-eligibility?consultantProfileId=test_unit_trials_cp1&subscriptionPlanId=test_unit_trials_sp1', {
   method: 'GET',
   credentials: 'include'
 }).then(r => r.json())

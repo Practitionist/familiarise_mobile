@@ -1,12 +1,23 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/route_handlers/recordings_reserved_handlers.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// GET /api/stream/recordings/:id — Recording details
 Future<Response> onRequest(RequestContext context, String id) async {
+  if (id == 'start') {
+    return handleRecordingStart(context);
+  }
+  if (id == 'stop') {
+    return handleRecordingStop(context);
+  }
+  if (id == 'sync') {
+    return handleRecordingSync(context);
+  }
+
   if (context.request.method != HttpMethod.get) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
   }
