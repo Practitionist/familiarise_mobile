@@ -2482,20 +2482,38 @@ SchemaRegistry buildSchemaRegistry() {
     tableName: 'maintenance_windows',
     fields: {
       'id': FieldInfo.id(name: 'id'),
-      'title': const FieldInfo(
-          name: 'title', columnName: 'title', type: 'String'),
-      'message': const FieldInfo(
-          name: 'message', columnName: 'message', type: 'String'),
-      'isActive': const FieldInfo(
-          name: 'isActive', columnName: 'isActive', type: 'Boolean'),
       'phase': const FieldInfo(
           name: 'phase', columnName: 'phase', type: 'String'),
-      'startTime': const FieldInfo(
-          name: 'startTime',
-          columnName: 'startTime',
+      'reason': const FieldInfo(
+          name: 'reason', columnName: 'reason', type: 'String'),
+      'scheduledAt': const FieldInfo(
+          name: 'scheduledAt',
+          columnName: 'scheduledAt',
           type: 'DateTime'),
-      'endTime': const FieldInfo(
-          name: 'endTime', columnName: 'endTime', type: 'DateTime'),
+      'startedAt': const FieldInfo(
+          name: 'startedAt',
+          columnName: 'startedAt',
+          type: 'DateTime'),
+      'endedAt': const FieldInfo(
+          name: 'endedAt',
+          columnName: 'endedAt',
+          type: 'DateTime'),
+      'estimatedEnd': const FieldInfo(
+          name: 'estimatedEnd',
+          columnName: 'estimatedEnd',
+          type: 'DateTime'),
+      'startedBy': const FieldInfo(
+          name: 'startedBy',
+          columnName: 'startedBy',
+          type: 'String'),
+      'endedBy': const FieldInfo(
+          name: 'endedBy',
+          columnName: 'endedBy',
+          type: 'String'),
+      'metadata': const FieldInfo(
+          name: 'metadata',
+          columnName: 'metadata',
+          type: 'Json'),
       'createdAt': const FieldInfo(
           name: 'createdAt',
           columnName: 'createdAt',
