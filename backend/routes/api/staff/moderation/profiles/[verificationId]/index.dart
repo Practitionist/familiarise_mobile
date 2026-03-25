@@ -40,6 +40,17 @@ Future<Response> _handleGet(
     }
 
     final db = context.read<DatabaseClient>();
+
+    // Verify staff role
+    final user = await db.users.findById(userId);
+    final role = user?['role'] as String?;
+    if (role != 'STAFF' && role != 'ADMIN') {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {'error': {'message': 'Staff access required'}},
+      );
+    }
+
     final verification =
         await db.consultantVerifications.findById(verificationId);
 
