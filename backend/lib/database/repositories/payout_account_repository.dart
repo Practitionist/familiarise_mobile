@@ -53,8 +53,7 @@ class PayoutAccountRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model('PayoutAccount')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).build();
     return executeQueryAsMaps(query);
   }
 
@@ -63,6 +62,15 @@ class PayoutAccountRepository extends BaseRepository {
     return _prisma.payoutAccount.findUnique(
       where: PayoutAccountWhereUniqueInput(id: id),
     );
+  }
+
+  /// Get a payout account by ID as a JSON-friendly map.
+  Future<Map<String, dynamic>?> findByIdMap(String id) async {
+    final query = JsonQueryBuilder()
+        .model('PayoutAccount')
+        .action(QueryAction.findUnique)
+        .where({'id': id}).build();
+    return executeQueryAsSingleMap(query);
   }
 
   /// Update a payout account.
@@ -96,18 +104,16 @@ class PayoutAccountRepository extends BaseRepository {
       final unsetQuery = JsonQueryBuilder()
           .model('PayoutAccount')
           .action(QueryAction.updateMany)
-          .where({'consultantProfileId': consultantProfileId})
-          .data({'isDefault': false, 'updatedAt': nowIso8601})
-          .build();
+          .where({'consultantProfileId': consultantProfileId}).data(
+              {'isDefault': false, 'updatedAt': nowIso8601}).build();
       await txn.executeMutation(unsetQuery);
 
       // Set the new default
       final setQuery = JsonQueryBuilder()
           .model('PayoutAccount')
           .action(QueryAction.update)
-          .where({'id': id})
-          .data({'isDefault': true, 'updatedAt': nowIso8601})
-          .build();
+          .where({'id': id}).data(
+              {'isDefault': true, 'updatedAt': nowIso8601}).build();
       await txn.executeMutation(setQuery);
     });
   }

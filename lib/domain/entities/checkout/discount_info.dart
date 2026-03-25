@@ -87,8 +87,7 @@ class DiscountInfo with _$DiscountInfo {
       return '${discountPercentage!.toStringAsFixed(0)}% off';
     } else if (discountType == DiscountType.fixedAmount &&
         discountAmount != null) {
-      final symbol = Formatters.currencySymbol(currency);
-      return '$symbol${discountAmount!.toStringAsFixed(0)} off';
+      return '${Formatters.currency(Formatters.fromMinorUnits(discountAmount!), currency)} off';
     }
 
     return description ?? 'Discount applied';

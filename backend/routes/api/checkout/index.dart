@@ -11,7 +11,6 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
-
 /// Checkout endpoints
 ///
 /// POST /api/checkout - Create a checkout session
@@ -315,9 +314,10 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       );
     }
 
-    // Calculate amount in smallest unit (paise/cents) early to avoid float issues
+    // Plan prices are already stored in minor currency units (for example paise).
     final priceValue = (plan?['price'] as num?)?.toDouble() ?? 0;
-    var amountInSmallestUnit = (priceValue * 100).round();
+    final originalAmountInSmallestUnit = priceValue.round();
+    var amountInSmallestUnit = originalAmountInSmallestUnit;
     final currency = plan?['priceCurrency'] as String? ?? 'INR';
 
     // Handle discount code
@@ -335,8 +335,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         discountCodeId = discount['id'] as String?;
         discountAmount = (discount['discountAmount'] as num?)?.toDouble();
         if (discountAmount != null) {
-          final discountInSmallestUnit = (discountAmount * 100).round();
-          amountInSmallestUnit = amountInSmallestUnit - discountInSmallestUnit;
+          amountInSmallestUnit = amountInSmallestUnit - discountAmount.round();
           if (amountInSmallestUnit < 0) amountInSmallestUnit = 0;
         }
       }
@@ -361,6 +360,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
     final paymentInfo = await db.checkout.createPayment(
       userId: userId,
       amount: amountInSmallestUnit,
+      originalAmount: originalAmountInSmallestUnit,
       currency: currency,
       paymentGateway: paymentGateway.toUpperCase(),
       appointmentId: appointmentId,
@@ -500,7 +500,6 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         SentryLogger.info(
           'Created Stripe PaymentIntent: ${paymentIntent.id} '
           'for amount: $amountInSmallestUnit $currency',
-
           context: 'CheckoutRoute',
         );
       } on StripeException catch (e, stackTrace) {
@@ -536,7 +535,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
           'stripeClientSecret': stripeClientSecret,
         if (stripePaymentIntentId != null)
           'stripePaymentIntentId': stripePaymentIntentId,
-        if (discountAmount != null) 'discountAmount': discountAmount,
+        if (discountAmount != null) 'discountAmount': discountAmount / 100,
         if (discountCode != null) 'discountCode': discountCode,
         'bookingId': finalBookingId,
         'bookingType': appointmentType.toUpperCase(),
@@ -571,8 +570,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       );
     }
 
-    final isProduction =
-        Platform.environment['DART_ENV'] == 'production';
+    final isProduction = Platform.environment['DART_ENV'] == 'production';
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {

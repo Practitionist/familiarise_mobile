@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/formatters.dart';
+
 part 'consultation_plan.freezed.dart';
 part 'consultation_plan.g.dart';
 
@@ -29,8 +31,10 @@ class ConsultationPlan with _$ConsultationPlan {
 
   /// Formatted price (e.g., "₹2,000")
   String get formattedPrice {
-    final symbol = priceCurrency == 'INR' ? '₹' : '\$';
-    return '$symbol${price.toStringAsFixed(0)}';
+    return Formatters.currency(
+      Formatters.fromMinorUnits(price),
+      priceCurrency,
+    );
   }
 
   /// Formatted duration (e.g., "1.5 hours")

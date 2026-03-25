@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../../core/constants/enums.dart' show BookingSource, CancellationReason;
+import '../../../core/constants/enums.dart'
+    show BookingSource, CancellationReason;
 import '../../../core/utils/formatters.dart';
 
 part 'booking.freezed.dart';
@@ -134,8 +135,10 @@ class Booking with _$Booking {
   /// Formatted price (e.g., "₹2,000")
   String get formattedPrice {
     if (planPrice == null) return 'Contact';
-    final symbol = planCurrency == 'INR' ? '₹' : '\$';
-    return '$symbol${planPrice!.toStringAsFixed(0)}';
+    return Formatters.currency(
+      Formatters.fromMinorUnits(planPrice!),
+      planCurrency,
+    );
   }
 
   /// Status display text

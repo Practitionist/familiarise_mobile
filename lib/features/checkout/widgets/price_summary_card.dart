@@ -19,7 +19,6 @@ class PriceSummaryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currencySymbol = Formatters.currencySymbol(currency);
     final theme = Theme.of(context);
     final discountState = ref.watch(discountCodeValidatorProvider);
 
@@ -33,6 +32,18 @@ class PriceSummaryCard extends ConsumerWidget {
     }
 
     final finalPrice = originalPrice - discountAmount;
+    final formattedSubtotal = Formatters.currencyDecimal(
+      Formatters.fromMinorUnits(originalPrice),
+      currency,
+    );
+    final formattedDiscount = Formatters.currencyDecimal(
+      Formatters.fromMinorUnits(discountAmount),
+      currency,
+    );
+    final formattedTotal = Formatters.currencyDecimal(
+      Formatters.fromMinorUnits(finalPrice),
+      currency,
+    );
 
     return Card(
       elevation: 0,
@@ -54,7 +65,7 @@ class PriceSummaryCard extends ConsumerWidget {
             _buildPriceRow(
               theme,
               'Subtotal',
-              '$currencySymbol${originalPrice.toStringAsFixed(2)}',
+              formattedSubtotal,
             ),
 
             // Discount (if any)
@@ -63,7 +74,7 @@ class PriceSummaryCard extends ConsumerWidget {
               _buildPriceRow(
                 theme,
                 'Discount',
-                '-$currencySymbol${discountAmount.toStringAsFixed(2)}',
+                '-$formattedDiscount',
                 valueColor: Colors.green.shade700,
                 icon: Icons.local_offer,
               ),
@@ -81,7 +92,7 @@ class PriceSummaryCard extends ConsumerWidget {
             _buildPriceRow(
               theme,
               'Total',
-              '$currencySymbol${finalPrice.toStringAsFixed(2)}',
+              formattedTotal,
               isBold: true,
               isLarge: true,
             ),
@@ -108,7 +119,7 @@ class PriceSummaryCard extends ConsumerWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'You save $currencySymbol${discountAmount.toStringAsFixed(2)}!',
+                      'You save $formattedDiscount!',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.green.shade700,
                         fontWeight: FontWeight.w500,
@@ -186,7 +197,6 @@ class CheckoutPriceInfo extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currencySymbol = Formatters.currencySymbol(currency);
     final theme = Theme.of(context);
     final discountState = ref.watch(discountCodeValidatorProvider);
 
@@ -196,11 +206,12 @@ class CheckoutPriceInfo extends ConsumerWidget {
     }
 
     final finalPrice = originalPrice - discountAmount;
-    final hasDiscount = discountAmount > 0;
-
     // Show price inline with button text
     return Text(
-      '$currencySymbol${finalPrice.toStringAsFixed(0)}',
+      Formatters.currency(
+        Formatters.fromMinorUnits(finalPrice),
+        currency,
+      ),
       style: theme.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w700,
         color: theme.colorScheme.onPrimary,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/dashboard/earnings_summary.dart';
 
 /// Card showing earnings breakdown (consultant)
@@ -14,7 +15,6 @@ class EarningsSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final symbol = earnings.currency == 'INR' ? '\u20B9' : '\$';
 
     return Card(
       elevation: 0,
@@ -42,20 +42,28 @@ class EarningsSummaryCard extends StatelessWidget {
             const SizedBox(height: 16),
             _EarningsRow(
               label: 'Total Earnings',
-              amount: '$symbol${earnings.totalEarnings.toStringAsFixed(0)}',
+              amount: Formatters.currency(
+                Formatters.fromMinorUnits(earnings.totalEarnings),
+                earnings.currency,
+              ),
               color: theme.colorScheme.onSurface,
             ),
             const SizedBox(height: 8),
             _EarningsRow(
               label: 'Paid',
-              amount: '$symbol${earnings.paidEarnings.toStringAsFixed(0)}',
+              amount: Formatters.currency(
+                Formatters.fromMinorUnits(earnings.paidEarnings),
+                earnings.currency,
+              ),
               color: Colors.green,
             ),
             const SizedBox(height: 8),
             _EarningsRow(
               label: 'Pending',
-              amount:
-                  '$symbol${earnings.pendingEarnings.toStringAsFixed(0)}',
+              amount: Formatters.currency(
+                Formatters.fromMinorUnits(earnings.pendingEarnings),
+                earnings.currency,
+              ),
               color: Colors.orange,
             ),
           ],

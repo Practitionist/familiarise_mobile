@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
@@ -16,14 +17,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -34,18 +36,21 @@ Future<Response> onRequest(RequestContext context, String id) async {
     }
 
     // Verify the account belongs to this consultant
-    final account = await db.payoutAccounts.findById(id);
+    final account = await db.payoutAccounts.findByIdMap(id);
     if (account == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Account not found'}},
+        body: {
+          'error': {'message': 'Account not found'}
+        },
       );
     }
-    final acctJson = account.toJson();
-    if (acctJson['consultantProfileId'] != consultantProfileId) {
+    if (account['consultantProfileId'] != consultantProfileId) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Account not found'}},
+        body: {
+          'error': {'message': 'Account not found'}
+        },
       );
     }
 
@@ -55,7 +60,10 @@ Future<Response> onRequest(RequestContext context, String id) async {
     );
 
     return Response.json(
-      body: {'message': 'Default payout account updated'},
+      body: {
+        'message': 'Default payout account updated',
+        'data': serializeForJson(account)
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(

@@ -39,11 +39,9 @@ class DashboardRepository extends BaseRepository {
     final consultationStatusQuery = JsonQueryBuilder()
         .model('Consultation')
         .action(QueryAction.findMany)
-        .where({'requestedById': consulteeProfileId})
-        .select({'requestStatus': true})
-        .build();
-    final consultationRows =
-        await executeQueryAsMaps(consultationStatusQuery);
+        .where({'requestedById': consulteeProfileId}).select(
+            {'requestStatus': true}).build();
+    final consultationRows = await executeQueryAsMaps(consultationStatusQuery);
     final consultationCounts =
         _groupByStatus(consultationRows, 'requestStatus');
 
@@ -51,11 +49,9 @@ class DashboardRepository extends BaseRepository {
     final subscriptionStatusQuery = JsonQueryBuilder()
         .model('Subscription')
         .action(QueryAction.findMany)
-        .where({'requestedById': consulteeProfileId})
-        .select({'requestStatus': true})
-        .build();
-    final subscriptionRows =
-        await executeQueryAsMaps(subscriptionStatusQuery);
+        .where({'requestedById': consulteeProfileId}).select(
+            {'requestStatus': true}).build();
+    final subscriptionRows = await executeQueryAsMaps(subscriptionStatusQuery);
     final subscriptionCounts =
         _groupByStatus(subscriptionRows, 'requestStatus');
 
@@ -110,8 +106,7 @@ class DashboardRepository extends BaseRepository {
     final ratingQuery = JsonQueryBuilder()
         .model('ConsultantProfile')
         .action(QueryAction.findFirst)
-        .where({'id': consultantProfileId})
-        .select({'rating': true}).build();
+        .where({'id': consultantProfileId}).select({'rating': true}).build();
     final profileData = await executeQueryAsSingleMap(ratingQuery);
     final rating = (profileData?['rating'] as num?)?.toDouble() ?? 0.0;
 
@@ -165,8 +160,8 @@ class DashboardRepository extends BaseRepository {
     final plansQuery = JsonQueryBuilder()
         .model('ConsultationPlan')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true}).build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true}).build();
 
     final plans = await executeQueryAsMaps(plansQuery);
     final planIds = plans.map((p) => p['id'] as String).toList();
@@ -252,8 +247,7 @@ class DashboardRepository extends BaseRepository {
     return {
       'totalEarnings': earnings['total'] ?? 0.0,
       'pendingEarnings': earnings['pending'] ?? 0.0,
-      'paidEarnings':
-          (earnings['total'] ?? 0.0) - (earnings['pending'] ?? 0.0),
+      'paidEarnings': (earnings['total'] ?? 0.0) - (earnings['pending'] ?? 0.0),
       'currency': 'INR',
     };
   }
@@ -282,9 +276,8 @@ class DashboardRepository extends BaseRepository {
     final consultationPlansQuery = JsonQueryBuilder()
         .model('ConsultationPlan')
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true, 'price': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true, 'price': true}).build();
     final consultationPlans = await executeQueryAsMaps(consultationPlansQuery);
 
     final subscriptionPlanIds =
@@ -314,9 +307,8 @@ class DashboardRepository extends BaseRepository {
     final query = JsonQueryBuilder()
         .model(planModel)
         .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true})
-        .build();
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'id': true}).build();
     final plans = await executeQueryAsMaps(query);
     return plans.map((p) => p['id'] as String).toList();
   }
@@ -352,11 +344,9 @@ class DashboardRepository extends BaseRepository {
           .model('Consultation')
           .action(QueryAction.findMany)
           .where({
-            'consultationPlanId': {'in': planData.consultationPlanIds},
-            'requestStatus': {'in': statuses},
-          })
-          .select({'requestStatus': true})
-          .build();
+        'consultationPlanId': {'in': planData.consultationPlanIds},
+        'requestStatus': {'in': statuses},
+      }).select({'requestStatus': true}).build();
       final rows = await executeQueryAsMaps(query);
       _mergeStatusCounts(counts, rows, 'requestStatus');
     }
@@ -367,11 +357,9 @@ class DashboardRepository extends BaseRepository {
           .model('Subscription')
           .action(QueryAction.findMany)
           .where({
-            'subscriptionPlanId': {'in': planData.subscriptionPlanIds},
-            'requestStatus': {'in': statuses},
-          })
-          .select({'requestStatus': true})
-          .build();
+        'subscriptionPlanId': {'in': planData.subscriptionPlanIds},
+        'requestStatus': {'in': statuses},
+      }).select({'requestStatus': true}).build();
       final rows = await executeQueryAsMaps(query);
       _mergeStatusCounts(counts, rows, 'requestStatus');
     }
@@ -386,11 +374,9 @@ class DashboardRepository extends BaseRepository {
           .model('TrialSession')
           .action(QueryAction.findMany)
           .where({
-            'consultantProfileId': consultantProfileId,
-            'status': {'in': trialStatuses},
-          })
-          .select({'status': true})
-          .build();
+        'consultantProfileId': consultantProfileId,
+        'status': {'in': trialStatuses},
+      }).select({'status': true}).build();
       final rows = await executeQueryAsMaps(query);
       // Map trial statuses back to request statuses for aggregation
       for (final row in rows) {
@@ -413,16 +399,13 @@ class DashboardRepository extends BaseRepository {
             .model('Webinar')
             .action(QueryAction.findMany)
             .where({
-              'webinarPlanId': {'in': planData.webinarPlanIds},
-              'status': {'in': webinarStatuses},
-            })
-            .select({'status': true})
-            .build();
+          'webinarPlanId': {'in': planData.webinarPlanIds},
+          'status': {'in': webinarStatuses},
+        }).select({'status': true}).build();
         final rows = await executeQueryAsMaps(query);
         for (final row in rows) {
           final webinarStatus = row['status'] as String?;
-          final requestStatus =
-              _mapWebinarStatusToRequestStatus(webinarStatus);
+          final requestStatus = _mapWebinarStatusToRequestStatus(webinarStatus);
           if (requestStatus != null && statuses.contains(requestStatus)) {
             counts[requestStatus] = (counts[requestStatus] ?? 0) + 1;
           }
@@ -441,11 +424,9 @@ class DashboardRepository extends BaseRepository {
             .model('Class')
             .action(QueryAction.findMany)
             .where({
-              'classPlanId': {'in': planData.classPlanIds},
-              'status': {'in': classStatuses},
-            })
-            .select({'status': true})
-            .build();
+          'classPlanId': {'in': planData.classPlanIds},
+          'status': {'in': classStatuses},
+        }).select({'status': true}).build();
         final rows = await executeQueryAsMaps(query);
         for (final row in rows) {
           final classStatus = row['status'] as String?;
@@ -480,13 +461,11 @@ class DashboardRepository extends BaseRepository {
         .model('Consultation')
         .action(QueryAction.findMany)
         .where({
-          'requestedById': consulteeProfileId,
-          'requestStatus': {
-            'in': ['COMPLETED', 'SCHEDULED'],
-          },
-        })
-        .include({'consultationPlan': true})
-        .build();
+      'requestedById': consulteeProfileId,
+      'requestStatus': {
+        'in': ['COMPLETED', 'SCHEDULED'],
+      },
+    }).include({'consultationPlan': true}).build();
 
     final consultations = await executeQueryAsMaps(query);
 
@@ -576,21 +555,19 @@ class DashboardRepository extends BaseRepository {
           .model('Webinar')
           .action(QueryAction.findMany)
           .where({
-            'webinarPlanId': {'in': planData.webinarPlanIds},
-            'status': {
-              'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+        'webinarPlanId': {'in': planData.webinarPlanIds},
+        'status': {
+          'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+        },
+      }).include({
+        'appointment': {
+          'include': {
+            'slots': {
+              'include': {'user': true},
             },
-          })
-          .include({
-            'appointment': {
-              'include': {
-                'slots': {
-                  'include': {'user': true},
-                },
-              },
-            },
-          })
-          .build();
+          },
+        },
+      }).build();
       final webinars = await executeQueryAsMaps(webinarsQuery);
       for (final w in webinars) {
         final appointment = w['appointment'] as Map<String, dynamic>?;
@@ -609,25 +586,21 @@ class DashboardRepository extends BaseRepository {
 
     // 5. Class participants (via slots → users)
     if (planData.classPlanIds.isNotEmpty) {
-      final classesQuery = JsonQueryBuilder()
-          .model('Class')
-          .action(QueryAction.findMany)
-          .where({
-            'classPlanId': {'in': planData.classPlanIds},
-            'status': {
-              'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+      final classesQuery =
+          JsonQueryBuilder().model('Class').action(QueryAction.findMany).where({
+        'classPlanId': {'in': planData.classPlanIds},
+        'status': {
+          'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+        },
+      }).include({
+        'appointments': {
+          'include': {
+            'slots': {
+              'include': {'user': true},
             },
-          })
-          .include({
-            'appointments': {
-              'include': {
-                'slots': {
-                  'include': {'user': true},
-                },
-              },
-            },
-          })
-          .build();
+          },
+        },
+      }).build();
       final classes = await executeQueryAsMaps(classesQuery);
       for (final c in classes) {
         final appointments = c['appointments'] as List<dynamic>? ?? [];
@@ -650,65 +623,36 @@ class DashboardRepository extends BaseRepository {
   }
 
   /// Calculate consultant earnings.
-  ///
-  /// When [preloadedPlanPrices] is provided (from pre-fetched plan data),
-  /// skips the plan query and combines completed+scheduled into a single
-  /// consultation query (1 query instead of 3).
   Future<Map<String, double>> _calculateConsultantEarnings({
     required String consultantProfileId,
     Map<String, double>? preloadedPlanPrices,
   }) async {
-    final Map<String, double> planPrices;
-
-    if (preloadedPlanPrices != null && preloadedPlanPrices.isNotEmpty) {
-      planPrices = preloadedPlanPrices;
-    } else {
-      // Standalone call — fetch plan prices
-      final plansQuery = JsonQueryBuilder()
-          .model('ConsultationPlan')
-          .action(QueryAction.findMany)
-          .where({'consultantProfileId': consultantProfileId})
-          .select({'id': true, 'price': true})
-          .build();
-      final plans = await executeQueryAsMaps(plansQuery);
-      planPrices = {
-        for (final p in plans)
-          p['id'] as String: (p['price'] as num?)?.toDouble() ?? 0.0,
-      };
-    }
-
-    if (planPrices.isEmpty) return {'total': 0.0, 'pending': 0.0};
-
-    // Single query for all relevant statuses (instead of 2 separate queries)
-    final allConsultationsQuery = JsonQueryBuilder()
-        .model('Consultation')
+    final earningsQuery = JsonQueryBuilder()
+        .model('ConsultantEarnings')
         .action(QueryAction.findMany)
-        .where({
-          'consultationPlanId': {'in': planPrices.keys.toList()},
-          'requestStatus': {
-            'in': ['COMPLETED', 'SCHEDULED', 'APPROVED_PENDING_PAYMENT'],
-          },
-        })
-        .select({'consultationPlanId': true, 'requestStatus': true})
-        .build();
-
-    final allConsultations = await executeQueryAsMaps(allConsultationsQuery);
+        .where({'consultantProfileId': consultantProfileId}).select(
+            {'consultantShare': true, 'status': true}).build();
+    final earningsRows = await executeQueryAsMaps(earningsQuery);
 
     var totalEarnings = 0.0;
     var pendingEarnings = 0.0;
-    for (final c in allConsultations) {
-      final planId = c['consultationPlanId'] as String;
-      final status = c['requestStatus'] as String;
-      final price = planPrices[planId] ?? 0.0;
-      if (status == 'COMPLETED') {
-        totalEarnings += price;
-      } else {
-        pendingEarnings += price;
+
+    for (final row in earningsRows) {
+      final consultantShare =
+          (row['consultantShare'] as num?)?.toDouble() ?? 0.0;
+      final status = row['status'] as String? ?? 'PENDING';
+
+      if (status == 'REFUNDED') continue;
+
+      totalEarnings += consultantShare;
+
+      if (status != 'PAID') {
+        pendingEarnings += consultantShare;
       }
     }
 
     return {
-      'total': totalEarnings + pendingEarnings,
+      'total': totalEarnings,
       'pending': pendingEarnings,
     };
   }

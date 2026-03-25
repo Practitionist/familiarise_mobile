@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
@@ -29,7 +30,9 @@ Future<Response> _handle(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -37,8 +40,7 @@ Future<Response> _handle(
 
     // Get user's consultant profile ID
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -49,26 +51,29 @@ Future<Response> _handle(
     }
 
     // Fetch account and verify ownership
-    final account = await db.payoutAccounts.findById(id);
+    final account = await db.payoutAccounts.findByIdMap(id);
     if (account == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Account not found'}},
+        body: {
+          'error': {'message': 'Account not found'}
+        },
       );
     }
 
-    final accountJson = account.toJson();
-    if (accountJson['consultantProfileId'] != consultantProfileId) {
+    if (account['consultantProfileId'] != consultantProfileId) {
       // Return 404 to avoid leaking that the account exists
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Account not found'}},
+        body: {
+          'error': {'message': 'Account not found'}
+        },
       );
     }
 
     // Dispatch to handler
     if (method == HttpMethod.get) {
-      return Response.json(body: {'data': accountJson});
+      return Response.json(body: {'data': serializeForJson(account)});
     }
     if (method == HttpMethod.put) {
       return _handlePut(context, db, id);
@@ -85,7 +90,9 @@ Future<Response> _handle(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }

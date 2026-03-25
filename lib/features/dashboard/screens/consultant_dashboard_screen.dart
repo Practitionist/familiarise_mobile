@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/referral/referral_entities.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -101,7 +102,10 @@ class ConsultantDashboardScreen extends ConsumerWidget {
             ),
             StatItem(
               label: 'Earnings',
-              value: '\u20B9${stats.totalEarnings.toStringAsFixed(0)}',
+              value: Formatters.currency(
+                Formatters.fromMinorUnits(stats.totalEarnings),
+                'INR',
+              ),
               icon: Icons.payments_outlined,
             ),
           ],

@@ -14,6 +14,7 @@ class CheckoutRepository extends BaseRepository {
   Future<Map<String, dynamic>> createPayment({
     required String userId,
     required int amount,
+    int? originalAmount,
     required String currency,
     required String paymentGateway,
     String? appointmentId,
@@ -31,7 +32,7 @@ class CheckoutRepository extends BaseRepository {
         JsonQueryBuilder().model('Payment').action(QueryAction.create).data({
       'id': paymentId,
       'amount': amount,
-      'originalAmount': amount,
+      'originalAmount': originalAmount ?? amount,
       'currency': currency,
       'paymentMethod': 'CARD',
       'paymentIntent': paymentIntent,
