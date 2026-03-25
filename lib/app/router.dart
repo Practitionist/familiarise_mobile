@@ -353,27 +353,159 @@ GoRouter router(Ref ref) {
               );
             },
           ),
-        ],
-      ),
+          // Appointment documents
+          GoRoute(
+            path: '/bookings/:bookingId/documents',
+            name: 'appointmentDocuments',
+            builder: (context, state) {
+              final appointmentId =
+                  state.uri.queryParameters['appointmentId'];
+              if (appointmentId == null) {
+                return const Scaffold(
+                  body: Center(
+                    child: Text('Missing appointmentId'),
+                  ),
+                );
+              }
+              return AppointmentDocumentsScreen(
+                appointmentId: appointmentId,
+              );
+            },
+          ),
 
-      // Appointment documents
-      GoRoute(
-        path: '/bookings/:bookingId/documents',
-        name: 'appointmentDocuments',
-        builder: (context, state) {
-          final appointmentId =
-              state.uri.queryParameters['appointmentId'];
-          if (appointmentId == null) {
-            return const Scaffold(
-              body: Center(
-                child: Text('Missing appointmentId'),
+          // Verification routes
+          GoRoute(
+            path: '/verification',
+            name: 'verification',
+            builder: (context, state) =>
+                const VerificationStatusScreen(),
+            routes: [
+              GoRoute(
+                path: 'submit',
+                name: 'verificationSubmit',
+                builder: (context, state) =>
+                    const VerificationSubmitScreen(),
               ),
-            );
-          }
-          return AppointmentDocumentsScreen(
-            appointmentId: appointmentId,
-          );
-        },
+            ],
+          ),
+
+          // Waitlist routes
+          GoRoute(
+            path: '/waitlist',
+            name: 'waitlist',
+            builder: (context, state) => const WaitlistScreen(),
+          ),
+
+          // Trial routes
+          GoRoute(
+            path: '/trials',
+            name: 'trials',
+            builder: (context, state) => const TrialListScreen(),
+            routes: [
+              GoRoute(
+                path: 'request',
+                name: 'trialRequest',
+                builder: (context, state) {
+                  final consultantProfileId =
+                      state.uri.queryParameters['consultantProfileId'];
+                  final subscriptionPlanId =
+                      state.uri.queryParameters['subscriptionPlanId'];
+                  if (consultantProfileId == null ||
+                      subscriptionPlanId == null) {
+                    return const Scaffold(
+                      body: Center(
+                        child: Text('Missing required parameters'),
+                      ),
+                    );
+                  }
+                  return TrialRequestScreen(
+                    consultantProfileId: consultantProfileId,
+                    subscriptionPlanId: subscriptionPlanId,
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // Payout routes
+          GoRoute(
+            path: '/payout-accounts',
+            name: 'payoutAccounts',
+            builder: (context, state) =>
+                const PayoutAccountsScreen(),
+            routes: [
+              GoRoute(
+                path: 'add',
+                name: 'addPayoutAccount',
+                builder: (context, state) =>
+                    const AddPayoutAccountScreen(),
+              ),
+            ],
+          ),
+
+          // Tax info routes
+          GoRoute(
+            path: '/tax-info',
+            name: 'taxInfo',
+            builder: (context, state) => const TaxInfoScreen(),
+          ),
+
+          // Staff dashboard
+          GoRoute(
+            path: '/staff',
+            name: 'staffDashboard',
+            builder: (context, state) =>
+                const StaffDashboardScreen(),
+          ),
+
+          // Maintenance route
+          GoRoute(
+            path: '/maintenance',
+            name: 'maintenance',
+            builder: (context, state) =>
+                const MaintenanceScreen(),
+          ),
+
+          // Support routes
+          GoRoute(
+            path: '/support',
+            name: 'support',
+            builder: (context, state) =>
+                const SupportTicketsScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                name: 'createTicket',
+                builder: (context, state) {
+                  final bookingId =
+                      state.uri.queryParameters['bookingId'];
+                  final bookingType =
+                      state.uri.queryParameters['bookingType'];
+                  return CreateTicketScreen(
+                    bookingId: bookingId,
+                    bookingType: bookingType,
+                  );
+                },
+              ),
+              GoRoute(
+                path: ':ticketId',
+                name: 'ticketDetail',
+                builder: (context, state) =>
+                    SupportTicketDetailScreen(
+                  ticketId: state.pathParameters['ticketId']!,
+                ),
+              ),
+            ],
+          ),
+
+          // Feedback route
+          GoRoute(
+            path: '/feedback',
+            name: 'feedback',
+            builder: (context, state) =>
+                const FeedbackScreen(),
+          ),
+        ],
       ),
 
       // Booking routes (Phase 5)
@@ -469,130 +601,6 @@ GoRouter router(Ref ref) {
                 paramsData is DirectCheckoutParams ? paramsData : null,
           );
         },
-      ),
-
-      // Verification routes
-      GoRoute(
-        path: '/verification',
-        name: 'verification',
-        builder: (context, state) => const VerificationStatusScreen(),
-        routes: [
-          GoRoute(
-            path: 'submit',
-            name: 'verificationSubmit',
-            builder: (context, state) =>
-                const VerificationSubmitScreen(),
-          ),
-        ],
-      ),
-
-      // Waitlist routes
-      GoRoute(
-        path: '/waitlist',
-        name: 'waitlist',
-        builder: (context, state) => const WaitlistScreen(),
-      ),
-
-      // Trial routes
-      GoRoute(
-        path: '/trials',
-        name: 'trials',
-        builder: (context, state) => const TrialListScreen(),
-        routes: [
-          GoRoute(
-            path: 'request',
-            name: 'trialRequest',
-            builder: (context, state) {
-              final consultantProfileId =
-                  state.uri.queryParameters['consultantProfileId'];
-              final subscriptionPlanId =
-                  state.uri.queryParameters['subscriptionPlanId'];
-              if (consultantProfileId == null ||
-                  subscriptionPlanId == null) {
-                return const Scaffold(
-                  body: Center(
-                    child: Text('Missing required parameters'),
-                  ),
-                );
-              }
-              return TrialRequestScreen(
-                consultantProfileId: consultantProfileId,
-                subscriptionPlanId: subscriptionPlanId,
-              );
-            },
-          ),
-        ],
-      ),
-
-      // Payout routes
-      GoRoute(
-        path: '/payout-accounts',
-        name: 'payoutAccounts',
-        builder: (context, state) => const PayoutAccountsScreen(),
-        routes: [
-          GoRoute(
-            path: 'add',
-            name: 'addPayoutAccount',
-            builder: (context, state) =>
-                const AddPayoutAccountScreen(),
-          ),
-        ],
-      ),
-
-      // Tax info routes
-      GoRoute(
-        path: '/tax-info',
-        name: 'taxInfo',
-        builder: (context, state) => const TaxInfoScreen(),
-      ),
-
-      // Staff dashboard
-      GoRoute(
-        path: '/staff',
-        name: 'staffDashboard',
-        builder: (context, state) => const StaffDashboardScreen(),
-      ),
-
-      // Maintenance route
-      GoRoute(
-        path: '/maintenance',
-        name: 'maintenance',
-        builder: (context, state) => const MaintenanceScreen(),
-      ),
-
-      // Support routes (PR#15)
-      GoRoute(
-        path: '/support',
-        name: 'support',
-        builder: (context, state) => const SupportTicketsScreen(),
-        routes: [
-          GoRoute(
-            path: 'create',
-            name: 'createTicket',
-            builder: (context, state) {
-              final bookingId = state.uri.queryParameters['bookingId'];
-              final bookingType = state.uri.queryParameters['bookingType'];
-              return CreateTicketScreen(
-                bookingId: bookingId,
-                bookingType: bookingType,
-              );
-            },
-          ),
-          GoRoute(
-            path: ':ticketId',
-            name: 'ticketDetail',
-            builder: (context, state) => SupportTicketDetailScreen(
-              ticketId: state.pathParameters['ticketId']!,
-            ),
-          ),
-        ],
-      ),
-
-      // Feedback route (PR#15)
-      GoRoute(
-        path: '/feedback',
-        name: 'feedback',
-        builder: (context, state) => const FeedbackScreen(),
       ),
 
       // Meeting route (Phase 7)
