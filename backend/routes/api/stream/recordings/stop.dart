@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -31,9 +32,8 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    // TODO: Call Stream SDK to stop recording
-    // final streamService = context.read<StreamService>();
-    // await streamService.stopRecording(callId);
+    final streamService = context.read<StreamService>();
+    await streamService.stopRecording(callId);
 
     return Response.json(
       body: {'message': 'Recording stopped', 'callId': callId},
