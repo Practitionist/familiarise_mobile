@@ -82,6 +82,8 @@ class ReferralRepository extends BaseRepository {
             'referredUserId': userId,
             'status': 'SIGNED_UP',
             'signedUpAt': nowIso8601,
+            'createdAt': nowIso8601,
+            'updatedAt': nowIso8601,
           })
           .build();
 
@@ -114,6 +116,8 @@ class ReferralRepository extends BaseRepository {
             'remainingAmount': refereeReward,
             'source': 'REFEREE_BONUS',
             'expiresAt': expiresAt.toIso8601String(),
+            'createdAt': nowIso8601,
+            'updatedAt': nowIso8601,
           })
           .build();
 
@@ -164,6 +168,8 @@ class ReferralRepository extends BaseRepository {
           'totalReferrals': 0,
           'successfulReferrals': 0,
           'totalEarned': 0,
+          'createdAt': nowIso8601,
+          'updatedAt': nowIso8601,
         })
         .build();
 
