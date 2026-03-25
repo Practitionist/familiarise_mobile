@@ -11,6 +11,7 @@ import '../../domain/entities/explore/review.dart';
 import '../../domain/entities/explore/subscription_plan.dart';
 import '../../domain/entities/explore/webinar_plan.dart';
 import '../../domain/entities/support/support_entities.dart';
+import '../../domain/entities/trial/trial_entities.dart';
 
 /// Centralized fake data factories for Skeletonizer skeleton loading states.
 ///
@@ -168,6 +169,25 @@ class FakeData {
         pendingEarnings: 20000,
         paidEarnings: 130000,
       );
+
+  // --- TrialSession ---
+  static TrialSession trialSession() => TrialSession(
+        id: BoneMock.name,
+        status: TrialStatus.pending,
+        notes: BoneMock.words(8),
+        consulteeProfileId: 'fake',
+        consultantProfileId: 'fake',
+        subscriptionPlanId: 'fake',
+        requestedAt: DateTime(2024, 1, 1, 10, 0),
+        createdAt: DateTime(2024, 1, 1, 10, 0),
+        updatedAt: DateTime(2024, 1, 1, 10, 0),
+        consultantName: BoneMock.name,
+        consulteeName: BoneMock.name,
+        planTitle: BoneMock.words(3),
+      );
+
+  static List<TrialSession> trialSessions([int count = 4]) =>
+      List.generate(count, (_) => trialSession());
 
   // --- Review ---
   static Review review() => Review(

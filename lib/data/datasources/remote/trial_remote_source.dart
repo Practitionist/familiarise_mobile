@@ -39,9 +39,21 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
     try {
       final response = await _dio.get('/api/trials');
       final data = response.data['data'] as List<dynamic>;
-      return data
-          .map((d) => TrialSession.fromJson(d as Map<String, dynamic>))
-          .toList();
+      return data.map((d) {
+        final json = Map<String, dynamic>.from(d as Map<String, dynamic>);
+        // Flatten nested relation data into top-level fields
+        final cp = json['consultantProfile'] as Map<String, dynamic>?;
+        final ce = json['consulteeProfile'] as Map<String, dynamic>?;
+        final sp = json['subscriptionPlan'] as Map<String, dynamic>?;
+        final cpUser = cp?['user'] as Map<String, dynamic>?;
+        final ceUser = ce?['user'] as Map<String, dynamic>?;
+        json['consultantName'] = cpUser?['name'] as String?;
+        json['consultantImage'] = cpUser?['image'] as String?;
+        json['consulteeName'] = ceUser?['name'] as String?;
+        json['consulteeImage'] = ceUser?['image'] as String?;
+        json['planTitle'] = sp?['title'] as String?;
+        return TrialSession.fromJson(json);
+      }).toList();
     } on DioException catch (e) {
       throw ServerException(
         message: e.response?.data?['error']?['message'] ??

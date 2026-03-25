@@ -20,6 +20,12 @@ class TrialSession with _$TrialSession {
     DateTime? completedAt,
     required DateTime createdAt,
     required DateTime updatedAt,
+    // Enriched relation data (populated by GET /api/trials)
+    String? consultantName,
+    String? consultantImage,
+    String? consulteeName,
+    String? consulteeImage,
+    String? planTitle,
   }) = _TrialSession;
 
   factory TrialSession.fromJson(Map<String, dynamic> json) =>
