@@ -51,38 +51,49 @@ Future<Response> onRequest(RequestContext context) async {
     final streamRecordings =
         await streamService.listRecordings(callId);
 
-    // Sync each recording to our DB
+    // Sync all recordings in a single transaction
     final now = DateTime.now().toUtc().toIso8601String();
-    final synced = <Map<String, dynamic>>[];
+    final syncCount = await db.executeInTransaction((txn) async {
+      var count = 0;
+      for (final rec in streamRecordings) {
+        final recId = rec['id'] as String?;
+        final streamUrl = rec['url'] as String?;
+        final filename = rec['filename'] as String?;
 
-    for (final rec in streamRecordings) {
-      final streamUrl = rec['url'] as String?;
-      final filename = rec['filename'] as String?;
+        final query = JsonQueryBuilder()
+            .model('Recording')
+            .action(QueryAction.create)
+            .data({
+          'meetingSessionId': meetingSessionId,
+          'streamRecordingId': recId,
+          'streamUrl': streamUrl,
+          'fileName': filename ?? 'recording-$recId',
+          'status': 'AVAILABLE',
+          'duration': rec['duration'] as int?,
+          'fileSize': rec['file_size'] as int?,
+          'createdAt': now,
+          'updatedAt': now,
+        }).build();
 
-      final query = JsonQueryBuilder()
-          .model('Recording')
-          .action(QueryAction.create)
-          .data({
-        'meetingSessionId': meetingSessionId,
-        'streamRecordingId': rec['id'],
-        'streamUrl': streamUrl,
-        'fileName': filename ?? 'recording',
-        'status': 'AVAILABLE',
-        'duration': rec['duration'] as int?,
-        'fileSize': rec['file_size'] as int?,
-        'createdAt': now,
-        'updatedAt': now,
-      }).build();
+        await txn.executeMutation(query);
+        count++;
+      }
+      return count;
+    });
 
-      final result =
-          await db.executor.executeQueryAsSingleMap(query);
-      if (result != null) synced.add(result);
-    }
+    // Fetch the synced records
+    final recordsQuery = JsonQueryBuilder()
+        .model('Recording')
+        .action(QueryAction.findMany)
+        .where({'meetingSessionId': meetingSessionId})
+        .build();
+    final records =
+        await db.executor.executeQueryAsMaps(recordsQuery);
 
     return Response.json(
       body: {
-        'synced': synced.length,
-        'data': synced.map(serializeForJson).toList(),
+        'synced': syncCount,
+        'data': records.map(serializeForJson).toList(),
       },
     );
   } catch (e, stackTrace) {

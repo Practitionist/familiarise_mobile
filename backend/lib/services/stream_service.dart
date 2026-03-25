@@ -493,44 +493,20 @@ class StreamService {
   static const _videoApiBaseUrl = 'https://video.stream-io-api.com';
 
   /// Start recording a call.
-  ///
-  /// See: https://getstream.io/video/docs/api/recording/start/
   Future<void> startRecording(String callId) async {
-    if (!isConfigured) {
-      throw StateError('Stream API key and secret must be configured');
-    }
-
-    final serverToken = _createServerToken();
-    final response = await http.post(
-      Uri.parse(
-        '$_videoApiBaseUrl/api/v2/video/call/default/$callId'
-        '/start_recording',
-      ),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': serverToken,
-        'Stream-Auth-Type': 'jwt',
-        'api_key': _apiKey,
-      },
-      body: jsonEncode({}),
-    );
-
-    if (response.statusCode != 201 && response.statusCode != 200) {
-      final body = response.body;
-      SentryLogger.info(
-        'Stream start recording error: $body',
-        context: 'StreamService.startRecording',
-      );
-      throw Exception(
-        'Failed to start recording: ${response.statusCode}',
-      );
-    }
+    await _postRecordingAction(callId, 'start_recording');
   }
 
   /// Stop recording a call.
-  ///
-  /// See: https://getstream.io/video/docs/api/recording/stop/
   Future<void> stopRecording(String callId) async {
+    await _postRecordingAction(callId, 'stop_recording');
+  }
+
+  /// Shared helper for start/stop recording API calls.
+  Future<void> _postRecordingAction(
+    String callId,
+    String action,
+  ) async {
     if (!isConfigured) {
       throw StateError('Stream API key and secret must be configured');
     }
@@ -539,7 +515,7 @@ class StreamService {
     final response = await http.post(
       Uri.parse(
         '$_videoApiBaseUrl/api/v2/video/call/default/$callId'
-        '/stop_recording',
+        '/$action',
       ),
       headers: {
         'Content-Type': 'application/json',
@@ -553,11 +529,11 @@ class StreamService {
     if (response.statusCode != 201 && response.statusCode != 200) {
       final body = response.body;
       SentryLogger.info(
-        'Stream stop recording error: $body',
-        context: 'StreamService.stopRecording',
+        'Stream $action error: $body',
+        context: 'StreamService.$action',
       );
       throw Exception(
-        'Failed to stop recording: ${response.statusCode}',
+        'Failed to $action: ${response.statusCode}',
       );
     }
   }
@@ -586,6 +562,11 @@ class StreamService {
     );
 
     if (response.statusCode != 200) {
+      final body = response.body;
+      SentryLogger.info(
+        'Stream list recordings error: $body',
+        context: 'StreamService.listRecordings',
+      );
       throw Exception(
         'Failed to list recordings: ${response.statusCode}',
       );
