@@ -137,6 +137,7 @@ Future<Response> handleRecordingSync(RequestContext context) async {
       var count = 0;
       for (final rec in streamRecordings) {
         final recId = rec['id'] as String?;
+        if (recId == null) continue;
         final streamUrl = rec['url'] as String?;
         final filename = rec['filename'] as String?;
 
