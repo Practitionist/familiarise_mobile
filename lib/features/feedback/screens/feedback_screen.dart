@@ -53,7 +53,11 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
           backgroundColor: Colors.green.shade600,
         ),
       );
-      context.pop();
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/dashboard');
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

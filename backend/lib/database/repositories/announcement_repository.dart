@@ -15,7 +15,7 @@ class AnnouncementRepository extends BaseRepository {
       'isActive': true,
       'startDate': {'lte': now},
       'OR': [
-        {'endDate': null},
+        {'endDate': {'equals': null}},
         {'endDate': {'gte': now}},
       ],
     }).build();
