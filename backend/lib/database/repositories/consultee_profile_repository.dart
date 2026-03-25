@@ -59,17 +59,25 @@ class ConsulteeProfileRepository extends BaseRepository {
   ///
   /// Used during onboarding to set all profile fields.
   /// Uses the connector's native upsert support (ON CONFLICT DO UPDATE).
+  /// Upsert a consultee profile (create or update)
+  ///
+  /// Used during onboarding to set all profile fields.
+  /// Only writes columns that exist in the database schema:
+  /// aboutMe, careerStage, skillsToDevelop, budgetPreference,
+  /// preferredLanguage, goals.
   Future<Map<String, dynamic>> upsert({
     required String userId,
-    String? occupation,
     String? aboutMe,
     String? careerStage,
-    String? currentCompany,
-    String? industry,
     List<String>? skillsToDevelop,
     String? budgetPreference,
-    String? preferredCommunicationMethod,
     String? preferredLanguage,
+    String? goals,
+    // Legacy params accepted but ignored (not in DB schema):
+    String? occupation,
+    String? currentCompany,
+    String? industry,
+    String? preferredCommunicationMethod,
     String? linkedinUrl,
     TransactionExecutor? txn,
   }) async {
@@ -77,19 +85,14 @@ class ConsulteeProfileRepository extends BaseRepository {
     final existing = await findByUserId(userId);
     final profileId = existing?['id'] as String? ?? _uuid.v4();
 
-    // Build optional fields map (shared between create and update)
+    // Build optional fields — ONLY columns that exist in the DB
     final optionalData = <String, dynamic>{
-      if (occupation != null) 'occupation': occupation,
       if (aboutMe != null) 'aboutMe': aboutMe,
       if (careerStage != null) 'careerStage': careerStage,
-      if (currentCompany != null) 'currentCompany': currentCompany,
-      if (industry != null) 'industry': industry,
       if (skillsToDevelop != null) 'skillsToDevelop': skillsToDevelop,
       if (budgetPreference != null) 'budgetPreference': budgetPreference,
-      if (preferredCommunicationMethod != null)
-        'preferredCommunicationMethod': preferredCommunicationMethod,
       if (preferredLanguage != null) 'preferredLanguage': preferredLanguage,
-      if (linkedinUrl != null) 'linkedinUrl': linkedinUrl,
+      if (goals != null) 'goals': goals,
     };
 
     // Build create data (all fields including required ones)
