@@ -37,7 +37,9 @@ import '../features/feedback/screens/feedback_screen.dart';
 import '../features/meetings/screens/meeting_screen.dart';
 import '../features/trials/screens/trial_list_screen.dart';
 import '../features/trials/screens/trial_request_screen.dart';
+import '../features/booking/screens/appointment_documents_screen.dart';
 import '../features/maintenance/screens/maintenance_screen.dart';
+import '../features/staff/screens/staff_dashboard_screen.dart';
 import '../features/payout/screens/add_payout_account_screen.dart';
 import '../features/payout/screens/payout_accounts_screen.dart';
 import '../features/tax/screens/tax_info_screen.dart';
@@ -354,6 +356,26 @@ GoRouter router(Ref ref) {
         ],
       ),
 
+      // Appointment documents
+      GoRoute(
+        path: '/bookings/:bookingId/documents',
+        name: 'appointmentDocuments',
+        builder: (context, state) {
+          final appointmentId =
+              state.uri.queryParameters['appointmentId'];
+          if (appointmentId == null) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Missing appointmentId'),
+              ),
+            );
+          }
+          return AppointmentDocumentsScreen(
+            appointmentId: appointmentId,
+          );
+        },
+      ),
+
       // Booking routes (Phase 5)
       GoRoute(
         path: '/booking/:consultantId/:planId',
@@ -522,6 +544,13 @@ GoRouter router(Ref ref) {
         path: '/tax-info',
         name: 'taxInfo',
         builder: (context, state) => const TaxInfoScreen(),
+      ),
+
+      // Staff dashboard
+      GoRoute(
+        path: '/staff',
+        name: 'staffDashboard',
+        builder: (context, state) => const StaffDashboardScreen(),
       ),
 
       // Maintenance route
