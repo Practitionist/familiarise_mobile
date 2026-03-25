@@ -48,6 +48,17 @@ class TrialRepository extends BaseRepository {
     );
   }
 
+  /// Include block for enriching trial queries with relation data.
+  static const _trialIncludes = {
+    'consulteeProfile': {
+      'include': {'user': true},
+    },
+    'consultantProfile': {
+      'include': {'user': true},
+    },
+    'subscriptionPlan': true,
+  };
+
   /// List trials for a consultant.
   Future<List<Map<String, dynamic>>> findByConsultant(
     String consultantProfileId, {
@@ -62,6 +73,8 @@ class TrialRepository extends BaseRepository {
         .model('TrialSession')
         .action(QueryAction.findMany)
         .where(where)
+        .include(_trialIncludes)
+        .orderBy({'createdAt': 'desc'})
         .build();
     return executeQueryAsMaps(query);
   }
@@ -74,6 +87,8 @@ class TrialRepository extends BaseRepository {
         .model('TrialSession')
         .action(QueryAction.findMany)
         .where({'consulteeProfileId': consulteeProfileId})
+        .include(_trialIncludes)
+        .orderBy({'createdAt': 'desc'})
         .build();
     return executeQueryAsMaps(query);
   }
