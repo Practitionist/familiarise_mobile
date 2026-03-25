@@ -127,14 +127,27 @@ Future<Response> _handlePut(RequestContext context) async {
         },
       );
     } else {
+      // Validate required fields for creation
+      final panNumber = body['panNumber'] as String?;
+      if (panNumber == null || panNumber.isEmpty) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {
+              'message': 'panNumber is required for new tax info',
+            },
+          },
+        );
+      }
+
       final createQuery = JsonQueryBuilder()
           .model('ConsultantTaxInfo')
           .action(QueryAction.create)
           .data({
         'consultantProfileId': consultantProfileId,
-        'panNumber': body['panNumber'],
-        'gstNumber': body['gstNumber'],
-        'taxResidency': body['taxResidency'] ?? 'IN',
+        'panNumber': panNumber,
+        'gstNumber': body['gstNumber'] as String?,
+        'taxResidency': body['taxResidency'] as String? ?? 'IN',
         'createdAt': now,
         'updatedAt': now,
       }).build();
