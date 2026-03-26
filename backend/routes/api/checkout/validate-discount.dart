@@ -59,10 +59,17 @@ Future<Response> onRequest(RequestContext context) async {
     );
 
     if (discount == null || discount['valid'] != true) {
+      final reason = discount?['reason'] as String?;
+      final message = switch (reason) {
+        'expired' => 'Discount code has expired',
+        'exhausted' => 'Discount code usage limit reached',
+        _ => 'Invalid discount code',
+      };
+
       return Response.json(
         body: {
           'valid': false,
-          'message': 'Invalid discount code',
+          'message': message,
         },
       );
     }

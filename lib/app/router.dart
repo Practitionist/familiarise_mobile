@@ -98,6 +98,18 @@ GoRouter router(Ref ref) {
       final isAuthRoute = location.startsWith('/auth');
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
+      final isStaffRoute = location.startsWith('/staff');
+      final isConsultantOnlyRoute = location.startsWith('/payout-accounts') ||
+          location.startsWith('/tax-info');
+      final isStaffUser = role == UserRole.staff || role == UserRole.admin;
+      final isConsultantUser = role == UserRole.consultant;
+
+      String defaultAuthenticatedRoute() {
+        if (isStaffUser) {
+          return '/staff';
+        }
+        return '/dashboard';
+      }
 
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/dashboard') ||
@@ -136,6 +148,14 @@ GoRouter router(Ref ref) {
         return '/onboarding';
       }
 
+      if (isStaffRoute && !isStaffUser) {
+        return defaultAuthenticatedRoute();
+      }
+
+      if (isConsultantOnlyRoute && !isConsultantUser) {
+        return defaultAuthenticatedRoute();
+      }
+
       // Authenticated, completed onboarding, on a valid app route -> stay there
       if (!needsOnboarding && isValidAppRoute) {
         return null;
@@ -143,18 +163,12 @@ GoRouter router(Ref ref) {
 
       // On splash -> redirect to dashboard
       if (isSplash) {
-        if (role == UserRole.staff || role == UserRole.admin) {
-          return '/staff';
-        }
-        return '/dashboard';
+        return defaultAuthenticatedRoute();
       }
 
       // On auth route -> redirect to dashboard
       if (isAuthRoute) {
-        if (role == UserRole.staff || role == UserRole.admin) {
-          return '/staff';
-        }
-        return '/dashboard';
+        return defaultAuthenticatedRoute();
       }
 
       // On onboarding route but completed -> redirect to dashboard
