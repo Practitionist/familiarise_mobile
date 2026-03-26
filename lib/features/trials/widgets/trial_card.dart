@@ -161,6 +161,7 @@ class TrialCard extends StatelessWidget {
                   const Spacer(),
                   if (showActions) ...[
                     SizedBox(
+                      width: 76,
                       height: 32,
                       child: OutlinedButton(
                         onPressed: onReject,
@@ -177,6 +178,7 @@ class TrialCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
+                      width: 76,
                       height: 32,
                       child: FilledButton(
                         onPressed: onAccept,
