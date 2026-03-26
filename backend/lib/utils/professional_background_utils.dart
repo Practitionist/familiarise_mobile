@@ -1,4 +1,5 @@
 import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:uuid/uuid.dart';
 
 /// Shared utility for creating professional background records
 /// within a database transaction.
@@ -14,6 +15,7 @@ class ProfessionalBackgroundUtils {
     List<dynamic>? education,
     List<dynamic>? certifications,
   }) async {
+    const uuid = Uuid();
     final now = DateTime.now().toUtc().toIso8601String();
 
     if (workExperiences != null) {
@@ -23,6 +25,7 @@ class ProfessionalBackgroundUtils {
             .model('WorkExperience')
             .action(QueryAction.create)
             .data({
+          'id': uuid.v4(),
           'userId': userId,
           'company': item['company'],
           'companyDomain': item['companyDomain'],
@@ -46,6 +49,7 @@ class ProfessionalBackgroundUtils {
             .model('Education')
             .action(QueryAction.create)
             .data({
+          'id': uuid.v4(),
           'userId': userId,
           'institution': item['institution'],
           'institutionDomain': item['institutionDomain'],
@@ -70,6 +74,7 @@ class ProfessionalBackgroundUtils {
             .model('Certification')
             .action(QueryAction.create)
             .data({
+          'id': uuid.v4(),
           'userId': userId,
           'name': item['name'],
           'issuingOrganization': item['issuingOrganization'],

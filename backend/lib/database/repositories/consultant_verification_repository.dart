@@ -1,6 +1,8 @@
 import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:uuid/uuid.dart';
 
 /// Thrown when a verification submission conflicts with an existing pending one.
 class VerificationConflictException implements Exception {
@@ -63,6 +65,7 @@ class ConsultantVerificationRepository extends BaseRepository {
           .model('ConsultantProfileVerification')
           .action(QueryAction.create)
           .data({
+        'id': const Uuid().v4(),
         'consultantProfileId': consultantProfileId,
         'status': 'PENDING',
         'notes': notes,
@@ -75,7 +78,9 @@ class ConsultantVerificationRepository extends BaseRepository {
       if (result == null) {
         throw Exception('Failed to create verification');
       }
-      return ConsultantProfileVerification.fromJson(result);
+      final serialized = serializeForJson(result);
+      serialized.putIfAbsent('documents', () => <dynamic>[]);
+      return ConsultantProfileVerification.fromJson(serialized);
     });
   }
 
@@ -92,7 +97,9 @@ class ConsultantVerificationRepository extends BaseRepository {
         .build();
     final result = await executeQueryAsSingleMap(query);
     if (result == null) return null;
-    return ConsultantProfileVerification.fromJson(result);
+    final serialized = serializeForJson(result);
+    serialized.putIfAbsent('documents', () => <dynamic>[]);
+    return ConsultantProfileVerification.fromJson(serialized);
   }
 
   /// Get a verification by ID.

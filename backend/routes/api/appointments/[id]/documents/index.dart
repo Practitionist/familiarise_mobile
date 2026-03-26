@@ -44,10 +44,34 @@ Future<Object> _authorizeParticipant(
   final user = await db.users.findById(userId);
   final consulteeProfileId = user?['consulteeProfileId'] as String?;
   final consultantProfileId = user?['consultantProfileId'] as String?;
-  final apptConsulteeId =
-      appointment['consulteeProfileId'] as String?;
-  final apptConsultantId =
-      appointment['consultantProfileId'] as String?;
+
+  // Appointment links to Consultation (which has requestedById = consulteeProfileId)
+  // and to ConsultationPlan (which has consultantProfileId).
+  final consultationId = appointment['consultationId'] as String?;
+  String? apptConsulteeId;
+  String? apptConsultantId;
+
+  if (consultationId != null) {
+    final consultQuery = JsonQueryBuilder()
+        .model('Consultation')
+        .action(QueryAction.findFirst)
+        .where({'id': consultationId})
+        .build();
+    final consultation =
+        await db.executor.executeQueryAsSingleMap(consultQuery);
+    apptConsulteeId = consultation?['requestedById'] as String?;
+
+    final planId = consultation?['consultationPlanId'] as String?;
+    if (planId != null) {
+      final planQuery = JsonQueryBuilder()
+          .model('ConsultationPlan')
+          .action(QueryAction.findFirst)
+          .where({'id': planId})
+          .build();
+      final plan = await db.executor.executeQueryAsSingleMap(planQuery);
+      apptConsultantId = plan?['consultantProfileId'] as String?;
+    }
+  }
 
   if (consulteeProfileId != null &&
       consulteeProfileId == apptConsulteeId) {
