@@ -72,6 +72,7 @@ Future<Response> onRequest(
         'supportTicketId': ticketId,
         'userId': userId,
         'message': message,
+        'isInternal': false,
         'createdAt': now,
         'updatedAt': now,
       }).build();

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
@@ -17,7 +18,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
           body: {'error': {'message': 'Not found'}},
         );
       }
-      return Response.json(body: {'data': plan});
+      return Response.json(body: {'data': serializeForJson(plan)});
     } catch (e, stackTrace) {
       await SentryLogger.severe('Get failed',
           context: 'WebinarPlanGet',

@@ -39,7 +39,7 @@ class AppointmentDocumentRepository extends BaseRepository {
       'fileUrl': fileUrl,
       'storagePath': storagePath,
       'description': description,
-      'reviewStatus': 'PENDING',
+      'reviewStatus': DocumentReviewStatus.pending.name,
       'uploadedByRole': uploadedByRole,
       'responseToDocumentId': responseToDocumentId,
       'uploadedAt': now,
