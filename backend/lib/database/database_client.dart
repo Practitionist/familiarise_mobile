@@ -101,14 +101,14 @@ class DatabaseClient {
     _webhookEventRepository = WebhookEventRepository(_executor, _prisma);
     _refundRepository = RefundRepository(_executor, _prisma);
     _disputeRepository = DisputeRepository(_executor, _prisma);
-    _supportTicketRepository = SupportTicketRepository(_executor);
+    _supportTicketRepository = SupportTicketRepository(_executor, _prisma);
     _reviewRepository = ReviewRepository(_executor, _prisma);
     _feedbackRepository = FeedbackRepository(_executor, _prisma);
     _meetingSessionRepository = MeetingSessionRepository(_executor, _prisma);
     _dashboardRepository = DashboardRepository(_executor);
     _verificationRepository = VerificationRepository(_executor, _prisma);
     _collaboratorRepository = CollaboratorRepository(_executor, _prisma);
-    _referralRepository = ReferralRepository(_executor);
+    _referralRepository = ReferralRepository(_executor, _prisma);
     _consultantVerificationRepository =
         ConsultantVerificationRepository(_executor, _prisma);
     _trialRepository = TrialRepository(_executor, _prisma);

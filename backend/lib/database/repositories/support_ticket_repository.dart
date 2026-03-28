@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -14,11 +15,13 @@ class RecordNotFoundException implements Exception {
 /// Repository for support ticket operations using Prisma ORM
 ///
 /// Handles creation, retrieval, and management of support tickets.
-/// Uses JsonQueryBuilder for type-safe queries.
+/// Uses typed delegates for queries where possible, with JsonQueryBuilder
+/// for mutations and count queries that require raw where maps.
 class SupportTicketRepository extends BaseRepository {
   /// Create a support ticket repository with the given executor
-  SupportTicketRepository(super._executor);
+  SupportTicketRepository(super._executor, this._prisma);
 
+  final PrismaClient _prisma;
   final _uuid = const Uuid();
 
   /// Get tickets for a user with optional status filter and pagination
@@ -51,17 +54,12 @@ class SupportTicketRepository extends BaseRepository {
 
     final totalCount = await executeCount(countQuery);
 
-    // TODO(#106): add .include({'user': true, 'responses': true}) now that schema registry is auto-generated (#29)
-    final query = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.findMany)
-        .where(where)
-        .orderBy({'createdAt': 'desc'})
-        .skip(offset)
-        .take(effectivePageSize)
-        .build();
-
-    final tickets = await executeQueryAsMaps(query);
+    final tickets = await _prisma.supportTicket.findManyRaw(
+      where: where,
+      orderBy: {'createdAt': 'desc'},
+      skip: offset,
+      take: effectivePageSize,
+    );
 
     return {
       'tickets': tickets,
@@ -83,38 +81,24 @@ class SupportTicketRepository extends BaseRepository {
     required String userId,
   }) async {
     // Fetch ticket
-    final query = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.findFirst)
-        .where({
-      'id': ticketId,
-      'userId': userId,
-    }).build();
-
-    final ticket = await executeQueryAsSingleMap(query);
+    final ticket = await _prisma.supportTicket.findFirstRaw(
+      where: {'id': ticketId, 'userId': userId},
+    );
 
     if (ticket == null) {
       throw const RecordNotFoundException('Ticket not found or access denied');
     }
 
     // Fetch responses separately
-    final responsesQuery = JsonQueryBuilder()
-        .model('SupportResponse')
-        .action(QueryAction.findMany)
-        .where({
-      'supportTicketId': ticketId,
-      'isInternal': false,
-    }).orderBy({'createdAt': 'asc'}).build();
-
-    final responses = await executeQueryAsMaps(responsesQuery);
+    final responses = await _prisma.supportResponse.findManyRaw(
+      where: {'supportTicketId': ticketId, 'isInternal': false},
+      orderBy: {'createdAt': 'asc'},
+    );
 
     // Fetch attachments separately
-    final attachmentsQuery = JsonQueryBuilder()
-        .model('SupportTicketAttachment')
-        .action(QueryAction.findMany)
-        .where({'ticketId': ticketId}).build();
-
-    final attachments = await executeQueryAsMaps(attachmentsQuery);
+    final attachments = await _prisma.supportTicketAttachment.findManyRaw(
+      where: {'ticketId': ticketId},
+    );
 
     return {
       ...ticket,
@@ -168,12 +152,9 @@ class SupportTicketRepository extends BaseRepository {
     await executeMutation(createQuery);
 
     // Return the created ticket
-    final resultQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.findUnique)
-        .where({'id': ticketId}).build();
-
-    final result = await executeQueryAsSingleMap(resultQuery);
+    final result = await _prisma.supportTicket.findFirstRaw(
+      where: {'id': ticketId},
+    );
 
     if (result == null) {
       throw Exception('Failed to create ticket');
@@ -192,15 +173,9 @@ class SupportTicketRepository extends BaseRepository {
     required String message,
   }) async {
     // First verify the user owns the ticket
-    final ticketQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.findFirst)
-        .where({
-      'id': ticketId,
-      'userId': userId,
-    }).build();
-
-    final ticket = await executeQueryAsSingleMap(ticketQuery);
+    final ticket = await _prisma.supportTicket.findFirstRaw(
+      where: {'id': ticketId, 'userId': userId},
+    );
 
     if (ticket == null) {
       throw const RecordNotFoundException('Ticket not found or access denied');
@@ -233,13 +208,9 @@ class SupportTicketRepository extends BaseRepository {
 
     await executeMutation(updateQuery);
 
-    // TODO(#106): add .include({'user': true}) now that schema registry is auto-generated (#29)
-    final resultQuery = JsonQueryBuilder()
-        .model('SupportResponse')
-        .action(QueryAction.findUnique)
-        .where({'id': responseId}).build();
-
-    final result = await executeQueryAsSingleMap(resultQuery);
+    final result = await _prisma.supportResponse.findFirstRaw(
+      where: {'id': responseId},
+    );
 
     if (result == null) {
       throw Exception('Failed to create response');

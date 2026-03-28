@@ -16,55 +16,48 @@ class DisputeRepository extends BaseRepository {
 
   /// Get dispute by gateway-specific dispute ID
   Future<Map<String, dynamic>?> getDisputeByDisputeId(String disputeId) async {
-    final query = JsonQueryBuilder()
-        .model('Dispute')
-        .action(QueryAction.findUnique)
-        .where({'disputeId': disputeId}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.dispute.findFirstRaw(
+      where: {'disputeId': disputeId},
+    );
   }
 
   /// Get all disputes for a payment
   Future<List<Map<String, dynamic>>> getDisputesByPaymentId(
     String paymentId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('Dispute')
-        .action(QueryAction.findMany)
-        .where({'paymentId': paymentId}).orderBy({'createdAt': 'desc'}).build();
-
-    return executeQueryAsMaps(query);
+    return _prisma.dispute.findManyRaw(
+      where: {'paymentId': paymentId},
+      orderBy: {'createdAt': 'desc'},
+    );
   }
 
   /// Get dispute by internal ID
   Future<Map<String, dynamic>?> getDisputeById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('Dispute')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.dispute.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   /// Get all disputes for a user (via their payments)
   /// Useful for "My Disputes" screen
   Future<List<Map<String, dynamic>>> getDisputesByUserId(String userId) async {
-    final query =
-        JsonQueryBuilder().model('Dispute').action(QueryAction.findMany).where({
-      'payment': {
-        'userId': userId,
-      },
-    }).include({
-      'payment': {
-        'select': {
-          'id': true,
-          'amount': true,
-          'currency': true,
+    return _prisma.dispute.findManyRaw(
+      where: {
+        'payment': {
+          'userId': userId,
         },
       },
-    }).orderBy({'createdAt': 'desc'}).build();
-
-    return executeQueryAsMaps(query);
+      include: {
+        'payment': {
+          'select': {
+            'id': true,
+            'amount': true,
+            'currency': true,
+          },
+        },
+      },
+      orderBy: {'createdAt': 'desc'},
+    );
   }
 
   // =========================================

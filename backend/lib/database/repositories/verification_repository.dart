@@ -16,10 +16,12 @@ class VerificationRepository extends BaseRepository {
     required String identifier,
     required String value,
   }) async {
-    return _prisma.verification.findFirstRaw(where: {
-      'identifier': identifier,
-      'value': value,
-    });
+    return _prisma.verification.findFirstRaw(
+      where: {
+        'identifier': identifier,
+        'value': value,
+      },
+    );
   }
 
   /// Find a verification by value and identifier prefix
@@ -30,10 +32,12 @@ class VerificationRepository extends BaseRepository {
     required String value,
     required String identifierPrefix,
   }) async {
-    return _prisma.verification.findFirstRaw(where: {
-      'value': value,
-      'identifier': FilterOperators.startsWith(identifierPrefix),
-    });
+    return _prisma.verification.findFirstRaw(
+      where: {
+        'value': value,
+        'identifier': FilterOperators.startsWith(identifierPrefix),
+      },
+    );
   }
 
   /// Find a verification by ID

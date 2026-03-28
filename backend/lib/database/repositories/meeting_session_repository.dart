@@ -42,23 +42,20 @@ class MeetingSessionRepository extends BaseRepository {
     String appointmentId,
   ) async {
     // Step 1: Get slot IDs for this appointment, ordered by start time
-    final slotsQuery = JsonQueryBuilder()
-        .model('SlotOfAppointment')
-        .action(QueryAction.findMany)
-        .where({'appointmentId': appointmentId}).select({'id': true}).orderBy(
-            {'startsAt': 'asc'}).build();
-    final slots = await executeQueryAsMaps(slotsQuery);
+    final slots = await _prisma.slotOfAppointment.findManyRaw(
+      where: {'appointmentId': appointmentId},
+      selectFields: ['id'],
+      orderBy: {'startsAt': 'asc'},
+    );
     if (slots.isEmpty) return null;
 
     final slotIds = slots.map((s) => s['id'] as String).toList();
 
     // Step 2: Get meeting session for any of these slots
-    final meetingQuery = JsonQueryBuilder()
-        .model('MeetingSession')
-        .action(QueryAction.findFirst)
-        .where({'slotOfAppointmentId': FilterOperators.in_(slotIds)}).include(
-            {'slotOfAppointment': true}).build();
-    return executeQueryAsSingleMap(meetingQuery);
+    return _prisma.meetingSession.findFirstRaw(
+      where: {'slotOfAppointmentId': FilterOperators.in_(slotIds)},
+      include: {'slotOfAppointment': true},
+    );
   }
 
   /// Get meeting session with detailed information for the API response
@@ -75,15 +72,14 @@ class MeetingSessionRepository extends BaseRepository {
     final slotId = meeting['slotOfAppointmentId'] as String;
 
     // Step 2: Get slot with users (participants)
-    final slotQuery = JsonQueryBuilder()
-        .model('SlotOfAppointment')
-        .action(QueryAction.findUnique)
-        .where({'id': slotId}).include({
-      'user': {
-        'select': {'id': true, 'name': true, 'image': true, 'role': true}
-      }
-    }).build();
-    final slot = await executeQueryAsSingleMap(slotQuery);
+    final slot = await _prisma.slotOfAppointment.findFirstRaw(
+      where: {'id': slotId},
+      include: {
+        'user': {
+          'select': {'id': true, 'name': true, 'image': true, 'role': true},
+        },
+      },
+    );
 
     // Step 3: Extract consultant and consultee from users
     final users = slot?['user'] as List<dynamic>? ?? [];
@@ -123,12 +119,10 @@ class MeetingSessionRepository extends BaseRepository {
     if (existing != null) return existing;
 
     // Get first slot for this appointment (ordered by start time)
-    final slotQuery = JsonQueryBuilder()
-        .model('SlotOfAppointment')
-        .action(QueryAction.findFirst)
-        .where({'appointmentId': appointmentId}).orderBy(
-            {'startsAt': 'asc'}).select({'id': true}).build();
-    final slot = await executeQueryAsSingleMap(slotQuery);
+    final slot = await _prisma.slotOfAppointment.findFirstRaw(
+      where: {'appointmentId': appointmentId},
+      orderBy: {'startsAt': 'asc'},
+    );
 
     if (slot == null) {
       throw StateError('No slots found for appointment $appointmentId');
@@ -175,11 +169,9 @@ class MeetingSessionRepository extends BaseRepository {
   Future<Map<String, dynamic>?> getMeetingByStreamCallId(
     String streamCallId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('MeetingSession')
-        .action(QueryAction.findFirst)
-        .where({'streamCallId': streamCallId}).include(
-            {'slotOfAppointment': true}).build();
-    return executeQueryAsSingleMap(query);
+    return _prisma.meetingSession.findFirstRaw(
+      where: {'streamCallId': streamCallId},
+      include: {'slotOfAppointment': true},
+    );
   }
 }

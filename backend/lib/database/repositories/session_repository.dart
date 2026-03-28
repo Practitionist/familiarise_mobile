@@ -21,12 +21,9 @@ class SessionRepository extends BaseRepository {
   /// The Prisma Flutter Connector currently doesn't support the include
   /// option for relations.
   Future<Map<String, dynamic>?> findById(String sessionId) async {
-    final query = JsonQueryBuilder()
-        .model('sessions')
-        .action(QueryAction.findUnique)
-        .where({'id': sessionId}).build();
-
-    final session = await executeQueryAsSingleMap(query);
+    final session = await _prisma.session.findFirstRaw(
+      where: {'id': sessionId},
+    );
     if (session == null) return null;
 
     return _hydrateWithUser(session);
@@ -34,12 +31,9 @@ class SessionRepository extends BaseRepository {
 
   /// Find session by token with user data
   Future<Map<String, dynamic>?> findByToken(String token) async {
-    final query = JsonQueryBuilder()
-        .model('sessions')
-        .action(QueryAction.findFirst)
-        .where({'token': token}).build();
-
-    final session = await executeQueryAsSingleMap(query);
+    final session = await _prisma.session.findFirstRaw(
+      where: {'token': token},
+    );
     if (session == null) return null;
 
     return _hydrateWithUser(session);
@@ -47,12 +41,9 @@ class SessionRepository extends BaseRepository {
 
   /// List all active sessions for a user
   Future<List<Map<String, dynamic>>> findByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('sessions')
-        .action(QueryAction.findMany)
-        .where({'userId': userId}).build();
-
-    return executeQueryAsMaps(query);
+    return _prisma.session.findManyRaw(
+      where: {'userId': userId},
+    );
   }
 
   /// Create a new session

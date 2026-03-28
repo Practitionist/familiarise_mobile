@@ -87,9 +87,9 @@ class ConsultantVerificationRepository extends BaseRepository {
     String consultantProfileId,
   ) async {
     final result =
-        await _prisma.consultantProfileVerification.findFirstRaw(where: {
-      'consultantProfileId': consultantProfileId,
-    });
+        await _prisma.consultantProfileVerification.findFirstRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
     if (result == null) return null;
     final serialized = serializeForJson(result);
     serialized.putIfAbsent('documents', () => <dynamic>[]);
@@ -107,9 +107,9 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> findAll(
     String consultantProfileId,
   ) async {
-    return _prisma.consultantProfileVerification.findManyRaw(where: {
-      'consultantProfileId': consultantProfileId,
-    });
+    return _prisma.consultantProfileVerification.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
   }
 
   /// Add a document to an existing verification.
@@ -141,12 +141,9 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getDocuments(
     String verificationId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('ProfileVerificationDocument')
-        .action(QueryAction.findMany)
-        .where({'verificationId': verificationId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.profileVerificationDocument.findManyRaw(
+      where: {'verificationId': verificationId},
+    );
   }
 
   /// Resubmit a verification (creates a new one, supersedes the old).

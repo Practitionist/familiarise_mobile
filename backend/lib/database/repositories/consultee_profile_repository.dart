@@ -13,16 +13,16 @@ class ConsulteeProfileRepository extends BaseRepository {
 
   /// Find consultee profile by user ID
   Future<Map<String, dynamic>?> findByUserId(String userId) async {
-    return _prisma.consulteeProfile.findFirstRaw(where: {
-      'userId': userId,
-    });
+    return _prisma.consulteeProfile.findFirstRaw(
+      where: {'userId': userId},
+    );
   }
 
   /// Find consultee profile by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    return _prisma.consulteeProfile.findFirstRaw(where: {
-      'id': id,
-    });
+    return _prisma.consulteeProfile.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   /// Create a new consultee profile

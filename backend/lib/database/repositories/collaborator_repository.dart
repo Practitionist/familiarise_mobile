@@ -14,56 +14,49 @@ class CollaboratorRepository extends BaseRepository {
     String consultantProfileId,
   ) async {
     // Webinar collaborations with nested includes
-    final webinarQuery = JsonQueryBuilder()
-        .model('WebinarCollaborator')
-        .action(QueryAction.findMany)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-        })
-        .include({
-          'webinarPlan': {
-            'include': {
-              'consultantProfile': {
-                'include': {'user': true},
-              },
+    final webinarResults = await _prisma.webinarCollaborator.findManyRaw(
+      where: {
+        'consultantProfileId': consultantProfileId,
+        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
+      },
+      include: {
+        'webinarPlan': {
+          'include': {
+            'consultantProfile': {
+              'include': {'user': true},
             },
           },
-          'invitedBy': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
-
-    final webinarResults = await executeQueryAsMaps(webinarQuery);
+        },
+        'invitedBy': {
+          'include': {'user': true},
+        },
+      },
+      orderBy: {'createdAt': 'desc'},
+    );
     final webinarCollaborations =
         webinarResults.map(_flattenWebinarCollaboration).toList();
 
     // Class collaborations with nested includes
-    final classQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
-        .action(QueryAction.findMany)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-        })
-        .include({
-          'classPlan': {
-            'include': {
-              'consultantProfile': {
-                'include': {'user': true},
-              },
+    final classResults = await _prisma.classCollaborator.findManyRaw(
+      where: {
+        'consultantProfileId': consultantProfileId,
+        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
+      },
+      include: {
+        'classPlan': {
+          'include': {
+            'consultantProfile': {
+              'include': {'user': true},
             },
           },
-          'invitedBy': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        },
+        'invitedBy': {
+          'include': {'user': true},
+        },
+      },
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final classResults = await executeQueryAsMaps(classQuery);
     final classCollaborations =
         classResults.map(_flattenClassCollaboration).toList();
 

@@ -21,10 +21,12 @@ class AccountRepository extends BaseRepository {
     String userId,
     String providerId,
   ) async {
-    return _prisma.account.findFirstRaw(where: {
-      'userId': userId,
-      'providerId': providerId,
-    });
+    return _prisma.account.findFirstRaw(
+      where: {
+        'userId': userId,
+        'providerId': providerId,
+      },
+    );
   }
 
   /// Find credential account by userId
