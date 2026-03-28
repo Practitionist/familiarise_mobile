@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/exceptions.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
@@ -9,7 +10,8 @@ import 'package:uuid/uuid.dart';
 /// Uses JsonQueryBuilder for type-safe queries.
 class ReviewRepository extends BaseRepository {
   /// Create a review repository with the given executor
-  ReviewRepository(super._executor);
+  ReviewRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   final _uuid = const Uuid();
 

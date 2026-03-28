@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -9,7 +10,8 @@ import 'package:uuid/uuid.dart';
 ///   - emailVerified is now Boolean (not DateTime?)
 class UserRepository extends BaseRepository {
   /// Create a user repository with the given executor
-  UserRepository(super._executor);
+  UserRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   /// Find user by email
   Future<Map<String, dynamic>?> findByEmail(String email) async {

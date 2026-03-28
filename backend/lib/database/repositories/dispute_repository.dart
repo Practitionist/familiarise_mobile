@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
@@ -8,7 +9,8 @@ import 'package:uuid/uuid.dart';
 /// Disputes are created by web backend from webhooks.
 /// Mobile backend provides read-only access for user visibility.
 class DisputeRepository extends BaseRepository {
-  DisputeRepository(super._executor);
+  DisputeRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   final _uuid = const Uuid();
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
@@ -9,7 +10,8 @@ import 'package:uuid/uuid.dart';
 ///
 /// Handles creating, querying, and updating refund records from webhook events.
 class RefundRepository extends BaseRepository {
-  RefundRepository(super._executor);
+  RefundRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   final _uuid = const Uuid();
 

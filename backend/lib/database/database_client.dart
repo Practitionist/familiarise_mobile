@@ -87,27 +87,27 @@ class DatabaseClient {
     _prisma = PrismaClient(adapter: _adapter);
 
     // Initialize repositories
-    _userRepository = UserRepository(_executor);
+    _userRepository = UserRepository(_executor, _prisma);
     _accountRepository = AccountRepository(_executor);
-    _sessionRepository = SessionRepository(_executor, _userRepository);
+    _sessionRepository = SessionRepository(_executor, _userRepository, _prisma);
     _consulteeProfileRepository = ConsulteeProfileRepository(_executor);
     _consultantProfileRepository = ConsultantProfileRepository(_executor);
-    _domainRepository = DomainRepository(_executor);
+    _domainRepository = DomainRepository(_executor, _prisma);
     _consultantExploreRepository = ConsultantExploreRepository(_executor);
     _slotRepository = SlotRepository(_executor);
     _appointmentRepository = AppointmentRepository(_executor);
     _programsRepository = ProgramsRepository(_executor);
     _checkoutRepository = CheckoutRepository(_executor);
     _webhookEventRepository = WebhookEventRepository(_executor, _prisma);
-    _refundRepository = RefundRepository(_executor);
-    _disputeRepository = DisputeRepository(_executor);
+    _refundRepository = RefundRepository(_executor, _prisma);
+    _disputeRepository = DisputeRepository(_executor, _prisma);
     _supportTicketRepository = SupportTicketRepository(_executor);
-    _reviewRepository = ReviewRepository(_executor);
+    _reviewRepository = ReviewRepository(_executor, _prisma);
     _feedbackRepository = FeedbackRepository(_executor, _prisma);
-    _meetingSessionRepository = MeetingSessionRepository(_executor);
+    _meetingSessionRepository = MeetingSessionRepository(_executor, _prisma);
     _dashboardRepository = DashboardRepository(_executor);
-    _verificationRepository = VerificationRepository(_executor);
-    _collaboratorRepository = CollaboratorRepository(_executor);
+    _verificationRepository = VerificationRepository(_executor, _prisma);
+    _collaboratorRepository = CollaboratorRepository(_executor, _prisma);
     _referralRepository = ReferralRepository(_executor);
     _consultantVerificationRepository =
         ConsultantVerificationRepository(_executor, _prisma);

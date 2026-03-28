@@ -1,3 +1,4 @@
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -8,7 +9,8 @@ import 'base_repository.dart';
 /// Handles creation, retrieval, and management of meeting sessions
 /// for video consultations via Stream Video SDK.
 class MeetingSessionRepository extends BaseRepository {
-  MeetingSessionRepository(super.executor);
+  MeetingSessionRepository(super.executor, this._prisma);
+  final PrismaClient _prisma;
 
   static const _uuid = Uuid();
 

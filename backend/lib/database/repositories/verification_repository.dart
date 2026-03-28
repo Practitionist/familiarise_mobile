@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for verification token database operations
@@ -7,7 +8,8 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Used for password reset tokens and email verification tokens.
 class VerificationRepository extends BaseRepository {
   /// Create a verification repository with the given executor
-  VerificationRepository(super._executor);
+  VerificationRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   /// Find a verification by identifier and value
   Future<Map<String, dynamic>?> findByIdentifierAndValue({

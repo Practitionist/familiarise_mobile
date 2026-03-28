@@ -1,11 +1,13 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for collaborator operations
 /// (WebinarCollaborator + ClassCollaborator)
 class CollaboratorRepository extends BaseRepository {
   /// Create a collaborator repository with the given executor
-  CollaboratorRepository(super._executor);
+  CollaboratorRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   /// Get all collaborations for a consultant (both webinar and class)
   Future<Map<String, dynamic>> getMyCollaborations(

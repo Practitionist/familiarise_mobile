@@ -1,5 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/database/repositories/user_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for session-related database operations
@@ -9,9 +10,10 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 ///   expires → expiresAt
 class SessionRepository extends BaseRepository {
   /// Create a session repository with the given executor and user repository
-  SessionRepository(super._executor, this._userRepository);
+  SessionRepository(super._executor, this._userRepository, this._prisma);
 
   final UserRepository _userRepository;
+  final PrismaClient _prisma;
 
   /// Find session by ID with user data
   ///
