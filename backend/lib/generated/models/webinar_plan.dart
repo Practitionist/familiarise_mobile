@@ -47,9 +47,12 @@ class WebinarPlan with _$WebinarPlan {
     @JsonKey(includeFromJson: false, includeToJson: false)
     ConsultantProfile? consultantProfile,
     String? consultantProfileId,
-    required List<Webinar> webinars,
-    required List<PlanMaterial> materials,
-    required List<WebinarCollaborator> collaborators,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<Webinar>? webinars,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<PlanMaterial>? materials,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<WebinarCollaborator>? collaborators,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _WebinarPlan;

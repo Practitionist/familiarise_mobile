@@ -1,4 +1,5 @@
 import 'package:backend/database/database_client.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/google_token_verifier.dart';
 import 'package:backend/services/auth/jwt_service.dart';
@@ -147,12 +148,22 @@ class AuthService {
         txn: txn,
       );
 
-      // Create consultee profile
+      // Create consultee profile and link to user
+      final consulteeProfileId = _uuid.v4();
       await _db.createConsulteeProfile(
-        id: _uuid.v4(),
+        id: consulteeProfileId,
         userId: userId,
         executor: txn,
       );
+
+      // Update user with consulteeProfileId FK
+      final updateQuery = JsonQueryBuilder()
+          .model('users')
+          .action(QueryAction.update)
+          .where({'id': userId})
+          .data({'consulteeProfileId': consulteeProfileId, 'updatedAt': DateTime.now().toUtc().toIso8601String()})
+          .build();
+      await txn.executeMutation(updateQuery);
 
       // Create default preferences (matches web BetterAuth databaseHooks)
       await _db.users.createDefaultPreferences(userId, txn: txn);

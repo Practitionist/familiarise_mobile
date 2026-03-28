@@ -11,9 +11,6 @@ _$ClassPlanImpl _$$ClassPlanImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String,
-      classContents: (json['classContents'] as List<dynamic>)
-          .map((e) => ClassContent.fromJson(e as Map<String, dynamic>))
-          .toList(),
       price: (json['price'] as num).toInt(),
       priceCurrency: json['priceCurrency'] as String? ?? "INR",
       certificateProvided: json['certificateProvided'] as bool? ?? false,
@@ -42,15 +39,6 @@ _$ClassPlanImpl _$$ClassPlanImplFromJson(Map<String, dynamic> json) =>
           const <String>[],
       imageUrl: json['imageUrl'] as String?,
       consultantProfileId: json['consultantProfileId'] as String?,
-      classes: (json['classes'] as List<dynamic>)
-          .map((e) => ClassModel.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      materials: (json['materials'] as List<dynamic>)
-          .map((e) => PlanMaterial.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      collaborators: (json['collaborators'] as List<dynamic>)
-          .map((e) => ClassCollaborator.fromJson(e as Map<String, dynamic>))
-          .toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -60,7 +48,6 @@ Map<String, dynamic> _$$ClassPlanImplToJson(_$ClassPlanImpl instance) =>
       'id': instance.id,
       'title': instance.title,
       'description': instance.description,
-      'classContents': instance.classContents,
       'price': instance.price,
       'priceCurrency': instance.priceCurrency,
       'certificateProvided': instance.certificateProvided,
@@ -81,9 +68,6 @@ Map<String, dynamic> _$$ClassPlanImplToJson(_$ClassPlanImpl instance) =>
       'learningOutcomes': instance.learningOutcomes,
       'imageUrl': instance.imageUrl,
       'consultantProfileId': instance.consultantProfileId,
-      'classes': instance.classes,
-      'materials': instance.materials,
-      'collaborators': instance.collaborators,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };

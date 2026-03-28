@@ -25,7 +25,8 @@ mixin _$ClassPlan {
   String get description => throw _privateConstructorUsedError;
   @JsonKey(includeFromJson: false, includeToJson: false)
   List<Topic>? get topics => throw _privateConstructorUsedError;
-  List<ClassContent> get classContents => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassContent>? get classContents => throw _privateConstructorUsedError;
   int get price => throw _privateConstructorUsedError;
   String get priceCurrency => throw _privateConstructorUsedError;
   bool get certificateProvided => throw _privateConstructorUsedError;
@@ -49,9 +50,12 @@ mixin _$ClassPlan {
   ConsultantProfile? get consultantProfile =>
       throw _privateConstructorUsedError;
   String? get consultantProfileId => throw _privateConstructorUsedError;
-  List<ClassModel> get classes => throw _privateConstructorUsedError;
-  List<PlanMaterial> get materials => throw _privateConstructorUsedError;
-  List<ClassCollaborator> get collaborators =>
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassModel>? get classes => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassCollaborator>? get collaborators =>
       throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
@@ -77,7 +81,8 @@ abstract class $ClassPlanCopyWith<$Res> {
       String description,
       @JsonKey(includeFromJson: false, includeToJson: false)
       List<Topic>? topics,
-      List<ClassContent> classContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<ClassContent>? classContents,
       int price,
       String priceCurrency,
       bool certificateProvided,
@@ -99,9 +104,12 @@ abstract class $ClassPlanCopyWith<$Res> {
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String? consultantProfileId,
-      List<ClassModel> classes,
-      List<PlanMaterial> materials,
-      List<ClassCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<ClassModel>? classes,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<ClassCollaborator>? collaborators,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -127,7 +135,7 @@ class _$ClassPlanCopyWithImpl<$Res, $Val extends ClassPlan>
     Object? title = null,
     Object? description = null,
     Object? topics = freezed,
-    Object? classContents = null,
+    Object? classContents = freezed,
     Object? price = null,
     Object? priceCurrency = null,
     Object? certificateProvided = null,
@@ -148,9 +156,9 @@ class _$ClassPlanCopyWithImpl<$Res, $Val extends ClassPlan>
     Object? imageUrl = freezed,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = freezed,
-    Object? classes = null,
-    Object? materials = null,
-    Object? collaborators = null,
+    Object? classes = freezed,
+    Object? materials = freezed,
+    Object? collaborators = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -171,10 +179,10 @@ class _$ClassPlanCopyWithImpl<$Res, $Val extends ClassPlan>
           ? _value.topics
           : topics // ignore: cast_nullable_to_non_nullable
               as List<Topic>?,
-      classContents: null == classContents
+      classContents: freezed == classContents
           ? _value.classContents
           : classContents // ignore: cast_nullable_to_non_nullable
-              as List<ClassContent>,
+              as List<ClassContent>?,
       price: null == price
           ? _value.price
           : price // ignore: cast_nullable_to_non_nullable
@@ -255,18 +263,18 @@ class _$ClassPlanCopyWithImpl<$Res, $Val extends ClassPlan>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String?,
-      classes: null == classes
+      classes: freezed == classes
           ? _value.classes
           : classes // ignore: cast_nullable_to_non_nullable
-              as List<ClassModel>,
-      materials: null == materials
+              as List<ClassModel>?,
+      materials: freezed == materials
           ? _value.materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
-      collaborators: null == collaborators
+              as List<PlanMaterial>?,
+      collaborators: freezed == collaborators
           ? _value.collaborators
           : collaborators // ignore: cast_nullable_to_non_nullable
-              as List<ClassCollaborator>,
+              as List<ClassCollaborator>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -307,7 +315,8 @@ abstract class _$$ClassPlanImplCopyWith<$Res>
       String description,
       @JsonKey(includeFromJson: false, includeToJson: false)
       List<Topic>? topics,
-      List<ClassContent> classContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<ClassContent>? classContents,
       int price,
       String priceCurrency,
       bool certificateProvided,
@@ -329,9 +338,12 @@ abstract class _$$ClassPlanImplCopyWith<$Res>
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String? consultantProfileId,
-      List<ClassModel> classes,
-      List<PlanMaterial> materials,
-      List<ClassCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<ClassModel>? classes,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<ClassCollaborator>? collaborators,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -356,7 +368,7 @@ class __$$ClassPlanImplCopyWithImpl<$Res>
     Object? title = null,
     Object? description = null,
     Object? topics = freezed,
-    Object? classContents = null,
+    Object? classContents = freezed,
     Object? price = null,
     Object? priceCurrency = null,
     Object? certificateProvided = null,
@@ -377,9 +389,9 @@ class __$$ClassPlanImplCopyWithImpl<$Res>
     Object? imageUrl = freezed,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = freezed,
-    Object? classes = null,
-    Object? materials = null,
-    Object? collaborators = null,
+    Object? classes = freezed,
+    Object? materials = freezed,
+    Object? collaborators = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -400,10 +412,10 @@ class __$$ClassPlanImplCopyWithImpl<$Res>
           ? _value._topics
           : topics // ignore: cast_nullable_to_non_nullable
               as List<Topic>?,
-      classContents: null == classContents
+      classContents: freezed == classContents
           ? _value._classContents
           : classContents // ignore: cast_nullable_to_non_nullable
-              as List<ClassContent>,
+              as List<ClassContent>?,
       price: null == price
           ? _value.price
           : price // ignore: cast_nullable_to_non_nullable
@@ -484,18 +496,18 @@ class __$$ClassPlanImplCopyWithImpl<$Res>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String?,
-      classes: null == classes
+      classes: freezed == classes
           ? _value._classes
           : classes // ignore: cast_nullable_to_non_nullable
-              as List<ClassModel>,
-      materials: null == materials
+              as List<ClassModel>?,
+      materials: freezed == materials
           ? _value._materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
-      collaborators: null == collaborators
+              as List<PlanMaterial>?,
+      collaborators: freezed == collaborators
           ? _value._collaborators
           : collaborators // ignore: cast_nullable_to_non_nullable
-              as List<ClassCollaborator>,
+              as List<ClassCollaborator>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -517,7 +529,8 @@ class _$ClassPlanImpl implements _ClassPlan {
       required this.description,
       @JsonKey(includeFromJson: false, includeToJson: false)
       final List<Topic>? topics,
-      required final List<ClassContent> classContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<ClassContent>? classContents,
       required this.price,
       this.priceCurrency = "INR",
       this.certificateProvided = false,
@@ -539,9 +552,12 @@ class _$ClassPlanImpl implements _ClassPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       this.consultantProfile,
       this.consultantProfileId,
-      required final List<ClassModel> classes,
-      required final List<PlanMaterial> materials,
-      required final List<ClassCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<ClassModel>? classes,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<ClassCollaborator>? collaborators,
       required this.createdAt,
       required this.updatedAt})
       : _topics = topics,
@@ -571,12 +587,15 @@ class _$ClassPlanImpl implements _ClassPlan {
     return EqualUnmodifiableListView(value);
   }
 
-  final List<ClassContent> _classContents;
+  final List<ClassContent>? _classContents;
   @override
-  List<ClassContent> get classContents {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassContent>? get classContents {
+    final value = _classContents;
+    if (value == null) return null;
     if (_classContents is EqualUnmodifiableListView) return _classContents;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_classContents);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -645,28 +664,37 @@ class _$ClassPlanImpl implements _ClassPlan {
   final ConsultantProfile? consultantProfile;
   @override
   final String? consultantProfileId;
-  final List<ClassModel> _classes;
+  final List<ClassModel>? _classes;
   @override
-  List<ClassModel> get classes {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassModel>? get classes {
+    final value = _classes;
+    if (value == null) return null;
     if (_classes is EqualUnmodifiableListView) return _classes;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_classes);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<PlanMaterial> _materials;
+  final List<PlanMaterial>? _materials;
   @override
-  List<PlanMaterial> get materials {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials {
+    final value = _materials;
+    if (value == null) return null;
     if (_materials is EqualUnmodifiableListView) return _materials;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_materials);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<ClassCollaborator> _collaborators;
+  final List<ClassCollaborator>? _collaborators;
   @override
-  List<ClassCollaborator> get collaborators {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassCollaborator>? get collaborators {
+    final value = _collaborators;
+    if (value == null) return null;
     if (_collaborators is EqualUnmodifiableListView) return _collaborators;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_collaborators);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -799,7 +827,8 @@ abstract class _ClassPlan implements ClassPlan {
       required final String description,
       @JsonKey(includeFromJson: false, includeToJson: false)
       final List<Topic>? topics,
-      required final List<ClassContent> classContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<ClassContent>? classContents,
       required final int price,
       final String priceCurrency,
       final bool certificateProvided,
@@ -821,9 +850,12 @@ abstract class _ClassPlan implements ClassPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       final ConsultantProfile? consultantProfile,
       final String? consultantProfileId,
-      required final List<ClassModel> classes,
-      required final List<PlanMaterial> materials,
-      required final List<ClassCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<ClassModel>? classes,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<ClassCollaborator>? collaborators,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$ClassPlanImpl;
 
@@ -840,7 +872,8 @@ abstract class _ClassPlan implements ClassPlan {
   @JsonKey(includeFromJson: false, includeToJson: false)
   List<Topic>? get topics;
   @override
-  List<ClassContent> get classContents;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassContent>? get classContents;
   @override
   int get price;
   @override
@@ -883,11 +916,14 @@ abstract class _ClassPlan implements ClassPlan {
   @override
   String? get consultantProfileId;
   @override
-  List<ClassModel> get classes;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassModel>? get classes;
   @override
-  List<PlanMaterial> get materials;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials;
   @override
-  List<ClassCollaborator> get collaborators;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<ClassCollaborator>? get collaborators;
   @override
   DateTime get createdAt;
   @override

@@ -53,10 +53,14 @@ class SubscriptionPlan with _$SubscriptionPlan {
     @JsonKey(includeFromJson: false, includeToJson: false)
     ConsultantProfile? consultantProfile,
     required String consultantProfileId,
-    required List<Subscription> subscriptions,
-    required List<SubscriptionContent> subscriptionContents,
-    required List<TrialSession> trialSessions,
-    required List<PlanMaterial> materials,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<Subscription>? subscriptions,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<SubscriptionContent>? subscriptionContents,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<TrialSession>? trialSessions,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<PlanMaterial>? materials,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _SubscriptionPlan;

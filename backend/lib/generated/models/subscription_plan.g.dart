@@ -35,18 +35,6 @@ _$SubscriptionPlanImpl _$$SubscriptionPlanImplFromJson(
       freeTrialDurationMinutes:
           (json['freeTrialDurationMinutes'] as num?)?.toInt() ?? 30,
       consultantProfileId: json['consultantProfileId'] as String,
-      subscriptions: (json['subscriptions'] as List<dynamic>)
-          .map((e) => Subscription.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      subscriptionContents: (json['subscriptionContents'] as List<dynamic>)
-          .map((e) => SubscriptionContent.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      trialSessions: (json['trialSessions'] as List<dynamic>)
-          .map((e) => TrialSession.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      materials: (json['materials'] as List<dynamic>)
-          .map((e) => PlanMaterial.fromJson(e as Map<String, dynamic>))
-          .toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -73,10 +61,6 @@ Map<String, dynamic> _$$SubscriptionPlanImplToJson(
       'freeTrialEnabled': instance.freeTrialEnabled,
       'freeTrialDurationMinutes': instance.freeTrialDurationMinutes,
       'consultantProfileId': instance.consultantProfileId,
-      'subscriptions': instance.subscriptions,
-      'subscriptionContents': instance.subscriptionContents,
-      'trialSessions': instance.trialSessions,
-      'materials': instance.materials,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };
