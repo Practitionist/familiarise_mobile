@@ -2,11 +2,22 @@ name: Flutter CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [prod, dev]
+    tags: ['v*.*.*']
   pull_request:
-    branches: [main, develop]
+    branches: [prod, dev]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      deploy_type:
+        description: 'Deployment type'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - release
 
 env:
   FLUTTER_VERSION: '3.24.3'
@@ -32,7 +43,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Analyze code
         run: flutter analyze --fatal-infos
@@ -85,7 +96,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Decode Keystore
         if: github.event_name == 'release'
@@ -159,7 +170,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Install CocoaPods
         run: |
@@ -270,3 +281,107 @@ jobs:
             --file build/*.ipa \
             --apiKey $APP_STORE_CONNECT_KEY_ID \
             --apiIssuer $APP_STORE_CONNECT_ISSUER_ID
+
+  # ============================================
+  # Test Dart Frog Backend (runs on every push and PR)
+  # ============================================
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: dart pub get
+
+      - name: Analyze backend code
+        working-directory: backend
+        run: dart analyze --fatal-infos
+
+      - name: Run backend tests
+        working-directory: backend
+        run: dart test
+
+  # ============================================
+  # Shorebird Release (alongside store release, on tags)
+  # ============================================
+  shorebird-release:
+    name: Shorebird Release
+    needs: [deploy-android, deploy-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install Shorebird CLI
+        uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Create Shorebird release (Android)
+        run: shorebird release android --flutter-version ${{ env.FLUTTER_VERSION }}
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+
+      - name: Create Shorebird release (iOS)
+        run: shorebird release ios --flutter-version ${{ env.FLUTTER_VERSION }}
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+
+  # ============================================
+  # Shorebird Patch (hotfix — no store review needed)
+  # Triggers: push to hotfix/* OR manual workflow_dispatch
+  # ============================================
+  shorebird-patch:
+    name: Shorebird Hotfix Patch
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/heads/hotfix/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install Shorebird CLI
+        uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Apply patch (Android)
+        run: shorebird patch android
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+
+      - name: Apply patch (iOS)
+        run: shorebird patch ios
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}

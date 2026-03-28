@@ -1,0 +1,7 @@
+# Shorebird configuration for Familiarise
+# See https://docs.shorebird.dev
+#
+# IMPORTANT: Run `shorebird init` locally to generate a real app_id.
+# The placeholder below must be replaced before Shorebird can work.
+
+app_id: YOUR_SHOREBIRD_APP_ID
