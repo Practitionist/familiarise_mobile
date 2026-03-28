@@ -6,7 +6,6 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../../../core/constants/enums.dart' show UserRole;
 import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
-import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_service_provider.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
@@ -190,7 +189,13 @@ class _MyBookingDetailsScreenState
       return const Center(child: Text('Booking not found'));
     }
 
-    final booking = _fetchedBooking ?? FakeData.booking();
+    if (_isLoading && _fetchedBooking == null) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    final booking = _fetchedBooking!;
 
     return Skeletonizer(
       enabled: _isLoading,

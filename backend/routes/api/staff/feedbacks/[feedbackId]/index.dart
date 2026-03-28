@@ -12,7 +12,8 @@ Future<Response> onRequest(
   RequestContext context,
   String feedbackId,
 ) async {
-  if (context.request.method != HttpMethod.put) {
+  if (context.request.method != HttpMethod.get &&
+      context.request.method != HttpMethod.put) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
   }
 
@@ -21,7 +22,9 @@ Future<Response> onRequest(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -31,7 +34,29 @@ Future<Response> onRequest(
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
+      );
+    }
+
+    if (context.request.method == HttpMethod.get) {
+      final query = JsonQueryBuilder()
+          .model('Feedback')
+          .action(QueryAction.findFirst)
+          .where({'id': feedbackId}).build();
+      final feedback = await db.executor.executeQueryAsSingleMap(query);
+      if (feedback == null) {
+        return Response.json(
+          statusCode: HttpStatus.notFound,
+          body: {
+            'error': {'message': 'Feedback not found'}
+          },
+        );
+      }
+
+      return Response.json(
+        body: {'data': serializeForJson(feedback)},
       );
     }
 
@@ -47,8 +72,7 @@ Future<Response> onRequest(
         .where({'id': feedbackId})
         .data(data)
         .build();
-    final updated =
-        await db.executor.executeQueryAsSingleMap(query);
+    final updated = await db.executor.executeQueryAsSingleMap(query);
 
     return Response.json(
       body: {
@@ -57,11 +81,12 @@ Future<Response> onRequest(
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Staff feedback update failed',
-        context: 'StaffFeedbackPut',
-        error: e, stackTrace: stackTrace);
+        context: 'StaffFeedbackPut', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update feedback'}},
+      body: {
+        'error': {'message': 'Failed to update feedback'}
+      },
     );
   }
 }

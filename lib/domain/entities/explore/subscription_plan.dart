@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/formatters.dart';
 
 part 'subscription_plan.freezed.dart';
 part 'subscription_plan.g.dart';
@@ -37,11 +38,10 @@ class SubscriptionPlan with _$SubscriptionPlan {
 
   /// Formatted price (e.g., "₹10,000/month")
   String get formattedPrice {
-    final symbol = priceCurrency == 'INR' ? '₹' : '\$';
     final duration = durationInMonths != null && durationInMonths! > 1
         ? '/${durationInMonths!} months'
         : '/month';
-    return '$symbol${price.toStringAsFixed(0)}$duration';
+    return '${Formatters.currency(Formatters.fromMinorUnits(price), priceCurrency)}$duration';
   }
 
   /// Formatted duration (e.g., "3 months")

@@ -18,7 +18,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -28,34 +30,45 @@ Future<Response> onRequest(RequestContext context, String id) async {
     var query = JsonQueryBuilder()
         .model('Invoice')
         .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
+        .where({'id': id}).build();
     var invoice = await db.executor.executeQueryAsSingleMap(query);
 
     if (invoice == null) {
       query = JsonQueryBuilder()
           .model('Invoice')
           .action(QueryAction.findFirst)
-          .where({'invoiceNumber': id})
-          .build();
+          .where({'invoiceNumber': id}).build();
       invoice = await db.executor.executeQueryAsSingleMap(query);
     }
 
     if (invoice == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Invoice not found'}},
+        body: {
+          'error': {'message': 'Invoice not found'}
+        },
       );
     }
 
     // Authorization: user's own invoice or admin
     final user = await db.users.findById(userId);
     final role = user?['role'] as String?;
-    final invoiceUserId = invoice['userId'] as String?;
+    final paymentId = invoice['paymentId'] as String?;
+    String? invoiceUserId;
+    if (paymentId != null) {
+      final paymentQuery = JsonQueryBuilder()
+          .model('Payment')
+          .action(QueryAction.findFirst)
+          .where({'id': paymentId}).select({'userId': true}).build();
+      final payment = await db.executor.executeQueryAsSingleMap(paymentQuery);
+      invoiceUserId = payment?['userId'] as String?;
+    }
     if (invoiceUserId != userId && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Invoice not found'}},
+        body: {
+          'error': {'message': 'Invoice not found'}
+        },
       );
     }
 
@@ -64,11 +77,12 @@ Future<Response> onRequest(RequestContext context, String id) async {
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Invoice get failed',
-        context: 'InvoiceGet',
-        error: e, stackTrace: stackTrace);
+        context: 'InvoiceGet', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get invoice'}},
+      body: {
+        'error': {'message': 'Failed to get invoice'}
+      },
     );
   }
 }

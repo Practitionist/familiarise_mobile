@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/route_handlers/user_reserved_handlers.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -29,6 +30,13 @@ import 'package:dart_frog/dart_frog.dart';
 ///
 /// Returns the user object in `{ "data": { ... } }`.
 Future<Response> onRequest(RequestContext context, String id) async {
+  if (id == 'profile-image') {
+    return handleProfileImage(context);
+  }
+  if (id == 'profile-display-image') {
+    return handleProfileDisplayImage(context);
+  }
+
   final method = context.request.method;
 
   if (method == HttpMethod.get) {

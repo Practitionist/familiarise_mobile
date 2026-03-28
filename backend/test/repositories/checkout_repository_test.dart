@@ -336,7 +336,7 @@ void main() {
       expect(result?['discountAmount'], equals(1000.0));
     });
 
-    test('returns null when discount code not found', () async {
+    test('returns invalid result when discount code not found', () async {
       when(() => mockExecutor.executeQueryAsSingleMap(any()))
           .thenAnswer((_) async => null);
 
@@ -344,10 +344,11 @@ void main() {
         code: 'INVALID',
       );
 
-      expect(result, isNull);
+      expect(result?['valid'], isFalse);
+      expect(result?['reason'], equals('not_found'));
     });
 
-    test('returns null when discount code exhausted', () async {
+    test('returns invalid result when discount code exhausted', () async {
       final discount = {
         'id': 'disc-4',
         'code': 'LIMITED',
@@ -365,7 +366,31 @@ void main() {
         amount: 1000,
       );
 
-      expect(result, isNull);
+      expect(result?['valid'], isFalse);
+      expect(result?['reason'], equals('exhausted'));
+    });
+
+    test('returns invalid result when discount code expired', () async {
+      final discount = {
+        'id': 'disc-5',
+        'code': 'EXPIRED',
+        'discountType': 'PERCENTAGE',
+        'discountValue': 10.0,
+        'expiresAt': DateTime.utc(2020),
+        'maxUses': null,
+        'currentUses': 0,
+      };
+
+      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+          .thenAnswer((_) async => discount);
+
+      final result = await repository.validateDiscountCode(
+        code: 'expired',
+        amount: 1000,
+      );
+
+      expect(result?['valid'], isFalse);
+      expect(result?['reason'], equals('expired'));
     });
   });
 

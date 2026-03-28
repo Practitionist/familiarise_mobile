@@ -277,7 +277,7 @@ take_screenshot
 
 ### 5.2 Check Trial Eligibility
 ```
-fetch('/api/trials/eligibility?consultantProfileId={consultantProfileId}&subscriptionPlanId={subscriptionPlanId}', {
+fetch('/api/trials/check-eligibility?consultantProfileId={consultantProfileId}&subscriptionPlanId={subscriptionPlanId}', {
   method: 'GET',
   credentials: 'include'
 }).then(r => r.json())

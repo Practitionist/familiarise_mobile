@@ -6,7 +6,6 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/utils/sentry_logger.dart';
 import '../../../domain/entities/explore/consultant_details.dart';
-import '../../../shared/utils/fake_data.dart';
 import '../../../shared/widgets/rating_stars.dart';
 import '../../reviews/widgets/submit_review_dialog.dart';
 import '../providers/consultant_detail_provider.dart';
@@ -39,7 +38,10 @@ class ConsultantProfileScreen extends ConsumerWidget {
       return _buildError(context, consultantAsync.error.toString());
     }
 
-    if (!isLoading && consultant == null) {
+    if (consultant == null) {
+      if (isLoading) {
+        return _buildLoading(context);
+      }
       return _buildNotFound(context);
     }
 
@@ -48,7 +50,15 @@ class ConsultantProfileScreen extends ConsumerWidget {
       child: _buildProfile(
         context,
         ref,
-        consultant ?? FakeData.consultantDetails(),
+        consultant,
+      ),
+    );
+  }
+
+  Widget _buildLoading(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }

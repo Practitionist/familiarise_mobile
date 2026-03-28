@@ -14,6 +14,7 @@ class CheckoutRepository extends BaseRepository {
   Future<Map<String, dynamic>> createPayment({
     required String userId,
     required int amount,
+    int? originalAmount,
     required String currency,
     required String paymentGateway,
     String? appointmentId,
@@ -31,7 +32,7 @@ class CheckoutRepository extends BaseRepository {
         JsonQueryBuilder().model('Payment').action(QueryAction.create).data({
       'id': paymentId,
       'amount': amount,
-      'originalAmount': amount,
+      'originalAmount': originalAmount ?? amount,
       'currency': currency,
       'paymentMethod': 'CARD',
       'paymentIntent': paymentIntent,
@@ -181,18 +182,26 @@ class CheckoutRepository extends BaseRepository {
         .where({
       'code': code.toUpperCase(),
       'isActive': true,
-      'OR': [
-        {'expiresAt': null},
-        {
-          'expiresAt': {'gt': nowIso8601}
-        },
-      ],
     }).build();
 
     final discount = await executeQueryAsSingleMap(query);
 
     if (discount == null) {
-      return null;
+      return {
+        'valid': false,
+        'reason': 'not_found',
+      };
+    }
+
+    final expiresAt = _parseDateTime(discount['expiresAt']);
+    final now = DateTime.now().toUtc();
+
+    if (expiresAt != null && !expiresAt.isAfter(now)) {
+      return {
+        'valid': false,
+        'reason': 'expired',
+        'expiresAt': expiresAt,
+      };
     }
 
     // Check usage limit
@@ -200,7 +209,10 @@ class CheckoutRepository extends BaseRepository {
     final currentUses = discount['currentUses'] as int? ?? 0;
 
     if (maxUses != null && currentUses >= maxUses) {
-      return null; // Discount exhausted
+      return {
+        'valid': false,
+        'reason': 'exhausted',
+      };
     }
 
     // Calculate discount amount
@@ -228,8 +240,22 @@ class CheckoutRepository extends BaseRepository {
       'discountType': discountType,
       'discountValue': discountValue,
       'discountAmount': discountAmount,
+      'maxDiscount': discount['maxDiscount'],
+      'expiresAt': expiresAt,
       'valid': true,
     };
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value is DateTime) {
+      return value.toUtc();
+    }
+
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value)?.toUtc();
+    }
+
+    return null;
   }
 
   /// Update booking status after successful payment

@@ -39,9 +39,12 @@ Future<Response> _handleGet(RequestContext context) async {
       body: {'data': slots.map(serializeForJson).toList()},
     );
   } catch (e, stackTrace) {
-    await SentryLogger.severe('List weekly slots failed',
-        context: 'WeeklySlotsGet',
-        error: e, stackTrace: stackTrace);
+    await SentryLogger.severe(
+      'List weekly slots failed',
+      context: 'WeeklySlotsGet',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {'error': {'message': 'Failed to list slots'}},
@@ -74,6 +77,7 @@ Future<Response> _handlePost(RequestContext context) async {
     final endDay = body['endDay'] as String?;
     final startTimeUtc = (body['startTimeUtc'] as num?)?.toInt();
     final endTimeUtc = (body['endTimeUtc'] as num?)?.toInt();
+    final utcOffsetMinutes = (body['utcOffsetMinutes'] as num?)?.toInt() ?? 0;
 
     if (startDay == null || endDay == null ||
         startTimeUtc == null || endTimeUtc == null) {
@@ -107,6 +111,7 @@ Future<Response> _handlePost(RequestContext context) async {
       endDay: endDay,
       startTimeUtc: startTimeUtc,
       endTimeUtc: endTimeUtc,
+      utcOffsetMinutes: utcOffsetMinutes,
     );
 
     return Response.json(
@@ -114,9 +119,12 @@ Future<Response> _handlePost(RequestContext context) async {
       body: {'data': serializeForJson(slot)},
     );
   } catch (e, stackTrace) {
-    await SentryLogger.severe('Create weekly slot failed',
-        context: 'WeeklySlotsPost',
-        error: e, stackTrace: stackTrace);
+    await SentryLogger.severe(
+      'Create weekly slot failed',
+      context: 'WeeklySlotsPost',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {'error': {'message': 'Failed to create slot'}},

@@ -188,7 +188,7 @@ fetch('/api/trials', {
 
 ### 4.2 Check Eligibility Returns Ineligible
 ```
-fetch('/api/trials/eligibility?consultantProfileId=test_intg_edge_cp&subscriptionPlanId=test_intg_edge_sp1', {
+fetch('/api/trials/check-eligibility?consultantProfileId=test_intg_edge_cp&subscriptionPlanId=test_intg_edge_sp1', {
   method: 'GET',
   credentials: 'include'
 }).then(r => r.json())

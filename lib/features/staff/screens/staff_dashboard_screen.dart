@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../providers/staff_provider.dart';
@@ -11,8 +12,7 @@ class StaffDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(staffStatsProvider);
     final ticketsAsync = ref.watch(staffTicketsProvider);
-    final verificationsAsync =
-        ref.watch(pendingVerificationsProvider);
+    final verificationsAsync = ref.watch(pendingVerificationsProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -56,8 +56,7 @@ class StaffDashboardScreen extends ConsumerWidget {
                 height: 100,
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (_, __) =>
-                  const Text('Failed to load stats'),
+              error: (_, __) => const Text('Failed to load stats'),
             ),
 
             const SizedBox(height: 24),
@@ -82,12 +81,16 @@ class StaffDashboardScreen extends ConsumerWidget {
                   children: verifications.take(5).map((v) {
                     return Card(
                       child: ListTile(
+                        onTap: () => context.push(
+                          '/staff/verifications/${v['id']}',
+                        ),
                         leading: const Icon(
                           Icons.verified_user,
                           color: Colors.orange,
                         ),
                         title: Text(
-                          v['consultantProfileId'] as String? ??
+                          v['consultantName'] as String? ??
+                              v['consultantProfileId'] as String? ??
                               'Unknown',
                         ),
                         subtitle: Text(
@@ -105,8 +108,7 @@ class StaffDashboardScreen extends ConsumerWidget {
               loading: () => const Center(
                 child: CircularProgressIndicator(),
               ),
-              error: (_, __) =>
-                  const Text('Failed to load verifications'),
+              error: (_, __) => const Text('Failed to load verifications'),
             ),
 
             const SizedBox(height: 24),
@@ -133,17 +135,20 @@ class StaffDashboardScreen extends ConsumerWidget {
                       child: ListTile(
                         leading: Icon(
                           Icons.support_agent,
-                          color: t['status'] == 'OPEN'
-                              ? Colors.blue
-                              : Colors.grey,
+                          color:
+                              t['status'] == 'OPEN' ? Colors.blue : Colors.grey,
                         ),
                         title: Text(
-                          t['subject'] as String? ?? 'No subject',
+                          t['title'] as String? ?? 'No subject',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          t['status'] as String? ?? 'Unknown',
+                          '${t['status'] ?? 'Unknown'}'
+                          '${t['priority'] != null ? ' • ${t['priority']}' : ''}',
+                        ),
+                        onTap: () => context.push(
+                          '/staff/tickets/${t['id']}',
                         ),
                         trailing: const Icon(
                           Icons.arrow_forward_ios,
@@ -157,8 +162,14 @@ class StaffDashboardScreen extends ConsumerWidget {
               loading: () => const Center(
                 child: CircularProgressIndicator(),
               ),
-              error: (_, __) =>
-                  const Text('Failed to load tickets'),
+              error: (_, __) => const Text('Failed to load tickets'),
+            ),
+
+            const SizedBox(height: 24),
+
+            FilledButton.tonal(
+              onPressed: () => context.push('/staff/feedback'),
+              child: const Text('Review Feedback'),
             ),
           ],
         ),

@@ -176,7 +176,7 @@ take_screenshot
 
 ### 4.1 Check Eligibility
 ```
-fetch('/api/trials/eligibility?consultantProfileId=test_intg_cbj_cp&subscriptionPlanId=test_intg_cbj_sp', {
+fetch('/api/trials/check-eligibility?consultantProfileId=test_intg_cbj_cp&subscriptionPlanId=test_intg_cbj_sp', {
   method: 'GET',
   credentials: 'include'
 }).then(r => r.json())

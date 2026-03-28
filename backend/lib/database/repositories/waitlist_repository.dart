@@ -1,6 +1,7 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:uuid/uuid.dart';
 
 /// Repository for waitlist operations.
 ///
@@ -10,6 +11,7 @@ class WaitlistRepository extends BaseRepository {
   WaitlistRepository(super._executor, this._prisma);
 
   final PrismaClient _prisma;
+  static const _uuid = Uuid();
 
   /// Join a waitlist for a webinar or class.
   Future<Map<String, dynamic>> join({
@@ -22,6 +24,7 @@ class WaitlistRepository extends BaseRepository {
         .model('Waitlist')
         .action(QueryAction.create)
         .data({
+      'id': _uuid.v4(),
       'userId': userId,
       'webinarId': webinarId,
       'classId': classId,
@@ -31,7 +34,6 @@ class WaitlistRepository extends BaseRepository {
       'createdAt': now,
       'updatedAt': now,
     }).build();
-
     final result = await executeQueryAsSingleMap(query);
     if (result == null) throw Exception('Failed to join waitlist');
     return result;

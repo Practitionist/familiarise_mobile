@@ -40,6 +40,12 @@ import '../features/trials/screens/trial_request_screen.dart';
 import '../features/booking/screens/appointment_documents_screen.dart';
 import '../features/maintenance/screens/maintenance_screen.dart';
 import '../features/staff/screens/staff_dashboard_screen.dart';
+import '../features/staff/screens/staff_feedback_detail_screen.dart';
+import '../features/staff/screens/staff_feedback_screen.dart';
+import '../features/staff/screens/staff_ticket_detail_screen.dart';
+import '../features/staff/screens/staff_tickets_screen.dart';
+import '../features/staff/screens/staff_verification_detail_screen.dart';
+import '../features/staff/screens/staff_verifications_screen.dart';
 import '../features/payout/screens/add_payout_account_screen.dart';
 import '../features/payout/screens/payout_accounts_screen.dart';
 import '../features/tax/screens/tax_info_screen.dart';
@@ -77,6 +83,7 @@ GoRouter router(Ref ref) {
       final isAuthenticated = authState.isAuthenticated;
       final isLoading = authState.isLoading;
       final needsOnboarding = authState.needsOnboarding;
+      final role = authState.user?.role;
       final isInitial = authState.maybeMap(
         initial: (_) => true,
         orElse: () => false,
@@ -91,6 +98,18 @@ GoRouter router(Ref ref) {
       final isAuthRoute = location.startsWith('/auth');
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
+      final isStaffRoute = location.startsWith('/staff');
+      final isConsultantOnlyRoute = location.startsWith('/payout-accounts') ||
+          location.startsWith('/tax-info');
+      final isStaffUser = role == UserRole.staff || role == UserRole.admin;
+      final isConsultantUser = role == UserRole.consultant;
+
+      String defaultAuthenticatedRoute() {
+        if (isStaffUser) {
+          return '/staff';
+        }
+        return '/dashboard';
+      }
 
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/dashboard') ||
@@ -108,6 +127,7 @@ GoRouter router(Ref ref) {
           location.startsWith('/payment') ||
           location.startsWith('/support') ||
           location.startsWith('/feedback') ||
+          location.startsWith('/staff') ||
           location.startsWith('/meeting') ||
           location == '/booking/failure' ||
           location == '/booking/success';
@@ -128,6 +148,14 @@ GoRouter router(Ref ref) {
         return '/onboarding';
       }
 
+      if (isStaffRoute && !isStaffUser) {
+        return defaultAuthenticatedRoute();
+      }
+
+      if (isConsultantOnlyRoute && !isConsultantUser) {
+        return defaultAuthenticatedRoute();
+      }
+
       // Authenticated, completed onboarding, on a valid app route -> stay there
       if (!needsOnboarding && isValidAppRoute) {
         return null;
@@ -135,12 +163,12 @@ GoRouter router(Ref ref) {
 
       // On splash -> redirect to dashboard
       if (isSplash) {
-        return '/dashboard';
+        return defaultAuthenticatedRoute();
       }
 
       // On auth route -> redirect to dashboard
       if (isAuthRoute) {
-        return '/dashboard';
+        return defaultAuthenticatedRoute();
       }
 
       // On onboarding route but completed -> redirect to dashboard
@@ -358,8 +386,7 @@ GoRouter router(Ref ref) {
             path: '/bookings/:bookingId/documents',
             name: 'appointmentDocuments',
             builder: (context, state) {
-              final appointmentId =
-                  state.uri.queryParameters['appointmentId'];
+              final appointmentId = state.uri.queryParameters['appointmentId'];
               if (appointmentId == null) {
                 return const Scaffold(
                   body: Center(
@@ -377,14 +404,12 @@ GoRouter router(Ref ref) {
           GoRoute(
             path: '/verification',
             name: 'verification',
-            builder: (context, state) =>
-                const VerificationStatusScreen(),
+            builder: (context, state) => const VerificationStatusScreen(),
             routes: [
               GoRoute(
                 path: 'submit',
                 name: 'verificationSubmit',
-                builder: (context, state) =>
-                    const VerificationSubmitScreen(),
+                builder: (context, state) => const VerificationSubmitScreen(),
               ),
             ],
           ),
@@ -431,14 +456,12 @@ GoRouter router(Ref ref) {
           GoRoute(
             path: '/payout-accounts',
             name: 'payoutAccounts',
-            builder: (context, state) =>
-                const PayoutAccountsScreen(),
+            builder: (context, state) => const PayoutAccountsScreen(),
             routes: [
               GoRoute(
                 path: 'add',
                 name: 'addPayoutAccount',
-                builder: (context, state) =>
-                    const AddPayoutAccountScreen(),
+                builder: (context, state) => const AddPayoutAccountScreen(),
               ),
             ],
           ),
@@ -454,33 +477,66 @@ GoRouter router(Ref ref) {
           GoRoute(
             path: '/staff',
             name: 'staffDashboard',
-            builder: (context, state) =>
-                const StaffDashboardScreen(),
+            builder: (context, state) => const StaffDashboardScreen(),
+            routes: [
+              GoRoute(
+                path: 'verifications',
+                name: 'staffVerifications',
+                builder: (context, state) => const StaffVerificationsScreen(),
+              ),
+              GoRoute(
+                path: 'verifications/:verificationId',
+                name: 'staffVerificationDetail',
+                builder: (context, state) => StaffVerificationDetailScreen(
+                  verificationId: state.pathParameters['verificationId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'tickets',
+                name: 'staffTickets',
+                builder: (context, state) => const StaffTicketsScreen(),
+              ),
+              GoRoute(
+                path: 'tickets/:ticketId',
+                name: 'staffTicketDetail',
+                builder: (context, state) => StaffTicketDetailScreen(
+                  ticketId: state.pathParameters['ticketId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'feedback',
+                name: 'staffFeedback',
+                builder: (context, state) => const StaffFeedbackScreen(),
+              ),
+              GoRoute(
+                path: 'feedback/:feedbackId',
+                name: 'staffFeedbackDetail',
+                builder: (context, state) => StaffFeedbackDetailScreen(
+                  feedbackId: state.pathParameters['feedbackId']!,
+                ),
+              ),
+            ],
           ),
 
           // Maintenance route
           GoRoute(
             path: '/maintenance',
             name: 'maintenance',
-            builder: (context, state) =>
-                const MaintenanceScreen(),
+            builder: (context, state) => const MaintenanceScreen(),
           ),
 
           // Support routes
           GoRoute(
             path: '/support',
             name: 'support',
-            builder: (context, state) =>
-                const SupportTicketsScreen(),
+            builder: (context, state) => const SupportTicketsScreen(),
             routes: [
               GoRoute(
                 path: 'create',
                 name: 'createTicket',
                 builder: (context, state) {
-                  final bookingId =
-                      state.uri.queryParameters['bookingId'];
-                  final bookingType =
-                      state.uri.queryParameters['bookingType'];
+                  final bookingId = state.uri.queryParameters['bookingId'];
+                  final bookingType = state.uri.queryParameters['bookingType'];
                   return CreateTicketScreen(
                     bookingId: bookingId,
                     bookingType: bookingType,
@@ -490,8 +546,7 @@ GoRouter router(Ref ref) {
               GoRoute(
                 path: ':ticketId',
                 name: 'ticketDetail',
-                builder: (context, state) =>
-                    SupportTicketDetailScreen(
+                builder: (context, state) => SupportTicketDetailScreen(
                   ticketId: state.pathParameters['ticketId']!,
                 ),
               ),
@@ -502,8 +557,7 @@ GoRouter router(Ref ref) {
           GoRoute(
             path: '/feedback',
             name: 'feedback',
-            builder: (context, state) =>
-                const FeedbackScreen(),
+            builder: (context, state) => const FeedbackScreen(),
           ),
         ],
       ),

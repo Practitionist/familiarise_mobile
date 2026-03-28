@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/moderation/profiles/:verificationId — Details
 /// PUT /api/staff/moderation/profiles/:verificationId — Review
@@ -35,7 +37,9 @@ Future<Response> _handleGet(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -47,12 +51,18 @@ Future<Response> _handleGet(
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
+    final verificationQuery = JsonQueryBuilder()
+        .model('ConsultantProfileVerification')
+        .action(QueryAction.findUnique)
+        .where({'id': verificationId}).build();
     final verification =
-        await db.consultantVerifications.findById(verificationId);
+        await db.executor.executeQueryAsSingleMap(verificationQuery);
 
     if (verification == null) {
       return Response.json(
@@ -63,11 +73,25 @@ Future<Response> _handleGet(
       );
     }
 
-    final docs =
-        await db.consultantVerifications.getDocuments(verificationId);
+    final docs = await db.consultantVerifications.getDocuments(verificationId);
 
-    final json = verification.toJson();
-    json['documents'] = docs;
+    final json = serializeForJson(verification);
+    json['documents'] = docs.map(serializeForJson).toList();
+
+    final consultantProfileId = verification['consultantProfileId'] as String?;
+    if (consultantProfileId != null) {
+      final profileQuery = JsonQueryBuilder()
+          .model('ConsultantProfile')
+          .action(QueryAction.findUnique)
+          .where({'id': consultantProfileId}).build();
+      final profile = await db.executor.executeQueryAsSingleMap(profileQuery);
+      final consultantUserId = profile?['userId'] as String?;
+      if (consultantUserId != null) {
+        final consultantUser = await db.users.findById(consultantUserId);
+        json['consultantName'] = consultantUser?['name'];
+        json['consultantEmail'] = consultantUser?['email'];
+      }
+    }
 
     return Response.json(body: {'data': json});
   } catch (e, stackTrace) {
@@ -95,7 +119,9 @@ Future<Response> _handlePut(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -105,7 +131,9 @@ Future<Response> _handlePut(
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
@@ -115,7 +143,9 @@ Future<Response> _handlePut(
     if (statusStr == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'status is required'}},
+        body: {
+          'error': {'message': 'status is required'}
+        },
       );
     }
 
@@ -137,22 +167,82 @@ Future<Response> _handlePut(
       );
     }
 
-    // Update via PrismaClient
-    final updated = await db.prisma.consultantProfileVerification
-        .update(
-      where: ConsultantProfileVerificationWhereUniqueInput(
-        id: verificationId,
-      ),
-      data: UpdateConsultantProfileVerificationInput(
-        status: status,
-        reviewedAt: DateTime.now().toUtc(),
-        reviewedById: userId,
-        rejectionReason: body['rejectionReason'] as String?,
-        feedbackDetails: body['feedbackDetails'] as String?,
-      ),
-    );
+    final existingQuery = JsonQueryBuilder()
+        .model('ConsultantProfileVerification')
+        .action(QueryAction.findUnique)
+        .where({'id': verificationId}).build();
+    final existing = await db.executor.executeQueryAsSingleMap(existingQuery);
 
-    return Response.json(body: {'data': updated.toJson()});
+    if (existing == null) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {
+          'error': {'message': 'Verification not found'},
+        },
+      );
+    }
+
+    final now = DateTime.now().toUtc().toIso8601String();
+    final updateData = <String, dynamic>{
+      'status': status.name.toUpperCase(),
+      'reviewedAt': now,
+      'reviewedById': userId,
+      'updatedAt': now,
+    };
+    if (body.containsKey('reviewNotes')) {
+      updateData['reviewNotes'] = body['reviewNotes'];
+    }
+    if (body.containsKey('rejectionReason')) {
+      updateData['rejectionReason'] = body['rejectionReason'];
+    }
+    if (body.containsKey('feedbackDetails')) {
+      updateData['feedbackDetails'] = body['feedbackDetails'];
+    }
+
+    final updateQuery = JsonQueryBuilder()
+        .model('ConsultantProfileVerification')
+        .action(QueryAction.update)
+        .where({'id': verificationId})
+        .data(updateData)
+        .build();
+    final updated = await db.executor.executeQueryAsSingleMap(updateQuery);
+
+    final consultantProfileId = existing['consultantProfileId'] as String?;
+    if (consultantProfileId != null) {
+      final profileUpdate = <String, dynamic>{
+        'updatedAt': now,
+      };
+      switch (status) {
+        case ProfileVerificationStatus.approved:
+          profileUpdate['isVerified'] = true;
+          profileUpdate['verificationStatus'] = 'VERIFIED';
+        case ProfileVerificationStatus.rejected:
+          profileUpdate['isVerified'] = false;
+          profileUpdate['verificationStatus'] = 'REJECTED';
+        case ProfileVerificationStatus.needsInfo:
+          profileUpdate['isVerified'] = false;
+          profileUpdate['verificationStatus'] = 'UNDER_REVIEW';
+        case ProfileVerificationStatus.pending:
+        case ProfileVerificationStatus.superseded:
+          break;
+      }
+
+      if (profileUpdate.length > 1) {
+        final profileUpdateQuery = JsonQueryBuilder()
+            .model('ConsultantProfile')
+            .action(QueryAction.update)
+            .where({'id': consultantProfileId})
+            .data(profileUpdate)
+            .build();
+        await db.executor.executeMutation(profileUpdateQuery);
+      }
+    }
+
+    return Response.json(
+      body: {
+        'data': updated != null ? serializeForJson(updated) : null,
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Staff verification review failed',

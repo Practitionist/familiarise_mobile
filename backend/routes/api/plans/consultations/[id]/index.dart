@@ -29,7 +29,7 @@ Future<Response> _handleGet(RequestContext context, String id) async {
         body: {'error': {'message': 'Plan not found'}},
       );
     }
-    return Response.json(body: {'data': plan.toJson()});
+    return Response.json(body: {'data': serializeForJson(plan)});
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Get consultation plan failed',
@@ -66,7 +66,7 @@ Future<Response> _handlePut(RequestContext context, String id) async {
 
     final user = await db.users.findById(userId);
     if (user?['consultantProfileId'] !=
-        existing.consultantProfileId) {
+        existing['consultantProfileId']) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
         body: {
@@ -130,7 +130,7 @@ Future<Response> _handleDelete(
 
     final user = await db.users.findById(userId);
     if (user?['consultantProfileId'] !=
-        existing.consultantProfileId) {
+        existing['consultantProfileId']) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
         body: {

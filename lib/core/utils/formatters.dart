@@ -196,6 +196,9 @@ abstract final class Formatters {
     );
     return formatter.format(amount);
   }
+
+  /// Convert minor units (for example paise/cents) to major currency units.
+  static double fromMinorUnits(num amount) => amount / 100.0;
 }
 
 /// Initialize timeago locales (call in main.dart)

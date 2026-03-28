@@ -30,6 +30,7 @@ class VerificationState extends _$VerificationState {
         context: 'VerificationState.submit',
       );
       state = AsyncError(e, stack);
+      rethrow;
     }
   }
 
@@ -47,6 +48,7 @@ class VerificationState extends _$VerificationState {
         context: 'VerificationState.resubmit',
       );
       state = AsyncError(e, stack);
+      rethrow;
     }
   }
 

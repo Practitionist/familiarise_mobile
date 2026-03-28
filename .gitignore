@@ -10,6 +10,7 @@
 # MCP Configuration
 .mcp.json*
 !.mcp.json.example
+.codex/
 
 # Code Generation (rebuild with: dart run build_runner build)
 *.g.dart

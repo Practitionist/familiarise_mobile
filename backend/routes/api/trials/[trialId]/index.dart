@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/route_handlers/trials_reserved_handlers.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -14,6 +15,13 @@ Future<Response> onRequest(
   RequestContext context,
   String trialId,
 ) async {
+  if (trialId == 'check-eligibility' || trialId == 'eligibility') {
+    return handleTrialEligibility(context);
+  }
+  if (trialId == 'stats') {
+    return handleTrialStats(context);
+  }
+
   final method = context.request.method;
 
   if (method == HttpMethod.get) return _handleGet(context, trialId);

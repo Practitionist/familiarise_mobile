@@ -36,6 +36,7 @@ Future<Response> onRequest(RequestContext context) async {
         .model('Feedback')
         .action(QueryAction.findMany)
         .where({})
+        .orderBy({'createdAt': 'desc'})
         .build();
     final feedbacks = await db.executor.executeQueryAsMaps(query);
 
