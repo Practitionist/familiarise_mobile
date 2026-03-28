@@ -83,7 +83,7 @@ key.properties
 
 # iOS build files
 /ios/Pods/
-/ios/Podfile.lock
+# /ios/Podfile.lock  # Tracked — locks CocoaPods versions for reproducible builds
 /ios/.symlinks/
 /ios/Flutter/Flutter.framework
 /ios/Flutter/Flutter.podspec
