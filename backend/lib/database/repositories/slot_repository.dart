@@ -1,6 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
+
 
 /// Repository for consultant availability slot operations
 ///
@@ -550,7 +550,6 @@ class SlotRepository extends BaseRepository {
         .model('SlotOfAvailabilityWeekly')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'startDay': startDay,
       'endDay': endDay,
@@ -625,7 +624,6 @@ class SlotRepository extends BaseRepository {
         .model('SlotOfAvailabilityCustom')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'startsAt': startsAt,
       'endsAt': endsAt,

@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
+
 
 /// Repository for referral operations (ReferralCode, Referral, ReferralCredit)
 class ReferralRepository extends BaseRepository {
@@ -77,7 +77,6 @@ class ReferralRepository extends BaseRepository {
           .model('Referral')
           .action(QueryAction.create)
           .data({
-            'id': const Uuid().v4(),
             'referralCodeId': referralCodeId,
             'referredUserId': userId,
             'status': 'SIGNED_UP',
@@ -110,7 +109,6 @@ class ReferralRepository extends BaseRepository {
           .model('ReferralCredit')
           .action(QueryAction.create)
           .data({
-            'id': const Uuid().v4(),
             'userId': userId,
             'amount': refereeReward,
             'remainingAmount': refereeReward,
@@ -159,7 +157,6 @@ class ReferralRepository extends BaseRepository {
         .model('ReferralCode')
         .action(QueryAction.create)
         .data({
-          'id': const Uuid().v4(),
           'userId': userId,
           'code': code,
           'referrerReward': _defaultReferrerReward,

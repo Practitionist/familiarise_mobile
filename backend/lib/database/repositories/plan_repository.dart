@@ -1,6 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for plan CRUD operations across all 4 plan types.
@@ -31,7 +31,6 @@ class PlanRepository extends BaseRepository {
         .model('ConsultationPlan')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'title': title,
       'description': description ?? '',
@@ -128,7 +127,6 @@ class PlanRepository extends BaseRepository {
         .model('SubscriptionPlan')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'title': title,
       'description': description ?? '',
@@ -199,7 +197,6 @@ class PlanRepository extends BaseRepository {
         .model('WebinarPlan')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'title': title,
       'description': description ?? '',
@@ -270,7 +267,6 @@ class PlanRepository extends BaseRepository {
         .model('ClassPlan')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'title': title,
       'description': description ?? '',

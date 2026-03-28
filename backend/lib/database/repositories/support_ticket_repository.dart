@@ -51,7 +51,7 @@ class SupportTicketRepository extends BaseRepository {
 
     final totalCount = await executeCount(countQuery);
 
-    // Fetch tickets (without includes for now - relations not in schema registry)
+    // Fetch tickets — schema registry now auto-generated (#29), includes available
     final query = JsonQueryBuilder()
         .model('SupportTicket')
         .action(QueryAction.findMany)
@@ -233,7 +233,7 @@ class SupportTicketRepository extends BaseRepository {
 
     await executeMutation(updateQuery);
 
-    // Return the created response (without user include - not in schema registry)
+    // Return the created response — schema registry now auto-generated (#29)
     final resultQuery = JsonQueryBuilder()
         .model('SupportResponse')
         .action(QueryAction.findUnique)
