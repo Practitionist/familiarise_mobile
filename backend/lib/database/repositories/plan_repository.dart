@@ -59,10 +59,13 @@ class PlanRepository extends BaseRepository {
     return executeQueryAsMaps(query);
   }
 
-  Future<ConsultationPlan?> findConsultationPlan(String id) async {
-    return _prisma.consultationPlan.findUnique(
-      where: ConsultationPlanWhereUniqueInput(id: id),
-    );
+  Future<Map<String, dynamic>?> findConsultationPlan(String id) async {
+    final query = JsonQueryBuilder()
+        .model('ConsultationPlan')
+        .action(QueryAction.findFirst)
+        .where({'id': id})
+        .build();
+    return executeQueryAsSingleMap(query);
   }
 
   Future<Map<String, dynamic>?> updateConsultationPlan({
@@ -94,9 +97,12 @@ class PlanRepository extends BaseRepository {
   }
 
   Future<void> deleteConsultationPlan(String id) async {
-    await _prisma.consultationPlan.delete(
-      where: ConsultationPlanWhereUniqueInput(id: id),
-    );
+    final query = JsonQueryBuilder()
+        .model('ConsultationPlan')
+        .action(QueryAction.deleteMany)
+        .where({'id': id})
+        .build();
+    await executeMutation(query);
   }
 
   // ===========================================================================
@@ -154,16 +160,22 @@ class PlanRepository extends BaseRepository {
     return executeQueryAsMaps(query);
   }
 
-  Future<SubscriptionPlan?> findSubscriptionPlan(String id) async {
-    return _prisma.subscriptionPlan.findUnique(
-      where: SubscriptionPlanWhereUniqueInput(id: id),
-    );
+  Future<Map<String, dynamic>?> findSubscriptionPlan(String id) async {
+    final query = JsonQueryBuilder()
+        .model('SubscriptionPlan')
+        .action(QueryAction.findFirst)
+        .where({'id': id})
+        .build();
+    return executeQueryAsSingleMap(query);
   }
 
   Future<void> deleteSubscriptionPlan(String id) async {
-    await _prisma.subscriptionPlan.delete(
-      where: SubscriptionPlanWhereUniqueInput(id: id),
-    );
+    final query = JsonQueryBuilder()
+        .model('SubscriptionPlan')
+        .action(QueryAction.deleteMany)
+        .where({'id': id})
+        .build();
+    await executeMutation(query);
   }
 
   // ===========================================================================
@@ -217,16 +229,22 @@ class PlanRepository extends BaseRepository {
     return executeQueryAsMaps(query);
   }
 
-  Future<WebinarPlan?> findWebinarPlan(String id) async {
-    return _prisma.webinarPlan.findUnique(
-      where: WebinarPlanWhereUniqueInput(id: id),
-    );
+  Future<Map<String, dynamic>?> findWebinarPlan(String id) async {
+    final query = JsonQueryBuilder()
+        .model('WebinarPlan')
+        .action(QueryAction.findFirst)
+        .where({'id': id})
+        .build();
+    return executeQueryAsSingleMap(query);
   }
 
   Future<void> deleteWebinarPlan(String id) async {
-    await _prisma.webinarPlan.delete(
-      where: WebinarPlanWhereUniqueInput(id: id),
-    );
+    final query = JsonQueryBuilder()
+        .model('WebinarPlan')
+        .action(QueryAction.deleteMany)
+        .where({'id': id})
+        .build();
+    await executeMutation(query);
   }
 
   // ===========================================================================
@@ -284,15 +302,21 @@ class PlanRepository extends BaseRepository {
     return executeQueryAsMaps(query);
   }
 
-  Future<ClassPlan?> findClassPlan(String id) async {
-    return _prisma.classPlan.findUnique(
-      where: ClassPlanWhereUniqueInput(id: id),
-    );
+  Future<Map<String, dynamic>?> findClassPlan(String id) async {
+    final query = JsonQueryBuilder()
+        .model('ClassPlan')
+        .action(QueryAction.findFirst)
+        .where({'id': id})
+        .build();
+    return executeQueryAsSingleMap(query);
   }
 
   Future<void> deleteClassPlan(String id) async {
-    await _prisma.classPlan.delete(
-      where: ClassPlanWhereUniqueInput(id: id),
-    );
+    final query = JsonQueryBuilder()
+        .model('ClassPlan')
+        .action(QueryAction.deleteMany)
+        .where({'id': id})
+        .build();
+    await executeMutation(query);
   }
 }

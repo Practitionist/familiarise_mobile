@@ -17,7 +17,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
           body: {'error': {'message': 'Not found'}},
         );
       }
-      return Response.json(body: {'data': plan.toJson()});
+      return Response.json(body: {'data': plan});
     } catch (e, stackTrace) {
       await SentryLogger.severe('Get failed',
           context: 'WebinarPlanGet',
@@ -48,7 +48,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       }
       final user = await db.users.findById(userId);
       if (user?['consultantProfileId'] !=
-          plan.consultantProfileId) {
+          plan['consultantProfileId']) {
         return Response.json(
           statusCode: HttpStatus.forbidden,
           body: {'error': {'message': 'Not your plan'}},
