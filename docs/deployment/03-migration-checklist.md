@@ -7,14 +7,14 @@
 - [x] `backend/routes/api/health.dart` created and returns `{"status": "ok"}`
 - [x] `backend/main.dart` uses `DotEnv(includePlatformEnvironment: true)` for Docker compat
 - [x] Dart Frog server binds to `0.0.0.0` / `anyIPv6` (not `localhost`)
-- [ ] Railway project created at railway.com
+- [x] Railway project created at railway.com (familiarise-mobile-api)
 - [ ] GitHub repo connected to Railway project
-- [ ] All environment variables set in Railway dashboard (21 vars — see backend/.env.example)
-- [ ] `DATABASE_URL` uses Supabase pooler URL (port 6543)
-- [ ] `DIRECT_URL` uses Supabase direct URL (port 5432)
-- [ ] Backend deployed and accessible at Railway URL
-- [ ] Health check passes: `curl https://<railway-url>/api/health`
-- [ ] Auth endpoint tested: `POST /api/auth/sign-in`
+- [x] All environment variables set in Railway dashboard (21 vars via MCP)
+- [x] `DATABASE_URL` uses Supabase pooler URL (port 6543)
+- [x] `DIRECT_URL` uses Supabase direct URL (port 5432)
+- [x] Backend deployed and accessible at Railway URL
+- [x] Health check passes: `curl https://familiarise-mobile-api-production.up.railway.app/api/health`
+- [x] Auth endpoint tested: `POST /api/auth/email/sign-in` returns proper error response
 - [ ] `RAILWAY_TOKEN` secret added to GitHub
 - [ ] `PRODUCTION_API_BASE_URL` secret added to GitHub
 - [x] `.github/workflows/backend-deploy.yml` created
@@ -27,8 +27,8 @@
 ## Phase 2 — Shorebird OTA
 
 - [x] `shorebird_code_push` added to `dependencies` in pubspec.yaml
-- [ ] `shorebird init` run locally (generates `shorebird.yaml` with real app_id)
-- [ ] `shorebird.yaml` committed to repo with real app_id
+- [x] `shorebird init` run locally (app_id: f9b217a0-1007-48a5-bd41-d381568e23f1)
+- [x] `shorebird.yaml` committed to repo with real app_id
 - [x] Shorebird update check added to `lib/main.dart`
 - [ ] `SHOREBIRD_TOKEN` secret added to GitHub
 - [x] Shorebird release job added to `flutter-ci.yml`
