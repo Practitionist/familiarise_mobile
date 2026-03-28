@@ -54,12 +54,9 @@ class AppointmentDocumentRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> findByAppointment(
     String appointmentId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('AppointmentDocument')
-        .action(QueryAction.findMany)
-        .where({'appointmentId': appointmentId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.appointmentDocument.findManyRaw(
+      where: {'appointmentId': appointmentId},
+    );
   }
 
   /// Get a document by ID.

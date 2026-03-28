@@ -1,6 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for app feedback operations using typed PrismaClient delegates
 ///
@@ -24,24 +23,16 @@ class FeedbackRepository extends BaseRepository {
     String? category,
     int? rating,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.create)
-        .data({
-      'userId': userId,
-      'title': title,
-      'description': description,
-      'category': category,
-      'rating': rating != null ? rating.clamp(1, 5) : null,
-      'status': 'PENDING',
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create feedback');
-    return result;
+    final feedback = await _prisma.feedback.create(
+      data: CreateFeedbackInput(
+        userId: userId,
+        title: title,
+        description: description,
+        category: category,
+        rating: rating?.clamp(1, 5),
+      ),
+    );
+    return feedback.toJson();
   }
 
   /// Get feedback submitted by a user

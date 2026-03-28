@@ -1,3 +1,4 @@
+import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
@@ -5,28 +6,23 @@ import 'package:uuid/uuid.dart';
 /// Repository for consultee profile database operations
 class ConsulteeProfileRepository extends BaseRepository {
   /// Create a consultee profile repository with the given executor
-  ConsulteeProfileRepository(super._executor);
+  ConsulteeProfileRepository(super._executor, this._prisma);
 
+  final PrismaClient _prisma;
   static const _uuid = Uuid();
 
   /// Find consultee profile by user ID
   Future<Map<String, dynamic>?> findByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.consulteeProfile.findFirstRaw(
+      where: {'userId': userId},
+    );
   }
 
   /// Find consultee profile by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.consulteeProfile.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   /// Create a new consultee profile
@@ -128,11 +124,10 @@ class ConsulteeProfileRepository extends BaseRepository {
 
   /// Delete a consultee profile by user ID
   Future<void> deleteByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.deleteMany)
-        .where({'userId': userId}).build();
-
-    await executeMutation(query);
+    await _prisma.consulteeProfile.deleteMany(
+      where: ConsulteeProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
   }
 }

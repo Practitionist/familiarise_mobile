@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
@@ -9,7 +10,8 @@ import 'package:uuid/uuid.dart';
 ///
 /// Handles creating, querying, and updating refund records from webhook events.
 class RefundRepository extends BaseRepository {
-  RefundRepository(super._executor);
+  RefundRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   final _uuid = const Uuid();
 
@@ -75,24 +77,17 @@ class RefundRepository extends BaseRepository {
 
   /// Get refund by gateway-specific refund ID
   Future<Map<String, dynamic>?> getRefundByRefundId(String refundId) async {
-    final query = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.findUnique)
-        .where({'refundId': refundId}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.refund.findFirstRaw(where: {'refundId': refundId});
   }
 
   /// Get all refunds for a payment
   Future<List<Map<String, dynamic>>> getRefundsByPaymentId(
     String paymentId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.findMany)
-        .where({'paymentId': paymentId}).orderBy({'createdAt': 'desc'}).build();
-
-    return executeQueryAsMaps(query);
+    return _prisma.refund.findManyRaw(
+      where: {'paymentId': paymentId},
+      orderBy: {'createdAt': 'desc'},
+    );
   }
 
   /// Update refund status
@@ -113,11 +108,6 @@ class RefundRepository extends BaseRepository {
 
   /// Get refund by internal ID
   Future<Map<String, dynamic>?> getRefundById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.refund.findFirstRaw(where: {'id': id});
   }
 }

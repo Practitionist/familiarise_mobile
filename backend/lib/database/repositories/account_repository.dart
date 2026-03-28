@@ -1,3 +1,4 @@
+import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -11,22 +12,21 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 ///   id_token → idToken
 class AccountRepository extends BaseRepository {
   /// Create an account repository with the given executor
-  AccountRepository(super._executor);
+  AccountRepository(super._executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   /// Find account by userId and providerId
   Future<Map<String, dynamic>?> findByUserAndProvider(
     String userId,
     String providerId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('accounts')
-        .action(QueryAction.findFirst)
-        .where({
-      'userId': userId,
-      'providerId': providerId,
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.account.findFirstRaw(
+      where: {
+        'userId': userId,
+        'providerId': providerId,
+      },
+    );
   }
 
   /// Find credential account by userId

@@ -49,11 +49,13 @@ class PayoutAccountRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> findByConsultant(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('PayoutAccount')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).build();
-    return executeQueryAsMaps(query);
+    final results = await _prisma.payoutAccount.findMany(
+      where: PayoutAccountWhereInput(
+        consultantProfileId:
+            StringFilter(equals: consultantProfileId),
+      ),
+    );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Get a payout account by ID.
@@ -65,11 +67,10 @@ class PayoutAccountRepository extends BaseRepository {
 
   /// Get a payout account by ID as a JSON-friendly map.
   Future<Map<String, dynamic>?> findByIdMap(String id) async {
-    final query = JsonQueryBuilder()
-        .model('PayoutAccount')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-    return executeQueryAsSingleMap(query);
+    final result = await _prisma.payoutAccount.findUnique(
+      where: PayoutAccountWhereUniqueInput(id: id),
+    );
+    return result?.toJson();
   }
 
   /// Update a payout account.

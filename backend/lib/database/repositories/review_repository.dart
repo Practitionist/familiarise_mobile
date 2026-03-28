@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/exceptions.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
@@ -6,10 +7,12 @@ import 'package:uuid/uuid.dart';
 /// Repository for consultant review operations using Prisma ORM
 ///
 /// Handles creation and retrieval of consultant reviews.
-/// Uses JsonQueryBuilder for type-safe queries.
+/// Uses PrismaClient typed delegates for reads (findManyRaw, findFirstRaw,
+/// count). Mutations (create, update) remain on JsonQueryBuilder.
 class ReviewRepository extends BaseRepository {
   /// Create a review repository with the given executor
-  ReviewRepository(super._executor);
+  ReviewRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   final _uuid = const Uuid();
 
@@ -24,15 +27,12 @@ class ReviewRepository extends BaseRepository {
     String? reviewDescription,
   }) async {
     // Check for existing review
-    final existingQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findFirst)
-        .where({
-      'consulteeProfileId': consulteeProfileId,
-      'consultantProfileId': consultantProfileId,
-    }).build();
-
-    final existing = await executeQueryAsSingleMap(existingQuery);
+    final existing = await _prisma.consultantReview.findFirstRaw(
+      where: {
+        'consulteeProfileId': consulteeProfileId,
+        'consultantProfileId': consultantProfileId,
+      },
+    );
 
     if (existing != null) {
       throw const AlreadyExistsException(
@@ -66,12 +66,9 @@ class ReviewRepository extends BaseRepository {
     await _updateConsultantRating(consultantProfileId);
 
     // Return the created review
-    final resultQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findUnique)
-        .where({'id': reviewId}).build();
-
-    final result = await executeQueryAsSingleMap(resultQuery);
+    final result = await _prisma.consultantReview.findFirstRaw(
+      where: {'id': reviewId},
+    );
 
     if (result == null) {
       throw Exception('Failed to create review');
@@ -85,15 +82,12 @@ class ReviewRepository extends BaseRepository {
     required String consulteeProfileId,
     required String consultantProfileId,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.count)
-        .where({
-      'consulteeProfileId': consulteeProfileId,
-      'consultantProfileId': consultantProfileId,
-    }).build();
-
-    final count = await executeCount(query);
+    final count = await _prisma.consultantReview.count(
+      where: ConsultantReviewWhereInput(
+        consulteeProfileId: StringFilter(equals: consulteeProfileId),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
     return count > 0;
   }
 
@@ -107,29 +101,24 @@ class ReviewRepository extends BaseRepository {
     final offset = page * effectivePageSize;
 
     // Count total reviews
-    final countQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.count)
-        .where({'consultantProfileId': consultantProfileId}).build();
-
-    final totalCount = await executeCount(countQuery);
+    final totalCount = await _prisma.consultantReview.count(
+      where: ConsultantReviewWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     // Fetch reviews with consultee info
-    final query = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .include({
-          'consulteeProfile': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .skip(offset)
-        .take(effectivePageSize)
-        .build();
-
-    final reviews = await executeQueryAsMaps(query);
+    final reviews = await _prisma.consultantReview.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+      include: {
+        'consulteeProfile': {
+          'include': {'user': true},
+        },
+      },
+      orderBy: {'createdAt': 'desc'},
+      skip: offset,
+      take: effectivePageSize,
+    );
 
     return {
       'reviews': reviews,
@@ -147,13 +136,10 @@ class ReviewRepository extends BaseRepository {
   /// Calculates the average from all reviews and updates the profile.
   Future<void> _updateConsultantRating(String consultantProfileId) async {
     // Get all ratings for this consultant
-    final query = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'rating': true}).build();
-
-    final reviews = await executeQueryAsMaps(query);
+    final reviews = await _prisma.consultantReview.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+      selectFields: ['rating'],
+    );
 
     if (reviews.isEmpty) return;
 
@@ -181,14 +167,11 @@ class ReviewRepository extends BaseRepository {
     required String consulteeProfileId,
     required String consultantProfileId,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findFirst)
-        .where({
-      'consulteeProfileId': consulteeProfileId,
-      'consultantProfileId': consultantProfileId,
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.consultantReview.findFirstRaw(
+      where: {
+        'consulteeProfileId': consulteeProfileId,
+        'consultantProfileId': consultantProfileId,
+      },
+    );
   }
 }

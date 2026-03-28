@@ -1,67 +1,62 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for collaborator operations
 /// (WebinarCollaborator + ClassCollaborator)
 class CollaboratorRepository extends BaseRepository {
   /// Create a collaborator repository with the given executor
-  CollaboratorRepository(super._executor);
+  CollaboratorRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   /// Get all collaborations for a consultant (both webinar and class)
   Future<Map<String, dynamic>> getMyCollaborations(
     String consultantProfileId,
   ) async {
     // Webinar collaborations with nested includes
-    final webinarQuery = JsonQueryBuilder()
-        .model('WebinarCollaborator')
-        .action(QueryAction.findMany)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-        })
-        .include({
-          'webinarPlan': {
-            'include': {
-              'consultantProfile': {
-                'include': {'user': true},
-              },
+    final webinarResults = await _prisma.webinarCollaborator.findManyRaw(
+      where: {
+        'consultantProfileId': consultantProfileId,
+        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
+      },
+      include: {
+        'webinarPlan': {
+          'include': {
+            'consultantProfile': {
+              'include': {'user': true},
             },
           },
-          'invitedBy': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
-
-    final webinarResults = await executeQueryAsMaps(webinarQuery);
+        },
+        'invitedBy': {
+          'include': {'user': true},
+        },
+      },
+      orderBy: {'createdAt': 'desc'},
+    );
     final webinarCollaborations =
         webinarResults.map(_flattenWebinarCollaboration).toList();
 
     // Class collaborations with nested includes
-    final classQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
-        .action(QueryAction.findMany)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-        })
-        .include({
-          'classPlan': {
-            'include': {
-              'consultantProfile': {
-                'include': {'user': true},
-              },
+    final classResults = await _prisma.classCollaborator.findManyRaw(
+      where: {
+        'consultantProfileId': consultantProfileId,
+        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
+      },
+      include: {
+        'classPlan': {
+          'include': {
+            'consultantProfile': {
+              'include': {'user': true},
             },
           },
-          'invitedBy': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
+        },
+        'invitedBy': {
+          'include': {'user': true},
+        },
+      },
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final classResults = await executeQueryAsMaps(classQuery);
     final classCollaborations =
         classResults.map(_flattenClassCollaboration).toList();
 

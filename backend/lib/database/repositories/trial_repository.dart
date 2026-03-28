@@ -5,9 +5,8 @@ import 'package:uuid/uuid.dart';
 
 /// Repository for trial session operations.
 ///
-/// Uses JsonQueryBuilder for queries with filters (connector can't
-/// serialize StringFilter objects — teetangh/prisma-flutter-connector#25).
-/// Uses PrismaClient for findUnique/update (which work correctly).
+/// Uses PrismaClient typed delegates for reads (findManyRaw, findFirstRaw,
+/// count). Mutations (create, update) remain on JsonQueryBuilder.
 class TrialRepository extends BaseRepository {
   TrialRepository(super._executor, this._prisma);
 
@@ -69,28 +68,22 @@ class TrialRepository extends BaseRepository {
     };
     if (status != null) where['status'] = status;
 
-    final query = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include(_trialIncludes)
-        .orderBy({'createdAt': 'desc'})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.trialSession.findManyRaw(
+      where: where,
+      include: _trialIncludes,
+      orderBy: {'createdAt': 'desc'},
+    );
   }
 
   /// List trials for a consultee.
   Future<List<Map<String, dynamic>>> findByConsultee(
     String consulteeProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.findMany)
-        .where({'consulteeProfileId': consulteeProfileId})
-        .include(_trialIncludes)
-        .orderBy({'createdAt': 'desc'})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.trialSession.findManyRaw(
+      where: {'consulteeProfileId': consulteeProfileId},
+      include: _trialIncludes,
+      orderBy: {'createdAt': 'desc'},
+    );
   }
 
   /// Check if a trial already exists for this consultant-consultee pair.
@@ -98,14 +91,12 @@ class TrialRepository extends BaseRepository {
     required String consulteeProfileId,
     required String consultantProfileId,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.count)
-        .where({
-      'consulteeProfileId': consulteeProfileId,
-      'consultantProfileId': consultantProfileId,
-    }).build();
-    final count = await executeCount(query);
+    final count = await _prisma.trialSession.count(
+      where: TrialSessionWhereInput(
+        consulteeProfileId: StringFilter(equals: consulteeProfileId),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
     return count > 0;
   }
 

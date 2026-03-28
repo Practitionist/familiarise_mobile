@@ -87,28 +87,28 @@ class DatabaseClient {
     _prisma = PrismaClient(adapter: _adapter);
 
     // Initialize repositories
-    _userRepository = UserRepository(_executor);
-    _accountRepository = AccountRepository(_executor);
-    _sessionRepository = SessionRepository(_executor, _userRepository);
-    _consulteeProfileRepository = ConsulteeProfileRepository(_executor);
-    _consultantProfileRepository = ConsultantProfileRepository(_executor);
-    _domainRepository = DomainRepository(_executor);
+    _userRepository = UserRepository(_executor, _prisma);
+    _accountRepository = AccountRepository(_executor, _prisma);
+    _sessionRepository = SessionRepository(_executor, _userRepository, _prisma);
+    _consulteeProfileRepository = ConsulteeProfileRepository(_executor, _prisma);
+    _consultantProfileRepository = ConsultantProfileRepository(_executor, _prisma);
+    _domainRepository = DomainRepository(_executor, _prisma);
     _consultantExploreRepository = ConsultantExploreRepository(_executor);
     _slotRepository = SlotRepository(_executor);
     _appointmentRepository = AppointmentRepository(_executor);
     _programsRepository = ProgramsRepository(_executor);
     _checkoutRepository = CheckoutRepository(_executor);
     _webhookEventRepository = WebhookEventRepository(_executor, _prisma);
-    _refundRepository = RefundRepository(_executor);
-    _disputeRepository = DisputeRepository(_executor);
-    _supportTicketRepository = SupportTicketRepository(_executor);
-    _reviewRepository = ReviewRepository(_executor);
+    _refundRepository = RefundRepository(_executor, _prisma);
+    _disputeRepository = DisputeRepository(_executor, _prisma);
+    _supportTicketRepository = SupportTicketRepository(_executor, _prisma);
+    _reviewRepository = ReviewRepository(_executor, _prisma);
     _feedbackRepository = FeedbackRepository(_executor, _prisma);
-    _meetingSessionRepository = MeetingSessionRepository(_executor);
+    _meetingSessionRepository = MeetingSessionRepository(_executor, _prisma);
     _dashboardRepository = DashboardRepository(_executor);
-    _verificationRepository = VerificationRepository(_executor);
-    _collaboratorRepository = CollaboratorRepository(_executor);
-    _referralRepository = ReferralRepository(_executor);
+    _verificationRepository = VerificationRepository(_executor, _prisma);
+    _collaboratorRepository = CollaboratorRepository(_executor, _prisma);
+    _referralRepository = ReferralRepository(_executor, _prisma);
     _consultantVerificationRepository =
         ConsultantVerificationRepository(_executor, _prisma);
     _trialRepository = TrialRepository(_executor, _prisma);
@@ -117,8 +117,8 @@ class DatabaseClient {
         PayoutAccountRepository(_executor, _prisma);
     _appointmentDocumentRepository =
         AppointmentDocumentRepository(_executor, _prisma);
-    _announcementRepository = AnnouncementRepository(_executor);
-    _maintenanceRepository = MaintenanceRepository(_executor);
+    _announcementRepository = AnnouncementRepository(_executor, _prisma);
+    _maintenanceRepository = MaintenanceRepository(_executor, _prisma);
     _recordingRepository = RecordingRepository(_executor, _prisma);
     _planRepository = PlanRepository(_executor, _prisma);
   }

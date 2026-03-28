@@ -1,13 +1,15 @@
 import 'dart:math';
 
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-
 
 /// Repository for referral operations (ReferralCode, Referral, ReferralCredit)
 class ReferralRepository extends BaseRepository {
   /// Create a referral repository with the given executor
-  ReferralRepository(super._executor);
+  ReferralRepository(super._executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   static const int _defaultRefereeReward = 20000; // paise (200 INR)
   static const int _defaultReferrerReward = 50000; // paise (500 INR)
@@ -19,19 +21,15 @@ class ReferralRepository extends BaseRepository {
     required String code,
   }) async {
     // Find the referral code (check both code and customCode)
-    final codeQuery = JsonQueryBuilder()
-        .model('ReferralCode')
-        .action(QueryAction.findFirst)
-        .where({
-          'isActive': true,
-          'OR': [
-            {'code': code.toUpperCase()},
-            {'customCode': code.toUpperCase()},
-          ],
-        })
-        .build();
-
-    final referralCode = await executeQueryAsSingleMap(codeQuery);
+    final referralCode = await _prisma.referralCode.findFirstRaw(
+      where: {
+        'isActive': true,
+        'OR': [
+          {'code': code.toUpperCase()},
+          {'customCode': code.toUpperCase()},
+        ],
+      },
+    );
 
     if (referralCode == null) {
       throw Exception('Invalid or inactive referral code');
@@ -53,13 +51,9 @@ class ReferralRepository extends BaseRepository {
     }
 
     // Check if user was already referred (referredUserId is @unique)
-    final existingQuery = JsonQueryBuilder()
-        .model('Referral')
-        .action(QueryAction.findFirst)
-        .where({'referredUserId': userId})
-        .build();
-
-    final existingReferral = await executeQueryAsSingleMap(existingQuery);
+    final existingReferral = await _prisma.referral.findFirstRaw(
+      where: {'referredUserId': userId},
+    );
 
     if (existingReferral != null) {
       throw Exception('You have already used a referral code');
@@ -131,13 +125,9 @@ class ReferralRepository extends BaseRepository {
 
   /// Get user's referral code
   Future<Map<String, dynamic>?> getReferralCode(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('ReferralCode')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId})
-        .build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.referralCode.findFirstRaw(
+      where: {'userId': userId},
+    );
   }
 
   /// Create a referral code for a user
@@ -178,17 +168,13 @@ class ReferralRepository extends BaseRepository {
   Future<Map<String, dynamic>> getAvailableCredits(String userId) async {
     final now = DateTime.now().toUtc().toIso8601String();
 
-    final query = JsonQueryBuilder()
-        .model('ReferralCredit')
-        .action(QueryAction.findMany)
-        .where({
-          'userId': userId,
-          'remainingAmount': FilterOperators.gt(0),
-          'expiresAt': FilterOperators.gt(now),
-        })
-        .build();
-
-    final credits = await executeQueryAsMaps(query);
+    final credits = await _prisma.referralCredit.findManyRaw(
+      where: {
+        'userId': userId,
+        'remainingAmount': FilterOperators.gt(0),
+        'expiresAt': FilterOperators.gt(now),
+      },
+    );
 
     final totalAvailable = credits.fold<int>(0, (sum, credit) {
       final remaining =

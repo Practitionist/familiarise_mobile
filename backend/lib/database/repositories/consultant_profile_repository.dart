@@ -1,32 +1,29 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:uuid/uuid.dart';
 
 /// Repository for consultant profile database operations
 class ConsultantProfileRepository extends BaseRepository {
   /// Create a consultant profile repository with the given executor
-  ConsultantProfileRepository(super._executor);
+  ConsultantProfileRepository(super._executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   static const _uuid = Uuid();
 
   /// Find consultant profile by user ID
   Future<Map<String, dynamic>?> findByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.consultantProfile.findFirstRaw(
+      where: {'userId': userId},
+    );
   }
 
   /// Find consultant profile by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.consultantProfile.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   /// Upsert a consultant profile (create or update)
@@ -143,11 +140,10 @@ class ConsultantProfileRepository extends BaseRepository {
 
   /// Delete a consultant profile by user ID
   Future<void> deleteByUserId(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.deleteMany)
-        .where({'userId': userId}).build();
-
-    await executeMutation(query);
+    await _prisma.consultantProfile.deleteMany(
+      where: ConsultantProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
   }
 }

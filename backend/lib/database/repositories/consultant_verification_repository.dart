@@ -86,14 +86,10 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<ConsultantProfileVerification?> findLatest(
     String consultantProfileId,
   ) async {
-    // Use JsonQueryBuilder so we can manually default the `documents`
-    // relation field, which the typed delegate's fromJson requires.
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.findFirst)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    final result = await executeQueryAsSingleMap(query);
+    final result =
+        await _prisma.consultantProfileVerification.findFirstRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
     if (result == null) return null;
     final serialized = serializeForJson(result);
     serialized.putIfAbsent('documents', () => <dynamic>[]);
@@ -111,12 +107,9 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> findAll(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.consultantProfileVerification.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
   }
 
   /// Add a document to an existing verification.
@@ -148,12 +141,9 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getDocuments(
     String verificationId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('ProfileVerificationDocument')
-        .action(QueryAction.findMany)
-        .where({'verificationId': verificationId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.profileVerificationDocument.findManyRaw(
+      where: {'verificationId': verificationId},
+    );
   }
 
   /// Resubmit a verification (creates a new one, supersedes the old).

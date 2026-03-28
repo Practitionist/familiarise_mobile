@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for verification token database operations
@@ -7,22 +8,20 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Used for password reset tokens and email verification tokens.
 class VerificationRepository extends BaseRepository {
   /// Create a verification repository with the given executor
-  VerificationRepository(super._executor);
+  VerificationRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   /// Find a verification by identifier and value
   Future<Map<String, dynamic>?> findByIdentifierAndValue({
     required String identifier,
     required String value,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.findFirst)
-        .where({
-      'identifier': identifier,
-      'value': value,
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.verification.findFirstRaw(
+      where: {
+        'identifier': identifier,
+        'value': value,
+      },
+    );
   }
 
   /// Find a verification by value and identifier prefix
@@ -33,25 +32,17 @@ class VerificationRepository extends BaseRepository {
     required String value,
     required String identifierPrefix,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.findFirst)
-        .where({
-      'value': value,
-      'identifier': FilterOperators.startsWith(identifierPrefix),
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.verification.findFirstRaw(
+      where: {
+        'value': value,
+        'identifier': FilterOperators.startsWith(identifierPrefix),
+      },
+    );
   }
 
   /// Find a verification by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.verification.findFirstRaw(where: {'id': id});
   }
 
   /// Create a new verification token
@@ -83,33 +74,26 @@ class VerificationRepository extends BaseRepository {
 
   /// Delete a verification by ID
   Future<void> delete(String id) async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.delete)
-        .where({'id': id}).build();
-
-    await executeMutation(query);
+    await _prisma.verification.deleteMany(
+      where: VerificationWhereInput(id: StringFilter(equals: id)),
+    );
   }
 
   /// Delete all verifications for an identifier
   Future<void> deleteByIdentifier(String identifier) async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.deleteMany)
-        .where({'identifier': identifier}).build();
-
-    await executeMutation(query);
+    await _prisma.verification.deleteMany(
+      where: VerificationWhereInput(
+        identifier: StringFilter(equals: identifier),
+      ),
+    );
   }
 
   /// Delete expired verifications (cleanup)
   Future<int> deleteExpired() async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.deleteMany)
-        .where({
-      'expiresAt': FilterOperators.lt(DateTime.now().toUtc().toIso8601String()),
-    }).build();
-
-    return executor.executeMutation(query);
+    return _prisma.verification.deleteMany(
+      where: VerificationWhereInput(
+        expiresAt: DateTimeFilter(lt: DateTime.now().toUtc()),
+      ),
+    );
   }
 }

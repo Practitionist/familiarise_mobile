@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -10,7 +11,8 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// - computed fields for inline aggregations
 class DomainRepository extends BaseRepository {
   /// Create a domain repository with the given executor
-  DomainRepository(super._executor);
+  DomainRepository(super._executor, this._prisma);
+  final PrismaClient _prisma;
 
   /// Get all domains using the connector's findMany
   ///
