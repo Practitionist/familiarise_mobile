@@ -8,7 +8,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ConsultantProfile',
     tableName: 'ConsultantProfile',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'domainId': const FieldInfo(
@@ -102,7 +102,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'users',
     tableName: 'users',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
       'email':
           const FieldInfo(name: 'email', columnName: 'email', type: 'String'),
@@ -162,7 +162,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Domain',
     tableName: 'Domain',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
       'createdAt': const FieldInfo(
           name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
@@ -183,7 +183,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SubDomain',
     tableName: 'SubDomain',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
       'domainId': const FieldInfo(
           name: 'domainId', columnName: 'domainId', type: 'String'),
@@ -207,7 +207,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ConsultationPlan',
     tableName: 'ConsultationPlan',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -257,7 +257,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ConsultantReview',
     tableName: 'ConsultantReview',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -294,7 +294,7 @@ SchemaRegistry buildSchemaRegistry() {
     // Only columns that exist in the DB (no occupation, currentCompany,
     // industry, linkedinUrl, preferredCommunicationMethod — see PR #88)
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'aboutMe': const FieldInfo(
@@ -335,7 +335,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SubscriptionPlan',
     tableName: 'SubscriptionPlan',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -405,7 +405,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Consultation',
     tableName: 'Consultation',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultationPlanId': const FieldInfo(
           name: 'consultationPlanId',
           columnName: 'consultationPlanId',
@@ -472,7 +472,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Subscription',
     tableName: 'Subscription',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'subscriptionPlanId': const FieldInfo(
           name: 'subscriptionPlanId',
           columnName: 'subscriptionPlanId',
@@ -551,7 +551,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'TrialSession',
     tableName: 'TrialSession',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'status':
           const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'notes':
@@ -622,7 +622,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Appointment',
     tableName: 'Appointment',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'appointmentType': const FieldInfo(
           name: 'appointmentType',
           columnName: 'appointmentType',
@@ -678,7 +678,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SlotOfAppointment',
     tableName: 'SlotOfAppointment',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'appointmentId': const FieldInfo(
           name: 'appointmentId', columnName: 'appointmentId', type: 'String'),
       'startsAt': const FieldInfo(
@@ -715,7 +715,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SlotOfAvailabilityCustom',
     tableName: 'SlotOfAvailabilityCustom',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -736,7 +736,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SlotOfAvailabilityWeekly',
     tableName: 'SlotOfAvailabilityWeekly',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -767,7 +767,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SupportTicket',
     tableName: 'SupportTicket',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'title':
           const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
       'description': const FieldInfo(
@@ -812,7 +812,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SupportResponse',
     tableName: 'SupportResponse',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'supportTicketId': const FieldInfo(
           name: 'supportTicketId',
           columnName: 'supportTicketId',
@@ -849,7 +849,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'SupportTicketAttachment',
     tableName: 'SupportTicketAttachment',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'fileName': const FieldInfo(
           name: 'fileName', columnName: 'fileName', type: 'String'),
       'originalName': const FieldInfo(
@@ -882,7 +882,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'MeetingSession',
     tableName: 'MeetingSession',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'streamCallId': const FieldInfo(
           name: 'streamCallId', columnName: 'streamCallId', type: 'String'),
       'platform': const FieldInfo(
@@ -929,7 +929,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'WebinarPlan',
     tableName: 'WebinarPlan',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'title':
           const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
       'description': const FieldInfo(
@@ -996,7 +996,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Webinar',
     tableName: 'Webinar',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'status':
           const FieldInfo(name: 'status', columnName: 'status', type: 'String'),
       'feedbackSummary': const FieldInfo(
@@ -1031,7 +1031,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ClassPlan',
     tableName: 'ClassPlan',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'title':
           const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
       'description': const FieldInfo(
@@ -1110,7 +1110,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Class',
     tableName: 'Class',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'schedulingPeriodStartsAt': const FieldInfo(
           name: 'schedulingPeriodStartsAt',
           columnName: 'schedulingPeriodStartsAt',
@@ -1160,7 +1160,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'accounts',
     tableName: 'accounts',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'accountId': const FieldInfo(
@@ -1205,7 +1205,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'sessions',
     tableName: 'sessions',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'token':
           const FieldInfo(name: 'token', columnName: 'token', type: 'String'),
       'userId':
@@ -1236,7 +1236,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'verifications',
     tableName: 'verifications',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'identifier': const FieldInfo(
           name: 'identifier', columnName: 'identifier', type: 'String'),
       'value':
@@ -1257,7 +1257,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Payment',
     tableName: 'Payment',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'amount':
           const FieldInfo(name: 'amount', columnName: 'amount', type: 'Int'),
       'originalAmount': const FieldInfo(
@@ -1320,7 +1320,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'DiscountCode',
     tableName: 'DiscountCode',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'code': const FieldInfo(name: 'code', columnName: 'code', type: 'String'),
       'description': const FieldInfo(
           name: 'description', columnName: 'description', type: 'String'),
@@ -1350,7 +1350,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Refund',
     tableName: 'Refund',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'amount':
           const FieldInfo(name: 'amount', columnName: 'amount', type: 'Int'),
       'currency': const FieldInfo(
@@ -1387,7 +1387,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Dispute',
     tableName: 'Dispute',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'amount':
           const FieldInfo(name: 'amount', columnName: 'amount', type: 'Int'),
       'currency': const FieldInfo(
@@ -1432,7 +1432,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Feedback',
     tableName: 'Feedback',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': const FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'title':
           const FieldInfo(name: 'title', columnName: 'title', type: 'String'),
       'description': const FieldInfo(
@@ -1446,9 +1446,9 @@ SchemaRegistry buildSchemaRegistry() {
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'createdAt': const FieldInfo(
-          name: 'createdAt', columnName: 'createdAt', type: 'DateTime'),
+          name: 'createdAt', columnName: 'createdAt', type: 'DateTime', defaultValue: 'now()'),
       'updatedAt': const FieldInfo(
-          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime'),
+          name: 'updatedAt', columnName: 'updatedAt', type: 'DateTime', defaultValue: 'now()'),
     },
     relations: {
       'user': RelationInfo.oneToOne(
@@ -1465,7 +1465,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'WebhookEvent',
     tableName: 'WebhookEvent',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'provider': const FieldInfo(
           name: 'provider', columnName: 'provider', type: 'String'),
       'eventId': const FieldInfo(
@@ -1494,7 +1494,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ReferralCode',
     tableName: 'ReferralCode',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'code': const FieldInfo(name: 'code', columnName: 'code', type: 'String'),
@@ -1536,7 +1536,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Referral',
     tableName: 'Referral',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'referralCodeId': const FieldInfo(
           name: 'referralCodeId', columnName: 'referralCodeId', type: 'String'),
       'referredUserId': const FieldInfo(
@@ -1593,7 +1593,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ReferralCredit',
     tableName: 'ReferralCredit',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'amount':
@@ -1632,7 +1632,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'WebinarCollaborator',
     tableName: 'WebinarCollaborator',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -1684,7 +1684,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ClassCollaborator',
     tableName: 'ClassCollaborator',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -1739,7 +1739,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'User',
     tableName: 'users',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'name': const FieldInfo(name: 'name', columnName: 'name', type: 'String'),
       'email':
           const FieldInfo(name: 'email', columnName: 'email', type: 'String'),
@@ -1798,7 +1798,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Account',
     tableName: 'accounts',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'accountId': const FieldInfo(
@@ -1843,7 +1843,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Session',
     tableName: 'sessions',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'token':
           const FieldInfo(name: 'token', columnName: 'token', type: 'String'),
       'userId':
@@ -1874,7 +1874,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Verification',
     tableName: 'verifications',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'identifier': const FieldInfo(
           name: 'identifier', columnName: 'identifier', type: 'String'),
       'value':
@@ -1893,7 +1893,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'CookiePreference',
     tableName: 'cookie_preferences',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'sessionId': const FieldInfo(
@@ -1930,7 +1930,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'NotificationPreference',
     tableName: 'notification_preferences',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'userId':
           const FieldInfo(name: 'userId', columnName: 'userId', type: 'String'),
       'allNotifications': const FieldInfo(
@@ -2009,7 +2009,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ConsultantProfileVerification',
     tableName: 'ConsultantProfileVerification',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'status': const FieldInfo(
           name: 'status', columnName: 'status', type: 'String'),
       'consultantProfileId': const FieldInfo(
@@ -2061,7 +2061,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'ProfileVerificationDocument',
     tableName: 'ProfileVerificationDocument',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'fileName': const FieldInfo(
           name: 'fileName', columnName: 'fileName', type: 'String'),
       'originalName': const FieldInfo(
@@ -2106,7 +2106,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'WorkExperience',
     tableName: 'WorkExperience',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'company': const FieldInfo(
           name: 'company', columnName: 'company', type: 'String'),
       'companyDomain': const FieldInfo(
@@ -2147,7 +2147,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Certification',
     tableName: 'Certification',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'name': const FieldInfo(
           name: 'name', columnName: 'name', type: 'String'),
       'issuingOrganization': const FieldInfo(
@@ -2188,7 +2188,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Education',
     tableName: 'Education',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'institution': const FieldInfo(
           name: 'institution',
           columnName: 'institution',
@@ -2235,7 +2235,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Waitlist',
     tableName: 'Waitlist',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'joinedAt': const FieldInfo(
           name: 'joinedAt', columnName: 'joinedAt', type: 'DateTime'),
       'position': const FieldInfo(
@@ -2298,7 +2298,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'PayoutAccount',
     tableName: 'PayoutAccount',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'consultantProfileId': const FieldInfo(
           name: 'consultantProfileId',
           columnName: 'consultantProfileId',
@@ -2365,7 +2365,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'AppointmentDocument',
     tableName: 'AppointmentDocument',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'fileName': const FieldInfo(
           name: 'fileName', columnName: 'fileName', type: 'String'),
       'originalName': const FieldInfo(
@@ -2436,7 +2436,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'Announcement',
     tableName: 'announcements',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'title': const FieldInfo(
           name: 'title', columnName: 'title', type: 'String'),
       'content': const FieldInfo(
@@ -2481,7 +2481,7 @@ SchemaRegistry buildSchemaRegistry() {
     name: 'MaintenanceWindow',
     tableName: 'maintenance_windows',
     fields: {
-      'id': FieldInfo.id(name: 'id'),
+      'id': FieldInfo(name: 'id', columnName: 'id', type: 'String', isId: true, defaultValue: 'uuid()'),
       'phase': const FieldInfo(
           name: 'phase', columnName: 'phase', type: 'String'),
       'reason': const FieldInfo(

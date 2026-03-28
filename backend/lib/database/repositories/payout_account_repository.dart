@@ -1,6 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for payout account operations.
@@ -26,7 +26,6 @@ class PayoutAccountRepository extends BaseRepository {
         .model('PayoutAccount')
         .action(QueryAction.create)
         .data({
-      'id': const Uuid().v4(),
       'consultantProfileId': consultantProfileId,
       'provider': provider,
       'accountType': accountType,

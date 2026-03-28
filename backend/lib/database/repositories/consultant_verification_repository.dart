@@ -2,7 +2,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Thrown when a verification submission conflicts with an existing pending one.
 class VerificationConflictException implements Exception {
@@ -65,7 +64,6 @@ class ConsultantVerificationRepository extends BaseRepository {
           .model('ConsultantProfileVerification')
           .action(QueryAction.create)
           .data({
-        'id': const Uuid().v4(),
         'consultantProfileId': consultantProfileId,
         'status': 'PENDING',
         'notes': notes,
@@ -88,8 +86,8 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<ConsultantProfileVerification?> findLatest(
     String consultantProfileId,
   ) async {
-    // Use JsonQueryBuilder — PrismaClient StringFilter not serializable
-    // (connector issue teetangh/prisma-flutter-connector#25)
+    // Use JsonQueryBuilder so we can manually default the `documents`
+    // relation field, which the typed delegate's fromJson requires.
     final query = JsonQueryBuilder()
         .model('ConsultantProfileVerification')
         .action(QueryAction.findFirst)

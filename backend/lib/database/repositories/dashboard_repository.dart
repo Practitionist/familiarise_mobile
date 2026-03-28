@@ -9,8 +9,8 @@ class DashboardRepository extends BaseRepository {
 
   /// Get aggregated stats for a consultee user
   ///
-  /// Batches consultation and subscription counts into 2 queries (grouped by
-  /// status in Dart) instead of separate count queries per status.
+  /// Uses groupBy queries to aggregate consultation and subscription counts
+  /// by status in a single DB round trip per model.
   Future<Map<String, dynamic>> getConsulteeStats({
     required String userId,
   }) async {
@@ -35,25 +35,31 @@ class DashboardRepository extends BaseRepository {
       };
     }
 
-    // Batch: get all consultation statuses in 1 query (instead of 5 counts)
-    final consultationStatusQuery = JsonQueryBuilder()
+    // GroupBy: aggregate consultation counts per status in the DB
+    final consultationGroupByQuery = JsonQueryBuilder()
         .model('Consultation')
-        .action(QueryAction.findMany)
-        .where({'requestedById': consulteeProfileId}).select(
-            {'requestStatus': true}).build();
-    final consultationRows = await executeQueryAsMaps(consultationStatusQuery);
+        .action(QueryAction.groupBy)
+        .groupByFields(['requestStatus'])
+        .where({'requestedById': consulteeProfileId})
+        .aggregation({'_count': true})
+        .build();
+    final consultationGrouped =
+        await executeQueryAsMaps(consultationGroupByQuery);
     final consultationCounts =
-        _groupByStatus(consultationRows, 'requestStatus');
+        _parseGroupByCounts(consultationGrouped, 'requestStatus');
 
-    // Batch: get all subscription statuses in 1 query (instead of 3 counts)
-    final subscriptionStatusQuery = JsonQueryBuilder()
+    // GroupBy: aggregate subscription counts per status in the DB
+    final subscriptionGroupByQuery = JsonQueryBuilder()
         .model('Subscription')
-        .action(QueryAction.findMany)
-        .where({'requestedById': consulteeProfileId}).select(
-            {'requestStatus': true}).build();
-    final subscriptionRows = await executeQueryAsMaps(subscriptionStatusQuery);
+        .action(QueryAction.groupBy)
+        .groupByFields(['requestStatus'])
+        .where({'requestedById': consulteeProfileId})
+        .aggregation({'_count': true})
+        .build();
+    final subscriptionGrouped =
+        await executeQueryAsMaps(subscriptionGroupByQuery);
     final subscriptionCounts =
-        _groupByStatus(subscriptionRows, 'requestStatus');
+        _parseGroupByCounts(subscriptionGrouped, 'requestStatus');
 
     // Calculate total spent from completed consultations
     final totalSpent = await _calculateTotalSpent(
@@ -313,15 +319,18 @@ class DashboardRepository extends BaseRepository {
     return plans.map((p) => p['id'] as String).toList();
   }
 
-  /// Group rows by a status field and return counts per status value.
-  Map<String, int> _groupByStatus(
-    List<Map<String, dynamic>> rows,
+  /// Parse groupBy query results into a status-to-count map.
+  ///
+  /// Expects rows shaped like `{'requestStatus': 'PENDING', '_count': 5}`.
+  Map<String, int> _parseGroupByCounts(
+    List<Map<String, dynamic>> groupedRows,
     String statusField,
   ) {
     final counts = <String, int>{};
-    for (final row in rows) {
+    for (final row in groupedRows) {
       final status = row[statusField] as String? ?? 'UNKNOWN';
-      counts[status] = (counts[status] ?? 0) + 1;
+      final count = (row['_count'] as num?)?.toInt() ?? 0;
+      counts[status] = count;
     }
     return counts;
   }

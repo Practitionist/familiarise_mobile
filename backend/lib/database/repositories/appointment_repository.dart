@@ -1863,11 +1863,21 @@ class AppointmentRepository extends BaseRepository {
   Future<Map<String, dynamic>> _getConsultationById(String id) async {
     // Wrap in transaction for consistent reads
     return executeInTransaction((txn) async {
-      // Get consultation with plan only (avoid nested includes - ORM bug)
+      // Single query with nested includes (nested includes fixed in v0.3.8+)
       final query = JsonQueryBuilder()
           .model('Consultation')
           .action(QueryAction.findUnique)
-          .where({'id': id}).include({'consultationPlan': true}).build();
+          .where({'id': id})
+          .include({
+            'consultationPlan': {
+              'include': {
+                'consultantProfile': {
+                  'include': {'user': true},
+                },
+              },
+            },
+          })
+          .build();
 
       final result = await executeQueryAsSingleMap(query, txn: txn);
 
@@ -1875,37 +1885,10 @@ class AppointmentRepository extends BaseRepository {
         throw Exception('Consultation not found');
       }
 
-      // ORM returns flattened fields with prefix (e.g., consultationPlanTitle)
-      // instead of nested object. Handle both cases for compatibility.
       final plan = result['consultationPlan'] as Map<String, dynamic>?;
-      final consultantProfileId = plan?['consultantProfileId'] as String? ??
-          result['consultationPlanConsultantProfileId'] as String?;
-
-      // Fetch consultant profile and user separately to avoid nested include bug
-      Map<String, dynamic>? profile;
-      Map<String, dynamic>? user;
-      if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId}).include({'user': true}).build();
-        profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
-
-        // Handle nested or flattened user fields
-        user = profile?['user'] as Map<String, dynamic>?;
-        if (user == null && profile != null) {
-          // ORM may flatten user fields with prefix
-          final userName = profile['userName'] as String?;
-          final userImage = profile['userImage'] as String?;
-          if (userName != null || userImage != null) {
-            user = {
-              'id': profile['userId'],
-              'name': userName,
-              'image': userImage,
-            };
-          }
-        }
-      }
+      final profile =
+          plan?['consultantProfile'] as Map<String, dynamic>?;
+      final user = profile?['user'] as Map<String, dynamic>?;
 
       // Fetch consultee (requestedBy) profile and user
       final consulteeInfo = await _fetchConsulteeInfo(
@@ -1922,14 +1905,11 @@ class AppointmentRepository extends BaseRepository {
         'message': result['requestNotes'],
         'createdAt': result['createdAt'],
         'updatedAt': result['updatedAt'],
-        // Handle both nested and flattened plan fields
-        'planId': plan?['id'] ?? result['consultationPlanId'],
-        'planTitle': plan?['title'] ?? result['consultationPlanTitle'],
-        'planPrice': plan?['price'] ?? result['consultationPlanPrice'],
-        'planCurrency':
-            plan?['priceCurrency'] ?? result['consultationPlanPriceCurrency'],
-        'planDuration': plan?['durationInHours'] ??
-            result['consultationPlanDurationInHours'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'planDuration': plan?['durationInHours'],
         'planDescription': plan?['description'],
         'planLanguage': plan?['language'],
         'planLevel': plan?['level'],
@@ -1950,11 +1930,17 @@ class AppointmentRepository extends BaseRepository {
         'cancelledBy': result['cancelledBy'],
       };
 
-      // Get appointment (without include - ORM flattens relations incorrectly)
+      // Get appointment with slots via nested include
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
           .action(QueryAction.findFirst)
-          .where({'consultationId': id}).build();
+          .where({'consultationId': id})
+          .include({
+            'slots': {
+              'orderBy': {'startsAt': 'asc'},
+            },
+          })
+          .build();
 
       final appointment =
           await executeQueryAsSingleMap(appointmentQuery, txn: txn);
@@ -1962,22 +1948,18 @@ class AppointmentRepository extends BaseRepository {
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
 
-        // Fetch slots separately to avoid ORM flattening issue
-        final slotsQuery = JsonQueryBuilder()
-            .model('SlotOfAppointment')
-            .action(QueryAction.findMany)
-            .where({'appointmentId': appointment['id']}).orderBy(
-                {'startsAt': 'asc'}).build();
-
-        final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
+        final slots = appointment['slots'] as List<dynamic>? ?? [];
         if (slots.isNotEmpty) {
           booking['slots'] = slots
-              .map((s) => {
-                    'id': s['id'],
-                    'startsAt': s['startsAt'],
-                    'endsAt': s['endsAt'],
-                    'isTentative': s['isTentative'],
-                  })
+              .map((s) {
+                final slot = s as Map<String, dynamic>;
+                return {
+                  'id': slot['id'],
+                  'startsAt': slot['startsAt'],
+                  'endsAt': slot['endsAt'],
+                  'isTentative': slot['isTentative'],
+                };
+              })
               .toList();
         }
       }
@@ -1989,11 +1971,21 @@ class AppointmentRepository extends BaseRepository {
   Future<Map<String, dynamic>> _getSubscriptionById(String id) async {
     // Wrap in transaction for consistent reads
     return executeInTransaction((txn) async {
-      // Get subscription with plan only (avoid nested includes - ORM bug)
+      // Single query with nested includes (nested includes fixed in v0.3.8+)
       final query = JsonQueryBuilder()
           .model('Subscription')
           .action(QueryAction.findUnique)
-          .where({'id': id}).include({'subscriptionPlan': true}).build();
+          .where({'id': id})
+          .include({
+            'subscriptionPlan': {
+              'include': {
+                'consultantProfile': {
+                  'include': {'user': true},
+                },
+              },
+            },
+          })
+          .build();
 
       final result = await executeQueryAsSingleMap(query, txn: txn);
 
@@ -2001,37 +1993,10 @@ class AppointmentRepository extends BaseRepository {
         throw Exception('Subscription not found');
       }
 
-      // ORM returns flattened fields with prefix (e.g., subscriptionPlanTitle)
-      // instead of nested object. Handle both cases for compatibility.
       final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-      final consultantProfileId = plan?['consultantProfileId'] as String? ??
-          result['subscriptionPlanConsultantProfileId'] as String?;
-
-      // Fetch consultant profile and user separately to avoid nested include bug
-      Map<String, dynamic>? profile;
-      Map<String, dynamic>? user;
-      if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId}).include({'user': true}).build();
-        profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
-
-        // Handle nested or flattened user fields
-        user = profile?['user'] as Map<String, dynamic>?;
-        if (user == null && profile != null) {
-          // ORM may flatten user fields with prefix
-          final userName = profile['userName'] as String?;
-          final userImage = profile['userImage'] as String?;
-          if (userName != null || userImage != null) {
-            user = {
-              'id': profile['userId'],
-              'name': userName,
-              'image': userImage,
-            };
-          }
-        }
-      }
+      final profile =
+          plan?['consultantProfile'] as Map<String, dynamic>?;
+      final user = profile?['user'] as Map<String, dynamic>?;
 
       // Fetch consultee (requestedBy) profile and user
       final consulteeInfo = await _fetchConsulteeInfo(
@@ -2051,18 +2016,13 @@ class AppointmentRepository extends BaseRepository {
         'schedulingTimezone': result['schedulingTimezone'],
         'createdAt': result['createdAt'],
         'updatedAt': result['updatedAt'],
-        // Handle both nested and flattened plan fields
-        'planId': plan?['id'] ?? result['subscriptionPlanId'],
-        'planTitle': plan?['title'] ?? result['subscriptionPlanTitle'],
-        'planPrice': plan?['price'] ?? result['subscriptionPlanPrice'],
-        'planCurrency':
-            plan?['priceCurrency'] ?? result['subscriptionPlanPriceCurrency'],
-        'totalSessions':
-            plan?['totalSessions'] ?? result['subscriptionPlanTotalSessions'],
-        'sessionDurationInHours': plan?['sessionDurationInHours'] ??
-            result['subscriptionPlanSessionDurationInHours'],
-        'durationInMonths': plan?['durationInMonths'] ??
-            result['subscriptionPlanDurationInMonths'],
+        'planId': plan?['id'],
+        'planTitle': plan?['title'],
+        'planPrice': plan?['price'],
+        'planCurrency': plan?['priceCurrency'],
+        'totalSessions': plan?['totalSessions'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
+        'durationInMonths': plan?['durationInMonths'],
         'planDescription': plan?['description'],
         'planLanguage': plan?['language'],
         'planLevel': plan?['level'],
@@ -2994,7 +2954,6 @@ class AppointmentRepository extends BaseRepository {
   /// Fetch a consultee's profile and user info by profile ID.
   ///
   /// Returns a record with the consultee profile map and user map.
-  /// Handles both nested and ORM-flattened user fields.
   Future<({Map<String, dynamic>? profile, Map<String, dynamic>? user})>
       _fetchConsulteeInfo(
     String? consulteeProfileId, {
@@ -3013,18 +2972,7 @@ class AppointmentRepository extends BaseRepository {
     final profile =
         await executeQueryAsSingleMap(consulteeQuery, txn: txn);
 
-    var user = profile?['user'] as Map<String, dynamic>?;
-    if (user == null && profile != null) {
-      final cName = profile['userName'] as String?;
-      final cImage = profile['userImage'] as String?;
-      if (cName != null || cImage != null) {
-        user = {
-          'id': profile['userId'],
-          'name': cName,
-          'image': cImage,
-        };
-      }
-    }
+    final user = profile?['user'] as Map<String, dynamic>?;
 
     return (profile: profile, user: user);
   }
