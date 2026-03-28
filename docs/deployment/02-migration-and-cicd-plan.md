@@ -246,7 +246,7 @@ Response onRequest(RequestContext context) {
     body: {
       'status': 'ok',
       'timestamp': DateTime.now().toIso8601String(),
-      'service': 'familiarise-api',
+      'service': 'familiarise-mobile-api',
     },
   );
 }
@@ -316,7 +316,7 @@ jobs:
 
       - name: Deploy to Railway
         working-directory: backend
-        run: railway up --service familiarise-api --detach
+        run: railway up --service familiarise-mobile-api --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
@@ -324,7 +324,7 @@ jobs:
         if: success()
         run: |
           echo "✅ Backend deployed to Railway successfully"
-          echo "Service: familiarise-api"
+          echo "Service: familiarise-mobile-api"
           echo "Commit: ${{ github.sha }}"
 
       - name: Notify deployment failure
@@ -343,7 +343,7 @@ jobs:
 
 ### 5.6 Environment variables to set on Railway
 
-After creating the Railway project, set these environment variables in the Railway dashboard under the `familiarise-api` service → Variables:
+After creating the Railway project, set these environment variables in the Railway dashboard under the `familiarise-mobile-api` service → Variables:
 
 ```
 DATABASE_URL          = postgresql://[user]:[password]@[host]:6543/[db]?pgbouncer=true
@@ -369,10 +369,10 @@ Railway does not maintain persistent TCP connections the way a traditional VPS d
 
 ### 5.7 Update webhook URLs after Railway deployment
 
-After Railway assigns a URL (e.g. `https://familiarise-api.up.railway.app`), update webhooks in:
+After Railway assigns a URL (e.g. `https://familiarise-mobile-api.up.railway.app`), update webhooks in:
 
-- **Stripe dashboard** → Developers → Webhooks → update endpoint to `https://familiarise-api.up.railway.app/api/webhooks/stripe`
-- **Razorpay dashboard** → Settings → Webhooks → update endpoint to `https://familiarise-api.up.railway.app/api/webhooks/razorpay`
+- **Stripe dashboard** → Developers → Webhooks → update endpoint to `https://familiarise-mobile-api.up.railway.app/api/webhooks/stripe`
+- **Razorpay dashboard** → Settings → Webhooks → update endpoint to `https://familiarise-mobile-api.up.railway.app/api/webhooks/razorpay`
 
 ### 5.8 Update API_BASE_URL in Flutter app
 
@@ -382,7 +382,7 @@ Update the `API_BASE_URL` placeholder:
 
 ```env
 # Backend API — update to Railway URL after deployment
-API_BASE_URL=https://familiarise-api.up.railway.app
+API_BASE_URL=https://familiarise-mobile-api.up.railway.app
 ```
 
 Also update `lib/core/network/dio_client.dart` or wherever `API_BASE_URL` is consumed to ensure it falls back to `http://localhost:8080` for local dev only:
@@ -844,7 +844,7 @@ jobs:
 
       - name: Deploy to Railway
         working-directory: backend
-        run: railway up --service familiarise-api --detach
+        run: railway up --service familiarise-mobile-api --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
@@ -853,7 +853,7 @@ jobs:
           echo "Waiting for deployment to stabilize..."
           sleep 30
           curl --fail --retry 5 --retry-delay 10 \
-            https://familiarise-api.up.railway.app/api/health || \
+            https://familiarise-mobile-api.up.railway.app/api/health || \
             echo "Health check failed — check Railway dashboard"
 
   # ════════════════════════════════════════════════════════════
@@ -1029,7 +1029,7 @@ Add a new top-level section titled `## Infrastructure` (insert after the existin
 ### Backend hosting — Railway
 
 The Dart Frog API (`backend/`) is deployed on Railway at:
-`https://familiarise-api.up.railway.app`
+`https://familiarise-mobile-api.up.railway.app`
 
 - Auto-deploys on every push to `main` that touches `backend/**`
 - Health check endpoint: `GET /api/health`
@@ -1153,7 +1153,7 @@ To deploy manually (requires Railway CLI and token):
 npm install -g @railway/cli
 railway login
 cd backend
-railway up --service familiarise-api
+railway up --service familiarise-mobile-api
 ```
 ```
 
@@ -1208,7 +1208,7 @@ The agent should add this checklist to a new file `docs/migration-checklist.md`:
 - [ ] All environment variables set in Railway dashboard (see Section 9)
 - [ ] `DATABASE_URL` uses Supabase pooler URL (port 6543)
 - [ ] Backend deployed and accessible at Railway URL
-- [ ] Health check passes: `curl https://familiarise-api.up.railway.app/api/health`
+- [ ] Health check passes: `curl https://familiarise-mobile-api.up.railway.app/api/health`
 - [ ] Auth endpoint tested: `POST /api/auth/sign-in`
 - [ ] `RAILWAY_TOKEN` secret added to GitHub
 - [ ] `.github/workflows/backend-deploy.yml` created

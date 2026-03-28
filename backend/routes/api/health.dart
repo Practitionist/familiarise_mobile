@@ -13,7 +13,7 @@ Response onRequest(RequestContext context) {
     body: {
       'status': 'ok',
       'timestamp': DateTime.now().toIso8601String(),
-      'service': 'familiarise-api',
+      'service': 'familiarise-mobile-api',
     },
   );
 }

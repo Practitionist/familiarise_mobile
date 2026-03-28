@@ -49,7 +49,7 @@ jobs:
 
       - name: Deploy to Railway
         working-directory: backend
-        run: railway up --service familiarise-api --detach
+        run: railway up --service familiarise-mobile-api --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 

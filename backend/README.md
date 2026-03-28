@@ -85,17 +85,17 @@ To deploy manually (requires Railway CLI and token):
 npm install -g @railway/cli
 railway login
 cd backend
-railway up --service familiarise-api
+railway up --service familiarise-mobile-api
 ```
 
 ## Docker
 
 ```bash
 # Build
-docker build -t familiarise-api .
+docker build -t familiarise-mobile-api .
 
 # Run locally with env file
-docker run -p 8080:8080 --env-file .env familiarise-api
+docker run -p 8080:8080 --env-file .env familiarise-mobile-api
 
 # Test health check
 curl http://localhost:8080/api/health
