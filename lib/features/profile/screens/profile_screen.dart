@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../notifications/screens/notifications_screen.dart';
+
 import '../../auth/providers/auth_provider.dart';
 import '../providers/delete_account_provider.dart';
 
@@ -84,9 +86,10 @@ class ProfileScreen extends ConsumerWidget {
               icon: Icons.notifications_outlined,
               title: 'Notifications',
               onTap: () {
-                // TODO: Navigate to notifications settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon')),
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
                 );
               },
             ),

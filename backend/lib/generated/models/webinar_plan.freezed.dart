@@ -43,9 +43,12 @@ mixin _$WebinarPlan {
   ConsultantProfile? get consultantProfile =>
       throw _privateConstructorUsedError;
   String? get consultantProfileId => throw _privateConstructorUsedError;
-  List<Webinar> get webinars => throw _privateConstructorUsedError;
-  List<PlanMaterial> get materials => throw _privateConstructorUsedError;
-  List<WebinarCollaborator> get collaborators =>
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Webinar>? get webinars => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<WebinarCollaborator>? get collaborators =>
       throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
@@ -88,9 +91,12 @@ abstract class $WebinarPlanCopyWith<$Res> {
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String? consultantProfileId,
-      List<Webinar> webinars,
-      List<PlanMaterial> materials,
-      List<WebinarCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<Webinar>? webinars,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<WebinarCollaborator>? collaborators,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -131,9 +137,9 @@ class _$WebinarPlanCopyWithImpl<$Res, $Val extends WebinarPlan>
     Object? imageUrl = freezed,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = freezed,
-    Object? webinars = null,
-    Object? materials = null,
-    Object? collaborators = null,
+    Object? webinars = freezed,
+    Object? materials = freezed,
+    Object? collaborators = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -214,18 +220,18 @@ class _$WebinarPlanCopyWithImpl<$Res, $Val extends WebinarPlan>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String?,
-      webinars: null == webinars
+      webinars: freezed == webinars
           ? _value.webinars
           : webinars // ignore: cast_nullable_to_non_nullable
-              as List<Webinar>,
-      materials: null == materials
+              as List<Webinar>?,
+      materials: freezed == materials
           ? _value.materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
-      collaborators: null == collaborators
+              as List<PlanMaterial>?,
+      collaborators: freezed == collaborators
           ? _value.collaborators
           : collaborators // ignore: cast_nullable_to_non_nullable
-              as List<WebinarCollaborator>,
+              as List<WebinarCollaborator>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -282,9 +288,12 @@ abstract class _$$WebinarPlanImplCopyWith<$Res>
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String? consultantProfileId,
-      List<Webinar> webinars,
-      List<PlanMaterial> materials,
-      List<WebinarCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<Webinar>? webinars,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<WebinarCollaborator>? collaborators,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -324,9 +333,9 @@ class __$$WebinarPlanImplCopyWithImpl<$Res>
     Object? imageUrl = freezed,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = freezed,
-    Object? webinars = null,
-    Object? materials = null,
-    Object? collaborators = null,
+    Object? webinars = freezed,
+    Object? materials = freezed,
+    Object? collaborators = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -407,18 +416,18 @@ class __$$WebinarPlanImplCopyWithImpl<$Res>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String?,
-      webinars: null == webinars
+      webinars: freezed == webinars
           ? _value._webinars
           : webinars // ignore: cast_nullable_to_non_nullable
-              as List<Webinar>,
-      materials: null == materials
+              as List<Webinar>?,
+      materials: freezed == materials
           ? _value._materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
-      collaborators: null == collaborators
+              as List<PlanMaterial>?,
+      collaborators: freezed == collaborators
           ? _value._collaborators
           : collaborators // ignore: cast_nullable_to_non_nullable
-              as List<WebinarCollaborator>,
+              as List<WebinarCollaborator>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -456,9 +465,12 @@ class _$WebinarPlanImpl implements _WebinarPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       this.consultantProfile,
       this.consultantProfileId,
-      required final List<Webinar> webinars,
-      required final List<PlanMaterial> materials,
-      required final List<WebinarCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<Webinar>? webinars,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<WebinarCollaborator>? collaborators,
       required this.createdAt,
       required this.updatedAt})
       : _topics = topics,
@@ -538,28 +550,37 @@ class _$WebinarPlanImpl implements _WebinarPlan {
   final ConsultantProfile? consultantProfile;
   @override
   final String? consultantProfileId;
-  final List<Webinar> _webinars;
+  final List<Webinar>? _webinars;
   @override
-  List<Webinar> get webinars {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Webinar>? get webinars {
+    final value = _webinars;
+    if (value == null) return null;
     if (_webinars is EqualUnmodifiableListView) return _webinars;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_webinars);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<PlanMaterial> _materials;
+  final List<PlanMaterial>? _materials;
   @override
-  List<PlanMaterial> get materials {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials {
+    final value = _materials;
+    if (value == null) return null;
     if (_materials is EqualUnmodifiableListView) return _materials;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_materials);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<WebinarCollaborator> _collaborators;
+  final List<WebinarCollaborator>? _collaborators;
   @override
-  List<WebinarCollaborator> get collaborators {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<WebinarCollaborator>? get collaborators {
+    final value = _collaborators;
+    if (value == null) return null;
     if (_collaborators is EqualUnmodifiableListView) return _collaborators;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_collaborators);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -690,9 +711,12 @@ abstract class _WebinarPlan implements WebinarPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       final ConsultantProfile? consultantProfile,
       final String? consultantProfileId,
-      required final List<Webinar> webinars,
-      required final List<PlanMaterial> materials,
-      required final List<WebinarCollaborator> collaborators,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<Webinar>? webinars,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<WebinarCollaborator>? collaborators,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$WebinarPlanImpl;
 
@@ -740,11 +764,14 @@ abstract class _WebinarPlan implements WebinarPlan {
   @override
   String? get consultantProfileId;
   @override
-  List<Webinar> get webinars;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Webinar>? get webinars;
   @override
-  List<PlanMaterial> get materials;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials;
   @override
-  List<WebinarCollaborator> get collaborators;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<WebinarCollaborator>? get collaborators;
   @override
   DateTime get createdAt;
   @override

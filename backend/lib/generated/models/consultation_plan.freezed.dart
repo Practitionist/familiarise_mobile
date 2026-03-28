@@ -37,8 +37,10 @@ mixin _$ConsultationPlan {
   ConsultantProfile? get consultantProfile =>
       throw _privateConstructorUsedError;
   String get consultantProfileId => throw _privateConstructorUsedError;
-  List<Consultation> get consultations => throw _privateConstructorUsedError;
-  List<PlanMaterial> get materials => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Consultation>? get consultations => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
@@ -75,8 +77,10 @@ abstract class $ConsultationPlanCopyWith<$Res> {
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String consultantProfileId,
-      List<Consultation> consultations,
-      List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<Consultation>? consultations,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -112,8 +116,8 @@ class _$ConsultationPlanCopyWithImpl<$Res, $Val extends ConsultationPlan>
     Object? topics = freezed,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = null,
-    Object? consultations = null,
-    Object? materials = null,
+    Object? consultations = freezed,
+    Object? materials = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -174,14 +178,14 @@ class _$ConsultationPlanCopyWithImpl<$Res, $Val extends ConsultationPlan>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String,
-      consultations: null == consultations
+      consultations: freezed == consultations
           ? _value.consultations
           : consultations // ignore: cast_nullable_to_non_nullable
-              as List<Consultation>,
-      materials: null == materials
+              as List<Consultation>?,
+      materials: freezed == materials
           ? _value.materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
+              as List<PlanMaterial>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -233,8 +237,10 @@ abstract class _$$ConsultationPlanImplCopyWith<$Res>
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String consultantProfileId,
-      List<Consultation> consultations,
-      List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<Consultation>? consultations,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -269,8 +275,8 @@ class __$$ConsultationPlanImplCopyWithImpl<$Res>
     Object? topics = freezed,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = null,
-    Object? consultations = null,
-    Object? materials = null,
+    Object? consultations = freezed,
+    Object? materials = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -331,14 +337,14 @@ class __$$ConsultationPlanImplCopyWithImpl<$Res>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String,
-      consultations: null == consultations
+      consultations: freezed == consultations
           ? _value._consultations
           : consultations // ignore: cast_nullable_to_non_nullable
-              as List<Consultation>,
-      materials: null == materials
+              as List<Consultation>?,
+      materials: freezed == materials
           ? _value._materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
+              as List<PlanMaterial>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -371,8 +377,10 @@ class _$ConsultationPlanImpl implements _ConsultationPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       this.consultantProfile,
       required this.consultantProfileId,
-      required final List<Consultation> consultations,
-      required final List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<Consultation>? consultations,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
       required this.createdAt,
       required this.updatedAt})
       : _learningOutcomes = learningOutcomes,
@@ -437,20 +445,26 @@ class _$ConsultationPlanImpl implements _ConsultationPlan {
   final ConsultantProfile? consultantProfile;
   @override
   final String consultantProfileId;
-  final List<Consultation> _consultations;
+  final List<Consultation>? _consultations;
   @override
-  List<Consultation> get consultations {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Consultation>? get consultations {
+    final value = _consultations;
+    if (value == null) return null;
     if (_consultations is EqualUnmodifiableListView) return _consultations;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_consultations);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<PlanMaterial> _materials;
+  final List<PlanMaterial>? _materials;
   @override
-  List<PlanMaterial> get materials {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials {
+    final value = _materials;
+    if (value == null) return null;
     if (_materials is EqualUnmodifiableListView) return _materials;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_materials);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -559,8 +573,10 @@ abstract class _ConsultationPlan implements ConsultationPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       final ConsultantProfile? consultantProfile,
       required final String consultantProfileId,
-      required final List<Consultation> consultations,
-      required final List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<Consultation>? consultations,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$ConsultationPlanImpl;
 
@@ -598,9 +614,11 @@ abstract class _ConsultationPlan implements ConsultationPlan {
   @override
   String get consultantProfileId;
   @override
-  List<Consultation> get consultations;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Consultation>? get consultations;
   @override
-  List<PlanMaterial> get materials;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials;
   @override
   DateTime get createdAt;
   @override

@@ -24,12 +24,6 @@ _$ConsultationPlanImpl _$$ConsultationPlanImplFromJson(
               .toList() ??
           const <String>[],
       consultantProfileId: json['consultantProfileId'] as String,
-      consultations: (json['consultations'] as List<dynamic>)
-          .map((e) => Consultation.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      materials: (json['materials'] as List<dynamic>)
-          .map((e) => PlanMaterial.fromJson(e as Map<String, dynamic>))
-          .toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -49,8 +43,6 @@ Map<String, dynamic> _$$ConsultationPlanImplToJson(
       'materialProvided': instance.materialProvided,
       'learningOutcomes': instance.learningOutcomes,
       'consultantProfileId': instance.consultantProfileId,
-      'consultations': instance.consultations,
-      'materials': instance.materials,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };

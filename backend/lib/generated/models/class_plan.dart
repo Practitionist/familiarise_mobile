@@ -22,7 +22,8 @@ class ClassPlan with _$ClassPlan {
     required String description,
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<Topic>? topics,
-    required List<ClassContent> classContents,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<ClassContent>? classContents,
     required int price,
     @Default("INR")
     String priceCurrency,
@@ -60,9 +61,12 @@ class ClassPlan with _$ClassPlan {
     @JsonKey(includeFromJson: false, includeToJson: false)
     ConsultantProfile? consultantProfile,
     String? consultantProfileId,
-    required List<ClassModel> classes,
-    required List<PlanMaterial> materials,
-    required List<ClassCollaborator> collaborators,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<ClassModel>? classes,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<PlanMaterial>? materials,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<ClassCollaborator>? collaborators,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _ClassPlan;

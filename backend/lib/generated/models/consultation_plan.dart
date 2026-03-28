@@ -36,8 +36,10 @@ class ConsultationPlan with _$ConsultationPlan {
     @JsonKey(includeFromJson: false, includeToJson: false)
     ConsultantProfile? consultantProfile,
     required String consultantProfileId,
-    required List<Consultation> consultations,
-    required List<PlanMaterial> materials,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<Consultation>? consultations,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<PlanMaterial>? materials,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _ConsultationPlan;

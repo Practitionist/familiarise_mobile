@@ -31,15 +31,6 @@ _$WebinarPlanImpl _$$WebinarPlanImplFromJson(Map<String, dynamic> json) =>
           const <String>[],
       imageUrl: json['imageUrl'] as String?,
       consultantProfileId: json['consultantProfileId'] as String?,
-      webinars: (json['webinars'] as List<dynamic>)
-          .map((e) => Webinar.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      materials: (json['materials'] as List<dynamic>)
-          .map((e) => PlanMaterial.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      collaborators: (json['collaborators'] as List<dynamic>)
-          .map((e) => WebinarCollaborator.fromJson(e as Map<String, dynamic>))
-          .toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -64,9 +55,6 @@ Map<String, dynamic> _$$WebinarPlanImplToJson(_$WebinarPlanImpl instance) =>
       'learningOutcomes': instance.learningOutcomes,
       'imageUrl': instance.imageUrl,
       'consultantProfileId': instance.consultantProfileId,
-      'webinars': instance.webinars,
-      'materials': instance.materials,
-      'collaborators': instance.collaborators,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };

@@ -44,11 +44,15 @@ mixin _$SubscriptionPlan {
   ConsultantProfile? get consultantProfile =>
       throw _privateConstructorUsedError;
   String get consultantProfileId => throw _privateConstructorUsedError;
-  List<Subscription> get subscriptions => throw _privateConstructorUsedError;
-  List<SubscriptionContent> get subscriptionContents =>
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Subscription>? get subscriptions => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<SubscriptionContent>? get subscriptionContents =>
       throw _privateConstructorUsedError;
-  List<TrialSession> get trialSessions => throw _privateConstructorUsedError;
-  List<PlanMaterial> get materials => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<TrialSession>? get trialSessions => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
@@ -92,10 +96,14 @@ abstract class $SubscriptionPlanCopyWith<$Res> {
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String consultantProfileId,
-      List<Subscription> subscriptions,
-      List<SubscriptionContent> subscriptionContents,
-      List<TrialSession> trialSessions,
-      List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<Subscription>? subscriptions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<SubscriptionContent>? subscriptionContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<TrialSession>? trialSessions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -138,10 +146,10 @@ class _$SubscriptionPlanCopyWithImpl<$Res, $Val extends SubscriptionPlan>
     Object? freeTrialDurationMinutes = null,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = null,
-    Object? subscriptions = null,
-    Object? subscriptionContents = null,
-    Object? trialSessions = null,
-    Object? materials = null,
+    Object? subscriptions = freezed,
+    Object? subscriptionContents = freezed,
+    Object? trialSessions = freezed,
+    Object? materials = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -230,22 +238,22 @@ class _$SubscriptionPlanCopyWithImpl<$Res, $Val extends SubscriptionPlan>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String,
-      subscriptions: null == subscriptions
+      subscriptions: freezed == subscriptions
           ? _value.subscriptions
           : subscriptions // ignore: cast_nullable_to_non_nullable
-              as List<Subscription>,
-      subscriptionContents: null == subscriptionContents
+              as List<Subscription>?,
+      subscriptionContents: freezed == subscriptionContents
           ? _value.subscriptionContents
           : subscriptionContents // ignore: cast_nullable_to_non_nullable
-              as List<SubscriptionContent>,
-      trialSessions: null == trialSessions
+              as List<SubscriptionContent>?,
+      trialSessions: freezed == trialSessions
           ? _value.trialSessions
           : trialSessions // ignore: cast_nullable_to_non_nullable
-              as List<TrialSession>,
-      materials: null == materials
+              as List<TrialSession>?,
+      materials: freezed == materials
           ? _value.materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
+              as List<PlanMaterial>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -304,10 +312,14 @@ abstract class _$$SubscriptionPlanImplCopyWith<$Res>
       @JsonKey(includeFromJson: false, includeToJson: false)
       ConsultantProfile? consultantProfile,
       String consultantProfileId,
-      List<Subscription> subscriptions,
-      List<SubscriptionContent> subscriptionContents,
-      List<TrialSession> trialSessions,
-      List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<Subscription>? subscriptions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<SubscriptionContent>? subscriptionContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<TrialSession>? trialSessions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      List<PlanMaterial>? materials,
       DateTime createdAt,
       DateTime updatedAt});
 
@@ -349,10 +361,10 @@ class __$$SubscriptionPlanImplCopyWithImpl<$Res>
     Object? freeTrialDurationMinutes = null,
     Object? consultantProfile = freezed,
     Object? consultantProfileId = null,
-    Object? subscriptions = null,
-    Object? subscriptionContents = null,
-    Object? trialSessions = null,
-    Object? materials = null,
+    Object? subscriptions = freezed,
+    Object? subscriptionContents = freezed,
+    Object? trialSessions = freezed,
+    Object? materials = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -441,22 +453,22 @@ class __$$SubscriptionPlanImplCopyWithImpl<$Res>
           ? _value.consultantProfileId
           : consultantProfileId // ignore: cast_nullable_to_non_nullable
               as String,
-      subscriptions: null == subscriptions
+      subscriptions: freezed == subscriptions
           ? _value._subscriptions
           : subscriptions // ignore: cast_nullable_to_non_nullable
-              as List<Subscription>,
-      subscriptionContents: null == subscriptionContents
+              as List<Subscription>?,
+      subscriptionContents: freezed == subscriptionContents
           ? _value._subscriptionContents
           : subscriptionContents // ignore: cast_nullable_to_non_nullable
-              as List<SubscriptionContent>,
-      trialSessions: null == trialSessions
+              as List<SubscriptionContent>?,
+      trialSessions: freezed == trialSessions
           ? _value._trialSessions
           : trialSessions // ignore: cast_nullable_to_non_nullable
-              as List<TrialSession>,
-      materials: null == materials
+              as List<TrialSession>?,
+      materials: freezed == materials
           ? _value._materials
           : materials // ignore: cast_nullable_to_non_nullable
-              as List<PlanMaterial>,
+              as List<PlanMaterial>?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -496,10 +508,14 @@ class _$SubscriptionPlanImpl implements _SubscriptionPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       this.consultantProfile,
       required this.consultantProfileId,
-      required final List<Subscription> subscriptions,
-      required final List<SubscriptionContent> subscriptionContents,
-      required final List<TrialSession> trialSessions,
-      required final List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<Subscription>? subscriptions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<SubscriptionContent>? subscriptionContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<TrialSession>? trialSessions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
       required this.createdAt,
       required this.updatedAt})
       : _learningOutcomes = learningOutcomes,
@@ -587,37 +603,49 @@ class _$SubscriptionPlanImpl implements _SubscriptionPlan {
   final ConsultantProfile? consultantProfile;
   @override
   final String consultantProfileId;
-  final List<Subscription> _subscriptions;
+  final List<Subscription>? _subscriptions;
   @override
-  List<Subscription> get subscriptions {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Subscription>? get subscriptions {
+    final value = _subscriptions;
+    if (value == null) return null;
     if (_subscriptions is EqualUnmodifiableListView) return _subscriptions;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_subscriptions);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<SubscriptionContent> _subscriptionContents;
+  final List<SubscriptionContent>? _subscriptionContents;
   @override
-  List<SubscriptionContent> get subscriptionContents {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<SubscriptionContent>? get subscriptionContents {
+    final value = _subscriptionContents;
+    if (value == null) return null;
     if (_subscriptionContents is EqualUnmodifiableListView)
       return _subscriptionContents;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_subscriptionContents);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<TrialSession> _trialSessions;
+  final List<TrialSession>? _trialSessions;
   @override
-  List<TrialSession> get trialSessions {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<TrialSession>? get trialSessions {
+    final value = _trialSessions;
+    if (value == null) return null;
     if (_trialSessions is EqualUnmodifiableListView) return _trialSessions;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_trialSessions);
+    return EqualUnmodifiableListView(value);
   }
 
-  final List<PlanMaterial> _materials;
+  final List<PlanMaterial>? _materials;
   @override
-  List<PlanMaterial> get materials {
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials {
+    final value = _materials;
+    if (value == null) return null;
     if (_materials is EqualUnmodifiableListView) return _materials;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_materials);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -762,10 +790,14 @@ abstract class _SubscriptionPlan implements SubscriptionPlan {
       @JsonKey(includeFromJson: false, includeToJson: false)
       final ConsultantProfile? consultantProfile,
       required final String consultantProfileId,
-      required final List<Subscription> subscriptions,
-      required final List<SubscriptionContent> subscriptionContents,
-      required final List<TrialSession> trialSessions,
-      required final List<PlanMaterial> materials,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<Subscription>? subscriptions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<SubscriptionContent>? subscriptionContents,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<TrialSession>? trialSessions,
+      @JsonKey(includeFromJson: false, includeToJson: false)
+      final List<PlanMaterial>? materials,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$SubscriptionPlanImpl;
 
@@ -817,13 +849,17 @@ abstract class _SubscriptionPlan implements SubscriptionPlan {
   @override
   String get consultantProfileId;
   @override
-  List<Subscription> get subscriptions;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<Subscription>? get subscriptions;
   @override
-  List<SubscriptionContent> get subscriptionContents;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<SubscriptionContent>? get subscriptionContents;
   @override
-  List<TrialSession> get trialSessions;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<TrialSession>? get trialSessions;
   @override
-  List<PlanMaterial> get materials;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  List<PlanMaterial>? get materials;
   @override
   DateTime get createdAt;
   @override
