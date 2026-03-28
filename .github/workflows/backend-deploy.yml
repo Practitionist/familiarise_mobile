@@ -1,0 +1,62 @@
+name: Deploy Backend to Railway
+
+on:
+  push:
+    branches: [prod]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-deploy.yml'
+
+jobs:
+  # ── Test backend before deploying ──────────────────────────
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        working-directory: backend
+        run: dart pub get
+
+      - name: Analyze backend code
+        working-directory: backend
+        run: dart analyze --fatal-infos
+
+      - name: Run backend tests
+        working-directory: backend
+        run: dart test
+
+  # ── Deploy to Railway on push to prod ──────────────────────
+  deploy-backend:
+    name: Deploy to Railway
+    needs: test-backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        working-directory: backend
+        run: railway up --service familiarise-mobile-api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Verify deployment health
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+          curl --fail --retry 5 --retry-delay 10 \
+            "${{ secrets.PRODUCTION_API_BASE_URL }}/api/health" || \
+            echo "::warning::Health check failed - check Railway dashboard"

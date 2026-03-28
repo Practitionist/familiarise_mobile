@@ -1,99 +1,102 @@
 # Familiarise Backend
 
-[![style: dart frog lint][dart_frog_lint_badge]][dart_frog_lint_link]
-[![License: MIT][license_badge]][license_link]
 [![Powered by Dart Frog](https://img.shields.io/endpoint?url=https://tinyurl.com/dartfrog-badge)](https://dart-frog.dev)
 
-Dart Frog backend API for the Familiarise mobile application.
+Dart Frog REST API for the Familiarise consultation marketplace.
 
-## Prerequisites
+## Overview
 
-- Dart SDK 3.5.x+
-- Dart Frog CLI (`dart pub global activate dart_frog_cli`)
-- PostgreSQL database (or Supabase)
+| Aspect | Details |
+|--------|---------|
+| **Framework** | Dart Frog 1.2.x |
+| **ORM** | Prisma (via prisma_flutter_connector) |
+| **Database** | Supabase PostgreSQL |
+| **Hosting** | Railway (auto-deploy from `prod` branch) |
+| **Port** | 8080 (local) / set by Railway in production |
 
-## Setup
+## Local development
 
 ```bash
 # Install dependencies
 dart pub get
 
-# Copy environment file
-cp .env.example .env
-# Edit .env with your database credentials and JWT secret
-
-# Generate Prisma client (if using Prisma)
+# Generate Prisma client
 dart run orm generate
+
+# Copy and fill environment variables
+cp .env.example .env
+
+# Start dev server (hot reload)
+dart_frog dev
+# -> http://localhost:8080
 ```
 
-## Running the Server
-
-### Development Mode (with hot reload)
-
-```bash
-~/.pub-cache/bin/dart_frog dev
-```
-
-### Production Mode
-
-```bash
-# Build the server
-~/.pub-cache/bin/dart_frog build
-
-# Run on port 8080
-PORT=8080 dart build/bin/server.dart
-```
-
-## Server Management
-
-| Action | Command |
-|--------|---------|
-| Start (dev) | `~/.pub-cache/bin/dart_frog dev` |
-| Build | `~/.pub-cache/bin/dart_frog build` |
-| Start (prod) | `PORT=8080 dart build/bin/server.dart` |
-| Stop | `lsof -ti:8080 \| xargs kill -9` |
-| Restart | `lsof -ti:8080 \| xargs kill -9 2>/dev/null; PORT=8080 dart build/bin/server.dart` |
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/*` | Various | Authentication endpoints |
-| `/api/consultants` | GET | List consultants |
-| `/api/consultants/:id` | GET | Get consultant details |
-| `/api/slots/availability` | GET | Get consultant availability |
-| `/api/appointments` | GET/POST | User appointments |
-| `/api/checkout/*` | Various | Payment processing |
-
-## Project Structure
-
-```
-backend/
-├── lib/
-│   ├── database/           # Database configuration and repositories
-│   │   ├── prisma_client.dart
-│   │   └── repositories/   # Data access layer
-│   ├── middleware/         # Request middleware
-│   └── services/           # Business logic services
-├── routes/
-│   └── api/               # API route handlers
-├── build/                 # Generated production build
-└── prisma/               # Prisma schema and migrations
-```
-
-## Environment Variables
+## Environment variables
 
 | Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `DIRECT_URL` | Direct database URL (for Prisma) | Yes |
-| `JWT_SECRET` | Secret for JWT token signing | Yes |
-| `PORT` | Server port (default: 8080) | No |
+|---|---|---|
+| `DATABASE_URL` | Supabase pooler URL (port 6543) | Yes |
+| `DIRECT_URL` | Supabase direct URL (port 5432) | Yes |
+| `JWT_SECRET` | Secret for JWT signing | Yes |
+| `STREAM_API_KEY` | Stream SDK API key | Yes |
+| `STREAM_API_SECRET` | Stream SDK API secret | Yes |
+| `SUPABASE_URL` | Supabase project URL | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Yes |
 | `RAZORPAY_KEY_ID` | Razorpay API key | For payments |
 | `RAZORPAY_KEY_SECRET` | Razorpay secret | For payments |
-| `SENTRY_DSN` | Sentry error tracking DSN | No |
+| `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook signing secret | For webhooks |
+| `STRIPE_SECRET_KEY` | Stripe secret key | For payments |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | For webhooks |
+| `SENTRY_DSN` | Sentry error tracking DSN | Recommended |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | For Google auth |
+| `RESEND_API_KEY` | Resend email API key | For emails |
+| `APP_BASE_URL` | App base URL (default: familiarise.com) | Optional |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL | For slot locking |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token | For slot locking |
+| `DART_ENV` | Set to `production` in prod | Production only |
+| `ALLOWED_ORIGINS` | CORS allowed origins | Production only |
+| `PORT` | Server port (Railway sets this automatically) | Auto |
 
-[dart_frog_lint_badge]: https://img.shields.io/badge/style-dart_frog_lint-1DF9D2.svg
-[dart_frog_lint_link]: https://pub.dev/packages/dart_frog_lint
-[license_badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[license_link]: https://opensource.org/licenses/MIT
+## API routes
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/health` | Health check (used by Railway) |
+| POST | `/api/auth/sign-in` | Sign in |
+| POST | `/api/auth/sign-up` | Register |
+| DELETE | `/api/auth/sign-out` | Sign out |
+| GET | `/api/auth/session` | Get current session |
+| GET | `/api/consultants` | List consultants |
+| GET | `/api/consultants/:id` | Get consultant by ID |
+| GET | `/api/consultants/:id/availability` | Get available slots |
+| GET | `/api/appointments` | List user appointments |
+| POST | `/api/checkout/create-order` | Create payment order |
+| POST | `/api/checkout/verify` | Verify payment |
+| GET | `/api/stream/token` | Get Stream chat token |
+| GET | `/api/stream/video-token` | Get Stream video token |
+
+## Production deployment
+
+Production deploys are automated via GitHub Actions. Pushing to `prod` triggers `.github/workflows/backend-deploy.yml`, which runs `railway up`.
+
+To deploy manually (requires Railway CLI and token):
+
+```bash
+npm install -g @railway/cli
+railway login
+cd backend
+railway up --service familiarise-mobile-api
+```
+
+## Docker
+
+```bash
+# Build
+docker build -t familiarise-mobile-api .
+
+# Run locally with env file
+docker run -p 8080:8080 --env-file .env familiarise-mobile-api
+
+# Test health check
+curl http://localhost:8080/api/health
+```

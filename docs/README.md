@@ -42,5 +42,7 @@ Phase-by-phase implementation guides with code examples. These are ordered by bu
 
 | Document | Description |
 |----------|-------------|
-| [Deployment](./deployment/deployment.md) | Build, release, and deployment process |
+| [Deployment Strategy](./deployment/01-deployment-strategy.md) | Build, release, and deployment process |
+| [Migration & CI/CD Plan](./deployment/02-migration-and-cicd-plan.md) | Railway migration and Shorebird OTA integration plan |
+| [Migration Checklist](./deployment/03-migration-checklist.md) | Verification checklist for all migration phases |
 | [Troubleshooting](./troubleshooting/README.md) | Platform-specific bugs and fixes |

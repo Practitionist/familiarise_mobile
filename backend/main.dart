@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' show File, HttpServer, InternetAddress;
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/auth_service.dart';
@@ -14,8 +14,14 @@ import 'package:dotenv/dotenv.dart';
 /// Server entry point
 /// Initializes database, services, and starts the HTTP server
 Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
-  // Load environment variables
-  final env = DotEnv()..load(['.env']);
+  // Load environment variables.
+  // includePlatformEnvironment: true merges Platform.environment into the map,
+  // so env vars injected by Docker/Railway are accessible via env['KEY'].
+  // The .env file (if present) overrides platform env vars.
+  final env = DotEnv(includePlatformEnvironment: true);
+  if (File('.env').existsSync()) {
+    env.load(['.env']);
+  }
 
   // Initialize Sentry for error tracking (optional)
   await SentryLogger.init(env['SENTRY_DSN']);
@@ -23,14 +29,19 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   // Use DIRECT_URL for direct PostgreSQL connection (no PgBouncer)
   // PgBouncer in transaction mode doesn't support prepared statements
   // which the prisma_flutter_connector uses internally
-  final databaseUrl = env['DIRECT_URL'] ?? env['DATABASE_URL'];
+  final databaseUrl =
+      env['DIRECT_URL'] ?? env['DATABASE_URL'];
   if (databaseUrl == null) {
-    throw Exception('DIRECT_URL or DATABASE_URL must be set in .env');
+    throw Exception(
+      'DIRECT_URL or DATABASE_URL must be set in .env or environment',
+    );
   }
 
   final jwtSecret = env['JWT_SECRET'];
   if (jwtSecret == null) {
-    throw Exception('JWT_SECRET must be set in .env');
+    throw Exception(
+      'JWT_SECRET must be set in .env or environment',
+    );
   }
 
   // GitHub OAuth credentials (optional - only needed if using GitHub auth)
@@ -63,7 +74,8 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
 
   // Email service (optional — only needed for password reset + email verification)
   final resendApiKey = env['RESEND_API_KEY'];
-  final appBaseUrl = env['APP_BASE_URL'] ?? 'https://familiarise.com';
+  final appBaseUrl =
+      env['APP_BASE_URL'] ?? 'https://familiarise.com';
   EmailService? emailService;
   if (resendApiKey != null && resendApiKey.isNotEmpty) {
     emailService = EmailService(apiKey: resendApiKey);

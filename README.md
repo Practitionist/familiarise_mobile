@@ -12,7 +12,8 @@ A Flutter-based mobile application for the Familiarise consultation and mentorsh
 | **Platforms** | iOS 14+, Android API 24+ |
 | **Flutter Version** | 3.24.x (Dart 3.5.x) |
 | **Architecture** | Clean Architecture with Feature-First Structure |
-| **Backend** | Dart Frog with Prisma ORM |
+| **Backend** | Dart Frog on Railway (Prisma ORM) |
+| **OTA Updates** | Shorebird (Dart-only patches, no store review) |
 
 ## Features
 
@@ -99,33 +100,21 @@ dart run build_runner build --delete-conflicting-outputs
 
 ### 5. Backend Setup
 
-The project includes a Dart Frog backend in the `backend/` directory:
+The project includes a Dart Frog backend in the `backend/` directory.
+
+**Local development:**
 
 ```bash
-# Navigate to backend
 cd backend
-
-# Install dependencies
 dart pub get
-
-# Set up Prisma
-npm install -g prisma
-
-# Copy and configure backend environment
-cp .env.example .env
-# Edit .env with your database URL and JWT secret
-
-# Generate Prisma client
-dart run orm generate
-
-# Apply database migrations (if using Prisma migrations)
-# npx prisma migrate deploy
-
-# Start the development server
-dart_frog dev
+dart run orm generate         # Generate Prisma client
+cp .env.example .env          # Copy and fill in values
+dart_frog dev                 # Starts at http://localhost:8080
 ```
 
-The backend will run at `http://localhost:8080`.
+**Production:** The backend is hosted on Railway and auto-deploys when you push to `prod`. No manual deploy steps needed.
+
+**Environment variables:** Copy `backend/.env.example` to `backend/.env` and fill in values. For production values, see the Railway dashboard.
 
 ### 6. Run the Application
 
@@ -348,15 +337,32 @@ open coverage/html/index.html
 
 This project uses GitHub Actions for continuous integration and deployment.
 
-**Workflow:** `.github/workflows/flutter-ci.yml`
+**Workflows:** `.github/workflows/flutter-ci.yml`, `.github/workflows/backend-deploy.yml`
 
-| Stage | Triggers | Actions |
-|-------|----------|---------|
+| Job | Triggers | Actions |
+|-----|----------|---------|
 | Analyze & Test | Push, PR | Lint, analyze, unit tests, coverage upload |
-| Build Android | Push, PR, Release | Debug APK, Release AAB (on release) |
-| Build iOS | Push, PR, Release | Release build, IPA (on release) |
+| Test Backend | Push, PR | Dart analyze, backend unit tests |
+| Build Android | Push, PR, Release | Debug APK / Release AAB |
+| Build iOS | Push, PR, Release | Debug build / Release IPA |
 | Deploy Android | Release | Upload to Play Store (internal track) |
-| Deploy iOS | Release | Upload to App Store Connect |
+| Deploy iOS | Release | Upload to App Store Connect (TestFlight) |
+| Deploy Backend | Push to `prod` | Auto-deploy Dart Frog API to Railway |
+| Shorebird Release | Release tag | Register release with Shorebird |
+| Shorebird Patch | Push to `hotfix/*` / manual | OTA patch — no store review required |
+
+### Shipping a hotfix (no App Store wait)
+
+For Dart-only bug fixes (UI, business logic, API calls):
+
+```bash
+git checkout -b hotfix/fix-booking-crash
+# Make your Dart code changes...
+git push origin hotfix/fix-booking-crash
+```
+
+The patch is delivered silently to all users on their next app launch.
+For native code changes (new plugins, permissions), a full store release is required.
 
 ## Documentation
 

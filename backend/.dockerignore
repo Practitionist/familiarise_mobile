@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.dart_tool/
+.packages
+build/
+.git/
+.vscode/
+.serena/
+*.md
+test/

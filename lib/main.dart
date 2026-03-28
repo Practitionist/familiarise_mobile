@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import 'app/app.dart';
 import 'core/config/env_config.dart';
@@ -34,6 +35,15 @@ Future<void> main() async {
     },
     appRunner: () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Check for Shorebird OTA patches (downloads in background,
+      // applies silently on next app launch)
+      final shorebirdCodePush = ShorebirdCodePush();
+      final isUpdateAvailable =
+          await shorebirdCodePush.isNewPatchAvailableForDownload();
+      if (isUpdateAvailable) {
+        await shorebirdCodePush.downloadUpdateIfAvailable();
+      }
 
       // Initialize device detection for API URL selection (emulator vs physical device)
       await EnvConfig.initializeDeviceDetection();
