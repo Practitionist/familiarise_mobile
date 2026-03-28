@@ -88,10 +88,10 @@ class DatabaseClient {
 
     // Initialize repositories
     _userRepository = UserRepository(_executor, _prisma);
-    _accountRepository = AccountRepository(_executor);
+    _accountRepository = AccountRepository(_executor, _prisma);
     _sessionRepository = SessionRepository(_executor, _userRepository, _prisma);
-    _consulteeProfileRepository = ConsulteeProfileRepository(_executor);
-    _consultantProfileRepository = ConsultantProfileRepository(_executor);
+    _consulteeProfileRepository = ConsulteeProfileRepository(_executor, _prisma);
+    _consultantProfileRepository = ConsultantProfileRepository(_executor, _prisma);
     _domainRepository = DomainRepository(_executor, _prisma);
     _consultantExploreRepository = ConsultantExploreRepository(_executor);
     _slotRepository = SlotRepository(_executor);
@@ -117,8 +117,8 @@ class DatabaseClient {
         PayoutAccountRepository(_executor, _prisma);
     _appointmentDocumentRepository =
         AppointmentDocumentRepository(_executor, _prisma);
-    _announcementRepository = AnnouncementRepository(_executor);
-    _maintenanceRepository = MaintenanceRepository(_executor);
+    _announcementRepository = AnnouncementRepository(_executor, _prisma);
+    _maintenanceRepository = MaintenanceRepository(_executor, _prisma);
     _recordingRepository = RecordingRepository(_executor, _prisma);
     _planRepository = PlanRepository(_executor, _prisma);
   }

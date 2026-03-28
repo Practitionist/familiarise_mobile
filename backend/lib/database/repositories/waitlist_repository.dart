@@ -48,12 +48,7 @@ class WaitlistRepository extends BaseRepository {
 
   /// Get all waitlist entries for a user.
   Future<List<Map<String, dynamic>>> findByUser(String userId) async {
-    final query = JsonQueryBuilder()
-        .model('Waitlist')
-        .action(QueryAction.findMany)
-        .where({'userId': userId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.waitlist.findManyRaw(where: {'userId': userId});
   }
 
   /// Leave a waitlist (set status to CANCELLED).

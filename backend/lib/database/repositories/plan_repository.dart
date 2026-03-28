@@ -1,12 +1,9 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
 
-import 'package:prisma_flutter_connector/runtime_server.dart';
-
 /// Repository for plan CRUD operations across all 4 plan types.
 ///
-/// Uses PrismaClient typed delegates where available, JsonQueryBuilder
-/// for creates (foreign key fields not in generated CreateInput types).
+/// Uses PrismaClient typed delegates for all operations.
 class PlanRepository extends BaseRepository {
   PlanRepository(super._executor, this._prisma);
 
@@ -26,45 +23,33 @@ class PlanRepository extends BaseRepository {
     String? language,
     String? level,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'title': title,
-      'description': description ?? '',
-      'durationInHours': durationInHours,
-      'price': price,
-      'priceCurrency': priceCurrency,
-      'language': language ?? 'English',
-      'level': level ?? 'Beginner',
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create plan');
-    return result;
+    final result = await _prisma.consultationPlan.create(
+      data: CreateConsultationPlanInput(
+        consultantProfileId: consultantProfileId,
+        title: title,
+        description: description ?? '',
+        durationInHours: durationInHours,
+        price: price,
+        priceCurrency: priceCurrency,
+        language: language ?? 'English',
+        level: level ?? 'Beginner',
+      ),
+    );
+    return result.toJson();
   }
 
   Future<List<Map<String, dynamic>>> listConsultationPlans(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.consultationPlan.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
   }
 
   Future<Map<String, dynamic>?> findConsultationPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    return executeQueryAsSingleMap(query);
+    return _prisma.consultationPlan.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   Future<Map<String, dynamic>?> updateConsultationPlan({
@@ -76,32 +61,24 @@ class PlanRepository extends BaseRepository {
     String? language,
     String? level,
   }) async {
-    final data = <String, dynamic>{'updatedAt': nowIso8601};
-    if (title != null) data['title'] = title;
-    if (description != null) data['description'] = description;
-    if (durationInHours != null) {
-      data['durationInHours'] = durationInHours;
-    }
-    if (price != null) data['price'] = price;
-    if (language != null) data['language'] = language;
-    if (level != null) data['level'] = level;
-
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data(data)
-        .build();
-    return executeQueryAsSingleMap(query);
+    final result = await _prisma.consultationPlan.update(
+      where: ConsultationPlanWhereUniqueInput(id: id),
+      data: UpdateConsultationPlanInput(
+        title: title,
+        description: description,
+        durationInHours: durationInHours,
+        price: price,
+        language: language,
+        level: level,
+      ),
+    );
+    return result.toJson();
   }
 
   Future<void> deleteConsultationPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.deleteMany)
-        .where({'id': id})
-        .build();
-    await executeMutation(query);
+    await _prisma.consultationPlan.delete(
+      where: ConsultationPlanWhereUniqueInput(id: id),
+    );
   }
 
   // ===========================================================================
@@ -122,58 +99,43 @@ class PlanRepository extends BaseRepository {
     bool freeTrialEnabled = false,
     int freeTrialDurationMinutes = 30,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'title': title,
-      'description': description ?? '',
-      'durationInMonths': durationInMonths,
-      'price': price,
-      'priceCurrency': priceCurrency,
-      'callsPerWeek': callsPerWeek,
-      'sessionDurationInHours': sessionDurationInHours,
-      'language': language ?? 'English',
-      'level': level ?? 'Beginner',
-      'freeTrialEnabled': freeTrialEnabled,
-      'freeTrialDurationMinutes': freeTrialDurationMinutes,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create plan');
-    return result;
+    final result = await _prisma.subscriptionPlan.create(
+      data: CreateSubscriptionPlanInput(
+        consultantProfileId: consultantProfileId,
+        title: title,
+        description: description ?? '',
+        durationInMonths: durationInMonths,
+        price: price,
+        priceCurrency: priceCurrency,
+        callsPerWeek: callsPerWeek,
+        sessionDurationInHours: sessionDurationInHours,
+        language: language ?? 'English',
+        level: level ?? 'Beginner',
+        freeTrialEnabled: freeTrialEnabled,
+        freeTrialDurationMinutes: freeTrialDurationMinutes,
+      ),
+    );
+    return result.toJson();
   }
 
   Future<List<Map<String, dynamic>>> listSubscriptionPlans(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.subscriptionPlan.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
   }
 
   Future<Map<String, dynamic>?> findSubscriptionPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    return executeQueryAsSingleMap(query);
+    return _prisma.subscriptionPlan.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   Future<void> deleteSubscriptionPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.deleteMany)
-        .where({'id': id})
-        .build();
-    await executeMutation(query);
+    await _prisma.subscriptionPlan.delete(
+      where: SubscriptionPlanWhereUniqueInput(id: id),
+    );
   }
 
   // ===========================================================================
@@ -192,56 +154,41 @@ class PlanRepository extends BaseRepository {
     String? level,
     bool recordingEnabled = false,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'title': title,
-      'description': description ?? '',
-      'durationInHours': durationInHours,
-      'price': price,
-      'priceCurrency': priceCurrency,
-      'maxParticipants': maxParticipants,
-      'language': language ?? 'English',
-      'level': level ?? 'Beginner',
-      'recordingEnabled': recordingEnabled,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create plan');
-    return result;
+    final result = await _prisma.webinarPlan.create(
+      data: CreateWebinarPlanInput(
+        consultantProfileId: consultantProfileId,
+        title: title,
+        description: description ?? '',
+        durationInHours: durationInHours,
+        price: price,
+        priceCurrency: priceCurrency,
+        maxParticipants: maxParticipants,
+        language: language ?? 'English',
+        level: level ?? 'Beginner',
+        recordingEnabled: recordingEnabled,
+      ),
+    );
+    return result.toJson();
   }
 
   Future<List<Map<String, dynamic>>> listWebinarPlans(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.webinarPlan.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
   }
 
   Future<Map<String, dynamic>?> findWebinarPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    return executeQueryAsSingleMap(query);
+    return _prisma.webinarPlan.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   Future<void> deleteWebinarPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.deleteMany)
-        .where({'id': id})
-        .build();
-    await executeMutation(query);
+    await _prisma.webinarPlan.delete(
+      where: WebinarPlanWhereUniqueInput(id: id),
+    );
   }
 
   // ===========================================================================
@@ -262,57 +209,42 @@ class PlanRepository extends BaseRepository {
     String? level,
     bool recordingEnabled = false,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'title': title,
-      'description': description ?? '',
-      'durationInMonths': durationInMonths,
-      'price': price,
-      'priceCurrency': priceCurrency,
-      'maxParticipants': maxParticipants,
-      'meetingsPerWeek': meetingsPerWeek,
-      'sessionDurationInHours': sessionDurationInHours,
-      'language': language ?? 'English',
-      'level': level ?? 'Beginner',
-      'recordingEnabled': recordingEnabled,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create plan');
-    return result;
+    final result = await _prisma.classPlan.create(
+      data: CreateClassPlanInput(
+        consultantProfileId: consultantProfileId,
+        title: title,
+        description: description ?? '',
+        durationInMonths: durationInMonths,
+        price: price,
+        priceCurrency: priceCurrency,
+        maxParticipants: maxParticipants,
+        meetingsPerWeek: meetingsPerWeek,
+        sessionDurationInHours: sessionDurationInHours,
+        language: language ?? 'English',
+        level: level ?? 'Beginner',
+        recordingEnabled: recordingEnabled,
+      ),
+    );
+    return result.toJson();
   }
 
   Future<List<Map<String, dynamic>>> listClassPlans(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    return _prisma.classPlan.findManyRaw(
+      where: {'consultantProfileId': consultantProfileId},
+    );
   }
 
   Future<Map<String, dynamic>?> findClassPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    return executeQueryAsSingleMap(query);
+    return _prisma.classPlan.findFirstRaw(
+      where: {'id': id},
+    );
   }
 
   Future<void> deleteClassPlan(String id) async {
-    final query = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.deleteMany)
-        .where({'id': id})
-        .build();
-    await executeMutation(query);
+    await _prisma.classPlan.delete(
+      where: ClassPlanWhereUniqueInput(id: id),
+    );
   }
 }

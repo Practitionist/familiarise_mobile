@@ -77,24 +77,17 @@ class RefundRepository extends BaseRepository {
 
   /// Get refund by gateway-specific refund ID
   Future<Map<String, dynamic>?> getRefundByRefundId(String refundId) async {
-    final query = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.findUnique)
-        .where({'refundId': refundId}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.refund.findFirstRaw(where: {'refundId': refundId});
   }
 
   /// Get all refunds for a payment
   Future<List<Map<String, dynamic>>> getRefundsByPaymentId(
     String paymentId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.findMany)
-        .where({'paymentId': paymentId}).orderBy({'createdAt': 'desc'}).build();
-
-    return executeQueryAsMaps(query);
+    return _prisma.refund.findManyRaw(
+      where: {'paymentId': paymentId},
+      orderBy: {'createdAt': 'desc'},
+    );
   }
 
   /// Update refund status
@@ -115,11 +108,6 @@ class RefundRepository extends BaseRepository {
 
   /// Get refund by internal ID
   Future<Map<String, dynamic>?> getRefundById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.refund.findFirstRaw(where: {'id': id});
   }
 }

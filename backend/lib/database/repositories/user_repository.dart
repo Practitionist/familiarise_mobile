@@ -15,22 +15,12 @@ class UserRepository extends BaseRepository {
 
   /// Find user by email
   Future<Map<String, dynamic>?> findByEmail(String email) async {
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.findFirst)
-        .where({'email': email}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.user.findFirstRaw(where: {'email': email});
   }
 
   /// Find user by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    return _prisma.user.findFirstRaw(where: {'id': id});
   }
 
   /// Create a new user
@@ -251,11 +241,8 @@ class UserRepository extends BaseRepository {
 
   /// Delete a user by ID (for cleanup on failed registration)
   Future<void> delete(String id) async {
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.delete)
-        .where({'id': id}).build();
-
-    await executeMutation(query);
+    await _prisma.user.delete(
+      where: UserWhereUniqueInput(id: id),
+    );
   }
 }
