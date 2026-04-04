@@ -1,9 +1,12 @@
 import 'package:backend/database/repositories/account_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
 
 class MockQueryExecutor extends Mock implements QueryExecutor {}
+
+class MockPrismaClient extends Mock implements PrismaClient {}
 
 class FakeJsonQuery extends Fake implements JsonQuery {}
 
@@ -17,7 +20,7 @@ void main() {
 
   setUp(() {
     mockExecutor = MockQueryExecutor();
-    repository = AccountRepository(mockExecutor);
+    repository = AccountRepository(mockExecutor, MockPrismaClient());
   });
 
   group('findByUserAndProvider', () {
