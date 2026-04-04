@@ -216,6 +216,17 @@ curl http://localhost:8080/api/domains
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/feedback
 ```
 
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `uri_has_not_been_generated: 'schema_registry.g.dart'` | Generated files missing | `./scripts/regenerate-build.sh --prisma` |
+| `not_enough_positional_arguments` in tests | Repo constructor changed, test not updated | Add `MockPrismaClient` to test file |
+| `dart_frog build` fails with missing imports | Generated code stale | `./scripts/regenerate-build.sh --backend` |
+| `foreign key constraint` on POST | Test user doesn't exist in DB | Use real user: `USER_ID=test_intg_cbj_cnt dart run tool/gen_token_for.dart` |
+| Server starts but endpoints 500 | Schema registry missing model/relation data | Regenerate: `./scripts/regenerate-build.sh --prisma` |
+| `dart_frog: command not found` | CLI not in PATH | Use `dart pub global run dart_frog_cli:dart_frog build` |
+
 ## Environment Variables
 
 ### Frontend (`.env`)
@@ -236,13 +247,15 @@ See [backend/README.md](./backend/README.md#environment-variables) for full list
 ## Key Gotchas
 
 1. **Always regenerate after clone/pull** — `./scripts/regenerate-build.sh --prisma`
-2. **`backend/lib/generated/` is gitignored** — the 347 generated files are NOT in git. If `dart analyze` shows `uri_has_not_been_generated`, run the regenerate script.
-3. **`flutter analyze` covers the whole workspace** — both frontend and backend. Backend errors will show up too.
+2. **`backend/lib/generated/` is gitignored** — the 347 generated files are NOT in git. If `dart analyze` shows `uri_has_not_been_generated`, run the regenerate script. **Never `git add -f` generated files.**
+3. **`flutter analyze` covers the whole workspace** — both frontend and backend. Backend errors will show up too. For backend-only: `dart analyze backend/`
 4. **`Platform` enum conflict** — `backend/lib/generated/` has a `Platform` enum from Prisma schema that conflicts with `dart:io.Platform`. Use specific imports.
-5. **Prisma schema is the source of truth** — `backend/prisma/schema.prisma` defines the data model. Models, delegates, filters, and schema registry are all generated from it.
+5. **Prisma schema is the source of truth** — `backend/prisma/schema.prisma` defines the data model (real file, not a symlink). Models, delegates, filters, and schema registry are all generated from it.
 6. **Hot reload doesn't pick up `@freezed`/`@riverpod` changes** — you must run `build_runner` after modifying annotated files.
 7. **Android emulator needs port forwarding** — `adb reverse tcp:8080 tcp:8080` to reach localhost backend.
-8. **Test JWT tokens expire after 2 hours** — regenerate with `dart run tool/gen_test_token.dart`.
+8. **Test JWT tokens expire after 2 hours** — regenerate with `cd backend && dart run tool/gen_test_token.dart`.
+9. **Run `dart analyze` from repo root** — running from `backend/` misses cross-package import errors.
+10. **After modifying a repo constructor**, also update `database_client.dart` and the test file — `dart analyze | grep error` catches these quickly.
 
 ## Tech Debt & Migration Status
 

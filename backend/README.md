@@ -199,7 +199,7 @@ final results = await executeQueryAsMaps(query);
 
 ## Prisma Flutter Connector
 
-The ORM is [`prisma_flutter_connector`](https://github.com/teetangh/prisma-flutter-connector) (custom-built). Key capabilities:
+The ORM is [`prisma_flutter_connector`](https://github.com/teetangh/prisma-flutter-connector) v0.5.5 (custom-built). Key capabilities:
 
 | Feature | Typed Delegates | JsonQueryBuilder |
 |---------|----------------|-----------------|
@@ -213,6 +213,8 @@ The ORM is [`prisma_flutter_connector`](https://github.com/teetangh/prisma-flutt
 | Raw SQL | No | Yes |
 | `groupBy()` | Yes (v0.4.0+) | Yes |
 | `@default(uuid())` auto-gen | Yes (v0.4.0+) | Yes |
+| Manual `fromJson`/`toJson` (no `.g.dart`) | Yes (v0.5.4+) | N/A |
+| code_builder AST generation | Yes (v0.5.0+) | N/A |
 
 ## Gotchas
 
@@ -222,6 +224,43 @@ The ORM is [`prisma_flutter_connector`](https://github.com/teetangh/prisma-flutt
 - The Prisma schema is at `backend/prisma/schema.prisma` (actual file, not a symlink)
 - Use `dart pub global run dart_frog_cli:dart_frog build` (not `dart_frog build`) if the CLI isn't in PATH
 - Test JWT tokens expire after 2 hours — regenerate with `dart run tool/gen_test_token.dart`
+- **Run `dart analyze` from the repo root** (`familiarise_mobile/`), not from `backend/` — running from `backend/` misses cross-package import errors
+- Prisma schema inline comments with `{` or `}` (e.g., `// e.g., { ... }`) previously broke the parser. Fixed in v0.5.5, but avoid braces in inline comments as a safety measure
+- Models with relation List fields (e.g., `List<Subscription>` on SubscriptionPlan) must use `@JsonKey(includeFromJson: false, includeToJson: false)` — otherwise `fromJson` throws null cast errors when relations aren't included
+- When adding `_prisma` to a repository constructor, you must also update `database_client.dart` AND the corresponding test file with `MockPrismaClient`
+
+## Common Errors and Fixes
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `uri_has_not_been_generated: 'schema_registry.g.dart'` | Generated files missing after clone/pull | `./scripts/regenerate-build.sh --prisma` |
+| `not_enough_positional_arguments` in test files | Repo constructor updated to accept `_prisma` but test wasn't | Add `MockPrismaClient` to test, pass in constructor |
+| `type 'DateTime' is not a subtype of type 'String'` | Query executor returns DateTime, Freezed expects String | Fixed in v0.5.4+ (manual fromJson, no json_serializable) |
+| `null value in column "id" violates not-null constraint` | `@default(uuid())` not in schema registry | `./scripts/regenerate-build.sh --prisma` (v0.5.5 auto-generates) |
+| Model missing FK fields (userId, etc.) | Inline comment with `{`/`}` truncated parser | Fixed in v0.5.5 (brace-counting parser) |
+| `foreign key constraint ... is not present in table` | Test user doesn't exist in DB | Use real user ID: `USER_ID=test_intg_cbj_cnt dart run tool/gen_token_for.dart` |
+
+## Adding a New Repository
+
+1. Create `lib/database/repositories/new_repository.dart`:
+   ```dart
+   class NewRepository extends BaseRepository {
+     NewRepository(super._executor, this._prisma);
+     final PrismaClient _prisma;
+     // Methods...
+   }
+   ```
+2. Wire up in `database_client.dart`:
+   ```dart
+   _newRepository = NewRepository(_executor, _prisma);
+   late final NewRepository _newRepository;
+   NewRepository get newRepo => _newRepository;
+   ```
+3. Create test `test/repositories/new_repository_test.dart`:
+   ```dart
+   class MockPrismaClient extends Mock implements PrismaClient {}
+   // setUp: repository = NewRepository(mockExecutor, MockPrismaClient());
+   ```
 
 ## Troubleshooting
 
