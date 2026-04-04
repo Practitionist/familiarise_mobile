@@ -216,6 +216,30 @@ The ORM is [`prisma_flutter_connector`](https://github.com/teetangh/prisma-flutt
 | Manual `fromJson`/`toJson` (no `.g.dart`) | Yes (v0.5.4+) | N/A |
 | code_builder AST generation | Yes (v0.5.0+) | N/A |
 
+### Testing connector changes locally
+
+When developing fixes in the `prisma-flutter-connector` repo, test locally before publishing to pub.dev:
+
+```yaml
+# In backend/pubspec.yaml — temporarily replace:
+#   prisma_flutter_connector: ^0.5.5
+# with:
+  prisma_flutter_connector:
+    path: /Users/yourname/Desktop/prisma-flutter-connector
+```
+
+Then regenerate and test:
+```bash
+./scripts/regenerate-build.sh --prisma
+cd backend && dart build/bin/server.dart
+# curl your endpoints...
+```
+
+**Always revert to the pub.dev version before committing:**
+```yaml
+  prisma_flutter_connector: ^0.5.5
+```
+
 ## Gotchas
 
 - `backend/lib/generated/` is gitignored — **always run `./scripts/regenerate-build.sh --prisma` after checkout**
