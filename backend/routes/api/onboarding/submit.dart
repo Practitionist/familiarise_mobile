@@ -88,6 +88,41 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
+    // Validate enum-typed fields up front so bad values return a clean 400
+    // instead of bubbling up as a raw database error
+    final consulteeProfileData =
+        data['consulteeProfile'] as Map<String, dynamic>?;
+    final enumError = _validateEnumField(
+          'personalInfo.gender',
+          personalInfo['gender'] as String?,
+          const {'MALE', 'FEMALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'},
+        ) ??
+        _validateEnumField(
+          'consulteeProfile.careerStage',
+          consulteeProfileData?['careerStage'] as String?,
+          const {
+            'SCHOOL_STUDENT',
+            'STUDENT',
+            'EARLY_CAREER',
+            'MID_CAREER',
+            'SENIOR',
+            'EXECUTIVE',
+          },
+        ) ??
+        _validateEnumField(
+          'consulteeProfile.budgetPreference',
+          consulteeProfileData?['budgetPreference'] as String?,
+          const {'BUDGET', 'MODERATE', 'PREMIUM', 'FLEXIBLE'},
+        );
+    if (enumError != null) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': enumError},
+        },
+      );
+    }
+
     final db = context.read<DatabaseClient>();
 
     // Process based on role
@@ -162,13 +197,22 @@ Future<Response> onRequest(RequestContext context) async {
       stackTrace: stackTrace,
     );
 
+    // Do not echo raw database errors to clients
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
-        'error': {'message': 'Failed to complete onboarding: $e'},
+        'error': {'message': 'Failed to complete onboarding'},
       },
     );
   }
+}
+
+/// Returns an error message when [value] is present but not one of
+/// [allowed]; null when the value is absent or valid.
+String? _validateEnumField(String field, String? value, Set<String> allowed) {
+  if (value == null || allowed.contains(value)) return null;
+  return 'Invalid value for $field: "$value". '
+      'Allowed: ${allowed.join(', ')}';
 }
 
 /// Process consultee onboarding
