@@ -2478,9 +2478,12 @@ class AppointmentRepository extends BaseRepository {
           .action(QueryAction.update)
           .where({'id': id}).data({
         'requestStatus': 'CANCELLED',
-        'cancellationReason': reason,
+        // cancellationReason is an enum column post schema-sync; free-text
+        // from the client is stored in cancellationNotes instead
+        'cancellationReason': 'OTHER',
+        if (reason != null && reason.isNotEmpty) 'cancellationNotes': reason,
         'cancelledAt': now,
-        'cancelledBy': consulteeProfileId,
+        'cancelledBy': userId,
         'updatedAt': now,
       }).build();
 
@@ -2507,9 +2510,12 @@ class AppointmentRepository extends BaseRepository {
           .action(QueryAction.update)
           .where({'id': id}).data({
         'requestStatus': 'CANCELLED',
-        'cancellationReason': reason,
+        // cancellationReason is an enum column post schema-sync; free-text
+        // from the client is stored in cancellationNotes instead
+        'cancellationReason': 'OTHER',
+        if (reason != null && reason.isNotEmpty) 'cancellationNotes': reason,
         'cancelledAt': now,
-        'cancelledBy': consulteeProfileId,
+        'cancelledBy': userId,
         'updatedAt': now,
       }).build();
 
@@ -2543,6 +2549,70 @@ class AppointmentRepository extends BaseRepository {
     } else {
       throw Exception('Invalid booking type');
     }
+  }
+
+  /// Respond to a pending booking request (consultant approve/reject).
+  ///
+  /// Approval moves the request to APPROVED_PENDING_PAYMENT — the consultee
+  /// completes payment on the web, which schedules the appointment there.
+  Future<Map<String, dynamic>> respondToBookingRequest({
+    required String id,
+    required String type,
+    required String userId,
+    required bool approve,
+  }) async {
+    // Resolve the consultant profile for authorization
+    final profileQuery = JsonQueryBuilder()
+        .model('ConsultantProfile')
+        .action(QueryAction.findFirst)
+        .where({'userId': userId}).select({'id': true}).build();
+    final profile = await executeQueryAsSingleMap(profileQuery);
+    if (profile == null) {
+      throw Exception('Booking not found or you do not have permission');
+    }
+    final consultantProfileId = profile['id'] as String;
+
+    final isConsultation = type == 'CONSULTATION';
+    final model = isConsultation ? 'Consultation' : 'Subscription';
+    final planModel = isConsultation ? 'ConsultationPlan' : 'SubscriptionPlan';
+    final planIdField =
+        isConsultation ? 'consultationPlanId' : 'subscriptionPlanId';
+
+    // The request must exist and still be pending
+    final bookingQuery = JsonQueryBuilder()
+        .model(model)
+        .action(QueryAction.findFirst)
+        .where({'id': id, 'requestStatus': 'PENDING'}).build();
+    final booking = await executeQueryAsSingleMap(bookingQuery);
+    if (booking == null) {
+      throw Exception('Booking request not found or no longer pending');
+    }
+
+    // The plan must belong to the responding consultant
+    final planQuery = JsonQueryBuilder()
+        .model(planModel)
+        .action(QueryAction.findFirst)
+        .where({
+      'id': booking[planIdField],
+      'consultantProfileId': consultantProfileId,
+    }).select({'id': true}).build();
+    final plan = await executeQueryAsSingleMap(planQuery);
+    if (plan == null) {
+      throw Exception('Booking not found or you do not have permission');
+    }
+
+    final now = nowIso8601;
+    final newStatus = approve ? 'APPROVED_PENDING_PAYMENT' : 'REJECTED';
+    final updateQuery = JsonQueryBuilder()
+        .model(model)
+        .action(QueryAction.update)
+        .where({'id': id}).data({
+      'requestStatus': newStatus,
+      'updatedAt': now,
+    }).build();
+    await executeMutation(updateQuery);
+
+    return {'id': id, 'status': newStatus, 'respondedAt': now};
   }
 
   /// Reschedule a booking

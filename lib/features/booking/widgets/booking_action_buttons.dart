@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 
 /// Action buttons for a booking (join, chat, pay, reschedule, cancel, review, report).
@@ -80,8 +81,11 @@ class BookingActionButtons extends StatelessWidget {
       );
     }
 
-    // Pay Now button (for APPROVED_PENDING_PAYMENT, consultee only)
-    if (!isConsultantView &&
+    // Pay Now button (for APPROVED_PENDING_PAYMENT, consultee only).
+    // Hidden while payments are deferred — the status section explains
+    // that payment completes on the website.
+    if (FeatureFlags.payments &&
+        !isConsultantView &&
         booking.status == RequestStatus.approvedPendingPayment) {
       actions.add(
         SizedBox(

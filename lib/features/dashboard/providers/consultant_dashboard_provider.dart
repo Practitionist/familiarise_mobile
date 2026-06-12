@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/config/feature_flags.dart';
+import '../../../data/repositories/booking_repository_impl.dart';
 import '../../../data/repositories/collaborator_repository_impl.dart';
 import '../../../data/repositories/dashboard_repository_impl.dart';
 import '../../../data/repositories/referral_repository_impl.dart';
@@ -42,15 +44,22 @@ Future<ConsultantDashboardData> consultantDashboard(Ref ref) async {
   final collabRepo = ref.watch(collaboratorRepositoryProvider);
   final referralRepo = ref.watch(referralRepositoryProvider);
 
-  // Fetch all data in parallel
+  // Fetch all data in parallel; deferred features skip their (gated)
+  // endpoints entirely
   final statsFuture = repo.getConsultantStats();
   final sessionsFuture = repo.getConsultantUpcomingSessions();
   final requestsFuture = repo.getConsultantPendingRequests();
   final reviewsFuture = repo.getConsultantRecentReviews();
   final earningsFuture = repo.getConsultantEarnings();
-  final collabFuture = collabRepo.getCollaborations();
-  final referralCodeFuture = referralRepo.getReferralCode();
-  final referralCreditsFuture = referralRepo.getAvailableCredits();
+  final collabFuture = FeatureFlags.collaborations
+      ? collabRepo.getCollaborations()
+      : Future.value(const CollaborationsResponse());
+  final referralCodeFuture = FeatureFlags.referrals
+      ? referralRepo.getReferralCode()
+      : Future<ReferralCodeInfo?>.value();
+  final referralCreditsFuture = FeatureFlags.referrals
+      ? referralRepo.getAvailableCredits()
+      : Future.value(const ReferralCreditsAvailable());
 
   final stats = await statsFuture
       .catchError((_) => const ConsultantDashboardStats());
@@ -79,4 +88,34 @@ Future<ConsultantDashboardData> consultantDashboard(Ref ref) async {
     referralCode: referralCode,
     referralCredits: referralCredits,
   );
+}
+
+/// Approve/reject a pending booking request and refresh the dashboard.
+@riverpod
+class BookingRequestResponder extends _$BookingRequestResponder {
+  @override
+  AsyncValue<void> build() => const AsyncData(null);
+
+  /// Returns true on success; the dashboard is invalidated either way.
+  Future<bool> respond({
+    required Booking booking,
+    required bool approve,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final repository = ref.read(bookingRepositoryProvider);
+      await repository.respondToBookingRequest(
+        id: booking.id,
+        type: booking.bookingType,
+        approve: approve,
+      );
+      state = const AsyncData(null);
+      return true;
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+      return false;
+    } finally {
+      ref.invalidate(consultantDashboardProvider);
+    }
+  }
 }

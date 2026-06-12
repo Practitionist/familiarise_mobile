@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../providers/my_bookings_provider.dart';
@@ -384,7 +385,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                   queryParameters: {'type': booking.bookingType.value},
                 );
               },
-              onPayNow: booking.status == RequestStatus.approvedPendingPayment
+              onPayNow: FeatureFlags.payments &&
+                      booking.status == RequestStatus.approvedPendingPayment
                   ? () {
                       context.pushNamed(
                         'checkout',
@@ -435,8 +437,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                     queryParameters: {'type': booking.bookingType.value},
                   );
                 },
-                onPayNow:
-                    booking.status == RequestStatus.approvedPendingPayment
+                onPayNow: FeatureFlags.payments &&
+                        booking.status == RequestStatus.approvedPendingPayment
                         ? () {
                             context.pushNamed(
                               'checkout',
@@ -473,7 +475,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                 queryParameters: {'type': booking.bookingType.value},
               );
             },
-            onPayNow: booking.status == RequestStatus.approvedPendingPayment
+            onPayNow: FeatureFlags.payments &&
+                      booking.status == RequestStatus.approvedPendingPayment
                 ? () {
                     context.pushNamed(
                       'checkout',
