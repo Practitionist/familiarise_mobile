@@ -66,6 +66,14 @@ class EarningsSummaryCard extends StatelessWidget {
               ),
               color: Colors.orange,
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Payouts and tax details are managed on the Familiarise '
+              'website.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
