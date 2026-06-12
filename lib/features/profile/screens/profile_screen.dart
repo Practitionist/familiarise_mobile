@@ -83,6 +83,14 @@ class ProfileScreen extends ConsumerWidget {
             ),
             _buildMenuItem(
               context,
+              icon: Icons.business_outlined,
+              title: 'My Organization',
+              onTap: () {
+                context.push('/organization');
+              },
+            ),
+            _buildMenuItem(
+              context,
               icon: Icons.notifications_outlined,
               title: 'Notifications',
               onTap: () {
