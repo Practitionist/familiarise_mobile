@@ -94,12 +94,12 @@ Future<Response> onRequest(RequestContext context) async {
         data['consulteeProfile'] as Map<String, dynamic>?;
     final enumError = _validateEnumField(
           'personalInfo.gender',
-          personalInfo['gender'] as String?,
+          personalInfo['gender'],
           const {'MALE', 'FEMALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'},
         ) ??
         _validateEnumField(
           'consulteeProfile.careerStage',
-          consulteeProfileData?['careerStage'] as String?,
+          consulteeProfileData?['careerStage'],
           const {
             'SCHOOL_STUDENT',
             'STUDENT',
@@ -111,7 +111,7 @@ Future<Response> onRequest(RequestContext context) async {
         ) ??
         _validateEnumField(
           'consulteeProfile.budgetPreference',
-          consulteeProfileData?['budgetPreference'] as String?,
+          consulteeProfileData?['budgetPreference'],
           const {'BUDGET', 'MODERATE', 'PREMIUM', 'FLEXIBLE'},
         );
     if (enumError != null) {
@@ -208,9 +208,12 @@ Future<Response> onRequest(RequestContext context) async {
 }
 
 /// Returns an error message when [value] is present but not one of
-/// [allowed]; null when the value is absent or valid.
-String? _validateEnumField(String field, String? value, Set<String> allowed) {
-  if (value == null || allowed.contains(value)) return null;
+/// [allowed]; null when the value is absent or valid. Accepts Object? so
+/// non-string payload values (e.g. numbers) report a clean 400 instead of
+/// a TypeError-driven 500.
+String? _validateEnumField(String field, Object? value, Set<String> allowed) {
+  if (value == null) return null;
+  if (value is String && allowed.contains(value)) return null;
   return 'Invalid value for $field: "$value". '
       'Allowed: ${allowed.join(', ')}';
 }

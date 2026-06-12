@@ -34,10 +34,16 @@ class OrganizationRemoteSourceImpl implements OrganizationRemoteSource {
       final response = await _dio.get(ApiEndpoints.myOrganization);
 
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final data = response.data;
+        if (data is! Map<String, dynamic>) {
+          throw const ServerException(
+            message: 'Invalid organization memberships response',
+          );
+        }
         final memberships = data['memberships'] as List? ?? [];
         return memberships
-            .map((m) => OrgMembership.fromJson(m as Map<String, dynamic>))
+            .whereType<Map<String, dynamic>>()
+            .map(OrgMembership.fromJson)
             .toList();
       }
 
@@ -68,11 +74,16 @@ class OrganizationRemoteSourceImpl implements OrganizationRemoteSource {
       final response = await _dio.get(ApiEndpoints.myProgramAssignments);
 
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final data = response.data;
+        if (data is! Map<String, dynamic>) {
+          throw const ServerException(
+            message: 'Invalid program assignments response',
+          );
+        }
         final assignments = data['assignments'] as List? ?? [];
         return assignments
-            .map((a) =>
-                ProgramAssignmentInfo.fromJson(a as Map<String, dynamic>))
+            .whereType<Map<String, dynamic>>()
+            .map(ProgramAssignmentInfo.fromJson)
             .toList();
       }
 

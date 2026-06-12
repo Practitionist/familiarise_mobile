@@ -7,6 +7,11 @@ import 'package:dart_frog/dart_frog.dart';
 /// Mirrors lib/core/config/feature_flags.dart in the Flutter app — keep the
 /// two files in sync so gated UI never calls a 403 endpoint. Each flag has
 /// a GitHub issue tracking the full implementation.
+///
+/// The app additionally defines `programCheckout`, which is intentionally
+/// frontend-only: it gates a purchase CTA whose backend route does not
+/// exist yet (webinar/class checkout requires Apple IAP — see the IAP
+/// issue), so there is nothing to gate server-side.
 abstract final class FeatureFlags {
   /// Razorpay/Stripe checkout, payment webhooks, refunds, disputes.
   static const payments = false;

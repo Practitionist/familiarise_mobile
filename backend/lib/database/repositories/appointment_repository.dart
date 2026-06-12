@@ -2572,6 +2572,9 @@ class AppointmentRepository extends BaseRepository {
     }
     final consultantProfileId = profile['id'] as String;
 
+    if (type != 'CONSULTATION' && type != 'SUBSCRIPTION') {
+      throw Exception('Invalid booking type');
+    }
     final isConsultation = type == 'CONSULTATION';
     final model = isConsultation ? 'Consultation' : 'Subscription';
     final planModel = isConsultation ? 'ConsultationPlan' : 'SubscriptionPlan';
@@ -2603,14 +2606,19 @@ class AppointmentRepository extends BaseRepository {
 
     final now = nowIso8601;
     final newStatus = approve ? 'APPROVED_PENDING_PAYMENT' : 'REJECTED';
+    // Compare-and-set on the PENDING status so two concurrent responses
+    // can't both win — the second writer matches zero rows.
     final updateQuery = JsonQueryBuilder()
         .model(model)
         .action(QueryAction.update)
-        .where({'id': id}).data({
+        .where({'id': id, 'requestStatus': 'PENDING'}).data({
       'requestStatus': newStatus,
       'updatedAt': now,
     }).build();
-    await executeMutation(updateQuery);
+    final affected = await executeMutationCounted(updateQuery);
+    if (affected == 0) {
+      throw Exception('Booking request not found or no longer pending');
+    }
 
     return {'id': id, 'status': newStatus, 'respondedAt': now};
   }

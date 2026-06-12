@@ -81,7 +81,13 @@ class OrganizationRepository extends BaseRepository {
 
       final membership = membershipById[a['membershipId']];
       final org = membership?['organization'] as Map<String, dynamic>?;
-      if (org == null || org['deletedAt'] != null) continue;
+      // Same visibility rules as getMyMemberships: hide soft-deleted and
+      // non-active orgs from member-facing entitlements
+      if (org == null ||
+          org['deletedAt'] != null ||
+          org['status'] != 'ACTIVE') {
+        continue;
+      }
 
       results.add({
         'id': a['id'],
@@ -105,11 +111,11 @@ class OrganizationRepository extends BaseRepository {
     Map<String, dynamic> assignment,
     Map<String, dynamic> program,
   ) {
-    final engagementsUsed = (assignment['engagementsUsed'] as num?)?.toInt();
+    final engagementsUsed = _asInt(assignment['engagementsUsed']);
 
     if (program['type'] == 'LICENSED_SEAT') {
       final config = program['licensedSeatConfig'] as Map<String, dynamic>?;
-      final covered = (config?['coveredEngagementsPerCycle'] as num?)?.toInt();
+      final covered = _asInt(config?['coveredEngagementsPerCycle']);
       return {
         'type': 'LICENSED_SEAT',
         'engagementsUsed': engagementsUsed ?? 0,
@@ -123,7 +129,7 @@ class OrganizationRepository extends BaseRepository {
 
     final config = program['creditPoolConfig'] as Map<String, dynamic>?;
     // creditBudgetPerCycle is in credits (1 credit = ₹1 = 100 paise)
-    final budgetCredits = (config?['creditBudgetPerCycle'] as num?)?.toInt();
+    final budgetCredits = _asInt(config?['creditBudgetPerCycle']);
     final budgetPaise = budgetCredits == null ? null : budgetCredits * 100;
     final consumedPaise = _asInt(assignment['consumedPaise']) ?? 0;
     return {

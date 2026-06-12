@@ -159,10 +159,14 @@ class CollaboratorRepository extends BaseRepository {
       'id': c['id'],
       'role': c['role'],
       'status': c['status'],
-      // bps → percentage for the existing frontend contract (3000 → 30.0)
-      'revenueSharePercentage': c['revenueShareBps'] is int
-          ? (c['revenueShareBps'] as int) / 100
-          : null,
+      // bps → percentage for the existing frontend contract (3000 → 30.0).
+      // Int column today, but tolerate driver/schema drift defensively.
+      'revenueSharePercentage': switch (c['revenueShareBps']) {
+        final num n => n / 100,
+        final BigInt b => b.toInt() / 100,
+        final String s => (int.tryParse(s) ?? 0) / 100,
+        _ => null,
+      },
       'createdAt': c['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],

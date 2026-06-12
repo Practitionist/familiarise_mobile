@@ -23,6 +23,11 @@ class MyOrganizationScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(myMembershipsProvider);
           ref.invalidate(myProgramAssignmentsProvider);
+          // Keep the spinner active until the refetch completes
+          await Future.wait([
+            ref.read(myMembershipsProvider.future),
+            ref.read(myProgramAssignmentsProvider.future),
+          ]);
         },
         child: membershipsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),

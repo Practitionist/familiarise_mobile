@@ -10,9 +10,17 @@ class PlanRepository extends BaseRepository {
   final PrismaClient _prisma;
 
   /// Convert an ISO 4217 code (e.g. 'INR') to the schema Currency enum.
+  ///
+  /// Throws [ArgumentError] for unknown codes — silently coercing to INR
+  /// would store wrong money data. Routes map ArgumentError to a 400.
   static Currency _currencyFrom(String code) => Currency.values.firstWhere(
-        (c) => c.toJson() == code.toUpperCase(),
-        orElse: () => Currency.inr,
+        (c) => c.toJson() == code.trim().toUpperCase(),
+        orElse: () => throw ArgumentError.value(
+          code,
+          'priceCurrency',
+          'Unsupported currency. Allowed: '
+              '${Currency.values.map((c) => c.toJson()).join(', ')}',
+        ),
       );
 
   // ===========================================================================

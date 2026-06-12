@@ -262,6 +262,8 @@ class ConsultantDashboardScreen extends ConsumerWidget {
       ),
     );
     if (confirmed != true) return;
+    // The dialog is an async gap — the widget may have been unmounted
+    if (!context.mounted) return;
 
     final success = await ref
         .read(bookingRequestResponderProvider.notifier)

@@ -52,8 +52,16 @@ Future<Response> onRequest(RequestContext context, String id) async {
       );
     }
 
-    final data = await context.request.json() as Map<String, dynamic>;
-    final action = data['action'] as String?;
+    final body = await context.request.json();
+    if (body is! Map<String, dynamic>) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Invalid request body format'},
+        },
+      );
+    }
+    final action = body['action'] as String?;
     if (action != 'approve' && action != 'reject') {
       return Response.json(
         statusCode: HttpStatus.badRequest,
