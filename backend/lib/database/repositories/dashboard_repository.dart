@@ -640,15 +640,21 @@ class DashboardRepository extends BaseRepository {
         .model('ConsultantEarnings')
         .action(QueryAction.findMany)
         .where({'consultantProfileId': consultantProfileId}).select(
-            {'consultantShare': true, 'status': true}).build();
+            {'consultantSharePaise': true, 'status': true}).build();
     final earningsRows = await executeQueryAsMaps(earningsQuery);
 
     var totalEarnings = 0.0;
     var pendingEarnings = 0.0;
 
     for (final row in earningsRows) {
-      final consultantShare =
-          (row['consultantShare'] as num?)?.toDouble() ?? 0.0;
+      // consultantSharePaise is a BigInt column; the driver may surface it
+      // as int, BigInt, or String depending on magnitude
+      final consultantShare = switch (row['consultantSharePaise']) {
+        final num n => n.toDouble(),
+        final BigInt b => b.toDouble(),
+        final String s => double.tryParse(s) ?? 0.0,
+        _ => 0.0,
+      };
       final status = row['status'] as String? ?? 'PENDING';
 
       if (status == 'REFUNDED') continue;

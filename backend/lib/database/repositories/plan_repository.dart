@@ -9,6 +9,12 @@ class PlanRepository extends BaseRepository {
 
   final PrismaClient _prisma;
 
+  /// Convert an ISO 4217 code (e.g. 'INR') to the schema Currency enum.
+  static Currency _currencyFrom(String code) => Currency.values.firstWhere(
+        (c) => c.toJson() == code.toUpperCase(),
+        orElse: () => Currency.inr,
+      );
+
   // ===========================================================================
   // Consultation Plans
   // ===========================================================================
@@ -29,8 +35,8 @@ class PlanRepository extends BaseRepository {
         title: title,
         description: description ?? '',
         durationInHours: durationInHours,
-        price: price,
-        priceCurrency: priceCurrency,
+        price: BigInt.from(price),
+        priceCurrency: _currencyFrom(priceCurrency),
         language: language ?? 'English',
         level: level ?? 'Beginner',
       ),
@@ -67,7 +73,7 @@ class PlanRepository extends BaseRepository {
         title: title,
         description: description,
         durationInHours: durationInHours,
-        price: price,
+        price: price != null ? BigInt.from(price) : null,
         language: language,
         level: level,
       ),
@@ -105,8 +111,8 @@ class PlanRepository extends BaseRepository {
         title: title,
         description: description ?? '',
         durationInMonths: durationInMonths,
-        price: price,
-        priceCurrency: priceCurrency,
+        price: BigInt.from(price),
+        priceCurrency: _currencyFrom(priceCurrency),
         callsPerWeek: callsPerWeek,
         sessionDurationInHours: sessionDurationInHours,
         language: language ?? 'English',
@@ -160,8 +166,8 @@ class PlanRepository extends BaseRepository {
         title: title,
         description: description ?? '',
         durationInHours: durationInHours,
-        price: price,
-        priceCurrency: priceCurrency,
+        price: BigInt.from(price),
+        priceCurrency: _currencyFrom(priceCurrency),
         maxParticipants: maxParticipants,
         language: language ?? 'English',
         level: level ?? 'Beginner',
@@ -215,8 +221,8 @@ class PlanRepository extends BaseRepository {
         title: title,
         description: description ?? '',
         durationInMonths: durationInMonths,
-        price: price,
-        priceCurrency: priceCurrency,
+        price: BigInt.from(price),
+        priceCurrency: _currencyFrom(priceCurrency),
         maxParticipants: maxParticipants,
         meetingsPerWeek: meetingsPerWeek,
         sessionDurationInHours: sessionDurationInHours,

@@ -2,8 +2,14 @@ import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
-/// Repository for collaborator operations
-/// (WebinarCollaborator + ClassCollaborator)
+/// Repository for collaborator operations.
+///
+/// Uses the unified `Collaborator` model (webinar/class twins were merged
+/// upstream; `collaboratorType` discriminates, `webinarPlanId`/`classPlanId`
+/// are XOR, and `revenueShareBps` replaced `revenueSharePercentage`).
+///
+/// NOTE: collaborations are a deferred (feature-flagged) feature on mobile;
+/// this repository covers the read/respond surface only.
 class CollaboratorRepository extends BaseRepository {
   /// Create a collaborator repository with the given executor
   CollaboratorRepository(super._executor, this._prisma);
@@ -13,8 +19,7 @@ class CollaboratorRepository extends BaseRepository {
   Future<Map<String, dynamic>> getMyCollaborations(
     String consultantProfileId,
   ) async {
-    // Webinar collaborations with nested includes
-    final webinarResults = await _prisma.webinarCollaborator.findManyRaw(
+    final results = await _prisma.collaborator.findManyRaw(
       where: {
         'consultantProfileId': consultantProfileId,
         'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
@@ -27,22 +32,6 @@ class CollaboratorRepository extends BaseRepository {
             },
           },
         },
-        'invitedBy': {
-          'include': {'user': true},
-        },
-      },
-      orderBy: {'createdAt': 'desc'},
-    );
-    final webinarCollaborations =
-        webinarResults.map(_flattenWebinarCollaboration).toList();
-
-    // Class collaborations with nested includes
-    final classResults = await _prisma.classCollaborator.findManyRaw(
-      where: {
-        'consultantProfileId': consultantProfileId,
-        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-      },
-      include: {
         'classPlan': {
           'include': {
             'consultantProfile': {
@@ -57,8 +46,14 @@ class CollaboratorRepository extends BaseRepository {
       orderBy: {'createdAt': 'desc'},
     );
 
-    final classCollaborations =
-        classResults.map(_flattenClassCollaboration).toList();
+    final webinarCollaborations = results
+        .where((c) => c['collaboratorType'] == 'WEBINAR')
+        .map(_flattenCollaboration)
+        .toList();
+    final classCollaborations = results
+        .where((c) => c['collaboratorType'] == 'CLASS')
+        .map(_flattenCollaboration)
+        .toList();
 
     final counts = await getCollaborationCounts(consultantProfileId);
 
@@ -76,17 +71,16 @@ class CollaboratorRepository extends BaseRepository {
     required String response,
     required String planType,
   }) async {
-    final model =
-        planType == 'webinar' ? 'WebinarCollaborator' : 'ClassCollaborator';
     final now = DateTime.now().toUtc().toIso8601String();
 
     // First check the record exists and is PENDING for this consultant
     final findQuery = JsonQueryBuilder()
-        .model(model)
+        .model('Collaborator')
         .action(QueryAction.findFirst)
         .where({
           'id': id,
           'consultantProfileId': consultantProfileId,
+          'collaboratorType': planType == 'webinar' ? 'WEBINAR' : 'CLASS',
           'status': 'PENDING',
         })
         .build();
@@ -96,7 +90,7 @@ class CollaboratorRepository extends BaseRepository {
 
     // Update the record
     final updateQuery = JsonQueryBuilder()
-        .model(model)
+        .model('Collaborator')
         .action(QueryAction.update)
         .where({'id': id})
         .data({
@@ -118,9 +112,8 @@ class CollaboratorRepository extends BaseRepository {
   Future<Map<String, int>> getCollaborationCounts(
     String consultantProfileId,
   ) async {
-    // Count webinar collaborations by status
-    final webinarPendingQuery = JsonQueryBuilder()
-        .model('WebinarCollaborator')
+    final pendingQuery = JsonQueryBuilder()
+        .model('Collaborator')
         .action(QueryAction.count)
         .where({
           'consultantProfileId': consultantProfileId,
@@ -128,27 +121,8 @@ class CollaboratorRepository extends BaseRepository {
         })
         .build();
 
-    final webinarAcceptedQuery = JsonQueryBuilder()
-        .model('WebinarCollaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'ACCEPTED',
-        })
-        .build();
-
-    // Count class collaborations by status
-    final classPendingQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'PENDING',
-        })
-        .build();
-
-    final classAcceptedQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
+    final acceptedQuery = JsonQueryBuilder()
+        .model('Collaborator')
         .action(QueryAction.count)
         .where({
           'consultantProfileId': consultantProfileId,
@@ -157,67 +131,44 @@ class CollaboratorRepository extends BaseRepository {
         .build();
 
     final results = await Future.wait([
-      executeCount(webinarPendingQuery),
-      executeCount(webinarAcceptedQuery),
-      executeCount(classPendingQuery),
-      executeCount(classAcceptedQuery),
+      executeCount(pendingQuery),
+      executeCount(acceptedQuery),
     ]);
 
     return {
-      'pendingCount': results[0] + results[2],
-      'acceptedCount': results[1] + results[3],
+      'pendingCount': results[0],
+      'acceptedCount': results[1],
     };
   }
 
-  /// Flatten a nested WebinarCollaborator include result to the flat shape
-  /// expected by the frontend (planTitle, planPrice, hostName, etc.)
-  Map<String, dynamic> _flattenWebinarCollaboration(Map<String, dynamic> wc) {
-    final plan = wc['webinarPlan'] as Map<String, dynamic>? ?? {};
+  /// Flatten a nested Collaborator include result to the flat shape expected
+  /// by the frontend (planTitle, planPrice, hostName, etc.)
+  Map<String, dynamic> _flattenCollaboration(Map<String, dynamic> c) {
+    final isWebinar = c['collaboratorType'] == 'WEBINAR';
+    final plan = (isWebinar ? c['webinarPlan'] : c['classPlan'])
+            as Map<String, dynamic>? ??
+        {};
     final hostProfile =
         plan['consultantProfile'] as Map<String, dynamic>? ?? {};
     final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
-    final invitedByProfile = wc['invitedBy'] as Map<String, dynamic>? ?? {};
+    final invitedByProfile = c['invitedBy'] as Map<String, dynamic>? ?? {};
     final inviterUser =
         invitedByProfile['user'] as Map<String, dynamic>? ?? {};
 
     return {
-      'id': wc['id'],
-      'role': wc['role'],
-      'status': wc['status'],
-      'revenueSharePercentage': wc['revenueSharePercentage'],
-      'createdAt': wc['createdAt'],
+      'id': c['id'],
+      'role': c['role'],
+      'status': c['status'],
+      // bps → percentage for the existing frontend contract (3000 → 30.0)
+      'revenueSharePercentage': c['revenueShareBps'] is int
+          ? (c['revenueShareBps'] as int) / 100
+          : null,
+      'createdAt': c['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],
       'planPrice': plan['price'],
-      'durationInHours': plan['durationInHours'],
-      'maxParticipants': plan['maxParticipants'],
-      'hostName': hostUser['name'],
-      'hostImage': hostUser['image'],
-      'inviterName': inviterUser['name'],
-    };
-  }
-
-  /// Flatten a nested ClassCollaborator include result to the flat shape
-  /// expected by the frontend (planTitle, planPrice, hostName, etc.)
-  Map<String, dynamic> _flattenClassCollaboration(Map<String, dynamic> cc) {
-    final plan = cc['classPlan'] as Map<String, dynamic>? ?? {};
-    final hostProfile =
-        plan['consultantProfile'] as Map<String, dynamic>? ?? {};
-    final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
-    final invitedByProfile = cc['invitedBy'] as Map<String, dynamic>? ?? {};
-    final inviterUser =
-        invitedByProfile['user'] as Map<String, dynamic>? ?? {};
-
-    return {
-      'id': cc['id'],
-      'role': cc['role'],
-      'status': cc['status'],
-      'revenueSharePercentage': cc['revenueSharePercentage'],
-      'createdAt': cc['createdAt'],
-      'planId': plan['id'],
-      'planTitle': plan['title'],
-      'planPrice': plan['price'],
-      'sessionDurationInHours': plan['sessionDurationInHours'],
+      if (isWebinar) 'durationInHours': plan['durationInHours'],
+      if (!isWebinar) 'sessionDurationInHours': plan['sessionDurationInHours'],
       'maxParticipants': plan['maxParticipants'],
       'hostName': hostUser['name'],
       'hostImage': hostUser['image'],
