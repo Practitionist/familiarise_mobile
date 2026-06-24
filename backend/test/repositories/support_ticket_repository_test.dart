@@ -1,9 +1,12 @@
 import 'package:backend/database/repositories/support_ticket_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart' hide RecordNotFoundException;
 import 'package:test/test.dart';
 
 class MockQueryExecutor extends Mock implements QueryExecutor {}
+
+class MockPrismaClient extends Mock implements PrismaClient {}
 
 class FakeJsonQuery extends Fake implements JsonQuery {}
 
@@ -17,7 +20,7 @@ void main() {
 
   setUp(() {
     mockExecutor = MockQueryExecutor();
-    repository = SupportTicketRepository(mockExecutor);
+    repository = SupportTicketRepository(mockExecutor, MockPrismaClient());
   });
 
   group('getTicketsByUserId', () {
