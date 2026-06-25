@@ -46,21 +46,38 @@ Set-Location ..
 Write-Host "=== Waiting for backend to start ===" -ForegroundColor Cyan
 Start-Sleep -Seconds 3
 
-Write-Host "=== Starting Android emulator ===" -ForegroundColor Cyan
-$emulatorExe = "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe"
-if (Test-Path $emulatorExe) {
-    # You can change Pixel_10 to whatever your emulator AVD name is
-    Write-Host "Starting Pixel_10 emulator..."
-    Start-Process $emulatorExe -ArgumentList "-avd Pixel_10" -NoNewWindow
-} else {
-    Write-Host "Could not find emulator at $emulatorExe. Please ensure an emulator is running." -ForegroundColor Yellow
+$adbExe = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+$deviceConnected = $false
+
+if (Test-Path $adbExe) {
+    $devices = & $adbExe devices
+    $connectedDevices = $devices | Where-Object { $_ -match '\bdevice$' }
+    if ($connectedDevices) {
+        $deviceConnected = $true
+        Write-Host "=== Device already connected ===" -ForegroundColor Green
+        Write-Host "Skipping emulator launch."
+    }
 }
 
-Write-Host "=== Waiting for emulator to boot ===" -ForegroundColor Cyan
-$adbExe = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+if (-not $deviceConnected) {
+    Write-Host "=== Starting Android emulator ===" -ForegroundColor Cyan
+    $emulatorExe = "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe"
+    if (Test-Path $emulatorExe) {
+        # You can change Pixel_10 to whatever your emulator AVD name is
+        Write-Host "Starting Pixel_10 emulator..."
+        Start-Process $emulatorExe -ArgumentList "-avd Pixel_10" -NoNewWindow
+        
+        Write-Host "=== Waiting for emulator to boot ===" -ForegroundColor Cyan
+        if (Test-Path $adbExe) {
+            & $adbExe wait-for-device
+            Start-Sleep -Seconds 5
+        }
+    } else {
+        Write-Host "Could not find emulator at $emulatorExe. Please ensure an emulator is running." -ForegroundColor Yellow
+    }
+}
+
 if (Test-Path $adbExe) {
-    & $adbExe wait-for-device
-    Start-Sleep -Seconds 5
     Write-Host "=== Setting up port forwarding ===" -ForegroundColor Cyan
     & $adbExe reverse tcp:8080 tcp:8080
 } else {
@@ -68,4 +85,20 @@ if (Test-Path $adbExe) {
 }
 
 Write-Host "=== Running Flutter app ===" -ForegroundColor Cyan
-flutter run
+
+# Try to find a connected physical Android device ID
+$targetDevice = $null
+if (Test-Path $adbExe) {
+    $adbDevices = & $adbExe devices | Select-Object -Skip 1
+    $physicalDevice = $adbDevices | Where-Object { $_ -match '\bdevice$' } | Select-Object -First 1
+    if ($physicalDevice) {
+        $targetDevice = ($physicalDevice -split '\s+')[0]
+        Write-Host "Targeting device: $targetDevice" -ForegroundColor Green
+    }
+}
+
+if ($targetDevice) {
+    flutter run -d $targetDevice
+} else {
+    flutter run
+}
