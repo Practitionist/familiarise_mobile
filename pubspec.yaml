@@ -82,6 +82,7 @@ dependencies:
   flutter_web_auth_2: ^4.1.0
   http: ^1.6.0
   file_picker: ^10.3.10
+  prisma_flutter_connector: ^0.5.5
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.0
