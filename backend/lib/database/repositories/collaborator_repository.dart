@@ -83,8 +83,10 @@ class CollaboratorRepository extends BaseRepository {
     required String response,
     required String planType,
   }) async {
-    final model =
-        planType == 'webinar' ? 'WebinarCollaborator' : 'ClassCollaborator';
+    // WebinarCollaborator + ClassCollaborator were consolidated into a single
+    // Collaborator model; the id is unique across it, so planType no longer
+    // selects a table.
+    const model = 'Collaborator';
     final now = DateTime.now().toUtc().toIso8601String();
 
     // First check the record exists and is PENDING for this consultant
@@ -125,9 +127,10 @@ class CollaboratorRepository extends BaseRepository {
   Future<Map<String, int>> getCollaborationCounts(
     String consultantProfileId,
   ) async {
-    // Count webinar collaborations by status
-    final webinarPendingQuery = JsonQueryBuilder()
-        .model('WebinarCollaborator')
+    // Single Collaborator model now covers both webinar + class; count by
+    // status directly (no per-type split needed since the summary sums them).
+    final pendingQuery = JsonQueryBuilder()
+        .model('Collaborator')
         .action(QueryAction.count)
         .where({
           'consultantProfileId': consultantProfileId,
@@ -135,27 +138,8 @@ class CollaboratorRepository extends BaseRepository {
         })
         .build();
 
-    final webinarAcceptedQuery = JsonQueryBuilder()
-        .model('WebinarCollaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'ACCEPTED',
-        })
-        .build();
-
-    // Count class collaborations by status
-    final classPendingQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'PENDING',
-        })
-        .build();
-
-    final classAcceptedQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
+    final acceptedQuery = JsonQueryBuilder()
+        .model('Collaborator')
         .action(QueryAction.count)
         .where({
           'consultantProfileId': consultantProfileId,
@@ -164,15 +148,13 @@ class CollaboratorRepository extends BaseRepository {
         .build();
 
     final results = await Future.wait([
-      executeCount(webinarPendingQuery),
-      executeCount(webinarAcceptedQuery),
-      executeCount(classPendingQuery),
-      executeCount(classAcceptedQuery),
+      executeCount(pendingQuery),
+      executeCount(acceptedQuery),
     ]);
 
     return {
-      'pendingCount': results[0] + results[2],
-      'acceptedCount': results[1] + results[3],
+      'pendingCount': results[0],
+      'acceptedCount': results[1],
     };
   }
 
@@ -191,7 +173,7 @@ class CollaboratorRepository extends BaseRepository {
       'id': wc['id'],
       'role': wc['role'],
       'status': wc['status'],
-      'revenueSharePercentage': wc['revenueSharePercentage'],
+      'revenueSharePercentage': (wc['revenueShareBps'] as int?) == null ? null : (wc['revenueShareBps'] as int) / 100,
       'createdAt': wc['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],
@@ -219,7 +201,7 @@ class CollaboratorRepository extends BaseRepository {
       'id': cc['id'],
       'role': cc['role'],
       'status': cc['status'],
-      'revenueSharePercentage': cc['revenueSharePercentage'],
+      'revenueSharePercentage': (cc['revenueShareBps'] as int?) == null ? null : (cc['revenueShareBps'] as int) / 100,
       'createdAt': cc['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],

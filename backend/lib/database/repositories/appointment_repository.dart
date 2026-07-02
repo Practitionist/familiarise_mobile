@@ -729,7 +729,7 @@ class AppointmentRepository extends BaseRepository {
         .where({
           'consultationId': {'in': consultationIds},
         })
-        .include({'slots': true})
+        .include({'slotsOfAppointment': true})
         .build();
 
     final appointments = await executeQueryAsMaps(appointmentsQuery);
@@ -745,7 +745,7 @@ class AppointmentRepository extends BaseRepository {
       final plan = planId != null ? planLookup[planId] : null;
       final consultationId = c['id'] as String;
       final appointment = appointmentLookup[consultationId];
-      final slots = appointment?['slots'] as List<dynamic>?;
+      final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
 
       // Get consultee info
       final requestedBy =
@@ -928,7 +928,7 @@ class AppointmentRepository extends BaseRepository {
           'webinarId': {'in': webinarIds},
         })
         .include({
-          'slots': {
+          'slotsOfAppointment': {
             'include': {'user': true},
           },
         })
@@ -949,7 +949,7 @@ class AppointmentRepository extends BaseRepository {
       final planId = w['webinarPlanId'] as String?;
       final plan = planId != null ? planLookup[planId] : null;
       final appointment = appointmentLookup[webinarId];
-      final slots = appointment?['slots'] as List<dynamic>?;
+      final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
       final participantData = _extractParticipants(slots);
 
       bookings.add({
@@ -1040,7 +1040,7 @@ class AppointmentRepository extends BaseRepository {
           'classId': {'in': classIds},
         })
         .include({
-          'slots': {
+          'slotsOfAppointment': {
             'include': {'user': true},
           },
         })
@@ -1071,7 +1071,7 @@ class AppointmentRepository extends BaseRepository {
       // Collect all slots from all appointments
       final allSlots = <dynamic>[];
       for (final a in classAppointments) {
-        final slots = a['slots'] as List<dynamic>?;
+        final slots = a['slotsOfAppointment'] as List<dynamic>?;
         if (slots != null) allSlots.addAll(slots);
       }
 
@@ -1161,7 +1161,7 @@ class AppointmentRepository extends BaseRepository {
           .where({
             'id': {'in': appointmentIds},
           })
-          .include({'slots': true})
+          .include({'slotsOfAppointment': true})
           .build();
       final appointments = await executeQueryAsMaps(appointmentsQuery);
       for (final a in appointments) {
@@ -1179,7 +1179,7 @@ class AppointmentRepository extends BaseRepository {
       final appointmentId = t['appointmentId'] as String?;
       final appointment =
           appointmentId != null ? appointmentLookup[appointmentId] : null;
-      final slots = appointment?['slots'] as List<dynamic>?;
+      final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
 
       bookings.add({
         'id': t['id'],
@@ -1250,7 +1250,7 @@ class AppointmentRepository extends BaseRepository {
         .action(QueryAction.findMany)
         .where({
       'consultationId': {'in': consultationIds}
-    }).include({'slots': true}).build();
+    }).include({'slotsOfAppointment': true}).build();
     final appointments = await executeQueryAsMaps(appointmentsQuery);
     final appointmentLookup = <String, Map<String, dynamic>>{};
     for (final a in appointments) {
@@ -1270,7 +1270,7 @@ class AppointmentRepository extends BaseRepository {
       final consultantInfo =
           _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
       final appointment = appointmentLookup[consultationId];
-      final slots = appointment?['slots'] as List<dynamic>?;
+      final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
 
       bookings.add({
         'id': c['id'],
@@ -1374,14 +1374,14 @@ class AppointmentRepository extends BaseRepository {
         .action(QueryAction.findMany)
         .where({
       'appointmentType': 'WEBINAR',
-      'slots': FilterOperators.some({
+      'slotsOfAppointment': FilterOperators.some({
         'user': FilterOperators.some({'id': userId}),
       }),
     }).include({
       'webinar': {
         'include': {'webinarPlan': true},
       },
-      'slots': true,
+      'slotsOfAppointment': true,
     }).build();
 
     final appointments = await executeQueryAsMaps(appointmentsQuery);
@@ -1425,7 +1425,7 @@ class AppointmentRepository extends BaseRepository {
       final consultantInfo =
           _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
-      final slots = apt['slots'] as List<dynamic>?;
+      final slots = apt['slotsOfAppointment'] as List<dynamic>?;
 
       bookings.add({
         'id': webinar['id'],
@@ -1462,14 +1462,14 @@ class AppointmentRepository extends BaseRepository {
         .action(QueryAction.findMany)
         .where({
       'appointmentType': 'CLASS',
-      'slots': FilterOperators.some({
+      'slotsOfAppointment': FilterOperators.some({
         'user': FilterOperators.some({'id': userId}),
       }),
     }).include({
       'class': {
         'include': {'classPlan': true},
       },
-      'slots': true,
+      'slotsOfAppointment': true,
     }).build();
 
     final appointments = await executeQueryAsMaps(appointmentsQuery);
@@ -1513,7 +1513,7 @@ class AppointmentRepository extends BaseRepository {
       final consultantInfo =
           _getConsultantInfoFromMap(consultantLookup, consultantProfileId);
 
-      final slots = apt['slots'] as List<dynamic>?;
+      final slots = apt['slotsOfAppointment'] as List<dynamic>?;
 
       bookings.add({
         'id': classRecord['id'],
@@ -1594,7 +1594,7 @@ class AppointmentRepository extends BaseRepository {
           .where({
             'id': {'in': appointmentIds},
           })
-          .include({'slots': true})
+          .include({'slotsOfAppointment': true})
           .build();
       final appointments = await executeQueryAsMaps(appointmentsQuery);
       for (final a in appointments) {
@@ -1615,7 +1615,7 @@ class AppointmentRepository extends BaseRepository {
 
       final appointment =
           appointmentId != null ? appointmentLookup[appointmentId] : null;
-      final slots = appointment?['slots'] as List<dynamic>?;
+      final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
 
       bookings.add({
         'id': t['id'],
@@ -1791,7 +1791,7 @@ class AppointmentRepository extends BaseRepository {
   ) {
     final allSlots = <dynamic>[];
     for (final a in appointments) {
-      final slots = a['slots'] as List<dynamic>? ?? [];
+      final slots = a['slotsOfAppointment'] as List<dynamic>? ?? [];
       allSlots.addAll(slots);
     }
     return _extractParticipants(allSlots);
@@ -1936,7 +1936,7 @@ class AppointmentRepository extends BaseRepository {
           .action(QueryAction.findFirst)
           .where({'consultationId': id})
           .include({
-            'slots': {
+            'slotsOfAppointment': {
               'orderBy': {'startsAt': 'asc'},
             },
           })
@@ -1948,7 +1948,7 @@ class AppointmentRepository extends BaseRepository {
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
 
-        final slots = appointment['slots'] as List<dynamic>? ?? [];
+        final slots = appointment['slotsOfAppointment'] as List<dynamic>? ?? [];
         if (slots.isNotEmpty) {
           booking['slots'] = slots
               .map((s) {
@@ -2602,12 +2602,12 @@ class AppointmentRepository extends BaseRepository {
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
           .action(QueryAction.findFirst)
-          .where({'consultationId': id}).include({'slots': true}).build();
+          .where({'consultationId': id}).include({'slotsOfAppointment': true}).build();
 
       final appointment = await executeQueryAsSingleMap(appointmentQuery);
 
       if (appointment != null) {
-        final slots = appointment['slots'] as List<dynamic>?;
+        final slots = appointment['slotsOfAppointment'] as List<dynamic>?;
         if (slots != null && slots.isNotEmpty) {
           // Check 24-hour restriction
           _check24HourRestriction(slots);
@@ -2656,12 +2656,12 @@ class AppointmentRepository extends BaseRepository {
       final appointmentQuery = JsonQueryBuilder()
           .model('Appointment')
           .action(QueryAction.findFirst)
-          .where({'subscriptionId': id}).include({'slots': true}).build();
+          .where({'subscriptionId': id}).include({'slotsOfAppointment': true}).build();
 
       final appointment = await executeQueryAsSingleMap(appointmentQuery);
 
       if (appointment != null) {
-        final slots = appointment['slots'] as List<dynamic>?;
+        final slots = appointment['slotsOfAppointment'] as List<dynamic>?;
         if (slots != null && slots.isNotEmpty) {
           if (slotId != null) {
             // Individual session reschedule
@@ -2939,7 +2939,7 @@ class AppointmentRepository extends BaseRepository {
           .action(QueryAction.findFirst)
           .where({
         'id': appointment['id'],
-        'slots': FilterOperators.some({
+        'slotsOfAppointment': FilterOperators.some({
           'user': FilterOperators.some({'id': userId}),
         }),
       }).build();

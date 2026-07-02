@@ -48,7 +48,8 @@ Future<Response> _handleGet(
     final query = JsonQueryBuilder()
         .model('SupportTicketAttachment')
         .action(QueryAction.findMany)
-        .where({'supportTicketId': ticketId})
+        // FK column is `ticketId` (schema re-sync renamed it from supportTicketId).
+        .where({'ticketId': ticketId})
         .build();
     final attachments = await db.executor.executeQueryAsMaps(query);
 
@@ -113,7 +114,7 @@ Future<Response> _handlePost(
         .model('SupportTicketAttachment')
         .action(QueryAction.create)
         .data({
-      'supportTicketId': ticketId,
+      'ticketId': ticketId,
       'fileName': fileName,
       'fileUrl': fileUrl,
       'mimeType': mimeType,

@@ -371,7 +371,7 @@ class ProgramsRepository extends BaseRepository {
         .where({
       'webinarId': {'in': webinarIds},
     }).include({
-      'slots': true,
+      'slotsOfAppointment': true,
       'webinar': {
         'select': {'id': true}
       },
@@ -397,7 +397,7 @@ class ProgramsRepository extends BaseRepository {
       final webinar = webinarId != null ? webinarMap[webinarId] : null;
       if (webinar == null) continue;
 
-      final slots = appt['slots'] as List? ?? [];
+      final slots = appt['slotsOfAppointment'] as List? ?? [];
       for (final slot in slots) {
         final slotMap = slot as Map<String, dynamic>;
         sessions.add({
@@ -458,7 +458,7 @@ class ProgramsRepository extends BaseRepository {
         .where({
       'classId': {'in': classIds},
     }).include({
-      'slots': true,
+      'slotsOfAppointment': true,
       'class': {
         'select': {'id': true}
       },
@@ -483,7 +483,7 @@ class ProgramsRepository extends BaseRepository {
       final classRecord = classId != null ? classMap[classId] : null;
       if (classRecord == null) continue;
 
-      final slots = appt['slots'] as List? ?? [];
+      final slots = appt['slotsOfAppointment'] as List? ?? [];
       for (final slot in slots) {
         final slotMap = slot as Map<String, dynamic>;
         sessions.add({

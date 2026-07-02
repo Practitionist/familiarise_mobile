@@ -42,23 +42,14 @@ Future<Object> _findAndAuthorize(
     );
   }
 
-  // Try webinar collaborator
-  final webQuery = JsonQueryBuilder()
-      .model('WebinarCollaborator')
+  // WebinarCollaborator + ClassCollaborator were consolidated into a single
+  // Collaborator model (collaboratorType discriminates webinar vs class).
+  final collabQuery = JsonQueryBuilder()
+      .model('Collaborator')
       .action(QueryAction.findFirst)
       .where({'id': id})
       .build();
-  var collab = await db.executor.executeQueryAsSingleMap(webQuery);
-
-  // Try class collaborator if not found
-  if (collab == null) {
-    final classQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    collab = await db.executor.executeQueryAsSingleMap(classQuery);
-  }
+  final collab = await db.executor.executeQueryAsSingleMap(collabQuery);
 
   if (collab == null) {
     return Response.json(
@@ -127,25 +118,21 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     // Authorize first
     final authResult = await _findAndAuthorize(context, id, userId);
     if (authResult is Response) return authResult;
-    final collab = authResult as Map<String, dynamic>;
 
     final body = await context.request.json() as Map<String, dynamic>;
     final revenueSplit = body['revenueSharePercentage'] as num?;
     final db = context.read<DatabaseClient>();
     final now = DateTime.now().toUtc().toIso8601String();
 
-    // Determine which model to update based on what we found
-    final modelName = collab.containsKey('webinarPlanId')
-        ? 'WebinarCollaborator'
-        : 'ClassCollaborator';
-
+    // Single Collaborator model; revenueSharePercentage is now stored as
+    // basis points (revenueShareBps, e.g. 30% -> 3000) for integer money math.
     final updateQuery = JsonQueryBuilder()
-        .model(modelName)
+        .model('Collaborator')
         .action(QueryAction.update)
         .where({'id': id})
         .data({
       if (revenueSplit != null)
-        'revenueSharePercentage': revenueSplit.toDouble(),
+        'revenueShareBps': (revenueSplit.toDouble() * 100).round(),
       'updatedAt': now,
     }).build();
 
