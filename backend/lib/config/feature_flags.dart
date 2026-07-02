@@ -33,6 +33,9 @@ abstract final class FeatureFlags {
 
   /// Enterprise wallet & billing writes (top-ups, invoices).
   static const wallet = false;
+
+  // TODO(programCheckout): add this flag when the webinar/class checkout
+  //  backend route is implemented — frontend-only today (Apple IAP, #114).
 }
 
 /// Dart Frog middleware that rejects requests when [enabled] is false.
