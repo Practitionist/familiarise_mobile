@@ -14,16 +14,12 @@ class DomainRepository extends BaseRepository {
   DomainRepository(super._executor, this._prisma);
   final PrismaClient _prisma;
 
-  /// Get all domains using the connector's findMany
-  ///
-  /// This replaces the raw SQL approach with the type-safe query builder.
+  /// Get all domains using typed delegates.
   Future<List<Map<String, dynamic>>> findAll() async {
-    final query = JsonQueryBuilder()
-        .model('Domain')
-        .action(QueryAction.findMany)
-        .orderBy({'name': 'asc'}).build();
-
-    return executeQueryAsMaps(query);
+    final domains = await _prisma.domain.findMany(
+      orderBy: DomainOrderByInput(name: SortOrder.asc),
+    );
+    return domains.map((d) => d.toJson()).toList();
   }
 
   /// Get all domains with their subdomains using a single JOIN query
@@ -34,15 +30,13 @@ class DomainRepository extends BaseRepository {
   /// NOTE: Requires SchemaRegistry to be populated with relation metadata.
   /// For now, falls back to the N+1 approach if relations aren't configured.
   Future<List<Map<String, dynamic>>> findAllWithSubDomains() async {
-    // Try using include for relations (single JOIN query)
-    // This requires the schema registry to be set up
+    // Typed include (single JOIN query) — hydrates subDomains into each Domain.
     try {
-      final query = JsonQueryBuilder()
-          .model('Domain')
-          .action(QueryAction.findMany)
-          .include({'subDomains': true}).orderBy({'name': 'asc'}).build();
-
-      final results = await executeQueryAsMaps(query);
+      final domains = await _prisma.domain.findMany(
+        include: DomainInclude(subDomains: SubDomainInclude()),
+        orderBy: DomainOrderByInput(name: SortOrder.asc),
+      );
+      final results = domains.map((d) => d.toJson()).toList();
 
       // If we got nested results, return them directly
       if (results.isNotEmpty && results.first.containsKey('subDomains')) {
@@ -84,54 +78,42 @@ class DomainRepository extends BaseRepository {
 
   /// Find a domain by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('Domain')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    final domain = await _prisma.domain.findUnique(
+      where: DomainWhereUniqueInput(id: id),
+    );
+    return domain?.toJson();
   }
 
   /// Get all subdomains for a domain using findMany
   Future<List<Map<String, dynamic>>> findSubDomainsByDomainId(
     String domainId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('SubDomain')
-        .action(QueryAction.findMany)
-        .where({'domainId': domainId}).orderBy({'name': 'asc'}).build();
-
-    return executeQueryAsMaps(query);
+    final subs = await _prisma.subDomain.findMany(
+      where: SubDomainWhereInput(domainId: StringFilter(equals: domainId)),
+      orderBy: SubDomainOrderByInput(name: SortOrder.asc),
+    );
+    return subs.map((s) => s.toJson()).toList();
   }
 
   /// Get ALL subdomains (used for optimized batch loading)
   Future<List<Map<String, dynamic>>> _findAllSubDomains() async {
-    final query = JsonQueryBuilder()
-        .model('SubDomain')
-        .action(QueryAction.findMany)
-        .orderBy({'name': 'asc'}).build();
-
-    return executeQueryAsMaps(query);
+    final subs = await _prisma.subDomain.findMany(
+      orderBy: SubDomainOrderByInput(name: SortOrder.asc),
+    );
+    return subs.map((s) => s.toJson()).toList();
   }
 
   /// Find a subdomain by ID
   Future<Map<String, dynamic>?> findSubDomainById(String id) async {
-    final query = JsonQueryBuilder()
-        .model('SubDomain')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    return executeQueryAsSingleMap(query);
+    final sub = await _prisma.subDomain.findUnique(
+      where: SubDomainWhereUniqueInput(id: id),
+    );
+    return sub?.toJson();
   }
 
-  /// Get domain count using aggregation
-  ///
-  /// Demonstrates the connector's aggregation support.
+  /// Get domain count.
   Future<int> count() async {
-    final query =
-        JsonQueryBuilder().model('Domain').action(QueryAction.count).build();
-
-    return executeCount(query);
+    return _prisma.domain.count();
   }
 
   /// Get all domains with subdomain count using computed fields
