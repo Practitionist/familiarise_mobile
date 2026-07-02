@@ -13,8 +13,8 @@
 //   - Provides db.prisma for type-safe PrismaClient access
 //
 // The schema registry (field/relation registration for every Prisma model)
-// lives in schema_registry_builder.dart. It is CONFIG DATA, not logic. It
-// enables:
+// is now GENERATED: registerAllModels() in lib/generated/schema_registry.g.dart,
+// produced from prisma/schema.prisma. It enables:
 //   - QueryExecutor to resolve table names (critical for @@map models
 //     like User→'users', Account→'accounts')
 //   - include() JOINs on related models
@@ -27,23 +27,16 @@
 //               final user = await db.users.findByEmail(email);
 //               // OR type-safe: await db.prisma.feedback.create(data: ...);
 //
-// WHEN TO UPDATE THE SCHEMA REGISTRY
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// You MUST update buildSchemaRegistry() in schema_registry_builder.dart when:
-//   - A new model is added to the Prisma schema (schema.prisma)
-//   - Fields are added/renamed/removed on an existing model
-//   - A new relation is added between models
-//
-// Source of truth: backend/lib/generated/models/*.dart
-// (generated from backend/build/prisma/schema.prisma)
-//
-// If you add a model, you must also:
-//   1. Register it in buildSchemaRegistry() with ALL scalar fields
-//   2. For @@map models, register BOTH the PascalCase name AND the
-//      lowercase table name (e.g., both 'User' and 'users')
-//   3. Create a repository in backend/lib/database/repositories/
-//   4. Add a late final field + getter in DatabaseClient
-//   5. Instantiate it in DatabaseClient._() constructor
+// WHEN THE SCHEMA CHANGES
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// Copy the source-of-truth schema from familiarise_web and regenerate — the
+// registry, models, and delegates are all derived automatically:
+//   1. cp ../familiarise_web/prisma/schema.prisma prisma/schema.prisma
+//   2. dart run prisma_flutter_connector:generate --schema prisma/schema.prisma \
+//        --output lib/generated --server
+//   3. dart run build_runner build --delete-conflicting-outputs
+// (The old hand-maintained buildSchemaRegistry() in schema_registry_builder.dart
+// is deprecated and no longer wired in.)
 //
 // MIGRATION STRATEGY (typed delegates)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,8 +57,8 @@
 // =============================================================================
 
 import 'package:backend/database/repositories/repositories.dart';
-import 'package:backend/database/schema_registry_builder.dart';
 import 'package:backend/generated/prisma_client.dart';
+import 'package:backend/generated/schema_registry.g.dart';
 import 'package:postgres/postgres.dart' as pg;
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -82,7 +75,7 @@ export '../generated/index.dart';
 /// - QueryExecutor for query execution
 /// - JsonQueryBuilder for type-safe query building
 class DatabaseClient {
-  DatabaseClient._(this._executor, this._adapter, this._schema) {
+  DatabaseClient._(this._executor, this._adapter) {
     // Initialize type-safe PrismaClient
     _prisma = PrismaClient(adapter: _adapter);
 
@@ -126,7 +119,6 @@ class DatabaseClient {
   static DatabaseClient? _instance;
   final QueryExecutor _executor;
   final PostgresAdapter _adapter;
-  final SchemaRegistry _schema;
 
   // Type-safe PrismaClient (use this for new code)
   late final PrismaClient _prisma;
@@ -180,6 +172,14 @@ class DatabaseClient {
         colonIndex == -1 ? userInfo : userInfo.substring(0, colonIndex);
     final password = colonIndex == -1 ? '' : userInfo.substring(colonIndex + 1);
 
+    // Local Postgres has no TLS; hosted (Supabase) requires it. Derive from the
+    // host so the same code path works for local dev and production.
+    final isLocal = uri.host == 'localhost' || uri.host == '127.0.0.1';
+    final sslMode =
+        (uri.queryParameters['sslmode'] == 'disable' || isLocal)
+            ? pg.SslMode.disable
+            : pg.SslMode.require;
+
     final connection = await pg.Connection.open(
       pg.Endpoint(
         host: uri.host,
@@ -189,22 +189,20 @@ class DatabaseClient {
         username: username,
         password: password,
       ),
-      settings: const pg.ConnectionSettings(sslMode: pg.SslMode.require),
+      settings: pg.ConnectionSettings(sslMode: sslMode),
     );
 
     final adapter = PostgresAdapter(connection);
-    final schema = buildSchemaRegistry();
 
-    // Populate global registry so PrismaClient delegates can resolve
-    // @@map table names (e.g., 'User' → 'users' table).
-    for (final modelName in schema.modelNames) {
-      final model = schema.getModel(modelName);
-      if (model != null) schemaRegistry.registerModel(model);
-    }
+    // Populate the global registry from the GENERATED schema (all models,
+    // @@map/@map-aware, regenerated from prisma/schema.prisma). This replaces
+    // the hand-maintained buildSchemaRegistry() so JQB and typed PrismaClient
+    // delegates always match the current schema without manual upkeep.
+    registerAllModels(schemaRegistry);
 
-    final executor = QueryExecutor(adapter: adapter, schema: schema);
+    final executor = QueryExecutor(adapter: adapter, schema: schemaRegistry);
 
-    _instance = DatabaseClient._(executor, adapter, schema);
+    _instance = DatabaseClient._(executor, adapter);
     return _instance!;
   }
 

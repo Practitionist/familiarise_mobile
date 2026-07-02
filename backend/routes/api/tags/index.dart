@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/tags — List tags with optional search filter
 Future<Response> onRequest(RequestContext context) async {
@@ -16,20 +16,16 @@ Future<Response> onRequest(RequestContext context) async {
     final search = context.request.uri.queryParameters['search'];
     final db = context.read<DatabaseClient>();
 
-    final where = <String, dynamic>{};
-    if (search != null && search.isNotEmpty) {
-      where['name'] = {'contains': search, 'mode': 'insensitive'};
-    }
-
-    final query = JsonQueryBuilder()
-        .model('Tag')
-        .action(QueryAction.findMany)
-        .where(where)
-        .build();
-    final tags = await db.executor.executeQueryAsMaps(query);
+    // Typed delegate (prisma_flutter_connector v0.7.0) — replaces the raw
+    // JsonQueryBuilder path. Compile-time-checked model, field, and filter.
+    final tags = await db.prisma.tag.findMany(
+      where: (search != null && search.isNotEmpty)
+          ? TagWhereInput(name: StringFilter(contains: search))
+          : null,
+    );
 
     return Response.json(
-      body: {'data': tags.map(serializeForJson).toList()},
+      body: {'data': tags.map((t) => serializeForJson(t.toJson())).toList()},
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(

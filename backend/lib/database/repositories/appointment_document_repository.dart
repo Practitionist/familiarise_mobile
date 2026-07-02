@@ -79,7 +79,9 @@ class AppointmentDocumentRepository extends BaseRepository {
         reviewStatus: status,
         reviewNotes: reviewNotes,
         reviewedAt: DateTime.now().toUtc(),
-        reviewedBy: reviewedBy,
+        // reviewedBy was FK-ified (#676): raw String -> reviewedById scalar
+        // + reviewedBy User? relation. Set the scalar FK directly.
+        reviewedById: reviewedBy,
       ),
     );
   }

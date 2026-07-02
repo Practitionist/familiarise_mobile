@@ -13,10 +13,16 @@ class CollaboratorRepository extends BaseRepository {
   Future<Map<String, dynamic>> getMyCollaborations(
     String consultantProfileId,
   ) async {
-    // Webinar collaborations with nested includes
-    final webinarResults = await _prisma.webinarCollaborator.findManyRaw(
+    // Webinar collaborations with nested includes.
+    // TODO(mega-sync): the schema consolidated WebinarCollaborator +
+    // ClassCollaborator into a single Collaborator model (collaboratorType
+    // discriminator, revenueShareBps, invitedById, typed permission booleans).
+    // Filtering by collaboratorType keeps this compiling; the flatten shape
+    // below still needs updating to the new field names for full correctness.
+    final webinarResults = await _prisma.collaborator.findManyRaw(
       where: {
         'consultantProfileId': consultantProfileId,
+        'collaboratorType': 'WEBINAR',
         'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
       },
       include: {
@@ -36,10 +42,11 @@ class CollaboratorRepository extends BaseRepository {
     final webinarCollaborations =
         webinarResults.map(_flattenWebinarCollaboration).toList();
 
-    // Class collaborations with nested includes
-    final classResults = await _prisma.classCollaborator.findManyRaw(
+    // Class collaborations with nested includes (see TODO above).
+    final classResults = await _prisma.collaborator.findManyRaw(
       where: {
         'consultantProfileId': consultantProfileId,
+        'collaboratorType': 'CLASS',
         'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
       },
       include: {
