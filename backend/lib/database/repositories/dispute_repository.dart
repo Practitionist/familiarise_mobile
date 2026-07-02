@@ -94,7 +94,7 @@ class DisputeRepository extends BaseRepository {
       'id': id,
       'disputeId': disputeId,
       'paymentId': paymentId,
-      'amount': amount,
+      'amountPaise': amount,
       'currency': currency,
       'reason': reason,
       'status': status,

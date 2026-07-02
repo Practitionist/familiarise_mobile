@@ -61,6 +61,13 @@ abstract class BookingRemoteSource {
     String? reason,
   });
 
+  /// Respond to a pending booking request (consultant approve/reject)
+  Future<void> respondToBookingRequest({
+    required String id,
+    required BookingType type,
+    required bool approve,
+  });
+
   /// Reschedule a booking
   /// For subscriptions, optionally pass [slotId] for individual session reschedule
   Future<Booking> rescheduleBooking({
@@ -374,6 +381,52 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
       );
       throw ServerException(
         message: e.message ?? 'Failed to cancel booking',
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
+    }
+  }
+
+  @override
+  Future<void> respondToBookingRequest({
+    required String id,
+    required BookingType type,
+    required bool approve,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/appointments/$id/respond',
+        queryParameters: {'type': type.value},
+        data: {'action': approve ? 'approve' : 'reject'},
+      );
+
+      if (response.statusCode == 200) {
+        return;
+      }
+
+      throw ServerException(
+        message: 'Failed to respond to booking request',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw const NotFoundException(resource: 'Booking request');
+      }
+      if (e.error is AppException) {
+        throw e.error as AppException;
+      }
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: e.stackTrace,
+        context: 'BookingRemoteSource.respondToBookingRequest',
+        extras: {
+          'bookingId': id,
+          'bookingType': type.value,
+          'statusCode': e.response?.statusCode,
+        },
+      );
+      throw ServerException(
+        message: e.message ?? 'Failed to respond to booking request',
         statusCode: e.response?.statusCode,
         originalError: e,
       );

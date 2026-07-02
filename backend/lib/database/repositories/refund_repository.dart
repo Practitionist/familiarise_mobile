@@ -42,7 +42,7 @@ class RefundRepository extends BaseRepository {
       'id': id,
       'refundId': refundId,
       'paymentId': paymentId,
-      'amount': amount,
+      'amountPaise': amount,
       'currency': currency,
       'status': status,
       'paymentGateway': paymentGateway,

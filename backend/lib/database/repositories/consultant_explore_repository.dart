@@ -217,7 +217,13 @@ class ConsultantExploreRepository extends BaseRepository {
   /// consultation plans, subscription plans, and review summary.
   ///
   /// Uses Prisma Flutter Connector v0.2.6 ORM queries with include().
-  Future<Map<String, dynamic>?> findByIdWithDetails(String id) async {
+  ///
+  /// [userOrgIds] unlocks ORG_ONLY plans owned by the viewer's orgs;
+  /// anonymous viewers see only PUBLIC / ORG_AND_PUBLIC plans.
+  Future<Map<String, dynamic>?> findByIdWithDetails(
+    String id, {
+    List<String> userOrgIds = const [],
+  }) async {
     // Get consultant profile with included relations using ORM
     final profileQuery = JsonQueryBuilder()
         .model('ConsultantProfile')
@@ -271,8 +277,8 @@ class ConsultantExploreRepository extends BaseRepository {
     // Fetch additional data in parallel:
     // consultation plans, subscription plans, review summary
     final results = await Future.wait([
-      _fetchConsultationPlans(id),
-      _fetchSubscriptionPlans(id),
+      _fetchConsultationPlans(id, userOrgIds),
+      _fetchSubscriptionPlans(id, userOrgIds),
       _fetchReviewSummary(id),
     ]);
 
@@ -461,6 +467,7 @@ class ConsultantExploreRepository extends BaseRepository {
   /// Uses the ORM with selectFields() for type-safe field selection (v0.2.5+)
   Future<List<Map<String, dynamic>>> _fetchConsultationPlans(
     String consultantId,
+    List<String> userOrgIds,
   ) async {
     // Build ORM query with specific fields
     final query = JsonQueryBuilder()
@@ -479,8 +486,10 @@ class ConsultantExploreRepository extends BaseRepository {
       'materialProvided',
       'learningOutcomes',
       'createdAt',
-    ]).where({'consultantProfileId': consultantId}).orderBy(
-            {'durationInHours': 'asc'}).build();
+    ]).where({
+      'consultantProfileId': consultantId,
+      ..._planVisibilityWhere(userOrgIds),
+    }).orderBy({'durationInHours': 'asc'}).build();
 
     final result = await executeQueryAsMaps(query);
 
@@ -502,11 +511,31 @@ class ConsultantExploreRepository extends BaseRepository {
     }).toList();
   }
 
+  /// OrgPlanVisibility filter: everyone sees PUBLIC and ORG_AND_PUBLIC;
+  /// org members additionally see ORG_ONLY plans owned by their orgs.
+  static Map<String, dynamic> _planVisibilityWhere(List<String> userOrgIds) {
+    return {
+      'OR': [
+        {
+          'visibility': {
+            'in': ['PUBLIC', 'ORG_AND_PUBLIC'],
+          },
+        },
+        if (userOrgIds.isNotEmpty)
+          {
+            'visibility': 'ORG_ONLY',
+            'organizationId': {'in': userOrgIds},
+          },
+      ],
+    };
+  }
+
   /// Fetch subscription plans for a consultant
   ///
   /// Uses the ORM with selectFields() for type-safe field selection (v0.2.5+)
   Future<List<Map<String, dynamic>>> _fetchSubscriptionPlans(
     String consultantId,
+    List<String> userOrgIds,
   ) async {
     // Build ORM query with specific fields
     final query = JsonQueryBuilder()
@@ -530,8 +559,10 @@ class ConsultantExploreRepository extends BaseRepository {
       'materialProvided',
       'learningOutcomes',
       'createdAt',
-    ]).where({'consultantProfileId': consultantId}).orderBy(
-            {'sessionDurationInHours': 'asc'}).build();
+    ]).where({
+      'consultantProfileId': consultantId,
+      ..._planVisibilityWhere(userOrgIds),
+    }).orderBy({'sessionDurationInHours': 'asc'}).build();
 
     final result = await executeQueryAsMaps(query);
 

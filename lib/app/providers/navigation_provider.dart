@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/config/feature_flags.dart';
 import '../../core/constants/enums.dart';
 
 part 'navigation_provider.g.dart';
@@ -63,7 +64,16 @@ class AppNavTab {
 class AppNavigationTabs {
   AppNavigationTabs._();
 
-  static const _consulteeTabs = [
+  /// One shared 5-tab layout for consultees and consultants. Home is the
+  /// role-adaptive dashboard; Schedule and Programs are reachable from
+  /// Home quick actions and Explore.
+  static const _mainTabs = [
+    AppNavTab(
+      path: '/dashboard',
+      label: 'Home',
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home,
+    ),
     AppNavTab(
       path: '/explore',
       label: 'Explore',
@@ -71,55 +81,16 @@ class AppNavigationTabs {
       selectedIcon: Icons.explore,
     ),
     AppNavTab(
-      path: '/programs',
-      label: 'Programs',
-      icon: Icons.school_outlined,
-      selectedIcon: Icons.school,
-    ),
-    AppNavTab(
-      path: '/dashboard',
-      label: 'Dashboard',
-      icon: Icons.dashboard_outlined,
-      selectedIcon: Icons.dashboard,
-    ),
-    AppNavTab(
-      path: '/messages',
-      label: 'Messages',
-      icon: Icons.chat_bubble_outline,
-      selectedIcon: Icons.chat_bubble,
-    ),
-    AppNavTab(
-      path: '/profile',
-      label: 'Profile',
-      icon: Icons.person_outline,
-      selectedIcon: Icons.person,
-    ),
-  ];
-
-  static const _consultantTabs = [
-    AppNavTab(
-      path: '/dashboard',
-      label: 'Dashboard',
-      icon: Icons.dashboard_outlined,
-      selectedIcon: Icons.dashboard,
-    ),
-    AppNavTab(
-      path: '/schedule',
-      label: 'Schedule',
+      path: '/my-bookings',
+      label: 'Bookings',
       icon: Icons.calendar_month_outlined,
       selectedIcon: Icons.calendar_month,
     ),
     AppNavTab(
       path: '/messages',
-      label: 'Messages',
+      label: 'Chat',
       icon: Icons.chat_bubble_outline,
       selectedIcon: Icons.chat_bubble,
-    ),
-    AppNavTab(
-      path: '/my-bookings',
-      label: 'My Bookings',
-      icon: Icons.book_outlined,
-      selectedIcon: Icons.book,
     ),
     AppNavTab(
       path: '/profile',
@@ -164,13 +135,11 @@ class AppNavigationTabs {
 
   /// Get the tab list for a given user role
   static List<AppNavTab> forRole(UserRole role) {
-    if (role == UserRole.consultant) {
-      return _consultantTabs;
-    }
-    if (role == UserRole.staff || role == UserRole.admin) {
+    if ((role == UserRole.staff || role == UserRole.admin) &&
+        FeatureFlags.staffTools) {
       return _staffTabs;
     }
-    return _consulteeTabs;
+    return _mainTabs;
   }
 
   /// Get tab index from path for a given role

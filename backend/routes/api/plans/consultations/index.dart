@@ -129,6 +129,13 @@ Future<Response> _handlePost(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: {'data': serializeForJson(plan)},
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'}
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Create consultation plan failed',

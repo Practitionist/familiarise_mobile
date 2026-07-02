@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart';
+import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
@@ -24,8 +25,26 @@ Future<Response> onRequest(RequestContext context, String id) async {
   try {
     final db = context.read<DatabaseClient>();
 
+    // Authenticated org members can also see their orgs' ORG_ONLY plans
+    var userOrgIds = const <String>[];
+    final userId = getUserIdFromToken(context);
+    if (userId != null) {
+      try {
+        final memberships = await db.organizations.getMyMemberships(userId);
+        userOrgIds = memberships
+            .map((m) =>
+                (m['organization'] as Map<String, dynamic>)['id'] as String)
+            .toList();
+      } catch (_) {
+        // Visibility fallback: anonymous view of public plans
+      }
+    }
+
     // Fetch consultant details
-    final consultant = await db.consultantExplore.findByIdWithDetails(id);
+    final consultant = await db.consultantExplore.findByIdWithDetails(
+      id,
+      userOrgIds: userOrgIds,
+    );
 
     if (consultant == null) {
       return Response.json(
