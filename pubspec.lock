@@ -1752,10 +1752,10 @@ packages:
     dependency: "direct main"
     description:
       name: prisma_flutter_connector
-      sha256: "6183ab4d3e9b5de1404b99ce4915a4db52af3019dcf3f5393bf76e3a5fa4e657"
+      sha256: "01b95e292ce9cba0746acad21d769e946cbac22d68b87b0d009c574108338ad0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.0"
+    version: "0.7.1"
   process:
     dependency: transitive
     description:
