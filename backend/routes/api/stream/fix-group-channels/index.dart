@@ -4,7 +4,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// POST /api/stream/fix-group-channels
 ///
@@ -56,45 +55,41 @@ Future<Response> _handleFixChannels(RequestContext context) async {
     );
 
     // Query all webinar/class appointments with related data
-    final query = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-          'OR': [
-            {'appointmentType': 'WEBINAR'},
-            {'appointmentType': 'CLASS'},
-          ],
-        })
-        .include({
-          'webinar': {
-            'include': {
-              'webinarPlan': {
-                'include': {
-                  'consultantProfile': {
-                    'include': {'user': true},
-                  },
-                },
-              },
-            },
-          },
-          'class': {
-            'include': {
-              'classPlan': {
-                'include': {
-                  'consultantProfile': {
-                    'include': {'user': true},
-                  },
-                },
-              },
-            },
-          },
-          'slots': {
-            'include': {'user': true},
-          },
-        })
-        .build();
-
-    final appointments = await db.executor.executeQueryAsMaps(query);
+    // (typed delegate + AppointmentInclude; relation names follow the
+    // re-synced schema: classRef / slotsOfAppointment).
+    final appointments = await db.prisma.appointment.findMany(
+      where: const AppointmentWhereInput(
+        OR: [
+          AppointmentWhereInput(
+            appointmentType:
+                AppointmentsTypeFilter(equals: AppointmentsType.webinar),
+          ),
+          AppointmentWhereInput(
+            appointmentType:
+                AppointmentsTypeFilter(equals: AppointmentsType.classValue),
+          ),
+        ],
+      ),
+      include: const AppointmentInclude(
+        webinar: WebinarInclude(
+          webinarPlan: WebinarPlanInclude(
+            consultantProfile: ConsultantProfileInclude(
+              user: UserInclude(),
+            ),
+          ),
+        ),
+        classRef: ClassModelInclude(
+          classPlan: ClassPlanInclude(
+            consultantProfile: ConsultantProfileInclude(
+              user: UserInclude(),
+            ),
+          ),
+        ),
+        slotsOfAppointment: SlotOfAppointmentInclude(
+          user: UserInclude(),
+        ),
+      ),
+    );
 
     SentryLogger.info(
       'Found ${appointments.length} webinar/class appointments to process',
@@ -102,8 +97,8 @@ Future<Response> _handleFixChannels(RequestContext context) async {
     );
 
     for (final appointment in appointments) {
-      final webinar = appointment['webinar'] as Map<String, dynamic>?;
-      final classRecord = appointment['class'] as Map<String, dynamic>?;
+      final webinar = appointment.webinar;
+      final classRecord = appointment.classRef;
 
       String? channelId;
       String? channelName;
@@ -117,43 +112,40 @@ Future<Response> _handleFixChannels(RequestContext context) async {
       String? participantImage;
 
       if (webinar != null) {
-        final webinarId = appointment['webinarId'] as String;
+        final webinarId = appointment.webinarId!;
         channelId = 'webinar_$webinarId';
         programType = 'WEBINAR';
         programId = webinarId;
 
-        final plan = webinar['webinarPlan'] as Map<String, dynamic>?;
-        channelName = plan?['title'] as String? ?? 'Webinar';
-        final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
-        final user = profile?['user'] as Map<String, dynamic>?;
-        instructorUserId = user?['id'] as String?;
-        instructorName = user?['name'] as String?;
-        instructorImage = user?['image'] as String?;
+        final plan = webinar.webinarPlan;
+        channelName = plan?.title ?? 'Webinar';
+        final user = plan?.consultantProfile?.user;
+        instructorUserId = user?.id;
+        instructorName = user?.name;
+        instructorImage = user?.image;
       } else if (classRecord != null) {
-        final classId = appointment['classId'] as String;
+        final classId = appointment.classId!;
         channelId = 'class_$classId';
         programType = 'CLASS';
         programId = classId;
 
-        final plan = classRecord['classPlan'] as Map<String, dynamic>?;
-        channelName = plan?['title'] as String? ?? 'Class';
-        final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
-        final user = profile?['user'] as Map<String, dynamic>?;
-        instructorUserId = user?['id'] as String?;
-        instructorName = user?['name'] as String?;
-        instructorImage = user?['image'] as String?;
+        final plan = classRecord.classPlan;
+        channelName = plan?.title ?? 'Class';
+        final user = plan?.consultantProfile?.user;
+        instructorUserId = user?.id;
+        instructorName = user?.name;
+        instructorImage = user?.image;
       }
 
       // Get participant from slots
-      final slots = appointment['slots'] as List<dynamic>?;
+      final slots = appointment.slotsOfAppointment;
       if (slots != null && slots.isNotEmpty) {
-        final firstSlot = slots.first as Map<String, dynamic>;
-        final users = firstSlot['user'] as List<dynamic>?;
+        final users = slots.first.user;
         if (users != null && users.isNotEmpty) {
-          final participant = users.first as Map<String, dynamic>;
-          participantUserId = participant['id'] as String?;
-          participantName = participant['name'] as String?;
-          participantImage = participant['image'] as String?;
+          final participant = users.first;
+          participantUserId = participant.id;
+          participantName = participant.name;
+          participantImage = participant.image;
         }
       }
 

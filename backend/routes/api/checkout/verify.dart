@@ -7,7 +7,6 @@ import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Checkout verification endpoint
 ///
@@ -72,13 +71,11 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
 
     // BUG FIX: Frontend sends payment UUID as payment_intent param.
     // Look up by primary key `id`, not by `paymentIntent` field.
-    final paymentQuery = JsonQueryBuilder()
-        .model('Payment')
-        .action(QueryAction.findUnique)
-        .where({'id': paymentIntent}).build();
-    final payment = await db.executor.executeQueryAsSingleMap(paymentQuery);
+    final paymentRecord = await db.prisma.payment.findUnique(
+      where: PaymentWhereUniqueInput(id: paymentIntent),
+    );
 
-    if (payment == null) {
+    if (paymentRecord == null) {
       return Response.json(
         statusCode: io.HttpStatus.notFound,
         body: {
@@ -88,6 +85,8 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
         },
       );
     }
+
+    final payment = paymentRecord.toJson();
 
     // Verify the payment belongs to the authenticated user
     final paymentUserId = payment['userId'] as String?;
@@ -204,16 +203,13 @@ Future<Response> _handleVerifyPayment(RequestContext context) async {
     // Update booking status based on type
     if (appointmentId != null) {
       // Get appointment to find booking
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findUnique)
-          .where({'id': appointmentId}).build();
-      final appointment =
-          await db.executor.executeQueryAsSingleMap(appointmentQuery);
+      final appointment = await db.prisma.appointment.findUnique(
+        where: AppointmentWhereUniqueInput(id: appointmentId),
+      );
 
       if (appointment != null) {
-        final consultationId = appointment['consultationId'] as String?;
-        final subscriptionId = appointment['subscriptionId'] as String?;
+        final consultationId = appointment.consultationId;
+        final subscriptionId = appointment.subscriptionId;
 
         if (consultationId != null) {
           // Update consultation status to SCHEDULED
@@ -274,16 +270,13 @@ Future<Response> _buildVerificationResponse(
 
   if (appointmentId != null) {
     // Get appointment details
-    final appointmentQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findUnique)
-        .where({'id': appointmentId}).build();
-    final appointment =
-        await db.executor.executeQueryAsSingleMap(appointmentQuery);
+    final appointment = await db.prisma.appointment.findUnique(
+      where: AppointmentWhereUniqueInput(id: appointmentId),
+    );
 
     if (appointment != null) {
-      final consultationId = appointment['consultationId'] as String?;
-      final subscriptionId = appointment['subscriptionId'] as String?;
+      final consultationId = appointment.consultationId;
+      final subscriptionId = appointment.subscriptionId;
 
       if (consultationId != null) {
         bookingType = 'CONSULTATION';
@@ -305,14 +298,14 @@ Future<Response> _buildVerificationResponse(
         }
 
         // Get scheduled slot
-        final slotsQuery = JsonQueryBuilder()
-            .model('SlotOfAppointment')
-            .action(QueryAction.findFirst)
-            .where({'appointmentId': appointmentId}).orderBy(
-                {'startsAt': 'asc'}).build();
-        final slot = await db.executor.executeQueryAsSingleMap(slotsQuery);
+        final slot = await db.prisma.slotOfAppointment.findFirst(
+          where: SlotOfAppointmentWhereInput(
+            appointmentId: StringFilter(equals: appointmentId),
+          ),
+          orderBy: const SlotOfAppointmentOrderByInput(startsAt: SortOrder.asc),
+        );
         if (slot != null) {
-          scheduledAt = slot['startsAt']?.toString();
+          scheduledAt = slot.startsAt.toString();
         }
       } else if (subscriptionId != null) {
         bookingType = 'SUBSCRIPTION';

@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/support-tickets/:ticketId — Ticket details
 /// PUT /api/staff/support-tickets/:ticketId — Update ticket status
@@ -35,13 +34,9 @@ Future<Response> onRequest(
     }
 
     if (method == HttpMethod.get) {
-      final query = JsonQueryBuilder()
-          .model('SupportTicket')
-          .action(QueryAction.findFirst)
-          .where({'id': ticketId})
-          .build();
-      final ticket =
-          await db.executor.executeQueryAsSingleMap(query);
+      final ticket = await db.prisma.supportTicket.findFirst(
+        where: SupportTicketWhereInput(id: StringFilter(equals: ticketId)),
+      );
       if (ticket == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
@@ -49,39 +44,36 @@ Future<Response> onRequest(
         );
       }
       return Response.json(
-        body: {'data': serializeForJson(ticket)},
+        body: {'data': serializeForJson(ticket.toJson())},
       );
     }
 
     if (method == HttpMethod.put) {
       final body =
           await context.request.json() as Map<String, dynamic>;
-      final data = <String, dynamic>{
-        'updatedAt':
-            DateTime.now().toUtc().toIso8601String(),
-      };
+      // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+      SupportTicketStatus? status;
       if (body.containsKey('status')) {
-        data['status'] = body['status'];
+        status = SupportTicketStatus.values
+            .firstWhere((e) => e.toJson() == body['status']);
       }
+      SupportPriority? priority;
       if (body.containsKey('priority')) {
-        data['priority'] = body['priority'];
-      }
-      if (body.containsKey('assignedToId')) {
-        data['assignedToId'] = body['assignedToId'];
+        priority = SupportPriority.values
+            .firstWhere((e) => e.toJson() == body['priority']);
       }
 
-      final query = JsonQueryBuilder()
-          .model('SupportTicket')
-          .action(QueryAction.update)
-          .where({'id': ticketId})
-          .data(data)
-          .build();
-      final updated =
-          await db.executor.executeQueryAsSingleMap(query);
+      final updated = await db.prisma.supportTicket.update(
+        where: SupportTicketWhereUniqueInput(id: ticketId),
+        data: UpdateSupportTicketInput(
+          status: status,
+          priority: priority,
+          assignedToId: body['assignedToId'] as String?,
+        ),
+      );
       return Response.json(
         body: {
-          'data':
-              updated != null ? serializeForJson(updated) : null,
+          'data': serializeForJson(updated.toJson()),
         },
       );
     }

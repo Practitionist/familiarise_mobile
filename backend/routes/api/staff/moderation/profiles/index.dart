@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/moderation/profiles — Pending verification requests
 Future<Response> onRequest(RequestContext context) async {
@@ -36,29 +35,28 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.findMany)
-        .where({'status': 'PENDING'}).build();
-    final verifications = await db.executor.executeQueryAsMaps(query);
+    final verifications =
+        await db.prisma.consultantProfileVerification.findMany(
+      where: const ConsultantProfileVerificationWhereInput(
+        status: ProfileVerificationStatusFilter(
+          equals: ProfileVerificationStatus.pending,
+        ),
+      ),
+    );
 
     final enriched = <Map<String, dynamic>>[];
     for (final verification in verifications) {
-      final json = serializeForJson(verification);
-      final consultantProfileId =
-          verification['consultantProfileId'] as String?;
-      if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId}).build();
-        final profile = await db.executor.executeQueryAsSingleMap(profileQuery);
-        final consultantUserId = profile?['userId'] as String?;
-        if (consultantUserId != null) {
-          final consultantUser = await db.users.findById(consultantUserId);
-          json['consultantName'] = consultantUser?['name'];
-          json['consultantEmail'] = consultantUser?['email'];
-        }
+      final json = serializeForJson(verification.toJson());
+      final profile = await db.prisma.consultantProfile.findUnique(
+        where: ConsultantProfileWhereUniqueInput(
+          id: verification.consultantProfileId,
+        ),
+      );
+      final consultantUserId = profile?.userId;
+      if (consultantUserId != null) {
+        final consultantUser = await db.users.findById(consultantUserId);
+        json['consultantName'] = consultantUser?['name'];
+        json['consultantEmail'] = consultantUser?['email'];
       }
       enriched.add(json);
     }

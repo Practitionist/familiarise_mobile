@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/dashboard/consultant/:consultantId — Full consultant dashboard
 Future<Response> onRequest(
@@ -39,31 +38,32 @@ Future<Response> onRequest(
       );
     }
 
-    // Fetch dashboard data in parallel
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantId})
-        .build();
+    // Fetch dashboard data.
+    // Appointment has no consultantProfileId column — the consultant is
+    // linked through its allocated slots, so filter via that relation.
+    final appointments = await db.prisma.appointment.findMany(
+      where: AppointmentWhereInput(
+        slotsOfAppointment: SlotOfAppointmentListRelationFilter(
+          some: SlotOfAppointmentWhereInput(
+            consultantProfileId: StringFilter(equals: consultantId),
+          ),
+        ),
+      ),
+    );
 
-    final activitiesQuery = JsonQueryBuilder()
-        .model('ActivityLog')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantId})
-        .build();
-
-    final appointments =
-        await db.executor.executeQueryAsMaps(appointmentsQuery);
-    final activities =
-        await db.executor.executeQueryAsMaps(activitiesQuery);
+    final activities = await db.prisma.activityLog.findMany(
+      where: ActivityLogWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+      ),
+    );
 
     return Response.json(
       body: {
         'data': {
           'appointments':
-              appointments.map(serializeForJson).toList(),
+              appointments.map((a) => serializeForJson(a.toJson())).toList(),
           'activities':
-              activities.map(serializeForJson).toList(),
+              activities.map((a) => serializeForJson(a.toJson())).toList(),
         },
       },
     );

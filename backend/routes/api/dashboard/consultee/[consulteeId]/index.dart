@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/dashboard/consultee/:consulteeId — Full consultee dashboard
 Future<Response> onRequest(
@@ -39,29 +38,25 @@ Future<Response> onRequest(
     }
 
     // Fetch bookings by type
-    final consultationsQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where({'requestedById': consulteeId})
-        .build();
-    final consultations =
-        await db.executor.executeQueryAsMaps(consultationsQuery);
+    final consultations = await db.prisma.consultation.findMany(
+      where: ConsultationWhereInput(
+        requestedById: StringFilter(equals: consulteeId),
+      ),
+    );
 
-    final subscriptionsQuery = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.findMany)
-        .where({'requestedById': consulteeId})
-        .build();
-    final subscriptions =
-        await db.executor.executeQueryAsMaps(subscriptionsQuery);
+    final subscriptions = await db.prisma.subscription.findMany(
+      where: SubscriptionWhereInput(
+        requestedById: StringFilter(equals: consulteeId),
+      ),
+    );
 
     return Response.json(
       body: {
         'data': {
           'consultations':
-              consultations.map(serializeForJson).toList(),
+              consultations.map((c) => serializeForJson(c.toJson())).toList(),
           'subscriptions':
-              subscriptions.map(serializeForJson).toList(),
+              subscriptions.map((s) => serializeForJson(s.toJson())).toList(),
         },
       },
     );

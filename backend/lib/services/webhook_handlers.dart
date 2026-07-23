@@ -1,7 +1,6 @@
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/sentry_logger.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Shared webhook handlers for payment gateway events
 ///
@@ -209,35 +208,27 @@ class WebhookHandlers {
   /// Find payment by paymentIntent field
   Future<Map<String, dynamic>?> _findPaymentByIntent(
       String paymentIntent) async {
-    final query = JsonQueryBuilder()
-        .model('Payment')
-        .action(QueryAction.findFirst)
-        .where({'paymentIntent': paymentIntent}).build();
-
-    return _db.executor.executeQueryAsSingleMap(query);
+    final payment = await _db.prisma.payment.findFirst(
+      where: PaymentWhereInput(
+        paymentIntent: StringFilter(equals: paymentIntent),
+      ),
+    );
+    return payment?.toJson();
   }
 
   /// Confirm booking after successful payment
   Future<void> _confirmBooking(String appointmentId) async {
     // Get appointment to find booking with related data
-    final appointmentQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findUnique)
-        .where({'id': appointmentId}).include({
-      'webinar': {
-        'include': {'webinarPlan': true}
-      },
-      'class': {
-        'include': {'classPlan': true}
-      },
-      'slots': {
-        'include': {
-          'user': true,
-        }
-      },
-    }).build();
-    final appointment =
-        await _db.executor.executeQueryAsSingleMap(appointmentQuery);
+    // (typed AppointmentInclude; relation names follow the re-synced
+    // schema: classRef / slotsOfAppointment).
+    final appointment = await _db.prisma.appointment.findUnique(
+      where: AppointmentWhereUniqueInput(id: appointmentId),
+      include: const AppointmentInclude(
+        webinar: WebinarInclude(webinarPlan: WebinarPlanInclude()),
+        classRef: ClassModelInclude(classPlan: ClassPlanInclude()),
+        slotsOfAppointment: SlotOfAppointmentInclude(user: UserInclude()),
+      ),
+    );
 
     if (appointment == null) {
       SentryLogger.warning(
@@ -247,11 +238,11 @@ class WebhookHandlers {
       return;
     }
 
-    final consultationId = appointment['consultationId'] as String?;
-    final subscriptionId = appointment['subscriptionId'] as String?;
-    final webinarId = appointment['webinarId'] as String?;
-    final classId = appointment['classId'] as String?;
-    final appointmentType = appointment['appointmentType'] as String?;
+    final consultationId = appointment.consultationId;
+    final subscriptionId = appointment.subscriptionId;
+    final webinarId = appointment.webinarId;
+    final classId = appointment.classId;
+    final appointmentType = appointment.appointmentType.toJson();
 
     if (consultationId != null) {
       // Update consultation status to SCHEDULED
@@ -281,7 +272,7 @@ class WebhookHandlers {
 
   /// Handle webinar booking confirmation - creates group chat channel
   Future<void> _handleWebinarBookingConfirmation(
-    Map<String, dynamic> appointment,
+    Appointment appointment,
     String webinarId,
   ) async {
     if (_streamService == null || !_streamService!.isConfigured) {
@@ -293,9 +284,9 @@ class WebhookHandlers {
     }
 
     try {
-      final webinar = appointment['webinar'] as Map<String, dynamic>?;
-      final webinarPlan = webinar?['webinarPlan'] as Map<String, dynamic>?;
-      final slots = appointment['slots'] as List<dynamic>?;
+      final webinar = appointment.webinar;
+      final webinarPlan = webinar?.webinarPlan;
+      final slots = appointment.slotsOfAppointment;
 
       if (webinar == null || webinarPlan == null) {
         SentryLogger.warning(
@@ -306,8 +297,7 @@ class WebhookHandlers {
       }
 
       // Get instructor info
-      final consultantProfileId =
-          webinarPlan['consultantProfileId'] as String?;
+      final consultantProfileId = webinarPlan.consultantProfileId;
       final consultantInfo =
           await _getConsultantUserInfo(consultantProfileId);
 
@@ -323,7 +313,7 @@ class WebhookHandlers {
       }
 
       final channelId = 'webinar_$webinarId';
-      final channelName = webinarPlan['title'] as String? ?? 'Webinar';
+      final channelName = webinarPlan.title;
 
       await _streamService!.getOrCreateGroupChannelAndAddMember(
         channelId: channelId,
@@ -355,7 +345,7 @@ class WebhookHandlers {
 
   /// Handle class booking confirmation - creates group chat channel
   Future<void> _handleClassBookingConfirmation(
-    Map<String, dynamic> appointment,
+    Appointment appointment,
     String classId,
   ) async {
     if (_streamService == null || !_streamService!.isConfigured) {
@@ -367,9 +357,9 @@ class WebhookHandlers {
     }
 
     try {
-      final classRecord = appointment['class'] as Map<String, dynamic>?;
-      final classPlan = classRecord?['classPlan'] as Map<String, dynamic>?;
-      final slots = appointment['slots'] as List<dynamic>?;
+      final classRecord = appointment.classRef;
+      final classPlan = classRecord?.classPlan;
+      final slots = appointment.slotsOfAppointment;
 
       if (classRecord == null || classPlan == null) {
         SentryLogger.warning(
@@ -380,7 +370,7 @@ class WebhookHandlers {
       }
 
       // Get instructor info
-      final consultantProfileId = classPlan['consultantProfileId'] as String?;
+      final consultantProfileId = classPlan.consultantProfileId;
       final consultantInfo =
           await _getConsultantUserInfo(consultantProfileId);
 
@@ -396,7 +386,7 @@ class WebhookHandlers {
       }
 
       final channelId = 'class_$classId';
-      final channelName = classPlan['title'] as String? ?? 'Class';
+      final channelName = classPlan.title;
 
       await _streamService!.getOrCreateGroupChannelAndAddMember(
         channelId: channelId,
@@ -431,39 +421,37 @@ class WebhookHandlers {
       String? consultantProfileId) async {
     if (consultantProfileId == null) return null;
 
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findUnique)
-        .where({'id': consultantProfileId}).include({'user': true}).build();
-
-    final profile = await _db.executor.executeQueryAsSingleMap(query);
+    final profile = await _db.prisma.consultantProfile.findUnique(
+      where: ConsultantProfileWhereUniqueInput(id: consultantProfileId),
+      include: const ConsultantProfileInclude(user: UserInclude()),
+    );
     if (profile == null) return null;
 
-    final user = profile['user'] as Map<String, dynamic>?;
+    final user = profile.user;
     if (user == null) return null;
 
     return {
-      'userId': user['id'],
-      'name': user['name'],
-      'image': user['image'],
+      'userId': user.id,
+      'name': user.name,
+      'image': user.image,
     };
   }
 
   /// Extract participant info from appointment slots
-  Map<String, dynamic>? _getParticipantFromSlots(List<dynamic>? slots) {
+  Map<String, dynamic>? _getParticipantFromSlots(
+      List<SlotOfAppointment>? slots) {
     if (slots == null || slots.isEmpty) return null;
 
     // Get users from the first slot (should all be the same for single bookings)
-    final firstSlot = slots.first as Map<String, dynamic>;
-    final users = firstSlot['user'] as List<dynamic>?;
+    final users = slots.first.user;
 
     if (users == null || users.isEmpty) return null;
 
-    final user = users.first as Map<String, dynamic>;
+    final user = users.first;
     return {
-      'userId': user['id'],
-      'name': user['name'],
-      'image': user['image'],
+      'userId': user.id,
+      'name': user.name,
+      'image': user.image,
     };
   }
 

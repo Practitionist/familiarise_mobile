@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/consultants/:id/availability
 ///
@@ -113,7 +112,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (planId != null) {
       // Fetch the plan to get duration
       final planDuration = await _getPlanDuration(
-        db.executor,
+        db.prisma,
         planId,
         planType,
       );
@@ -161,27 +160,44 @@ Future<Response> onRequest(RequestContext context, String id) async {
 /// For ConsultationPlan, uses `durationInHours`.
 /// For SubscriptionPlan/ClassPlan/WebinarPlan, uses `sessionDurationInHours`.
 Future<int?> _getPlanDuration(
-  QueryExecutor executor,
+  PrismaClient prisma,
   String planId,
   String planType,
 ) async {
   try {
     final String modelName;
     final String durationField;
+    final Map<String, dynamic>? result;
 
     switch (planType.toLowerCase()) {
       case 'subscription':
         modelName = 'SubscriptionPlan';
         durationField = 'sessionDurationInHours';
+        result = await prisma.subscriptionPlan.findFirstProjected(
+          where: SubscriptionPlanWhereInput(id: StringFilter(equals: planId)),
+          select: const [SubscriptionPlanScalarField.sessionDurationInHours],
+        );
       case 'class':
         modelName = 'ClassPlan';
         durationField = 'sessionDurationInHours';
+        result = await prisma.classPlan.findFirstProjected(
+          where: ClassPlanWhereInput(id: StringFilter(equals: planId)),
+          select: const [ClassPlanScalarField.sessionDurationInHours],
+        );
       case 'webinar':
         modelName = 'WebinarPlan';
         durationField = 'durationInHours';
+        result = await prisma.webinarPlan.findFirstProjected(
+          where: WebinarPlanWhereInput(id: StringFilter(equals: planId)),
+          select: const [WebinarPlanScalarField.durationInHours],
+        );
       case 'consultation':
         modelName = 'ConsultationPlan';
         durationField = 'durationInHours';
+        result = await prisma.consultationPlan.findFirstProjected(
+          where: ConsultationPlanWhereInput(id: StringFilter(equals: planId)),
+          select: const [ConsultationPlanScalarField.durationInHours],
+        );
       default:
         await SentryLogger.warning(
           'Unknown plan type: $planType, falling back to ConsultationPlan',
@@ -189,14 +205,12 @@ Future<int?> _getPlanDuration(
         );
         modelName = 'ConsultationPlan';
         durationField = 'durationInHours';
+        result = await prisma.consultationPlan.findFirstProjected(
+          where: ConsultationPlanWhereInput(id: StringFilter(equals: planId)),
+          select: const [ConsultationPlanScalarField.durationInHours],
+        );
     }
 
-    final query = JsonQueryBuilder()
-        .model(modelName)
-        .action(QueryAction.findUnique)
-        .selectFields([durationField]).where({'id': planId}).build();
-
-    final result = await executor.executeQueryAsSingleMap(query);
     if (result == null) {
       await SentryLogger.warning(
         'Plan not found: model=$modelName, id=$planId',

@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// PUT /api/slots/availability/custom/:id — Update
 /// DELETE /api/slots/availability/custom/:id — Delete
@@ -46,15 +45,13 @@ Future<Response> _handle(
       );
     }
 
-    final slotQuery = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    final slot =
-        await db.executor.executeQueryAsSingleMap(slotQuery);
+    final slot = await db.prisma.slotOfAvailabilityCustom.findFirst(
+      where: SlotOfAvailabilityCustomWhereInput(
+        id: StringFilter(equals: id),
+      ),
+    );
 
-    if (slot == null || slot['consultantProfileId'] != userCpId) {
+    if (slot == null || slot.consultantProfileId != userCpId) {
       return Response.json(
         statusCode: HttpStatus.notFound,
         body: {'error': {'message': 'Slot not found'}},

@@ -89,6 +89,9 @@ Future<Response> _handleProfileImageDelete(RequestContext context) async {
     }
 
     final db = context.read<DatabaseClient>();
+    // EXEMPT(jqb-gate): sets a column to explicit NULL — typed UpdateInput
+    // drops null fields, so it can't express a null-clear. Needs 0.9.0
+    // set-null support; stays on JsonQueryBuilder until then.
     final query = JsonQueryBuilder()
         .model('users')
         .action(QueryAction.update)
@@ -205,6 +208,9 @@ Future<Response> _handleProfileDisplayImageDelete(
     }
 
     final db = context.read<DatabaseClient>();
+    // EXEMPT(jqb-gate): sets a column to explicit NULL — typed UpdateInput
+    // drops null fields, so it can't express a null-clear. Needs 0.9.0
+    // set-null support; stays on JsonQueryBuilder until then.
     final query = JsonQueryBuilder()
         .model('users')
         .action(QueryAction.update)

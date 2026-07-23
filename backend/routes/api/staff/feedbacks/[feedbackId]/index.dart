@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// PUT /api/staff/feedbacks/:feedbackId — Update feedback status
 Future<Response> onRequest(
@@ -41,11 +40,9 @@ Future<Response> onRequest(
     }
 
     if (context.request.method == HttpMethod.get) {
-      final query = JsonQueryBuilder()
-          .model('Feedback')
-          .action(QueryAction.findFirst)
-          .where({'id': feedbackId}).build();
-      final feedback = await db.executor.executeQueryAsSingleMap(query);
+      final feedback = await db.prisma.feedback.findFirst(
+        where: FeedbackWhereInput(id: StringFilter(equals: feedbackId)),
+      );
       if (feedback == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
@@ -56,27 +53,26 @@ Future<Response> onRequest(
       }
 
       return Response.json(
-        body: {'data': serializeForJson(feedback)},
+        body: {'data': serializeForJson(feedback.toJson())},
       );
     }
 
     final body = await context.request.json() as Map<String, dynamic>;
-    final data = <String, dynamic>{
-      'updatedAt': DateTime.now().toUtc().toIso8601String(),
-    };
-    if (body.containsKey('status')) data['status'] = body['status'];
+    // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+    FeedbackStatus? status;
+    if (body.containsKey('status')) {
+      status = FeedbackStatus.values
+          .firstWhere((e) => e.toJson() == body['status']);
+    }
 
-    final query = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.update)
-        .where({'id': feedbackId})
-        .data(data)
-        .build();
-    final updated = await db.executor.executeQueryAsSingleMap(query);
+    final updated = await db.prisma.feedback.update(
+      where: FeedbackWhereUniqueInput(id: feedbackId),
+      data: UpdateFeedbackInput(status: status),
+    );
 
     return Response.json(
       body: {
-        'data': updated != null ? serializeForJson(updated) : null,
+        'data': serializeForJson(updated.toJson()),
       },
     );
   } catch (e, stackTrace) {

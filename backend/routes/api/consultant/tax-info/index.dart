@@ -6,8 +6,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// GET /api/consultant/tax-info — Get consultant's tax information
 /// PUT /api/consultant/tax-info — Update tax information
@@ -44,15 +42,15 @@ Future<Response> _handleGet(RequestContext context) async {
       );
     }
 
-    final query = JsonQueryBuilder()
-        .model('ConsultantTaxInfo')
-        .action(QueryAction.findFirst)
-        .where({'consultantProfileId': consultantProfileId}).build();
-    final taxInfo = await db.executor.executeQueryAsSingleMap(query);
+    final taxInfo = await db.prisma.consultantTaxInfo.findFirst(
+      where: ConsultantTaxInfoWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     return Response.json(
       body: {
-        'data': taxInfo != null ? _toApiTaxInfo(taxInfo) : null,
+        'data': taxInfo != null ? _toApiTaxInfo(taxInfo.toJson()) : null,
       },
     );
   } catch (e, stackTrace) {
@@ -98,35 +96,37 @@ Future<Response> _handlePut(RequestContext context) async {
     }
 
     final body = await context.request.json() as Map<String, dynamic>;
-    final now = DateTime.now().toUtc().toIso8601String();
     final taxResidency = body['taxResidency'] as String? ?? 'IN';
     final panNumber = body['panNumber'] as String?;
     final gstNumber = body['gstNumber'] as String?;
 
     // Upsert tax info
-    final existingQuery = JsonQueryBuilder()
-        .model('ConsultantTaxInfo')
-        .action(QueryAction.findFirst)
-        .where({'consultantProfileId': consultantProfileId}).build();
-    final existing = await db.executor.executeQueryAsSingleMap(existingQuery);
+    final existing = await db.prisma.consultantTaxInfo.findFirst(
+      where: ConsultantTaxInfoWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     if (existing != null) {
-      final updateQuery = JsonQueryBuilder()
-          .model('ConsultantTaxInfo')
-          .action(QueryAction.update)
-          .where({'id': existing['id']}).data({
-        if (body.containsKey('panNumber')) 'panEncrypted': panNumber,
-        if (body.containsKey('panNumber')) 'panLast4': _last4(panNumber),
-        if (body.containsKey('gstNumber')) 'gstin': gstNumber,
-        if (body.containsKey('taxResidency')) 'country': taxResidency,
-        if (body.containsKey('taxResidency'))
-          'isIndianResident': taxResidency.toUpperCase() == 'IN',
-        'updatedAt': now,
-      }).build();
-      final result = await db.executor.executeQueryAsSingleMap(updateQuery);
+      // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+      final result = await db.prisma.consultantTaxInfo.update(
+        where: ConsultantTaxInfoWhereUniqueInput(id: existing.id),
+        data: UpdateConsultantTaxInfoInput(
+          panEncrypted: (body.containsKey('panNumber') && panNumber != null)
+              ? utf8.encode(panNumber)
+              : null,
+          panLast4:
+              body.containsKey('panNumber') ? _last4(panNumber) : null,
+          gstin: body.containsKey('gstNumber') ? gstNumber : null,
+          country: body.containsKey('taxResidency') ? taxResidency : null,
+          isIndianResident: body.containsKey('taxResidency')
+              ? taxResidency.toUpperCase() == 'IN'
+              : null,
+        ),
+      );
       return Response.json(
         body: {
-          'data': result != null ? _toApiTaxInfo(result) : null,
+          'data': _toApiTaxInfo(result.toJson()),
         },
       );
     } else {
@@ -142,27 +142,23 @@ Future<Response> _handlePut(RequestContext context) async {
         );
       }
 
-      final createQuery = JsonQueryBuilder()
-          .model('ConsultantTaxInfo')
-          .action(QueryAction.create)
-          .data({
-        'id': const Uuid().v4(),
-        'consultantProfileId': consultantProfileId,
-        'panEncrypted': panNumber,
-        'panLast4': _last4(panNumber),
-        'gstin': gstNumber,
-        'country': taxResidency,
-        'isIndianResident': taxResidency.toUpperCase() == 'IN',
-        'panVerified': false,
-        'gstinVerified': false,
-        'createdAt': now,
-        'updatedAt': now,
-      }).build();
-      final result = await db.executor.executeQueryAsSingleMap(createQuery);
+      // Typed create autofills id/createdAt/updatedAt defaults.
+      final result = await db.prisma.consultantTaxInfo.create(
+        data: CreateConsultantTaxInfoInput(
+          consultantProfileId: consultantProfileId,
+          panEncrypted: utf8.encode(panNumber),
+          panLast4: _last4(panNumber),
+          gstin: gstNumber,
+          country: taxResidency,
+          isIndianResident: taxResidency.toUpperCase() == 'IN',
+          panVerified: false,
+          gstinVerified: false,
+        ),
+      );
       return Response.json(
         statusCode: HttpStatus.created,
         body: {
-          'data': result != null ? _toApiTaxInfo(result) : null,
+          'data': _toApiTaxInfo(result.toJson()),
         },
       );
     }

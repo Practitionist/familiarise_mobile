@@ -4,7 +4,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/appointments/:id/documents/:docId — Details
 /// PUT /api/appointments/:id/documents/:docId — Review
@@ -43,20 +42,16 @@ Future<Response> _handle(
 
     // Verify user is a participant in the appointment
     final db = context.read<DatabaseClient>();
-    final apptQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findFirst)
-        .where({'id': appointmentId})
-        .build();
-    final appointment = await db.executor.executeQueryAsSingleMap(
-      apptQuery,
+    final appointmentRecord = await db.prisma.appointment.findFirst(
+      where: AppointmentWhereInput(id: StringFilter(equals: appointmentId)),
     );
-    if (appointment == null) {
+    if (appointmentRecord == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
         body: {'error': {'message': 'Appointment not found'}},
       );
     }
+    final appointment = appointmentRecord.toJson();
 
     final user = await db.users.findById(userId);
     final consulteeProfileId =

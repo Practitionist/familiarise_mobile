@@ -4,7 +4,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// POST /api/payments/discounts/validate — Validate a discount code
 ///
@@ -36,13 +35,9 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final db = context.read<DatabaseClient>();
-    final query = JsonQueryBuilder()
-        .model('DiscountCode')
-        .action(QueryAction.findFirst)
-        .where({'code': code})
-        .build();
-    final discount =
-        await db.executor.executeQueryAsSingleMap(query);
+    final discount = await db.prisma.discountCode.findFirst(
+      where: DiscountCodeWhereInput(code: StringFilter(equals: code)),
+    );
 
     if (discount == null) {
       return Response.json(
@@ -52,28 +47,23 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     // Check active
-    if (discount['isActive'] != true) {
+    if (!discount.isActive) {
       return Response.json(
         body: {'valid': false, 'message': 'Code is inactive'},
       );
     }
 
     // Check expiry
-    final expiresAt = discount['expiresAt'];
-    if (expiresAt != null) {
-      final expiry = expiresAt is DateTime
-          ? expiresAt
-          : DateTime.tryParse(expiresAt.toString());
-      if (expiry != null && expiry.isBefore(DateTime.now().toUtc())) {
-        return Response.json(
-          body: {'valid': false, 'message': 'Code has expired'},
-        );
-      }
+    final expiry = discount.expiresAt;
+    if (expiry != null && expiry.isBefore(DateTime.now().toUtc())) {
+      return Response.json(
+        body: {'valid': false, 'message': 'Code has expired'},
+      );
     }
 
     // Check max uses
-    final maxUses = discount['maxUses'] as int?;
-    final currentUses = discount['currentUses'] as int? ?? 0;
+    final maxUses = discount.maxUses;
+    final currentUses = discount.currentUses;
     if (maxUses != null && currentUses >= maxUses) {
       return Response.json(
         body: {
@@ -84,11 +74,9 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     // Calculate discount
-    final discountType = discount['discountType'] as String?;
-    final discountValue =
-        (discount['discountValue'] as num?)?.toDouble() ?? 0;
-    final maxDiscount =
-        (discount['maxDiscount'] as num?)?.toDouble();
+    final discountType = discount.discountType.toJson();
+    final discountValue = discount.discountValue.toDouble();
+    final maxDiscount = discount.maxDiscount?.toDouble();
 
     double? discountAmount;
     if (amount != null) {

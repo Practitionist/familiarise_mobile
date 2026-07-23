@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/appointments/:id/documents — List documents
 /// POST /api/appointments/:id/documents — Upload a document
@@ -26,13 +25,8 @@ Future<Object> _authorizeParticipant(
   String userId,
 ) async {
   final db = context.read<DatabaseClient>();
-  final apptQuery = JsonQueryBuilder()
-      .model('Appointment')
-      .action(QueryAction.findFirst)
-      .where({'id': appointmentId})
-      .build();
-  final appointment = await db.executor.executeQueryAsSingleMap(
-    apptQuery,
+  final appointment = await db.prisma.appointment.findFirst(
+    where: AppointmentWhereInput(id: StringFilter(equals: appointmentId)),
   );
   if (appointment == null) {
     return Response.json(
@@ -47,29 +41,22 @@ Future<Object> _authorizeParticipant(
 
   // Appointment links to Consultation (which has requestedById = consulteeProfileId)
   // and to ConsultationPlan (which has consultantProfileId).
-  final consultationId = appointment['consultationId'] as String?;
+  final consultationId = appointment.consultationId;
   String? apptConsulteeId;
   String? apptConsultantId;
 
   if (consultationId != null) {
-    final consultQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findFirst)
-        .where({'id': consultationId})
-        .build();
-    final consultation =
-        await db.executor.executeQueryAsSingleMap(consultQuery);
-    apptConsulteeId = consultation?['requestedById'] as String?;
+    final consultation = await db.prisma.consultation.findFirst(
+      where: ConsultationWhereInput(id: StringFilter(equals: consultationId)),
+    );
+    apptConsulteeId = consultation?.requestedById;
 
-    final planId = consultation?['consultationPlanId'] as String?;
+    final planId = consultation?.consultationPlanId;
     if (planId != null) {
-      final planQuery = JsonQueryBuilder()
-          .model('ConsultationPlan')
-          .action(QueryAction.findFirst)
-          .where({'id': planId})
-          .build();
-      final plan = await db.executor.executeQueryAsSingleMap(planQuery);
-      apptConsultantId = plan?['consultantProfileId'] as String?;
+      final plan = await db.prisma.consultationPlan.findFirst(
+        where: ConsultationPlanWhereInput(id: StringFilter(equals: planId)),
+      );
+      apptConsultantId = plan?.consultantProfileId;
     }
   }
 

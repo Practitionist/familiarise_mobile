@@ -4,7 +4,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/stats — Basic metrics for staff dashboard
 Future<Response> onRequest(RequestContext context) async {
@@ -32,30 +31,27 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    // Gather basic metrics
-    final openTicketsQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.count)
-        .where({'status': 'OPEN'})
-        .build();
-    final openTickets =
-        await db.executor.executeCount(openTicketsQuery);
+    // Gather basic metrics (typed PrismaClient delegates)
+    final openTickets = await db.prisma.supportTicket.count(
+      where: const SupportTicketWhereInput(
+        status: SupportTicketStatusFilter(equals: SupportTicketStatus.open),
+      ),
+    );
 
-    final pendingVerificationsQuery = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.count)
-        .where({'status': 'PENDING'})
-        .build();
     final pendingVerifications =
-        await db.executor.executeCount(pendingVerificationsQuery);
+        await db.prisma.consultantProfileVerification.count(
+      where: const ConsultantProfileVerificationWhereInput(
+        status: ProfileVerificationStatusFilter(
+          equals: ProfileVerificationStatus.pending,
+        ),
+      ),
+    );
 
-    final pendingFeedbackQuery = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.count)
-        .where({'status': 'PENDING'})
-        .build();
-    final pendingFeedback =
-        await db.executor.executeCount(pendingFeedbackQuery);
+    final pendingFeedback = await db.prisma.feedback.count(
+      where: const FeedbackWhereInput(
+        status: FeedbackStatusFilter(equals: FeedbackStatus.pending),
+      ),
+    );
 
     return Response.json(
       body: {

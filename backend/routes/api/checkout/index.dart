@@ -9,7 +9,6 @@ import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Checkout endpoints
 ///
@@ -345,15 +344,12 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
     String? appointmentId;
     if (appointmentType.toUpperCase() == 'CONSULTATION') {
       // Appointment was created with the booking - fetch it
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'consultationId': finalBookingId}).build();
-      final appointmentResult =
-          await db.executor.executeQueryAsSingleMap(appointmentQuery);
-      if (appointmentResult != null) {
-        appointmentId = appointmentResult['id'] as String?;
-      }
+      final appointmentResult = await db.prisma.appointment.findFirst(
+        where: AppointmentWhereInput(
+          consultationId: StringFilter(equals: finalBookingId),
+        ),
+      );
+      appointmentId = appointmentResult?.id;
     }
 
     // Create payment record
@@ -488,14 +484,11 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
         // Update payment record with Stripe payment intent ID
         // We need to update the paymentIntent field to store the Stripe pi_ ID
-        final updateQuery = JsonQueryBuilder()
-            .model('Payment')
-            .action(QueryAction.update)
-            .where({'id': paymentIdStr}).data({
-          'paymentIntent': paymentIntent.id,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        }).build();
-        await db.executor.executeMutation(updateQuery);
+        // (typed update auto-refreshes updatedAt)
+        await db.prisma.payment.update(
+          where: PaymentWhereUniqueInput(id: paymentIdStr),
+          data: UpdatePaymentInput(paymentIntent: paymentIntent.id),
+        );
 
         SentryLogger.info(
           'Created Stripe PaymentIntent: ${paymentIntent.id} '

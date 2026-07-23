@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/collaborations/:id — Collaboration details with revenue split
 /// PUT /api/collaborations/:id — Update collaboration (revenue split)
@@ -44,12 +43,9 @@ Future<Object> _findAndAuthorize(
 
   // WebinarCollaborator + ClassCollaborator were consolidated into a single
   // Collaborator model (collaboratorType discriminates webinar vs class).
-  final collabQuery = JsonQueryBuilder()
-      .model('Collaborator')
-      .action(QueryAction.findFirst)
-      .where({'id': id})
-      .build();
-  final collab = await db.executor.executeQueryAsSingleMap(collabQuery);
+  final collab = await db.prisma.collaborator.findFirst(
+    where: CollaboratorWhereInput(id: StringFilter(equals: id)),
+  );
 
   if (collab == null) {
     return Response.json(
@@ -59,16 +55,14 @@ Future<Object> _findAndAuthorize(
   }
 
   // Verify the user is a participant in this collaboration
-  final collabProfileId =
-      collab['consultantProfileId'] as String?;
-  if (collabProfileId != consultantProfileId) {
+  if (collab.consultantProfileId != consultantProfileId) {
     return Response.json(
       statusCode: HttpStatus.notFound,
       body: {'error': {'message': 'Collaboration not found'}},
     );
   }
 
-  return collab;
+  return collab.toJson();
 }
 
 Future<Response> _handleGet(RequestContext context, String id) async {
@@ -122,27 +116,22 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     final body = await context.request.json() as Map<String, dynamic>;
     final revenueSplit = body['revenueSharePercentage'] as num?;
     final db = context.read<DatabaseClient>();
-    final now = DateTime.now().toUtc().toIso8601String();
 
     // Single Collaborator model; revenueSharePercentage is now stored as
     // basis points (revenueShareBps, e.g. 30% -> 3000) for integer money math.
-    final updateQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data({
-      if (revenueSplit != null)
-        'revenueShareBps': (revenueSplit.toDouble() * 100).round(),
-      'updatedAt': now,
-    }).build();
-
-    final updated =
-        await db.executor.executeQueryAsSingleMap(updateQuery);
+    // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+    final updated = await db.prisma.collaborator.update(
+      where: CollaboratorWhereUniqueInput(id: id),
+      data: UpdateCollaboratorInput(
+        revenueShareBps: revenueSplit != null
+            ? (revenueSplit.toDouble() * 100).round()
+            : null,
+      ),
+    );
 
     return Response.json(
       body: {
-        'data':
-            updated != null ? serializeForJson(updated) : null,
+        'data': serializeForJson(updated.toJson()),
       },
     );
   } catch (e, stackTrace) {

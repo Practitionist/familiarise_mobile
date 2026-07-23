@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/moderation/profiles/:verificationId — Details
 /// PUT /api/staff/moderation/profiles/:verificationId — Review
@@ -57,12 +56,10 @@ Future<Response> _handleGet(
       );
     }
 
-    final verificationQuery = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.findUnique)
-        .where({'id': verificationId}).build();
     final verification =
-        await db.executor.executeQueryAsSingleMap(verificationQuery);
+        await db.prisma.consultantProfileVerification.findUnique(
+      where: ConsultantProfileVerificationWhereUniqueInput(id: verificationId),
+    );
 
     if (verification == null) {
       return Response.json(
@@ -75,22 +72,19 @@ Future<Response> _handleGet(
 
     final docs = await db.consultantVerifications.getDocuments(verificationId);
 
-    final json = serializeForJson(verification);
+    final json = serializeForJson(verification.toJson());
     json['documents'] = docs.map(serializeForJson).toList();
 
-    final consultantProfileId = verification['consultantProfileId'] as String?;
-    if (consultantProfileId != null) {
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsultantProfile')
-          .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId}).build();
-      final profile = await db.executor.executeQueryAsSingleMap(profileQuery);
-      final consultantUserId = profile?['userId'] as String?;
-      if (consultantUserId != null) {
-        final consultantUser = await db.users.findById(consultantUserId);
-        json['consultantName'] = consultantUser?['name'];
-        json['consultantEmail'] = consultantUser?['email'];
-      }
+    final profile = await db.prisma.consultantProfile.findUnique(
+      where: ConsultantProfileWhereUniqueInput(
+        id: verification.consultantProfileId,
+      ),
+    );
+    final consultantUserId = profile?.userId;
+    if (consultantUserId != null) {
+      final consultantUser = await db.users.findById(consultantUserId);
+      json['consultantName'] = consultantUser?['name'];
+      json['consultantEmail'] = consultantUser?['email'];
     }
 
     return Response.json(body: {'data': json});
@@ -167,11 +161,9 @@ Future<Response> _handlePut(
       );
     }
 
-    final existingQuery = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.findUnique)
-        .where({'id': verificationId}).build();
-    final existing = await db.executor.executeQueryAsSingleMap(existingQuery);
+    final existing = await db.prisma.consultantProfileVerification.findUnique(
+      where: ConsultantProfileVerificationWhereUniqueInput(id: verificationId),
+    );
 
     if (existing == null) {
       return Response.json(
@@ -182,65 +174,51 @@ Future<Response> _handlePut(
       );
     }
 
-    final now = DateTime.now().toUtc().toIso8601String();
-    final updateData = <String, dynamic>{
-      'status': status.name.toUpperCase(),
-      'reviewedAt': now,
-      'reviewedById': userId,
-      'updatedAt': now,
-    };
-    if (body.containsKey('reviewNotes')) {
-      updateData['reviewNotes'] = body['reviewNotes'];
-    }
-    if (body.containsKey('rejectionReason')) {
-      updateData['rejectionReason'] = body['rejectionReason'];
-    }
-    if (body.containsKey('feedbackDetails')) {
-      updateData['feedbackDetails'] = body['feedbackDetails'];
+    // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+    final updated = await db.prisma.consultantProfileVerification.update(
+      where: ConsultantProfileVerificationWhereUniqueInput(id: verificationId),
+      data: UpdateConsultantProfileVerificationInput(
+        status: status,
+        reviewedAt: DateTime.now().toUtc(),
+        reviewedById: userId,
+        reviewNotes: body['reviewNotes'] as String?,
+        rejectionReason: body['rejectionReason'] as String?,
+        feedbackDetails: body['feedbackDetails'] as String?,
+      ),
+    );
+
+    bool? isVerified;
+    ConsultantVerificationStatus? verificationStatus;
+    switch (status) {
+      case ProfileVerificationStatus.approved:
+        isVerified = true;
+        verificationStatus = ConsultantVerificationStatus.verified;
+      case ProfileVerificationStatus.rejected:
+        isVerified = false;
+        verificationStatus = ConsultantVerificationStatus.rejected;
+      case ProfileVerificationStatus.needsInfo:
+        isVerified = false;
+        verificationStatus = ConsultantVerificationStatus.underReview;
+      case ProfileVerificationStatus.pending:
+      case ProfileVerificationStatus.superseded:
+        break;
     }
 
-    final updateQuery = JsonQueryBuilder()
-        .model('ConsultantProfileVerification')
-        .action(QueryAction.update)
-        .where({'id': verificationId})
-        .data(updateData)
-        .build();
-    final updated = await db.executor.executeQueryAsSingleMap(updateQuery);
-
-    final consultantProfileId = existing['consultantProfileId'] as String?;
-    if (consultantProfileId != null) {
-      final profileUpdate = <String, dynamic>{
-        'updatedAt': now,
-      };
-      switch (status) {
-        case ProfileVerificationStatus.approved:
-          profileUpdate['isVerified'] = true;
-          profileUpdate['verificationStatus'] = 'VERIFIED';
-        case ProfileVerificationStatus.rejected:
-          profileUpdate['isVerified'] = false;
-          profileUpdate['verificationStatus'] = 'REJECTED';
-        case ProfileVerificationStatus.needsInfo:
-          profileUpdate['isVerified'] = false;
-          profileUpdate['verificationStatus'] = 'UNDER_REVIEW';
-        case ProfileVerificationStatus.pending:
-        case ProfileVerificationStatus.superseded:
-          break;
-      }
-
-      if (profileUpdate.length > 1) {
-        final profileUpdateQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.update)
-            .where({'id': consultantProfileId})
-            .data(profileUpdate)
-            .build();
-        await db.executor.executeMutation(profileUpdateQuery);
-      }
+    if (verificationStatus != null) {
+      await db.prisma.consultantProfile.update(
+        where: ConsultantProfileWhereUniqueInput(
+          id: existing.consultantProfileId,
+        ),
+        data: UpdateConsultantProfileInput(
+          isVerified: isVerified,
+          verificationStatus: verificationStatus,
+        ),
+      );
     }
 
     return Response.json(
       body: {
-        'data': updated != null ? serializeForJson(updated) : null,
+        'data': serializeForJson(updated.toJson()),
       },
     );
   } catch (e, stackTrace) {

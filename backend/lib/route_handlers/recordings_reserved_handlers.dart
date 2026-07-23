@@ -6,7 +6,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Handles POST /api/stream/recordings/start.
 Future<Response> handleRecordingStart(RequestContext context) async {
@@ -131,48 +130,48 @@ Future<Response> handleRecordingSync(RequestContext context) async {
     final streamService = context.read<StreamService>();
     final db = context.read<DatabaseClient>();
     final streamRecordings = await streamService.listRecordings(callId);
-    final now = DateTime.now().toUtc().toIso8601String();
+    final now = DateTime.now().toUtc();
 
-    final syncCount = await db.executeInTransaction((txn) async {
+    // Typed create autofills id/createdAt/updatedAt. The re-synced Recording
+    // model renamed fields: fileName→title, streamUrl→recordingUrl,
+    // duration→durationInMinutes; recordedAt is required.
+    final syncCount = await db.prisma.$transaction((tx) async {
       var count = 0;
       for (final rec in streamRecordings) {
         final recId = rec['id'] as String?;
         if (recId == null) continue;
         final streamUrl = rec['url'] as String?;
         final filename = rec['filename'] as String?;
+        final fileSize = rec['file_size'] as int?;
 
-        final query = JsonQueryBuilder()
-            .model('Recording')
-            .action(QueryAction.create)
-            .data({
-          'meetingSessionId': meetingSessionId,
-          'streamRecordingId': recId,
-          'streamUrl': streamUrl,
-          'fileName': filename ?? 'recording-$recId',
-          'status': 'AVAILABLE',
-          'duration': rec['duration'] as int?,
-          'fileSize': rec['file_size'] as int?,
-          'createdAt': now,
-          'updatedAt': now,
-        }).build();
-
-        await txn.executeMutation(query);
+        await tx.recording.create(
+          data: CreateRecordingInput(
+            meetingSessionId: meetingSessionId,
+            streamRecordingId: recId,
+            streamCallId: callId,
+            recordingUrl: streamUrl ?? '',
+            title: filename ?? 'recording-$recId',
+            status: RecordingStatus.available,
+            durationInMinutes: (rec['duration'] as int?) ?? 0,
+            fileSize: fileSize != null ? BigInt.from(fileSize) : null,
+            recordedAt: now,
+          ),
+        );
         count++;
       }
       return count;
     });
 
-    final recordsQuery = JsonQueryBuilder()
-        .model('Recording')
-        .action(QueryAction.findMany)
-        .where({'meetingSessionId': meetingSessionId})
-        .build();
-    final records = await db.executor.executeQueryAsMaps(recordsQuery);
+    final records = await db.prisma.recording.findMany(
+      where: RecordingWhereInput(
+        meetingSessionId: StringFilter(equals: meetingSessionId),
+      ),
+    );
 
     return Response.json(
       body: {
         'synced': syncCount,
-        'data': records.map(serializeForJson).toList(),
+        'data': records.map((r) => serializeForJson(r.toJson())).toList(),
       },
     );
   } catch (e, stackTrace) {

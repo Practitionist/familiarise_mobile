@@ -5,8 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// GET /api/staff/support-tickets/:ticketId/responses — List
 /// POST /api/staff/support-tickets/:ticketId/responses — Add response
@@ -14,7 +12,6 @@ Future<Response> onRequest(
   RequestContext context,
   String ticketId,
 ) async {
-  const uuid = Uuid();
   try {
     final userId = getUserIdFromToken(context);
     if (userId == null) {
@@ -39,14 +36,14 @@ Future<Response> onRequest(
     }
 
     if (context.request.method == HttpMethod.get) {
-      final query = JsonQueryBuilder()
-          .model('SupportResponse')
-          .action(QueryAction.findMany)
-          .where({'supportTicketId': ticketId}).build();
-      final responses = await db.executor.executeQueryAsMaps(query);
+      final responses = await db.prisma.supportResponse.findMany(
+        where: SupportResponseWhereInput(
+          supportTicketId: StringFilter(equals: ticketId),
+        ),
+      );
       return Response.json(
         body: {
-          'data': responses.map(serializeForJson).toList(),
+          'data': responses.map((r) => serializeForJson(r.toJson())).toList(),
         },
       );
     }
@@ -63,31 +60,26 @@ Future<Response> onRequest(
         );
       }
 
-      final now = DateTime.now().toUtc().toIso8601String();
-      final query = JsonQueryBuilder()
-          .model('SupportResponse')
-          .action(QueryAction.create)
-          .data({
-        'id': uuid.v4(),
-        'supportTicketId': ticketId,
-        'userId': userId,
-        'message': message,
-        'isInternal': false,
-        'createdAt': now,
-        'updatedAt': now,
-      }).build();
-      final result = await db.executor.executeQueryAsSingleMap(query);
+      // Typed create autofills id/createdAt/updatedAt defaults.
+      final result = await db.prisma.supportResponse.create(
+        data: CreateSupportResponseInput(
+          supportTicketId: ticketId,
+          userId: userId,
+          message: message,
+          isInternal: false,
+        ),
+      );
 
-      final ticketUpdateQuery = JsonQueryBuilder()
-          .model('SupportTicket')
-          .action(QueryAction.update)
-          .where({'id': ticketId}).data({'updatedAt': now}).build();
-      await db.executor.executeMutation(ticketUpdateQuery);
+      // Typed update auto-refreshes updatedAt.
+      await db.prisma.supportTicket.update(
+        where: SupportTicketWhereUniqueInput(id: ticketId),
+        data: const UpdateSupportTicketInput(),
+      );
 
       return Response.json(
         statusCode: HttpStatus.created,
         body: {
-          'data': result != null ? serializeForJson(result) : null,
+          'data': serializeForJson(result.toJson()),
         },
       );
     }
