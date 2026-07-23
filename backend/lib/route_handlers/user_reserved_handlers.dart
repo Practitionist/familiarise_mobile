@@ -89,19 +89,13 @@ Future<Response> _handleProfileImageDelete(RequestContext context) async {
     }
 
     final db = context.read<DatabaseClient>();
-    // EXEMPT(jqb-gate): sets a column to explicit NULL — typed UpdateInput
-    // drops null fields, so it can't express a null-clear. Needs 0.9.0
-    // set-null support; stays on JsonQueryBuilder until then.
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': userId})
-        .data({
-          'image': null,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        })
-        .build();
-    await db.executor.executeMutation(query);
+    // 0.9.0 setNull: explicit null-clear through the typed surface
+    // (updatedAt auto-refreshes).
+    await db.prisma.user.update(
+      where: UserWhereUniqueInput(id: userId),
+      data: const UpdateUserInput(),
+      setNull: [UserScalarField.image],
+    );
 
     return Response.json(body: {'message': 'Profile image removed'});
   } catch (e, stackTrace) {
@@ -208,19 +202,12 @@ Future<Response> _handleProfileDisplayImageDelete(
     }
 
     final db = context.read<DatabaseClient>();
-    // EXEMPT(jqb-gate): sets a column to explicit NULL — typed UpdateInput
-    // drops null fields, so it can't express a null-clear. Needs 0.9.0
-    // set-null support; stays on JsonQueryBuilder until then.
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': userId})
-        .data({
-          'profileDisplayImage': null,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        })
-        .build();
-    await db.executor.executeMutation(query);
+    // 0.9.0 setNull: explicit null-clear through the typed surface.
+    await db.prisma.user.update(
+      where: UserWhereUniqueInput(id: userId),
+      data: const UpdateUserInput(),
+      setNull: [UserScalarField.profileDisplayImage],
+    );
 
     return Response.json(
       body: {'message': 'Profile display image removed'},

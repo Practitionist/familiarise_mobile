@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Baselines — lower these as Phase B progresses. Never raise them.
-JQB_BASELINE=4
+JQB_BASELINE=0
 RAW_BASELINE=0
 
 jqb=$( (grep -rn "JsonQueryBuilder()" lib/database routes/ lib/services lib/route_handlers 2>/dev/null || true) | wc -l | tr -d ' ')
