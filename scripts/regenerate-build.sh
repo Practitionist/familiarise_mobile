@@ -74,7 +74,9 @@ if [ "$RUN_PRISMA" = true ]; then
   echo "=== [2/4] Backend CodeGen (freezed/json for Prisma models) ==="
   echo "Deleting backend *.g.dart and *.freezed.dart files..."
   cd "$ROOT_DIR/backend"
-  find lib -name "*.g.dart" -o -name "*.freezed.dart" | xargs rm -f 2>/dev/null || true
+  # Keep lib/generated/schema_registry.g.dart: it is emitted by the Prisma
+  # generator (step 1), not by build_runner, so deleting it here loses it
+  find lib \( -name "*.g.dart" ! -path "*/generated/schema_registry.g.dart" -o -name "*.freezed.dart" \) | xargs rm -f 2>/dev/null || true
 
   echo "Running build_runner in backend/..."
   dart run build_runner build --delete-conflicting-outputs

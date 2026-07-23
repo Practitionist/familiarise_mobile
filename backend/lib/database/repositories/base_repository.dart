@@ -142,6 +142,18 @@ abstract class BaseRepository {
     }
   }
 
+  /// Helper to execute a mutation and return the number of affected rows
+  /// (for compare-and-set style updates).
+  Future<int> executeMutationCounted(
+    JsonQuery query, {
+    TransactionExecutor? txn,
+  }) async {
+    if (txn != null) {
+      return txn.executeMutation(query);
+    }
+    return _executor.executeMutation(query);
+  }
+
   /// Helper to execute a count query
   Future<int> executeCount(
     JsonQuery query, {

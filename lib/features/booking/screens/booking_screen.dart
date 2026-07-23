@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../domain/entities/explore/consultation_plan.dart';
 import '../../../domain/entities/explore/subscription_plan.dart';
@@ -488,6 +489,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   void _handleConsultationBooking() {
     if (_selectedSlot == null) return;
 
+    // Payments are deferred: submit a booking REQUEST instead (the
+    // consultant approves and payment completes outside the app). The
+    // bookingFlowProvider listener above routes to success/failure.
+    if (!FeatureFlags.payments) {
+      ref.read(bookingFlowProvider.notifier).createConsultationBooking(
+            consultantProfileId: widget.consultantId,
+            planId: widget.planId,
+            slotStartTimes: [_selectedSlot!.startsAt],
+            message:
+                _messageController.text.isEmpty ? null : _messageController.text,
+          );
+      return;
+    }
+
     // Get consultant and plan details for direct checkout
     final consultantData =
         ref.read(consultantDetailsProvider(widget.consultantId));
@@ -521,6 +536,19 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   void _handleSubscriptionBooking() {
     if (_periodStartDate == null) return;
+
+    // Payments are deferred: submit a booking REQUEST instead (see
+    // _handleConsultationBooking).
+    if (!FeatureFlags.payments) {
+      ref.read(bookingFlowProvider.notifier).createSubscriptionBooking(
+            consultantProfileId: widget.consultantId,
+            planId: widget.planId,
+            schedulingPeriodStart: _periodStartDate!,
+            message:
+                _messageController.text.isEmpty ? null : _messageController.text,
+          );
+      return;
+    }
 
     // Get consultant and plan details for direct checkout
     final consultantData =

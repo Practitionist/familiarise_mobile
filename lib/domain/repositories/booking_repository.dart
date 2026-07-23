@@ -46,6 +46,13 @@ abstract class BookingRepository {
     String? reason,
   });
 
+  /// Respond to a pending booking request (consultant approve/reject)
+  Future<void> respondToBookingRequest({
+    required String id,
+    required BookingType type,
+    required bool approve,
+  });
+
   /// Reschedule a booking
   /// For subscriptions, optionally pass [slotId] for individual session reschedule
   Future<Booking> rescheduleBooking({

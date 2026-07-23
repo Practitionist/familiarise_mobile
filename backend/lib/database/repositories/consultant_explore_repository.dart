@@ -218,7 +218,12 @@ class ConsultantExploreRepository extends BaseRepository {
   /// consultation plans, subscription plans, and review summary.
   ///
   /// Uses the typed findFirstProjected with include-with-select.
-  Future<Map<String, dynamic>?> findByIdWithDetails(String id) async {
+  /// [userOrgIds] unlocks ORG_ONLY plans owned by the viewer's orgs;
+  /// anonymous viewers see only PUBLIC / ORG_AND_PUBLIC plans.
+  Future<Map<String, dynamic>?> findByIdWithDetails(
+    String id, {
+    List<String> userOrgIds = const [],
+  }) async {
     // Get consultant profile with included relations using the typed delegate
     final row = await _prisma.consultantProfile.findFirstProjected(
       where: ConsultantProfileWhereInput(id: StringFilter(equals: id)),
@@ -273,8 +278,8 @@ class ConsultantExploreRepository extends BaseRepository {
     // Fetch additional data in parallel:
     // consultation plans, subscription plans, review summary
     final results = await Future.wait([
-      _fetchConsultationPlans(id),
-      _fetchSubscriptionPlans(id),
+      _fetchConsultationPlans(id, userOrgIds),
+      _fetchSubscriptionPlans(id, userOrgIds),
       _fetchReviewSummary(id),
     ]);
 
@@ -464,8 +469,49 @@ class ConsultantExploreRepository extends BaseRepository {
   /// Fetch consultation plans for a consultant
   ///
   /// Uses the typed projected finder for type-safe field selection
+
+  /// Typed plan-visibility filter: PUBLIC/ORG_AND_PUBLIC for everyone, plus
+  /// ORG_ONLY plans owned by one of the viewer's orgs.
+  static List<ConsultationPlanWhereInput> _consultationVisibilityOr(
+    List<String> userOrgIds,
+  ) =>
+      [
+        const ConsultationPlanWhereInput(
+          visibility: OrgPlanVisibilityFilter(
+            in_: [OrgPlanVisibility.public, OrgPlanVisibility.orgAndPublic],
+          ),
+        ),
+        if (userOrgIds.isNotEmpty)
+          ConsultationPlanWhereInput(
+            visibility: const OrgPlanVisibilityFilter(
+              equals: OrgPlanVisibility.orgOnly,
+            ),
+            organizationId: StringFilter(in_: userOrgIds),
+          ),
+      ];
+
+  /// Subscription-plan twin of [_consultationVisibilityOr].
+  static List<SubscriptionPlanWhereInput> _subscriptionVisibilityOr(
+    List<String> userOrgIds,
+  ) =>
+      [
+        const SubscriptionPlanWhereInput(
+          visibility: OrgPlanVisibilityFilter(
+            in_: [OrgPlanVisibility.public, OrgPlanVisibility.orgAndPublic],
+          ),
+        ),
+        if (userOrgIds.isNotEmpty)
+          SubscriptionPlanWhereInput(
+            visibility: const OrgPlanVisibilityFilter(
+              equals: OrgPlanVisibility.orgOnly,
+            ),
+            organizationId: StringFilter(in_: userOrgIds),
+          ),
+      ];
+
   Future<List<Map<String, dynamic>>> _fetchConsultationPlans(
     String consultantId,
+    List<String> userOrgIds,
   ) async {
     final result = await _prisma.consultationPlan.findManyProjected(
       select: const [
@@ -484,6 +530,7 @@ class ConsultantExploreRepository extends BaseRepository {
       ],
       where: ConsultationPlanWhereInput(
         consultantProfileId: StringFilter(equals: consultantId),
+        OR: _consultationVisibilityOr(userOrgIds),
       ),
       orderBy: {'durationInHours': 'asc'},
     );
@@ -511,6 +558,7 @@ class ConsultantExploreRepository extends BaseRepository {
   /// Uses the typed projected finder for type-safe field selection
   Future<List<Map<String, dynamic>>> _fetchSubscriptionPlans(
     String consultantId,
+    List<String> userOrgIds,
   ) async {
     final result = await _prisma.subscriptionPlan.findManyProjected(
       select: const [
@@ -535,6 +583,7 @@ class ConsultantExploreRepository extends BaseRepository {
       ],
       where: SubscriptionPlanWhereInput(
         consultantProfileId: StringFilter(equals: consultantId),
+        OR: _subscriptionVisibilityOr(userOrgIds),
       ),
       orderBy: {'sessionDurationInHours': 'asc'},
     );

@@ -666,8 +666,14 @@ class DashboardRepository extends BaseRepository {
     var pendingEarnings = 0.0;
 
     for (final row in earningsRows) {
-      final consultantShare =
-          (row['consultantSharePaise'] as num?)?.toDouble() ?? 0.0;
+      // consultantSharePaise is a BigInt column; the driver may surface it
+      // as int, BigInt, or String depending on magnitude (ported from dev).
+      final consultantShare = switch (row['consultantSharePaise']) {
+        final num n => n.toDouble(),
+        final BigInt b => b.toDouble(),
+        final String s => double.tryParse(s) ?? 0.0,
+        _ => 0.0,
+      };
       final status = row['status'] as String? ?? 'PENDING';
 
       if (status == 'REFUNDED') continue;

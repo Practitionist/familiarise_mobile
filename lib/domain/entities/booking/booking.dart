@@ -235,7 +235,12 @@ class Booking with _$Booking {
       case RequestStatus.approved:
         return 'Approved by consultant';
       case RequestStatus.approvedPendingPayment:
-        return 'Payment required to confirm your booking';
+        // Steering to web payment is only App-Review-safe for 1:1
+        // person-to-person services (3.1.3(d)); keep group programs neutral
+        return isGroupProgram
+            ? 'Approved — payment pending'
+            : 'Approved — complete the payment on the Familiarise '
+                'website to confirm your booking';
       case RequestStatus.scheduled:
         return 'Confirmed and scheduled';
       case RequestStatus.rejected:

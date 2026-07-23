@@ -83,6 +83,19 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
+  Future<void> respondToBookingRequest({
+    required String id,
+    required BookingType type,
+    required bool approve,
+  }) {
+    return _remoteSource.respondToBookingRequest(
+      id: id,
+      type: type,
+      approve: approve,
+    );
+  }
+
+  @override
   Future<Booking> rescheduleBooking({
     required String id,
     required BookingType type,

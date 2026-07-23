@@ -112,35 +112,21 @@ class ConsultantProfileRepository extends BaseRepository {
     required List<String> subDomainIds,
     TransactionExecutor? txn,
   }) async {
-    // EXEMPT(jqb-gate): implicit M2M join table (_ConsultantProfileToSubDomain)
-    // has no typed delegate, and the relation write input lacks a `set` op to
-    // express clear-then-insert. Needs 0.9.0 nested-set support.
-    // First, delete existing relations
-    final deleteQuery = JsonQueryBuilder()
-        .model('_ConsultantProfileToSubDomain')
-        .action(QueryAction.deleteMany)
-        .where({'A': profileId}).build();
-
-    await executeMutation(deleteQuery, txn: txn);
-
-    // Batch insert new relations using createMany
-    if (subDomainIds.isNotEmpty) {
-      final insertQuery = JsonQueryBuilder()
-          .model('_ConsultantProfileToSubDomain')
-          .action(QueryAction.createMany)
-          .data({
-        'data': subDomainIds
-            .map(
-              (subDomainId) => {
-                'A': profileId,
-                'B': subDomainId,
-              },
-            )
-            .toList(),
-      }).build();
-
-      await executeMutation(insertQuery, txn: txn);
-    }
+    // 0.9.0 nested `set`: replace-semantics on the implicit M2M join table
+    // (junction clear + connects), through the typed surface. Honors an
+    // ambient transaction when the caller passes one.
+    final delegate = ConsultantProfileDelegate(txn ?? executor);
+    await delegate.update(
+      where: ConsultantProfileWhereUniqueInput(id: profileId),
+      data: UpdateConsultantProfileInput(
+        subDomains: ConsultantProfileSubDomainsWriteInput(
+          set: [
+            for (final subDomainId in subDomainIds)
+              SubDomainWhereUniqueInput(id: subDomainId),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Delete a consultant profile by user ID

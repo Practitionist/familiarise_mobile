@@ -8,7 +8,9 @@ import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 import '../domain/entities/booking/booking_entities.dart';
 import '../domain/entities/checkout/checkout_entities.dart';
+import '../core/config/feature_flags.dart';
 import '../core/constants/enums.dart';
+import '../shared/widgets/coming_soon_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
@@ -25,6 +27,7 @@ import '../features/programs/screens/webinar_detail_screen.dart';
 import '../features/programs/screens/class_detail_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
+import '../features/organization/screens/my_organization_screen.dart';
 import '../features/schedule/screens/schedule_screen.dart';
 import '../features/profile/screens/active_sessions_screen.dart';
 import '../features/profile/screens/change_password_screen.dart';
@@ -105,14 +108,16 @@ GoRouter router(Ref ref) {
       final isConsultantUser = role == UserRole.consultant;
 
       String defaultAuthenticatedRoute() {
-        if (isStaffUser) {
+        if (isStaffUser && FeatureFlags.staffTools) {
           return '/staff';
         }
         return '/dashboard';
       }
 
       // Valid app routes that authenticated users can access
-      final isValidAppRoute = location.startsWith('/dashboard') ||
+      final isValidAppRoute = location.startsWith('/coming-soon') ||
+          location.startsWith('/organization') ||
+          location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
           location.startsWith('/programs') ||
           location.startsWith('/schedule') ||
@@ -146,6 +151,12 @@ GoRouter router(Ref ref) {
       // Authenticated but needs onboarding -> redirect to onboarding
       if (needsOnboarding && !isOnboardingRoute) {
         return '/onboarding';
+      }
+
+      // Feature-flagged routes show a ComingSoon placeholder
+      final gatedFeature = FeatureFlags.gatedRouteFeature(location);
+      if (gatedFeature != null) {
+        return '/coming-soon?feature=${Uri.encodeComponent(gatedFeature)}';
       }
 
       if (isStaffRoute && !isStaffUser) {
@@ -243,6 +254,15 @@ GoRouter router(Ref ref) {
         path: '/onboarding',
         name: 'onboarding',
         builder: (context, state) => const OnboardingShellScreen(),
+      ),
+
+      // Placeholder for feature-flagged functionality
+      GoRoute(
+        path: '/coming-soon',
+        name: 'coming-soon',
+        builder: (context, state) => ComingSoonScreen(
+          feature: state.uri.queryParameters['feature'] ?? 'This feature',
+        ),
       ),
 
       // Main app shell with bottom navigation
@@ -523,6 +543,13 @@ GoRouter router(Ref ref) {
             path: '/maintenance',
             name: 'maintenance',
             builder: (context, state) => const MaintenanceScreen(),
+          ),
+
+          // Enterprise org context (read-only)
+          GoRoute(
+            path: '/organization',
+            name: 'organization',
+            builder: (context, state) => const MyOrganizationScreen(),
           ),
 
           // Support routes

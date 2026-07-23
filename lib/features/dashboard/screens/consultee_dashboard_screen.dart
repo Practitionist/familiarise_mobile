@@ -99,23 +99,23 @@ class ConsulteeDashboardScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
 
-        // Quick actions
+        // Quick links to destinations that are not bottom tabs
         QuickActionsRow(
           actions: [
             QuickAction(
-              label: 'Find Expert',
-              icon: Icons.search,
-              onTap: () => context.go('/explore'),
+              label: 'Programs',
+              icon: Icons.school_outlined,
+              onTap: () => context.push('/programs'),
             ),
             QuickAction(
-              label: 'My Bookings',
-              icon: Icons.calendar_today,
-              onTap: () => context.push('/my-bookings'),
+              label: 'Organization',
+              icon: Icons.business_outlined,
+              onTap: () => context.push('/organization'),
             ),
             QuickAction(
-              label: 'Messages',
-              icon: Icons.chat_bubble_outline,
-              onTap: () => context.go('/messages'),
+              label: 'Support',
+              icon: Icons.support_agent_outlined,
+              onTap: () => context.push('/support'),
             ),
           ],
         ),

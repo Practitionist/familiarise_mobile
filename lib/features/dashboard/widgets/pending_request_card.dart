@@ -6,10 +6,22 @@ import '../../../domain/entities/booking/booking.dart';
 class PendingRequestCard extends StatelessWidget {
   const PendingRequestCard({
     required this.booking,
+    this.onApprove,
+    this.onReject,
+    this.isResponding = false,
     super.key,
   });
 
   final Booking booking;
+
+  /// Approve the request (omit to hide the action row).
+  final VoidCallback? onApprove;
+
+  /// Reject the request (omit to hide the action row).
+  final VoidCallback? onReject;
+
+  /// Disables the action buttons while a response is in flight.
+  final bool isResponding;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +87,29 @@ class PendingRequestCard extends StatelessWidget {
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (onApprove != null || onReject != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isResponding ? null : onReject,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                      child: const Text('Decline'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: isResponding ? null : onApprove,
+                      child: const Text('Approve'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

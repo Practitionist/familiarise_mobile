@@ -115,4 +115,8 @@ abstract final class ApiEndpoints {
   static const String referralCode = '$api/referrals/code';
   static const String referralCreditsAvailable =
       '$api/referrals/credits/available';
+
+  // Enterprise org context (read-only)
+  static const String myOrganization = '$api/me/organization';
+  static const String myProgramAssignments = '$api/me/program-assignments';
 }

@@ -2824,4 +2824,108 @@ class AppointmentRepository extends BaseRepository {
 
     return (profile: profile, user: user);
   }
+
+  /// Respond to a pending booking request (consultant approve/reject).
+  ///
+  /// Ported from dev's payment-free booking flow into the typed surface.
+  /// Uses a compare-and-set on the PENDING status (updateMany with the status
+  /// in the where) so two concurrent responses can't both win.
+  Future<Map<String, dynamic>> respondToBookingRequest({
+    required String id,
+    required String type,
+    required String userId,
+    required bool approve,
+  }) async {
+    // Resolve the consultant profile for authorization
+    final profile = await _prisma.consultantProfile.findFirstProjected(
+      where: ConsultantProfileWhereInput(userId: StringFilter(equals: userId)),
+      select: [ConsultantProfileScalarField.id],
+    );
+    if (profile == null) {
+      throw Exception('Booking not found or you do not have permission');
+    }
+    final consultantProfileId = profile['id'] as String;
+
+    if (type != 'CONSULTATION' && type != 'SUBSCRIPTION') {
+      throw Exception('Invalid booking type');
+    }
+    final isConsultation = type == 'CONSULTATION';
+
+    final newStatus = approve
+        ? AppointmentStatus.approvedPendingPayment
+        : AppointmentStatus.rejected;
+    final now = DateTime.now().toUtc();
+
+    int affected;
+    if (isConsultation) {
+      final booking = await _prisma.consultation.findFirstProjected(
+        where: ConsultationWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        select: [ConsultationScalarField.consultationPlanId],
+      );
+      if (booking == null) {
+        throw Exception('Booking request not found or no longer pending');
+      }
+      final plan = await _prisma.consultationPlan.findFirstProjected(
+        where: ConsultationPlanWhereInput(
+          id: StringFilter(equals: booking['consultationPlanId'] as String?),
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+        ),
+        select: [ConsultationPlanScalarField.id],
+      );
+      if (plan == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+      affected = await _prisma.consultation.updateMany(
+        where: ConsultationWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        data: UpdateConsultationInput(status: newStatus),
+      );
+    } else {
+      final booking = await _prisma.subscription.findFirstProjected(
+        where: SubscriptionWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        select: [SubscriptionScalarField.subscriptionPlanId],
+      );
+      if (booking == null) {
+        throw Exception('Booking request not found or no longer pending');
+      }
+      final plan = await _prisma.subscriptionPlan.findFirstProjected(
+        where: SubscriptionPlanWhereInput(
+          id: StringFilter(equals: booking['subscriptionPlanId'] as String?),
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+        ),
+        select: [SubscriptionPlanScalarField.id],
+      );
+      if (plan == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+      affected = await _prisma.subscription.updateMany(
+        where: SubscriptionWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        data: UpdateSubscriptionInput(status: newStatus),
+      );
+    }
+    if (affected == 0) {
+      throw Exception('Booking request not found or no longer pending');
+    }
+
+    return {
+      'id': id,
+      'status': newStatus.toJson(),
+      'respondedAt': now.toIso8601String(),
+    };
+  }
 }

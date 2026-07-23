@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../domain/entities/referral/referral_entities.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -14,6 +17,7 @@ import '../widgets/collaborations_summary_card.dart';
 import '../widgets/dashboard_section_header.dart';
 import '../widgets/earnings_summary_card.dart';
 import '../widgets/pending_request_card.dart';
+import '../widgets/quick_actions_row.dart';
 import '../widgets/recent_review_card.dart';
 import '../widgets/referral_summary_card.dart';
 import '../widgets/stats_overview_card.dart';
@@ -115,9 +119,32 @@ class ConsultantDashboardScreen extends ConsumerWidget {
         // Web App features banner
         const _WebAppBanner(),
 
-        // Collaborations summary card
-        if (data.collaborationCounts.pendingCount > 0 ||
-            data.collaborationCounts.acceptedCount > 0) ...[
+        // Quick links to destinations that are not bottom tabs
+        QuickActionsRow(
+          actions: [
+            QuickAction(
+              label: 'Schedule',
+              icon: Icons.calendar_month_outlined,
+              onTap: () => context.push('/schedule'),
+            ),
+            QuickAction(
+              label: 'Programs',
+              icon: Icons.school_outlined,
+              onTap: () => context.push('/programs'),
+            ),
+            QuickAction(
+              label: 'Organization',
+              icon: Icons.business_outlined,
+              onTap: () => context.push('/organization'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Collaborations summary card (deferred feature)
+        if (FeatureFlags.collaborations &&
+            (data.collaborationCounts.pendingCount > 0 ||
+                data.collaborationCounts.acceptedCount > 0)) ...[
           CollaborationsSummaryCard(counts: data.collaborationCounts),
           const SizedBox(height: 16),
         ],
@@ -146,7 +173,23 @@ class ConsultantDashboardScreen extends ConsumerWidget {
             ),
           ),
           ...data.pendingRequests.map(
-            (booking) => PendingRequestCard(booking: booking),
+            (booking) => PendingRequestCard(
+              booking: booking,
+              isResponding:
+                  ref.watch(bookingRequestResponderProvider) is AsyncLoading,
+              onApprove: () => _respondToRequest(
+                context,
+                ref,
+                booking: booking,
+                approve: true,
+              ),
+              onReject: () => _respondToRequest(
+                context,
+                ref,
+                booking: booking,
+                approve: false,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -180,12 +223,61 @@ class ConsultantDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
         ],
 
-        // Referral card
-        _ReferralCardWrapper(
-          referralCode: data.referralCode,
-          credits: data.referralCredits,
-        ),
+        // Referral card (deferred feature)
+        if (FeatureFlags.referrals)
+          _ReferralCardWrapper(
+            referralCode: data.referralCode,
+            credits: data.referralCredits,
+          ),
       ],
+    );
+  }
+
+  Future<void> _respondToRequest(
+    BuildContext context,
+    WidgetRef ref, {
+    required Booking booking,
+    required bool approve,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(approve ? 'Approve request?' : 'Decline request?'),
+        content: Text(
+          approve
+              ? 'The client will be asked to complete payment to confirm '
+                  'the booking.'
+              : 'The client will be notified that you declined this request.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(approve ? 'Approve' : 'Decline'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    // The dialog is an async gap — the widget may have been unmounted
+    if (!context.mounted) return;
+
+    final success = await ref
+        .read(bookingRequestResponderProvider.notifier)
+        .respond(booking: booking, approve: approve);
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? (approve ? 'Request approved' : 'Request declined')
+              : 'Could not update the request — please try again',
+        ),
+      ),
     );
   }
 

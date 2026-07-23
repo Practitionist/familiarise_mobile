@@ -13,12 +13,17 @@
 //   - Provides db.prisma for type-safe PrismaClient access
 //
 // The schema registry (field/relation registration for every Prisma model)
-// is now GENERATED: registerAllModels() in lib/generated/schema_registry.g.dart,
-// produced from prisma/schema.prisma. It enables:
+// is GENERATED into lib/generated/schema_registry.g.dart by
+// `prisma_flutter_connector:generate` (run scripts/regenerate-build.sh).
+// It enables:
 //   - QueryExecutor to resolve table names (critical for @@map models
 //     like User→'users', Account→'accounts')
 //   - include() JOINs on related models
 //   - PrismaClient typed delegates (via global schemaRegistry fallback)
+//
+// Legacy JQB code references @@map-ed models by their TABLE name (e.g.
+// .model('users')), so each mapped model is also registered under its
+// table name as an alias (see _registerSchema below).
 //
 // HOW ROUTES USE THIS
 // ~~~~~~~~~~~~~~~~~~~
@@ -29,14 +34,18 @@
 //
 // WHEN THE SCHEMA CHANGES
 // ~~~~~~~~~~~~~~~~~~~~~~~~
-// Copy the source-of-truth schema from familiarise_web and regenerate — the
-// registry, models, and delegates are all derived automatically:
+// Never by hand. Copy the source-of-truth schema from familiarise_web (which
+// owns migrations) and regenerate — registry, models, and delegates are all
+// derived automatically:
 //   1. cp ../familiarise_web/prisma/schema.prisma prisma/schema.prisma
-//   2. dart run prisma_flutter_connector:generate --schema prisma/schema.prisma \
-//        --output lib/generated --server
-//   3. dart run build_runner build --delete-conflicting-outputs
+//   2. ./scripts/regenerate-build.sh --prisma
 // (The old hand-maintained buildSchemaRegistry() in schema_registry_builder.dart
 // is deprecated and no longer wired in.)
+//
+// If you add a model and need a repository:
+//   1. Create a repository in backend/lib/database/repositories/
+//   2. Add a late final field + getter in DatabaseClient
+//   3. Instantiate it in DatabaseClient._() constructor
 //
 // MIGRATION STRATEGY (typed delegates)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -115,6 +124,7 @@ class DatabaseClient {
     _maintenanceRepository = MaintenanceRepository(_executor, _prisma);
     _recordingRepository = RecordingRepository(_executor, _prisma);
     _planRepository = PlanRepository(_executor, _prisma);
+    _organizationRepository = OrganizationRepository(_executor, _prisma);
   }
 
   static DatabaseClient? _instance;
@@ -158,6 +168,29 @@ class DatabaseClient {
   late final MaintenanceRepository _maintenanceRepository;
   late final RecordingRepository _recordingRepository;
   late final PlanRepository _planRepository;
+  late final OrganizationRepository _organizationRepository;
+
+  /// Build the schema registry from the generated registrations.
+  ///
+  /// Models with @@map are additionally registered under their TABLE name
+  /// (e.g. both 'User' and 'users') so legacy JsonQueryBuilder calls that
+  /// reference .model('users') keep full field/relation metadata.
+  static SchemaRegistry _buildSchema() {
+    final schema = SchemaRegistry();
+    registerAllModels(schema);
+    for (final modelName in schema.modelNames.toList()) {
+      final model = schema.getModel(modelName);
+      if (model != null && model.tableName != model.name) {
+        schema.registerModel(ModelSchema(
+          name: model.tableName,
+          tableName: model.tableName,
+          fields: model.fields,
+          relations: model.relations,
+        ));
+      }
+    }
+    return schema;
+  }
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -173,27 +206,37 @@ class DatabaseClient {
         colonIndex == -1 ? userInfo : userInfo.substring(0, colonIndex);
     final password = colonIndex == -1 ? '' : userInfo.substring(colonIndex + 1);
 
-    // Local Postgres has no TLS; hosted (Supabase) requires it. Derive from the
-    // host so the same code path works for local dev and production.
+    // Honour ?sslmode=disable, and auto-disable for localhost (no TLS on
+    // local Postgres); hosted Postgres (Supabase et al.) keeps SSL required.
     final isLocal = uri.host == 'localhost' || uri.host == '127.0.0.1';
-    final sslMode =
-        (uri.queryParameters['sslmode'] == 'disable' || isLocal)
-            ? pg.SslMode.disable
-            : pg.SslMode.require;
+    final sslMode = (uri.queryParameters['sslmode'] == 'disable' || isLocal)
+        ? pg.SslMode.disable
+        : pg.SslMode.require;
 
-    final connection = await pg.Connection.open(
-      pg.Endpoint(
-        host: uri.host,
-        port: uri.port,
-        database:
-            uri.pathSegments.isNotEmpty ? uri.pathSegments.first : 'postgres',
-        username: username,
-        password: password,
+    // Pooled adapter (connector 0.7+): non-transactional statements run on
+    // connections borrowed from the pool; each transaction pins one dedicated
+    // connection. Replaces the previous single long-lived pg.Connection, whose
+    // silent staleness caused recurring 500s until a server restart.
+    final pool = pg.Pool.withEndpoints(
+      [
+        pg.Endpoint(
+          host: uri.host,
+          port: uri.port,
+          database:
+              uri.pathSegments.isNotEmpty ? uri.pathSegments.first : 'postgres',
+          username: username,
+          password: password,
+        ),
+      ],
+      settings: pg.PoolSettings(
+        sslMode: sslMode,
+        maxConnectionCount: 8,
+        // Recycle pooled connections before hosted poolers kill them silently.
+        maxConnectionAge: const Duration(minutes: 30),
       ),
-      settings: pg.ConnectionSettings(sslMode: sslMode),
     );
 
-    final adapter = PostgresAdapter(connection);
+    final adapter = PostgresAdapter.pooled(pool);
 
     // Populate the global registry from the GENERATED schema (all models,
     // @@map/@map-aware, regenerated from prisma/schema.prisma). This replaces
@@ -322,6 +365,9 @@ class DatabaseClient {
 
   /// Plan repository (consultation, subscription, webinar, class plans)
   PlanRepository get plans => _planRepository;
+
+  /// Organization repository (read-only enterprise org context)
+  OrganizationRepository get organizations => _organizationRepository;
 
   /// Execute raw SQL query and return results as maps
   Future<List<Map<String, dynamic>>> executeRaw(
