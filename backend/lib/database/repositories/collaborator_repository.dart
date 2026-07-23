@@ -1,6 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for collaborator operations
 /// (WebinarCollaborator + ClassCollaborator)
@@ -19,53 +18,49 @@ class CollaboratorRepository extends BaseRepository {
     // discriminator, revenueShareBps, invitedById, typed permission booleans).
     // Filtering by collaboratorType keeps this compiling; the flatten shape
     // below still needs updating to the new field names for full correctness.
-    final webinarResults = await _prisma.collaborator.findManyRaw(
-      where: {
-        'consultantProfileId': consultantProfileId,
-        'collaboratorType': 'WEBINAR',
-        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-      },
-      include: {
-        'webinarPlan': {
-          'include': {
-            'consultantProfile': {
-              'include': {'user': true},
-            },
-          },
-        },
-        'invitedBy': {
-          'include': {'user': true},
-        },
-      },
+    final webinarResults = await _prisma.collaborator.findMany(
+      where: CollaboratorWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        collaboratorType:
+            const CollaboratorTypeFilter(equals: CollaboratorType.webinar),
+        status: const CollaboratorStatusFilter(
+          in_: [CollaboratorStatus.pending, CollaboratorStatus.accepted],
+        ),
+      ),
+      include: const CollaboratorInclude(
+        webinarPlan: WebinarPlanInclude(
+          consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+        ),
+        invitedBy: ConsultantProfileInclude(user: UserInclude()),
+      ),
       orderBy: {'createdAt': 'desc'},
     );
-    final webinarCollaborations =
-        webinarResults.map(_flattenWebinarCollaboration).toList();
+    final webinarCollaborations = webinarResults
+        .map((r) => _flattenWebinarCollaboration(r.toJson()))
+        .toList();
 
     // Class collaborations with nested includes (see TODO above).
-    final classResults = await _prisma.collaborator.findManyRaw(
-      where: {
-        'consultantProfileId': consultantProfileId,
-        'collaboratorType': 'CLASS',
-        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-      },
-      include: {
-        'classPlan': {
-          'include': {
-            'consultantProfile': {
-              'include': {'user': true},
-            },
-          },
-        },
-        'invitedBy': {
-          'include': {'user': true},
-        },
-      },
+    final classResults = await _prisma.collaborator.findMany(
+      where: CollaboratorWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        collaboratorType:
+            const CollaboratorTypeFilter(equals: CollaboratorType.classValue),
+        status: const CollaboratorStatusFilter(
+          in_: [CollaboratorStatus.pending, CollaboratorStatus.accepted],
+        ),
+      ),
+      include: const CollaboratorInclude(
+        classPlan: ClassPlanInclude(
+          consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+        ),
+        invitedBy: ConsultantProfileInclude(user: UserInclude()),
+      ),
       orderBy: {'createdAt': 'desc'},
     );
 
-    final classCollaborations =
-        classResults.map(_flattenClassCollaboration).toList();
+    final classCollaborations = classResults
+        .map((r) => _flattenClassCollaboration(r.toJson()))
+        .toList();
 
     final counts = await getCollaborationCounts(consultantProfileId);
 
@@ -86,40 +81,33 @@ class CollaboratorRepository extends BaseRepository {
     // WebinarCollaborator + ClassCollaborator were consolidated into a single
     // Collaborator model; the id is unique across it, so planType no longer
     // selects a table.
-    const model = 'Collaborator';
-    final now = DateTime.now().toUtc().toIso8601String();
+    final now = DateTime.now().toUtc();
 
     // First check the record exists and is PENDING for this consultant
-    final findQuery = JsonQueryBuilder()
-        .model(model)
-        .action(QueryAction.findFirst)
-        .where({
-          'id': id,
-          'consultantProfileId': consultantProfileId,
-          'status': 'PENDING',
-        })
-        .build();
-
-    final existing = await executeQueryAsSingleMap(findQuery);
+    final existing = await _prisma.collaborator.findFirst(
+      where: CollaboratorWhereInput(
+        id: StringFilter(equals: id),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        status:
+            const CollaboratorStatusFilter(equals: CollaboratorStatus.pending),
+      ),
+    );
     if (existing == null) return null;
 
     // Update the record
-    final updateQuery = JsonQueryBuilder()
-        .model(model)
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data({
-          'status': response,
-          'respondedAt': now,
-        })
-        .build();
-
-    await executeMutation(updateQuery);
+    await _prisma.collaborator.update(
+      where: CollaboratorWhereUniqueInput(id: id),
+      data: UpdateCollaboratorInput(
+        status: CollaboratorStatus.values
+            .firstWhere((e) => e.toJson() == response),
+        respondedAt: now,
+      ),
+    );
 
     return {
       'id': id,
       'status': response,
-      'respondedAt': now,
+      'respondedAt': now.toIso8601String(),
     };
   }
 
@@ -129,27 +117,23 @@ class CollaboratorRepository extends BaseRepository {
   ) async {
     // Single Collaborator model now covers both webinar + class; count by
     // status directly (no per-type split needed since the summary sums them).
-    final pendingQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'PENDING',
-        })
-        .build();
-
-    final acceptedQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'ACCEPTED',
-        })
-        .build();
-
     final results = await Future.wait([
-      executeCount(pendingQuery),
-      executeCount(acceptedQuery),
+      _prisma.collaborator.count(
+        where: CollaboratorWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+          status: const CollaboratorStatusFilter(
+            equals: CollaboratorStatus.pending,
+          ),
+        ),
+      ),
+      _prisma.collaborator.count(
+        where: CollaboratorWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+          status: const CollaboratorStatusFilter(
+            equals: CollaboratorStatus.accepted,
+          ),
+        ),
+      ),
     ]);
 
     return {

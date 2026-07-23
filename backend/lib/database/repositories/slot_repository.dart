@@ -1,5 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:backend/generated/index.dart';
 
 
 /// Repository for consultant availability slot operations
@@ -11,7 +11,9 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// queries with deep relation path filtering.
 class SlotRepository extends BaseRepository {
   /// Create a slot repository with the given executor
-  SlotRepository(super._executor);
+  SlotRepository(super._executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   /// Get consultant's available time slots for a date range
   ///
@@ -69,12 +71,10 @@ class SlotRepository extends BaseRepository {
   Future<Map<String, dynamic>?> _getConsultantSchedule(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findUnique)
-        .where({'id': consultantProfileId}).build();
-
-    return executeQueryAsSingleMap(query);
+    final profile = await _prisma.consultantProfile.findUnique(
+      where: ConsultantProfileWhereUniqueInput(id: consultantProfileId),
+    );
+    return profile?.toJson();
   }
 
   /// Get already booked slots for a date range
@@ -90,46 +90,64 @@ class SlotRepository extends BaseRepository {
     // Path: SlotOfAppointment -> Appointment -> (Consultation|Subscription) -> Plan
     // Only include appointments with active statuses (exclude CANCELLED, REJECTED, EXPIRED)
     const activeStatuses = [
-      'PENDING',
-      'APPROVED',
-      'APPROVED_PENDING_PAYMENT',
-      'SCHEDULED',
+      AppointmentStatus.pending,
+      AppointmentStatus.approved,
+      AppointmentStatus.approvedPendingPayment,
+      AppointmentStatus.scheduled,
     ];
 
-    final query = JsonQueryBuilder()
-        .model('SlotOfAppointment')
-        .action(QueryAction.findMany)
-        .distinct()
-        .selectFields(['startsAt', 'endsAt', 'isTentative']).where({
-      'AND': [
-        {'startsAt': FilterOperators.gte(startDate.toIso8601String())},
-        {'startsAt': FilterOperators.lt(endDate.toIso8601String())},
+    // Typed nested relation filters (0.8.0) replace the legacy
+    // FilterOperators.relationPath chains; findManyProjected replaces
+    // distinct()+selectFields().
+    return _prisma.slotOfAppointment.findManyProjected(
+      where: SlotOfAppointmentWhereInput(
+        startsAt: DateTimeFilter(gte: startDate, lt: endDate),
+        OR: [
+          // Consultation appointments: consultant AND active status
+          SlotOfAppointmentWhereInput(
+            appointment: AppointmentRelationFilter(
+              is_: AppointmentWhereInput(
+                consultation: ConsultationRelationFilter(
+                  is_: ConsultationWhereInput(
+                    consultationPlan: ConsultationPlanRelationFilter(
+                      is_: ConsultationPlanWhereInput(
+                        consultantProfileId:
+                            StringFilter(equals: consultantProfileId),
+                      ),
+                    ),
+                    status: const AppointmentStatusFilter(in_: activeStatuses),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Subscription appointments: consultant AND active status
+          SlotOfAppointmentWhereInput(
+            appointment: AppointmentRelationFilter(
+              is_: AppointmentWhereInput(
+                subscription: SubscriptionRelationFilter(
+                  is_: SubscriptionWhereInput(
+                    subscriptionPlan: SubscriptionPlanRelationFilter(
+                      is_: SubscriptionPlanWhereInput(
+                        consultantProfileId:
+                            StringFilter(equals: consultantProfileId),
+                      ),
+                    ),
+                    status: const AppointmentStatusFilter(in_: activeStatuses),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      select: [
+        SlotOfAppointmentScalarField.startsAt,
+        SlotOfAppointmentScalarField.endsAt,
+        SlotOfAppointmentScalarField.isTentative,
       ],
-      'OR': [
-        // Consultation appointments: filter by consultant AND active status
-        FilterOperators.relationPath(
-          'appointment.consultation',
-          {
-            'consultationPlan': FilterOperators.some({
-              'consultantProfileId': consultantProfileId,
-            }),
-            'requestStatus': FilterOperators.in_(activeStatuses),
-          },
-        ),
-        // Subscription appointments: filter by consultant AND active status
-        FilterOperators.relationPath(
-          'appointment.subscription',
-          {
-            'subscriptionPlan': FilterOperators.some({
-              'consultantProfileId': consultantProfileId,
-            }),
-            'requestStatus': FilterOperators.in_(activeStatuses),
-          },
-        ),
-      ],
-    }).build();
-
-    return executeQueryAsMaps(query);
+      distinct: true,
+    );
   }
 
   /// Get custom one-time availability slots using ORM
@@ -144,23 +162,14 @@ class SlotRepository extends BaseRepository {
     required int durationMinutes,
   }) async {
     // Get custom availability slots within the date range using ORM
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.findMany)
-        .where({
-      'consultantProfileId': consultantProfileId,
-      'AND': [
-        {
-          'startsAt':
-              FilterOperators.gte(startDate.toIso8601String()),
-        },
-        {
-          'startsAt': FilterOperators.lt(endDate.toIso8601String()),
-        },
-      ],
-    }).orderBy({'startsAt': 'asc'}).build();
-
-    final results = await executeQueryAsMaps(query);
+    final customSlots = await _prisma.slotOfAvailabilityCustom.findMany(
+      where: SlotOfAvailabilityCustomWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        startsAt: DateTimeFilter(gte: startDate, lt: endDate),
+      ),
+      orderBy: {'startsAt': 'asc'},
+    );
+    final results = customSlots.map((c) => c.toJson()).toList();
 
     // Merge consecutive custom windows to allow longer duration slots
     final mergedResults = _mergeConsecutiveCustomWindows(results);
@@ -215,14 +224,13 @@ class SlotRepository extends BaseRepository {
     required int durationMinutes,
   }) async {
     // Get weekly availability pattern using ORM
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityWeekly')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).orderBy(
-      {'startDay': 'asc'},
-    ).build();
-
-    final weeklySlots = await executeQueryAsMaps(query);
+    final weeklyModels = await _prisma.slotOfAvailabilityWeekly.findMany(
+      where: SlotOfAvailabilityWeeklyWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      orderBy: {'startDay': 'asc'},
+    );
+    final weeklySlots = weeklyModels.map((w) => w.toJson()).toList();
 
     if (weeklySlots.isEmpty) {
       return [];
@@ -528,12 +536,12 @@ class SlotRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> listWeeklySlots(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityWeekly')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    final slots = await _prisma.slotOfAvailabilityWeekly.findMany(
+      where: SlotOfAvailabilityWeeklyWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
+    return slots.map((s) => s.toJson()).toList();
   }
 
   /// Create a weekly availability slot.
@@ -545,23 +553,17 @@ class SlotRepository extends BaseRepository {
     required int endTimeUtc,
     int utcOffsetMinutes = 0,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityWeekly')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'startDay': startDay,
-      'endDay': endDay,
-      'startTimeUtc': startTimeUtc,
-      'endTimeUtc': endTimeUtc,
-      'utcOffsetMinutes': utcOffsetMinutes,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create slot');
-    return result;
+    final created = await _prisma.slotOfAvailabilityWeekly.create(
+      data: CreateSlotOfAvailabilityWeeklyInput(
+        consultantProfileId: consultantProfileId,
+        startDay: DayOfWeek.values.firstWhere((e) => e.toJson() == startDay),
+        endDay: DayOfWeek.values.firstWhere((e) => e.toJson() == endDay),
+        startTimeUtc: startTimeUtc,
+        endTimeUtc: endTimeUtc,
+        utcOffsetMinutes: utcOffsetMinutes,
+      ),
+    );
+    return created.toJson();
   }
 
   /// Update a weekly slot.
@@ -572,29 +574,34 @@ class SlotRepository extends BaseRepository {
     int? startTimeUtc,
     int? endTimeUtc,
   }) async {
-    final data = <String, dynamic>{'updatedAt': nowIso8601};
-    if (startDay != null) data['startDay'] = startDay;
-    if (endDay != null) data['endDay'] = endDay;
-    if (startTimeUtc != null) data['startTimeUtc'] = startTimeUtc;
-    if (endTimeUtc != null) data['endTimeUtc'] = endTimeUtc;
+    // Preserve silent-if-missing semantics (typed update throws on no row).
+    final existing = await _prisma.slotOfAvailabilityWeekly.findUnique(
+      where: SlotOfAvailabilityWeeklyWhereUniqueInput(id: id),
+    );
+    if (existing == null) return null;
 
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityWeekly')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data(data)
-        .build();
-    return executeQueryAsSingleMap(query);
+    final updated = await _prisma.slotOfAvailabilityWeekly.update(
+      where: SlotOfAvailabilityWeeklyWhereUniqueInput(id: id),
+      data: UpdateSlotOfAvailabilityWeeklyInput(
+        startDay: startDay == null
+            ? null
+            : DayOfWeek.values.firstWhere((e) => e.toJson() == startDay),
+        endDay: endDay == null
+            ? null
+            : DayOfWeek.values.firstWhere((e) => e.toJson() == endDay),
+        startTimeUtc: startTimeUtc,
+        endTimeUtc: endTimeUtc,
+      ),
+    );
+    return updated.toJson();
   }
 
   /// Delete a weekly slot.
   Future<void> deleteWeeklySlot(String id) async {
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityWeekly')
-        .action(QueryAction.delete)
-        .where({'id': id})
-        .build();
-    await executeMutation(query);
+    // deleteMany keeps the old silent-if-missing semantics.
+    await _prisma.slotOfAvailabilityWeekly.deleteMany(
+      where: SlotOfAvailabilityWeeklyWhereInput(id: StringFilter(equals: id)),
+    );
   }
 
   // ===========================================================================
@@ -605,12 +612,12 @@ class SlotRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> listCustomSlots(
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    return executeQueryAsMaps(query);
+    final slots = await _prisma.slotOfAvailabilityCustom.findMany(
+      where: SlotOfAvailabilityCustomWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
+    return slots.map((s) => s.toJson()).toList();
   }
 
   /// Create a custom availability slot.
@@ -619,20 +626,14 @@ class SlotRepository extends BaseRepository {
     required String startsAt,
     required String endsAt,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'startsAt': startsAt,
-      'endsAt': endsAt,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create slot');
-    return result;
+    final created = await _prisma.slotOfAvailabilityCustom.create(
+      data: CreateSlotOfAvailabilityCustomInput(
+        consultantProfileId: consultantProfileId,
+        startsAt: DateTime.parse(startsAt),
+        endsAt: DateTime.parse(endsAt),
+      ),
+    );
+    return created.toJson();
   }
 
   /// Update a custom slot.
@@ -641,26 +642,27 @@ class SlotRepository extends BaseRepository {
     String? startsAt,
     String? endsAt,
   }) async {
-    final data = <String, dynamic>{'updatedAt': nowIso8601};
-    if (startsAt != null) data['startsAt'] = startsAt;
-    if (endsAt != null) data['endsAt'] = endsAt;
+    // Preserve silent-if-missing semantics (typed update throws on no row).
+    final existing = await _prisma.slotOfAvailabilityCustom.findUnique(
+      where: SlotOfAvailabilityCustomWhereUniqueInput(id: id),
+    );
+    if (existing == null) return null;
 
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data(data)
-        .build();
-    return executeQueryAsSingleMap(query);
+    final updated = await _prisma.slotOfAvailabilityCustom.update(
+      where: SlotOfAvailabilityCustomWhereUniqueInput(id: id),
+      data: UpdateSlotOfAvailabilityCustomInput(
+        startsAt: startsAt == null ? null : DateTime.parse(startsAt),
+        endsAt: endsAt == null ? null : DateTime.parse(endsAt),
+      ),
+    );
+    return updated.toJson();
   }
 
   /// Delete a custom slot.
   Future<void> deleteCustomSlot(String id) async {
-    final query = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.delete)
-        .where({'id': id})
-        .build();
-    await executeMutation(query);
+    // deleteMany keeps the old silent-if-missing semantics.
+    await _prisma.slotOfAvailabilityCustom.deleteMany(
+      where: SlotOfAvailabilityCustomWhereInput(id: StringFilter(equals: id)),
+    );
   }
 }

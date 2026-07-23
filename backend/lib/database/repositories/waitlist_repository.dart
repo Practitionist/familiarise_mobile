@@ -1,17 +1,13 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Repository for waitlist operations.
 ///
-/// Uses JsonQueryBuilder for creates (foreign keys) and PrismaClient
-/// typed delegates for reads/updates.
+/// Uses PrismaClient typed delegates.
 class WaitlistRepository extends BaseRepository {
   WaitlistRepository(super._executor, this._prisma);
 
   final PrismaClient _prisma;
-  static const _uuid = Uuid();
 
   /// Join a waitlist for a webinar or class.
   Future<Map<String, dynamic>> join({
@@ -19,24 +15,16 @@ class WaitlistRepository extends BaseRepository {
     String? webinarId,
     String? classId,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('Waitlist')
-        .action(QueryAction.create)
-        .data({
-      'id': _uuid.v4(),
-      'userId': userId,
-      'webinarId': webinarId,
-      'classId': classId,
-      'status': 'WAITING',
-      'priority': 0,
-      'joinedAt': now,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to join waitlist');
-    return result;
+    // id/joinedAt/timestamps autofilled; status defaults to WAITING and
+    // priority to 0 on the typed create input.
+    final result = await _prisma.waitlist.create(
+      data: CreateWaitlistInput(
+        userId: userId,
+        webinarId: webinarId,
+        classId: classId,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Get a waitlist entry by ID.
@@ -48,7 +36,10 @@ class WaitlistRepository extends BaseRepository {
 
   /// Get all waitlist entries for a user.
   Future<List<Map<String, dynamic>>> findByUser(String userId) async {
-    return _prisma.waitlist.findManyRaw(where: {'userId': userId});
+    final results = await _prisma.waitlist.findMany(
+      where: WaitlistWhereInput(userId: StringFilter(equals: userId)),
+    );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Leave a waitlist (set status to CANCELLED).
@@ -92,17 +83,13 @@ class WaitlistRepository extends BaseRepository {
     String? webinarId,
     String? classId,
   }) async {
-    final where = <String, dynamic>{
-      'status': 'WAITING',
-    };
-    if (webinarId != null) where['webinarId'] = webinarId;
-    if (classId != null) where['classId'] = classId;
-
-    final query = JsonQueryBuilder()
-        .model('Waitlist')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
-    return executeCount(query);
+    return _prisma.waitlist.count(
+      where: WaitlistWhereInput(
+        status: const WaitlistStatusFilter(equals: WaitlistStatus.waiting),
+        webinarId:
+            webinarId != null ? StringFilter(equals: webinarId) : null,
+        classId: classId != null ? StringFilter(equals: classId) : null,
+      ),
+    );
   }
 }

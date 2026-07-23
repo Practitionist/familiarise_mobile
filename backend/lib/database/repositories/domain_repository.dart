@@ -120,16 +120,14 @@ class DomainRepository extends BaseRepository {
   ///
   /// Uses ComputedField.count() to generate a correlated subquery for counting.
   Future<List<Map<String, dynamic>>> findDomainsWithSubDomainCount() async {
-    final query = JsonQueryBuilder()
-        .model('Domain')
-        .action(QueryAction.findMany)
-        .computed({
-      'subDomainCount': ComputedField.count(
-        from: 'SubDomain',
-        where: {'domainId': FieldRef('id')},
-      ),
-    }).orderBy({'name': 'asc'}).build();
-
-    return executeQueryAsMaps(query);
+    return _prisma.domain.findManyProjected(
+      computed: {
+        'subDomainCount': ComputedField.count(
+          from: 'SubDomain',
+          where: {'domainId': FieldRef('id')},
+        ),
+      },
+      orderBy: DomainOrderByInput(name: SortOrder.asc),
+    );
   }
 }

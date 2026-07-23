@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for referral operations (ReferralCode, Referral, ReferralCredit)
 class ReferralRepository extends BaseRepository {
@@ -21,21 +20,25 @@ class ReferralRepository extends BaseRepository {
     required String code,
   }) async {
     // Find the referral code (check both code and customCode)
-    final referralCode = await _prisma.referralCode.findFirstRaw(
-      where: {
-        'isActive': true,
-        'OR': [
-          {'code': code.toUpperCase()},
-          {'customCode': code.toUpperCase()},
+    final referralCode = await _prisma.referralCode.findFirst(
+      where: ReferralCodeWhereInput(
+        isActive: const BooleanFilter(equals: true),
+        OR: [
+          ReferralCodeWhereInput(
+            code: StringFilter(equals: code.toUpperCase()),
+          ),
+          ReferralCodeWhereInput(
+            customCode: StringFilter(equals: code.toUpperCase()),
+          ),
         ],
-      },
+      ),
     );
 
     if (referralCode == null) {
       throw Exception('Invalid or inactive referral code');
     }
 
-    final referrerId = referralCode['userId'] as String;
+    final referrerId = referralCode.userId;
 
     // Cannot refer yourself
     if (referrerId == userId) {
@@ -43,16 +46,15 @@ class ReferralRepository extends BaseRepository {
     }
 
     // Check max referrals cap
-    final maxReferrals = (referralCode['maxReferrals'] as num?)?.toInt();
-    final totalReferrals =
-        (referralCode['totalReferrals'] as num?)?.toInt() ?? 0;
-    if (maxReferrals != null && totalReferrals >= maxReferrals) {
+    final maxReferrals = referralCode.maxReferrals;
+    final totalReferrals = referralCode.totalReferrals;
+    if (totalReferrals >= maxReferrals) {
       throw Exception('This referral code has reached its maximum uses');
     }
 
     // Check if user was already referred (referredUserId is @unique)
-    final existingReferral = await _prisma.referral.findFirstRaw(
-      where: {'referredUserId': userId},
+    final existingReferral = await _prisma.referral.findFirst(
+      where: ReferralWhereInput(referredUserId: StringFilter(equals: userId)),
     );
 
     if (existingReferral != null) {
@@ -60,60 +62,41 @@ class ReferralRepository extends BaseRepository {
     }
 
     // Transaction: create referral + increment counter + credit
-    return executeInTransaction((txn) async {
-      final referralCodeId = referralCode['id'] as String;
+    return _prisma.$transaction((tx) async {
+      final referralCodeId = referralCode.id;
       final refereeReward =
-          (referralCode['refereeReward'] as num?)?.toInt() ??
-              _defaultRefereeReward;
+          referralCode.refereeReward?.toInt() ?? _defaultRefereeReward;
 
-      // Create Referral record
-      final createReferralQuery = JsonQueryBuilder()
-          .model('Referral')
-          .action(QueryAction.create)
-          .data({
-            'referralCodeId': referralCodeId,
-            'referredUserId': userId,
-            'status': 'SIGNED_UP',
-            'signedUpAt': nowIso8601,
-            'createdAt': nowIso8601,
-            'updatedAt': nowIso8601,
-          })
-          .build();
-
-      await txn.executeMutation(createReferralQuery);
+      // Create Referral record (status/signedUpAt/timestamps autofilled).
+      await tx.referral.create(
+        data: CreateReferralInput(
+          referralCodeId: referralCodeId,
+          referredUserId: userId,
+        ),
+      );
 
       // Increment totalReferrals on ReferralCode
-      final updateCodeQuery = JsonQueryBuilder()
-          .model('ReferralCode')
-          .action(QueryAction.update)
-          .where({'id': referralCodeId})
-          .data({
-            'totalReferrals': totalReferrals + 1,
-          })
-          .build();
-
-      await txn.executeMutation(updateCodeQuery);
+      await tx.referralCode.update(
+        where: ReferralCodeWhereUniqueInput(id: referralCodeId),
+        data: UpdateReferralCodeInput(
+          totalReferrals: totalReferrals + 1,
+        ),
+      );
 
       // Create ReferralCredit for the referee (signup bonus)
       final expiresAt = DateTime.now().toUtc().add(
             const Duration(days: _creditExpiryMonths * 30),
           );
 
-      final createCreditQuery = JsonQueryBuilder()
-          .model('ReferralCredit')
-          .action(QueryAction.create)
-          .data({
-            'userId': userId,
-            'amount': refereeReward,
-            'remainingAmount': refereeReward,
-            'source': 'REFEREE_BONUS',
-            'expiresAt': expiresAt.toIso8601String(),
-            'createdAt': nowIso8601,
-            'updatedAt': nowIso8601,
-          })
-          .build();
-
-      await txn.executeMutation(createCreditQuery);
+      await tx.referralCredit.create(
+        data: CreateReferralCreditInput(
+          userId: userId,
+          amount: BigInt.from(refereeReward),
+          remainingAmount: BigInt.from(refereeReward),
+          source: CreditSource.refereeBonus,
+          expiresAt: expiresAt,
+        ),
+      );
 
       return {
         'success': true,
@@ -125,9 +108,10 @@ class ReferralRepository extends BaseRepository {
 
   /// Get user's referral code
   Future<Map<String, dynamic>?> getReferralCode(String userId) async {
-    return _prisma.referralCode.findFirstRaw(
-      where: {'userId': userId},
+    final result = await _prisma.referralCode.findFirst(
+      where: ReferralCodeWhereInput(userId: StringFilter(equals: userId)),
     );
+    return result?.toJson();
   }
 
   /// Create a referral code for a user
@@ -143,44 +127,34 @@ class ReferralRepository extends BaseRepository {
 
     final code = _generateCode(userName);
 
-    final query = JsonQueryBuilder()
-        .model('ReferralCode')
-        .action(QueryAction.create)
-        .data({
-          'userId': userId,
-          'code': code,
-          'referrerReward': _defaultReferrerReward,
-          'refereeReward': _defaultRefereeReward,
-          'isActive': true,
-          'totalReferrals': 0,
-          'successfulReferrals': 0,
-          'totalEarned': 0,
-          'createdAt': nowIso8601,
-          'updatedAt': nowIso8601,
-        })
-        .build();
-
-    final result = await executeQueryAsSingleMap(query);
-    return result!;
+    final result = await _prisma.referralCode.create(
+      data: CreateReferralCodeInput(
+        userId: userId,
+        code: code,
+        referrerReward: BigInt.from(_defaultReferrerReward),
+        refereeReward: BigInt.from(_defaultRefereeReward),
+        totalEarned: BigInt.zero,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Get available (unexpired, unspent) credit balance for a user
   Future<Map<String, dynamic>> getAvailableCredits(String userId) async {
-    final now = DateTime.now().toUtc().toIso8601String();
+    final now = DateTime.now().toUtc();
 
-    final credits = await _prisma.referralCredit.findManyRaw(
-      where: {
-        'userId': userId,
-        'remainingAmount': FilterOperators.gt(0),
-        'expiresAt': FilterOperators.gt(now),
-      },
+    final credits = await _prisma.referralCredit.findMany(
+      where: ReferralCreditWhereInput(
+        userId: StringFilter(equals: userId),
+        remainingAmount: BigIntFilter(gt: BigInt.zero),
+        expiresAt: DateTimeFilter(gt: now),
+      ),
     );
 
-    final totalAvailable = credits.fold<int>(0, (sum, credit) {
-      final remaining =
-          (credit['remainingAmount'] as num?)?.toInt() ?? 0;
-      return sum + remaining;
-    });
+    final totalAvailable = credits.fold<int>(
+      0,
+      (sum, credit) => sum + credit.remainingAmount.toInt(),
+    );
 
     return {
       'totalAvailable': totalAvailable,

@@ -41,15 +41,19 @@ class PlanRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> listConsultationPlans(
     String consultantProfileId,
   ) async {
-    return _prisma.consultationPlan.findManyRaw(
-      where: {'consultantProfileId': consultantProfileId},
+    final results = await _prisma.consultationPlan.findMany(
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   Future<Map<String, dynamic>?> findConsultationPlan(String id) async {
-    return _prisma.consultationPlan.findFirstRaw(
-      where: {'id': id},
+    final result = await _prisma.consultationPlan.findFirst(
+      where: ConsultationPlanWhereInput(id: StringFilter(equals: id)),
     );
+    return result?.toJson();
   }
 
   Future<Map<String, dynamic>?> updateConsultationPlan({
@@ -111,8 +115,10 @@ class PlanRepository extends BaseRepository {
         sessionDurationInHours: sessionDurationInHours,
         language: language ?? 'English',
         level: level ?? 'Beginner',
-        freeTrialEnabled: freeTrialEnabled,
-        freeTrialDurationMinutes: freeTrialDurationMinutes,
+        // Schema re-sync renamed freeTrial* -> trial* (trialPriceInPaise
+        // defaults to 0 = free trial, matching the old semantics).
+        trialEnabled: freeTrialEnabled,
+        trialDurationMinutes: freeTrialDurationMinutes,
       ),
     );
     return result.toJson();
@@ -121,15 +127,19 @@ class PlanRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> listSubscriptionPlans(
     String consultantProfileId,
   ) async {
-    return _prisma.subscriptionPlan.findManyRaw(
-      where: {'consultantProfileId': consultantProfileId},
+    final results = await _prisma.subscriptionPlan.findMany(
+      where: SubscriptionPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   Future<Map<String, dynamic>?> findSubscriptionPlan(String id) async {
-    return _prisma.subscriptionPlan.findFirstRaw(
-      where: {'id': id},
+    final result = await _prisma.subscriptionPlan.findFirst(
+      where: SubscriptionPlanWhereInput(id: StringFilter(equals: id)),
     );
+    return result?.toJson();
   }
 
   Future<void> deleteSubscriptionPlan(String id) async {
@@ -174,15 +184,19 @@ class PlanRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> listWebinarPlans(
     String consultantProfileId,
   ) async {
-    return _prisma.webinarPlan.findManyRaw(
-      where: {'consultantProfileId': consultantProfileId},
+    final results = await _prisma.webinarPlan.findMany(
+      where: WebinarPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   Future<Map<String, dynamic>?> findWebinarPlan(String id) async {
-    return _prisma.webinarPlan.findFirstRaw(
-      where: {'id': id},
+    final result = await _prisma.webinarPlan.findFirst(
+      where: WebinarPlanWhereInput(id: StringFilter(equals: id)),
     );
+    return result?.toJson();
   }
 
   Future<void> deleteWebinarPlan(String id) async {
@@ -231,15 +245,19 @@ class PlanRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> listClassPlans(
     String consultantProfileId,
   ) async {
-    return _prisma.classPlan.findManyRaw(
-      where: {'consultantProfileId': consultantProfileId},
+    final results = await _prisma.classPlan.findMany(
+      where: ClassPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   Future<Map<String, dynamic>?> findClassPlan(String id) async {
-    return _prisma.classPlan.findFirstRaw(
-      where: {'id': id},
+    final result = await _prisma.classPlan.findFirst(
+      where: ClassPlanWhereInput(id: StringFilter(equals: id)),
     );
+    return result?.toJson();
   }
 
   Future<void> deleteClassPlan(String id) async {

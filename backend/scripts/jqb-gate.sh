@@ -11,11 +11,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Baselines — lower these as Phase B progresses. Never raise them.
-JQB_BASELINE=257
-RAW_BASELINE=60
+JQB_BASELINE=4
+RAW_BASELINE=0
 
-jqb=$(grep -rn "JsonQueryBuilder()" lib/database routes/ 2>/dev/null | wc -l | tr -d ' ')
-raw=$(grep -rn "\.findManyRaw\|\.findFirstRaw" lib/database routes/ 2>/dev/null | wc -l | tr -d ' ')
+jqb=$( (grep -rn "JsonQueryBuilder()" lib/database routes/ lib/services lib/route_handlers 2>/dev/null || true) | wc -l | tr -d ' ')
+raw=$( (grep -rn "\.findManyRaw\|\.findFirstRaw" lib/database routes/ lib/services lib/route_handlers 2>/dev/null || true) | wc -l | tr -d ' ')
 
 echo "JsonQueryBuilder sites: $jqb (baseline $JQB_BASELINE)"
 echo "findManyRaw/findFirstRaw sites: $raw (baseline $RAW_BASELINE)"

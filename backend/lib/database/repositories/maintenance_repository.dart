@@ -15,12 +15,19 @@ class MaintenanceRepository extends BaseRepository {
   ///
   /// Active = phase is not OFF and startedAt is set.
   Future<Map<String, dynamic>?> getActive() async {
-    return _prisma.maintenanceWindow.findFirstRaw(
-      where: {
-        'phase': {'not': 'OFF'},
-        'startedAt': {'not': null},
-        'endedAt': null,
-      },
+    // The typed DateTimeFilter cannot express `IS NULL` / `IS NOT NULL`, so
+    // the startedAt/endedAt null checks are applied in Dart. Maintenance
+    // windows are a tiny table, so fetching non-OFF rows is cheap.
+    final windows = await _prisma.maintenanceWindow.findMany(
+      where: const MaintenanceWindowWhereInput(
+        phase: MaintenancePhaseFilter(not: MaintenancePhase.off),
+      ),
     );
+    for (final window in windows) {
+      if (window.startedAt != null && window.endedAt == null) {
+        return window.toJson();
+      }
+    }
+    return null;
   }
 }

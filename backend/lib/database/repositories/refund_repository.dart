@@ -1,10 +1,6 @@
-import 'dart:convert';
-
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Repository for refund operations
 ///
@@ -12,8 +8,6 @@ import 'package:uuid/uuid.dart';
 class RefundRepository extends BaseRepository {
   RefundRepository(super._executor, this._prisma);
   final PrismaClient _prisma;
-
-  final _uuid = const Uuid();
 
   /// Create a new refund record from webhook event
   ///
@@ -34,29 +28,24 @@ class RefundRepository extends BaseRepository {
       return existing; // Already processed
     }
 
-    final id = _uuid.v4();
-    final now = nowIso8601;
-
-    final createQuery =
-        JsonQueryBuilder().model('Refund').action(QueryAction.create).data({
-      'id': id,
-      'refundId': refundId,
-      'paymentId': paymentId,
-      'amount': amount,
-      'currency': currency,
-      'status': status,
-      'paymentGateway': paymentGateway,
-      if (reason != null) 'reason': reason,
-      if (metadata != null) 'metadata': jsonEncode(metadata),
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-
     try {
-      await executeMutation(createQuery);
+      // id/timestamps autofilled; wire strings mapped to generated enums.
+      final created = await _prisma.refund.create(
+        data: CreateRefundInput(
+          refundId: refundId,
+          paymentId: paymentId,
+          amountPaise: BigInt.from(amount),
+          currency: Currency.values.firstWhere((e) => e.toJson() == currency),
+          status: RefundStatus.values.firstWhere((e) => e.toJson() == status),
+          paymentGateway: PaymentGateway.values
+              .firstWhere((e) => e.toJson() == paymentGateway),
+          reason: reason,
+          metadata: metadata, // Json column — pass the map directly
+        ),
+      );
 
       return {
-        'id': id,
+        'id': created.id,
         'refundId': refundId,
         'paymentId': paymentId,
         'amount': amount,
@@ -77,17 +66,21 @@ class RefundRepository extends BaseRepository {
 
   /// Get refund by gateway-specific refund ID
   Future<Map<String, dynamic>?> getRefundByRefundId(String refundId) async {
-    return _prisma.refund.findFirstRaw(where: {'refundId': refundId});
+    final result = await _prisma.refund.findFirst(
+      where: RefundWhereInput(refundId: StringFilter(equals: refundId)),
+    );
+    return result?.toJson();
   }
 
   /// Get all refunds for a payment
   Future<List<Map<String, dynamic>>> getRefundsByPaymentId(
     String paymentId,
   ) async {
-    return _prisma.refund.findManyRaw(
-      where: {'paymentId': paymentId},
+    final results = await _prisma.refund.findMany(
+      where: RefundWhereInput(paymentId: StringFilter(equals: paymentId)),
       orderBy: {'createdAt': 'desc'},
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Update refund status
@@ -95,19 +88,21 @@ class RefundRepository extends BaseRepository {
     required String refundId,
     required String status,
   }) async {
-    final updateQuery = JsonQueryBuilder()
-        .model('Refund')
-        .action(QueryAction.update)
-        .where({'refundId': refundId}).data({
-      'status': status,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    await executeMutation(updateQuery);
+    // updateMany keeps the old silent-if-missing semantics (typed update
+    // throws when no row matches); updatedAt auto-refreshes.
+    await _prisma.refund.updateMany(
+      where: RefundWhereInput(refundId: StringFilter(equals: refundId)),
+      data: UpdateRefundInput(
+        status: RefundStatus.values.firstWhere((e) => e.toJson() == status),
+      ),
+    );
   }
 
   /// Get refund by internal ID
   Future<Map<String, dynamic>?> getRefundById(String id) async {
-    return _prisma.refund.findFirstRaw(where: {'id': id});
+    final result = await _prisma.refund.findFirst(
+      where: RefundWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 }

@@ -21,12 +21,13 @@ class AccountRepository extends BaseRepository {
     String userId,
     String providerId,
   ) async {
-    return _prisma.account.findFirstRaw(
-      where: {
-        'userId': userId,
-        'providerId': providerId,
-      },
+    final result = await _prisma.account.findFirst(
+      where: AccountWhereInput(
+        userId: StringFilter(equals: userId),
+        providerId: StringFilter(equals: providerId),
+      ),
     );
+    return result?.toJson();
   }
 
   /// Find credential account by userId
@@ -43,16 +44,11 @@ class AccountRepository extends BaseRepository {
     required String accountId,
     required String hashedPassword,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('accounts')
-        .action(QueryAction.update)
-        .where({'id': accountId})
-        .data({
-      'password': hashedPassword,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    final result = await _prisma.account.update(
+      where: AccountWhereUniqueInput(id: accountId),
+      data: UpdateAccountInput(password: hashedPassword),
+    );
+    return result.toJson();
   }
 
   /// Create an OAuth account link
@@ -67,23 +63,19 @@ class AccountRepository extends BaseRepository {
     String? idToken,
     TransactionExecutor? txn,
   }) async {
-    final query =
-        JsonQueryBuilder().model('accounts').action(QueryAction.create).data({
-      'id': id,
-      'userId': userId,
-      'providerId': providerId,
-      'accountId': accountId,
-      'accessToken': accessToken,
-      'idToken': idToken,
-      'createdAt': nowIso8601,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query, txn: txn);
-    if (result == null) {
-      throw Exception('Failed to create OAuth account in database');
-    }
-    return result;
+    // id/createdAt/updatedAt are autofilled by the schema defaults; callers
+    // should use the returned row's id (CreateAccountInput has no id param).
+    final delegate = txn == null ? _prisma.account : AccountDelegate(txn);
+    final result = await delegate.create(
+      data: CreateAccountInput(
+        userId: userId,
+        providerId: providerId,
+        accountId: accountId,
+        accessToken: accessToken,
+        idToken: idToken,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Create a credentials account for email/password users
@@ -96,21 +88,17 @@ class AccountRepository extends BaseRepository {
     required String hashedPassword,
     TransactionExecutor? txn,
   }) async {
-    final query =
-        JsonQueryBuilder().model('accounts').action(QueryAction.create).data({
-      'id': id,
-      'userId': userId,
-      'providerId': 'credential',
-      'accountId': userId,
-      'password': hashedPassword,
-      'createdAt': nowIso8601,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query, txn: txn);
-    if (result == null) {
-      throw Exception('Failed to create credentials account in database');
-    }
-    return result;
+    // id/createdAt/updatedAt are autofilled by the schema defaults; callers
+    // should use the returned row's id (CreateAccountInput has no id param).
+    final delegate = txn == null ? _prisma.account : AccountDelegate(txn);
+    final result = await delegate.create(
+      data: CreateAccountInput(
+        userId: userId,
+        providerId: 'credential',
+        accountId: userId,
+        password: hashedPassword,
+      ),
+    );
+    return result.toJson();
   }
 }

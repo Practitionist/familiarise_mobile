@@ -16,12 +16,13 @@ class VerificationRepository extends BaseRepository {
     required String identifier,
     required String value,
   }) async {
-    return _prisma.verification.findFirstRaw(
-      where: {
-        'identifier': identifier,
-        'value': value,
-      },
+    final result = await _prisma.verification.findFirst(
+      where: VerificationWhereInput(
+        identifier: StringFilter(equals: identifier),
+        value: StringFilter(equals: value),
+      ),
     );
+    return result?.toJson();
   }
 
   /// Find a verification by value and identifier prefix
@@ -32,17 +33,21 @@ class VerificationRepository extends BaseRepository {
     required String value,
     required String identifierPrefix,
   }) async {
-    return _prisma.verification.findFirstRaw(
-      where: {
-        'value': value,
-        'identifier': FilterOperators.startsWith(identifierPrefix),
-      },
+    final result = await _prisma.verification.findFirst(
+      where: VerificationWhereInput(
+        value: StringFilter(equals: value),
+        identifier: StringFilter(startsWith: identifierPrefix),
+      ),
     );
+    return result?.toJson();
   }
 
   /// Find a verification by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    return _prisma.verification.findFirstRaw(where: {'id': id});
+    final result = await _prisma.verification.findFirst(
+      where: VerificationWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Create a new verification token
@@ -53,23 +58,19 @@ class VerificationRepository extends BaseRepository {
     required DateTime expiresAt,
     TransactionExecutor? txn,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('verifications')
-        .action(QueryAction.create)
-        .data({
-      'id': id,
-      'identifier': identifier,
-      'value': value,
-      'expiresAt': expiresAt.toIso8601String(),
-      'createdAt': nowIso8601,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query, txn: txn);
-    if (result == null) {
-      throw Exception('Failed to create verification in database');
-    }
-    return result;
+    // id/createdAt/updatedAt are autofilled by the schema defaults; callers
+    // should use the returned row's id (CreateVerificationInput has no id
+    // param).
+    final delegate =
+        txn == null ? _prisma.verification : VerificationDelegate(txn);
+    final result = await delegate.create(
+      data: CreateVerificationInput(
+        identifier: identifier,
+        value: value,
+        expiresAt: expiresAt,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Delete a verification by ID

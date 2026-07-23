@@ -1,11 +1,13 @@
 import 'package:backend/database/repositories/base_repository.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:backend/generated/index.dart';
 
 /// Repository for dashboard data aggregation queries
 ///
 /// Provides aggregated statistics for both consultee and consultant dashboards.
 class DashboardRepository extends BaseRepository {
-  DashboardRepository(super._executor);
+  DashboardRepository(super._executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   /// Get aggregated stats for a consultee user
   ///
@@ -15,12 +17,9 @@ class DashboardRepository extends BaseRepository {
     required String userId,
   }) async {
     // Get consultee profile
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
+    final profile = await _prisma.consulteeProfile.findFirstProjected(
+      where: ConsulteeProfileWhereInput(userId: StringFilter(equals: userId)),
+    );
     final consulteeProfileId = profile?['id'] as String?;
 
     if (consulteeProfileId == null) {
@@ -35,31 +34,29 @@ class DashboardRepository extends BaseRepository {
       };
     }
 
-    // GroupBy: aggregate consultation counts per status in the DB
-    final consultationGroupByQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.groupBy)
-        .groupByFields(['requestStatus'])
-        .where({'requestedById': consulteeProfileId})
-        .aggregation({'_count': true})
-        .build();
-    final consultationGrouped =
-        await executeQueryAsMaps(consultationGroupByQuery);
+    // GroupBy: aggregate consultation counts per status in the DB.
+    // Dart field is `status` (@map'd to the requestStatus column); the typed
+    // groupBy aliases the group key back to the Dart field name.
+    final consultationGrouped = await _prisma.consultation.groupBy(
+      by: ['status'],
+      where: ConsultationWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+      ),
+      count: true,
+    );
     final consultationCounts =
-        _parseGroupByCounts(consultationGrouped, 'requestStatus');
+        _parseGroupByCounts(consultationGrouped, 'status');
 
     // GroupBy: aggregate subscription counts per status in the DB
-    final subscriptionGroupByQuery = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.groupBy)
-        .groupByFields(['requestStatus'])
-        .where({'requestedById': consulteeProfileId})
-        .aggregation({'_count': true})
-        .build();
-    final subscriptionGrouped =
-        await executeQueryAsMaps(subscriptionGroupByQuery);
+    final subscriptionGrouped = await _prisma.subscription.groupBy(
+      by: ['status'],
+      where: SubscriptionWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+      ),
+      count: true,
+    );
     final subscriptionCounts =
-        _parseGroupByCounts(subscriptionGrouped, 'requestStatus');
+        _parseGroupByCounts(subscriptionGrouped, 'status');
 
     // Calculate total spent from completed consultations
     final totalSpent = await _calculateTotalSpent(
@@ -109,19 +106,20 @@ class DashboardRepository extends BaseRepository {
     final planData = await _prefetchConsultantPlanData(consultantProfileId);
 
     // Get rating from profile
-    final ratingQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'id': consultantProfileId}).select({'rating': true}).build();
-    final profileData = await executeQueryAsSingleMap(ratingQuery);
+    final profileData = await _prisma.consultantProfile.findFirstProjected(
+      where: ConsultantProfileWhereInput(
+        id: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [ConsultantProfileScalarField.rating],
+    );
     final rating = (profileData?['rating'] as num?)?.toDouble() ?? 0.0;
 
     // Count reviews
-    final reviewCountQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.count)
-        .where({'consultantProfileId': consultantProfileId}).build();
-    final totalReviews = await executeCount(reviewCountQuery);
+    final totalReviews = await _prisma.consultantReview.count(
+      where: ConsultantReviewWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     // Count unique clients using pre-fetched plan IDs
     final uniqueClients = await _countUniqueClients(
@@ -163,36 +161,31 @@ class DashboardRepository extends BaseRepository {
     if (consultantProfileId == null) return [];
 
     // Get consultation plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true}).build();
-
-    final plans = await executeQueryAsMaps(plansQuery);
+    final plans = await _prisma.consultationPlan.findManyProjected(
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [ConsultationPlanScalarField.id],
+    );
     final planIds = plans.map((p) => p['id'] as String).toList();
 
     if (planIds.isEmpty) return [];
 
     // Get pending consultations
-    final pendingQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where({
-          'consultationPlanId': {'in': planIds},
-          'requestStatus': 'PENDING',
-        })
-        .include({
-          'requestedBy': {
-            'include': {'user': true},
-          },
-          'consultationPlan': true,
-        })
-        .orderBy({'requestedAt': 'desc'})
-        .take(20)
-        .build();
-
-    return executeQueryAsMaps(pendingQuery);
+    return _prisma.consultation.findManyProjected(
+      where: ConsultationWhereInput(
+        consultationPlanId: StringFilter(in_: planIds),
+        status: const AppointmentStatusFilter(
+          equals: AppointmentStatus.pending,
+        ),
+      ),
+      include: const ConsultationInclude(
+        requestedBy: ConsulteeProfileInclude(user: UserInclude()),
+        consultationPlan: ConsultationPlanInclude(),
+      ),
+      orderBy: {'requestedAt': 'desc'},
+      take: 20,
+    );
   }
 
   /// Get recent reviews for a consultant
@@ -202,33 +195,31 @@ class DashboardRepository extends BaseRepository {
     final consultantProfileId = await _getConsultantProfileId(userId);
     if (consultantProfileId == null) return [];
 
-    final reviewsQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({
-          'id': true,
-          'rating': true,
-          'reviewDescription': true,
-          'createdAt': true,
-          'consulteeProfile': {
-            'select': {
-              'id': true,
-              'user': {
-                'select': {
-                  'id': true,
-                  'name': true,
-                  'image': true,
-                },
-              },
-            },
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .take(10)
-        .build();
-
-    return executeQueryAsMaps(reviewsQuery);
+    return _prisma.consultantReview.findManyProjected(
+      where: ConsultantReviewWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        ConsultantReviewScalarField.id,
+        ConsultantReviewScalarField.rating,
+        ConsultantReviewScalarField.reviewDescription,
+        ConsultantReviewScalarField.createdAt,
+      ],
+      include: const ConsultantReviewInclude(
+        consulteeProfile: ConsulteeProfileInclude(
+          select: [ConsulteeProfileScalarField.id],
+          user: UserInclude(
+            select: [
+              UserScalarField.id,
+              UserScalarField.name,
+              UserScalarField.image,
+            ],
+          ),
+        ),
+      ),
+      orderBy: {'createdAt': 'desc'},
+      take: 10,
+    );
   }
 
   /// Get earnings summary for a consultant
@@ -263,11 +254,9 @@ class DashboardRepository extends BaseRepository {
   /// Resolves the consultant profile ID for a given user ID.
   /// Returns null if the user has no consultant profile.
   Future<String?> _getConsultantProfileId(String userId) async {
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-    final profile = await executeQueryAsSingleMap(profileQuery);
+    final profile = await _prisma.consultantProfile.findFirstProjected(
+      where: ConsultantProfileWhereInput(userId: StringFilter(equals: userId)),
+    );
     return profile?['id'] as String?;
   }
 
@@ -279,12 +268,15 @@ class DashboardRepository extends BaseRepository {
     String consultantProfileId,
   ) async {
     // ConsultationPlan — also fetch prices for earnings calculation
-    final consultationPlansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true, 'price': true}).build();
-    final consultationPlans = await executeQueryAsMaps(consultationPlansQuery);
+    final consultationPlans = await _prisma.consultationPlan.findManyProjected(
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        ConsultationPlanScalarField.id,
+        ConsultationPlanScalarField.price,
+      ],
+    );
 
     final subscriptionPlanIds =
         await _getPlanIds('SubscriptionPlan', consultantProfileId);
@@ -310,12 +302,34 @@ class DashboardRepository extends BaseRepository {
     String planModel,
     String consultantProfileId,
   ) async {
-    final query = JsonQueryBuilder()
-        .model(planModel)
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true}).build();
-    final plans = await executeQueryAsMaps(query);
+    final consultantProfileIdFilter =
+        StringFilter(equals: consultantProfileId);
+    final List<Map<String, dynamic>> plans;
+    switch (planModel) {
+      case 'SubscriptionPlan':
+        plans = await _prisma.subscriptionPlan.findManyProjected(
+          where: SubscriptionPlanWhereInput(
+            consultantProfileId: consultantProfileIdFilter,
+          ),
+          select: const [SubscriptionPlanScalarField.id],
+        );
+      case 'WebinarPlan':
+        plans = await _prisma.webinarPlan.findManyProjected(
+          where: WebinarPlanWhereInput(
+            consultantProfileId: consultantProfileIdFilter,
+          ),
+          select: const [WebinarPlanScalarField.id],
+        );
+      case 'ClassPlan':
+        plans = await _prisma.classPlan.findManyProjected(
+          where: ClassPlanWhereInput(
+            consultantProfileId: consultantProfileIdFilter,
+          ),
+          select: const [ClassPlanScalarField.id],
+        );
+      default:
+        throw ArgumentError('Unsupported plan model: $planModel');
+    }
     return plans.map((p) => p['id'] as String).toList();
   }
 
@@ -347,29 +361,31 @@ class DashboardRepository extends BaseRepository {
   }) async {
     final counts = <String, int>{};
 
-    // 1. Consultations (requestStatus field)
+    // 1. Consultations (requestStatus column, Dart field `status`)
     if (planData.consultationPlanIds.isNotEmpty) {
-      final query = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findMany)
-          .where({
-        'consultationPlanId': {'in': planData.consultationPlanIds},
-        'requestStatus': {'in': statuses},
-      }).select({'requestStatus': true}).build();
-      final rows = await executeQueryAsMaps(query);
+      final rows = await _prisma.consultation.findManyProjected(
+        where: ConsultationWhereInput(
+          consultationPlanId: StringFilter(in_: planData.consultationPlanIds),
+          status: AppointmentStatusFilter(
+            in_: statuses.map(_toAppointmentStatus).toList(),
+          ),
+        ),
+        select: const [ConsultationScalarField.status],
+      );
       _mergeStatusCounts(counts, rows, 'requestStatus');
     }
 
-    // 2. Subscriptions (requestStatus field)
+    // 2. Subscriptions (requestStatus column, Dart field `status`)
     if (planData.subscriptionPlanIds.isNotEmpty) {
-      final query = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findMany)
-          .where({
-        'subscriptionPlanId': {'in': planData.subscriptionPlanIds},
-        'requestStatus': {'in': statuses},
-      }).select({'requestStatus': true}).build();
-      final rows = await executeQueryAsMaps(query);
+      final rows = await _prisma.subscription.findManyProjected(
+        where: SubscriptionWhereInput(
+          subscriptionPlanId: StringFilter(in_: planData.subscriptionPlanIds),
+          status: AppointmentStatusFilter(
+            in_: statuses.map(_toAppointmentStatus).toList(),
+          ),
+        ),
+        select: const [SubscriptionScalarField.status],
+      );
       _mergeStatusCounts(counts, rows, 'requestStatus');
     }
 
@@ -379,14 +395,15 @@ class DashboardRepository extends BaseRepository {
         .whereType<String>()
         .toList();
     if (trialStatuses.isNotEmpty) {
-      final query = JsonQueryBuilder()
-          .model('TrialSession')
-          .action(QueryAction.findMany)
-          .where({
-        'consultantProfileId': consultantProfileId,
-        'status': {'in': trialStatuses},
-      }).select({'status': true}).build();
-      final rows = await executeQueryAsMaps(query);
+      final rows = await _prisma.trialSession.findManyProjected(
+        where: TrialSessionWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+          status: TrialSessionStatusFilter(
+            in_: trialStatuses.map(_toTrialSessionStatus).toList(),
+          ),
+        ),
+        select: const [TrialSessionScalarField.status],
+      );
       // Map trial statuses back to request statuses for aggregation
       for (final row in rows) {
         final trialStatus = row['status'] as String?;
@@ -404,14 +421,15 @@ class DashboardRepository extends BaseRepository {
           .whereType<String>()
           .toList();
       if (webinarStatuses.isNotEmpty) {
-        final query = JsonQueryBuilder()
-            .model('Webinar')
-            .action(QueryAction.findMany)
-            .where({
-          'webinarPlanId': {'in': planData.webinarPlanIds},
-          'status': {'in': webinarStatuses},
-        }).select({'status': true}).build();
-        final rows = await executeQueryAsMaps(query);
+        final rows = await _prisma.webinar.findManyProjected(
+          where: WebinarWhereInput(
+            webinarPlanId: StringFilter(in_: planData.webinarPlanIds),
+            status: WebinarStatusFilter(
+              in_: webinarStatuses.map(_toWebinarStatus).toList(),
+            ),
+          ),
+          select: const [WebinarScalarField.status],
+        );
         for (final row in rows) {
           final webinarStatus = row['status'] as String?;
           final requestStatus = _mapWebinarStatusToRequestStatus(webinarStatus);
@@ -429,14 +447,15 @@ class DashboardRepository extends BaseRepository {
           .whereType<String>()
           .toList();
       if (classStatuses.isNotEmpty) {
-        final query = JsonQueryBuilder()
-            .model('Class')
-            .action(QueryAction.findMany)
-            .where({
-          'classPlanId': {'in': planData.classPlanIds},
-          'status': {'in': classStatuses},
-        }).select({'status': true}).build();
-        final rows = await executeQueryAsMaps(query);
+        final rows = await _prisma.classModel.findManyProjected(
+          where: ClassModelWhereInput(
+            classPlanId: StringFilter(in_: planData.classPlanIds),
+            status: ClassStatusFilter(
+              in_: classStatuses.map(_toClassStatus).toList(),
+            ),
+          ),
+          select: const [ClassModelScalarField.status],
+        );
         for (final row in rows) {
           final classStatus = row['status'] as String?;
           final requestStatus = _mapClassStatusToRequestStatus(classStatus);
@@ -466,17 +485,17 @@ class DashboardRepository extends BaseRepository {
     required String consulteeProfileId,
   }) async {
     // Get completed consultations with plan prices
-    final query = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where({
-      'requestedById': consulteeProfileId,
-      'requestStatus': {
-        'in': ['COMPLETED', 'SCHEDULED'],
-      },
-    }).include({'consultationPlan': true}).build();
-
-    final consultations = await executeQueryAsMaps(query);
+    final consultations = await _prisma.consultation.findManyProjected(
+      where: ConsultationWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+        status: const AppointmentStatusFilter(
+          in_: [AppointmentStatus.completed, AppointmentStatus.scheduled],
+        ),
+      ),
+      include: const ConsultationInclude(
+        consultationPlan: ConsultationPlanInclude(),
+      ),
+    );
 
     var total = 0.0;
     for (final c in consultations) {
@@ -494,26 +513,23 @@ class DashboardRepository extends BaseRepository {
     required _ConsultantPlanData planData,
   }) async {
     final clientIds = <String>{};
-    final activeStatuses = [
-      'COMPLETED',
-      'SCHEDULED',
-      'APPROVED',
-      'APPROVED_PENDING_PAYMENT',
+    const activeStatuses = [
+      AppointmentStatus.completed,
+      AppointmentStatus.scheduled,
+      AppointmentStatus.approved,
+      AppointmentStatus.approvedPendingPayment,
     ];
 
     // 1. Consultation clients
     if (planData.consultationPlanIds.isNotEmpty) {
-      final consultationsQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findMany)
-          .where({
-            'consultationPlanId': {'in': planData.consultationPlanIds},
-            'requestStatus': {'in': activeStatuses},
-          })
-          .distinct()
-          .select({'requestedById': true})
-          .build();
-      final consultations = await executeQueryAsMaps(consultationsQuery);
+      final consultations = await _prisma.consultation.findManyProjected(
+        where: ConsultationWhereInput(
+          consultationPlanId: StringFilter(in_: planData.consultationPlanIds),
+          status: const AppointmentStatusFilter(in_: activeStatuses),
+        ),
+        distinct: true,
+        select: const [ConsultationScalarField.requestedById],
+      );
       for (final c in consultations) {
         final id = c['requestedById'] as String?;
         if (id != null) clientIds.add(id);
@@ -522,17 +538,14 @@ class DashboardRepository extends BaseRepository {
 
     // 2. Subscription clients
     if (planData.subscriptionPlanIds.isNotEmpty) {
-      final subscriptionsQuery = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findMany)
-          .where({
-            'subscriptionPlanId': {'in': planData.subscriptionPlanIds},
-            'requestStatus': {'in': activeStatuses},
-          })
-          .distinct()
-          .select({'requestedById': true})
-          .build();
-      final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
+      final subscriptions = await _prisma.subscription.findManyProjected(
+        where: SubscriptionWhereInput(
+          subscriptionPlanId: StringFilter(in_: planData.subscriptionPlanIds),
+          status: const AppointmentStatusFilter(in_: activeStatuses),
+        ),
+        distinct: true,
+        select: const [SubscriptionScalarField.requestedById],
+      );
       for (final s in subscriptions) {
         final id = s['requestedById'] as String?;
         if (id != null) clientIds.add(id);
@@ -540,19 +553,21 @@ class DashboardRepository extends BaseRepository {
     }
 
     // 3. Trial session clients
-    final trialsQuery = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.findMany)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': {
-            'in': ['PENDING', 'SCHEDULED', 'COMPLETED', 'CONVERTED'],
-          },
-        })
-        .distinct()
-        .select({'consulteeProfileId': true})
-        .build();
-    final trials = await executeQueryAsMaps(trialsQuery);
+    final trials = await _prisma.trialSession.findManyProjected(
+      where: TrialSessionWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        status: const TrialSessionStatusFilter(
+          in_: [
+            TrialSessionStatus.pending,
+            TrialSessionStatus.scheduled,
+            TrialSessionStatus.completed,
+            TrialSessionStatus.converted,
+          ],
+        ),
+      ),
+      distinct: true,
+      select: const [TrialSessionScalarField.consulteeProfileId],
+    );
     for (final t in trials) {
       final id = t['consulteeProfileId'] as String?;
       if (id != null) clientIds.add(id);
@@ -560,28 +575,28 @@ class DashboardRepository extends BaseRepository {
 
     // 4. Webinar participants (via slots → users)
     if (planData.webinarPlanIds.isNotEmpty) {
-      final webinarsQuery = JsonQueryBuilder()
-          .model('Webinar')
-          .action(QueryAction.findMany)
-          .where({
-        'webinarPlanId': {'in': planData.webinarPlanIds},
-        'status': {
-          'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
-        },
-      }).include({
-        'appointment': {
-          'include': {
-            'slots': {
-              'include': {'user': true},
-            },
-          },
-        },
-      }).build();
-      final webinars = await executeQueryAsMaps(webinarsQuery);
+      final webinars = await _prisma.webinar.findManyProjected(
+        where: WebinarWhereInput(
+          webinarPlanId: StringFilter(in_: planData.webinarPlanIds),
+          status: const WebinarStatusFilter(
+            in_: [
+              WebinarStatus.scheduled,
+              WebinarStatus.inProgress,
+              WebinarStatus.completed,
+            ],
+          ),
+        ),
+        include: const WebinarInclude(
+          appointment: AppointmentInclude(
+            slotsOfAppointment: SlotOfAppointmentInclude(user: UserInclude()),
+          ),
+        ),
+      );
       for (final w in webinars) {
         final appointment = w['appointment'] as Map<String, dynamic>?;
         if (appointment == null) continue;
-        final slots = appointment['slots'] as List<dynamic>? ?? [];
+        final slots =
+            appointment['slotsOfAppointment'] as List<dynamic>? ?? [];
         for (final slot in slots) {
           final slotMap = slot as Map<String, dynamic>;
           final users = slotMap['user'] as List<dynamic>? ?? [];
@@ -595,27 +610,28 @@ class DashboardRepository extends BaseRepository {
 
     // 5. Class participants (via slots → users)
     if (planData.classPlanIds.isNotEmpty) {
-      final classesQuery =
-          JsonQueryBuilder().model('Class').action(QueryAction.findMany).where({
-        'classPlanId': {'in': planData.classPlanIds},
-        'status': {
-          'in': ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
-        },
-      }).include({
-        'appointments': {
-          'include': {
-            'slots': {
-              'include': {'user': true},
-            },
-          },
-        },
-      }).build();
-      final classes = await executeQueryAsMaps(classesQuery);
+      final classes = await _prisma.classModel.findManyProjected(
+        where: ClassModelWhereInput(
+          classPlanId: StringFilter(in_: planData.classPlanIds),
+          status: const ClassStatusFilter(
+            in_: [
+              ClassStatus.scheduled,
+              ClassStatus.inProgress,
+              ClassStatus.completed,
+            ],
+          ),
+        ),
+        include: const ClassModelInclude(
+          appointments: AppointmentInclude(
+            slotsOfAppointment: SlotOfAppointmentInclude(user: UserInclude()),
+          ),
+        ),
+      );
       for (final c in classes) {
         final appointments = c['appointments'] as List<dynamic>? ?? [];
         for (final a in appointments) {
           final aMap = a as Map<String, dynamic>;
-          final slots = aMap['slots'] as List<dynamic>? ?? [];
+          final slots = aMap['slotsOfAppointment'] as List<dynamic>? ?? [];
           for (final slot in slots) {
             final slotMap = slot as Map<String, dynamic>;
             final users = slotMap['user'] as List<dynamic>? ?? [];
@@ -636,19 +652,22 @@ class DashboardRepository extends BaseRepository {
     required String consultantProfileId,
     Map<String, double>? preloadedPlanPrices,
   }) async {
-    final earningsQuery = JsonQueryBuilder()
-        .model('ConsultantEarnings')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'consultantShare': true, 'status': true}).build();
-    final earningsRows = await executeQueryAsMaps(earningsQuery);
+    final earningsRows = await _prisma.consultantEarnings.findManyProjected(
+      where: ConsultantEarningsWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        ConsultantEarningsScalarField.consultantSharePaise,
+        ConsultantEarningsScalarField.status,
+      ],
+    );
 
     var totalEarnings = 0.0;
     var pendingEarnings = 0.0;
 
     for (final row in earningsRows) {
       final consultantShare =
-          (row['consultantShare'] as num?)?.toDouble() ?? 0.0;
+          (row['consultantSharePaise'] as num?)?.toDouble() ?? 0.0;
       final status = row['status'] as String? ?? 'PENDING';
 
       if (status == 'REFUNDED') continue;
@@ -667,6 +686,22 @@ class DashboardRepository extends BaseRepository {
   }
 
   // ==================== Status Mapping ====================
+
+  /// Convert an uppercase wire status string to the AppointmentStatus enum
+  AppointmentStatus _toAppointmentStatus(String status) =>
+      AppointmentStatus.values.firstWhere((e) => e.toJson() == status);
+
+  /// Convert an uppercase wire status string to the TrialSessionStatus enum
+  TrialSessionStatus _toTrialSessionStatus(String status) =>
+      TrialSessionStatus.values.firstWhere((e) => e.toJson() == status);
+
+  /// Convert an uppercase wire status string to the WebinarStatus enum
+  WebinarStatus _toWebinarStatus(String status) =>
+      WebinarStatus.values.firstWhere((e) => e.toJson() == status);
+
+  /// Convert an uppercase wire status string to the ClassStatus enum
+  ClassStatus _toClassStatus(String status) =>
+      ClassStatus.values.firstWhere((e) => e.toJson() == status);
 
   /// Map RequestStatus → TrialSessionStatus
   String? _mapRequestStatusToTrialStatus(String requestStatus) {
