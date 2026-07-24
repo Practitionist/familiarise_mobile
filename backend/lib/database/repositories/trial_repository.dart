@@ -101,8 +101,8 @@ class TrialRepository extends BaseRepository {
     final affected = await _prisma.trialSession.updateMany(
       where: TrialSessionWhereInput(id: StringFilter(equals: id)),
       data: UpdateTrialSessionInput(
-        status: enumFromWire(TrialSessionStatus.values, status,
-            field: 'status'),
+        status:
+            enumFromWire(TrialSessionStatus.values, status, field: 'status'),
       ),
     );
     if (affected == 0) return null;

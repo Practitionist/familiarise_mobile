@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 
 /// Exception thrown when a record is not found or access is denied
@@ -130,10 +131,11 @@ class SupportTicketRepository extends BaseRepository {
         userId: userId,
         title: title,
         description: description,
-        priority: SupportPriority.values
-            .firstWhere((e) => e.toJson() == (priority ?? 'MEDIUM')),
+        priority: enumFromWire(SupportPriority.values, priority ?? 'MEDIUM',
+            field: 'priority'),
         issueType: issueType != null
-            ? SupportIssueType.values.firstWhere((e) => e.toJson() == issueType)
+            ? enumFromWire(SupportIssueType.values, issueType,
+                field: 'issueType')
             : null,
         category: category,
         consultationId: consultationId,

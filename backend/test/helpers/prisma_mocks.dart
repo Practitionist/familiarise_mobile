@@ -167,8 +167,8 @@ ConsulteeProfile buildConsulteeProfile({
 /// same delegate stubs serve both transactional and non-transactional calls.
 void stubTransaction<T>(MockPrismaClient client) {
   when(() => client.$transaction<T>(any())).thenAnswer((invocation) async {
-    final callback = invocation.positionalArguments.first
-        as Future<T> Function(PrismaClient);
+    final callback = invocation.positionalArguments.first as Future<T> Function(
+        PrismaClient);
     return callback(client);
   });
 }
@@ -207,4 +207,101 @@ NotificationPreference buildNotificationPreference({
   String userId = 'user-1',
 }) {
   return NotificationPreference(id: id, userId: userId);
+}
+
+/// Build a [Verification] with the required scalars filled in.
+Verification buildVerification({
+  String id = 'verification-1',
+  String identifier = 'password-reset:test@example.com',
+  String value = 'token123',
+  DateTime? expiresAt,
+}) {
+  final now = DateTime.utc(2026, 1, 1);
+  return Verification(
+    id: id,
+    identifier: identifier,
+    value: value,
+    expiresAt: expiresAt ?? now.add(const Duration(hours: 1)),
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+/// Build a [Session] with the required scalars filled in.
+Session buildSession({
+  String id = 'session-1',
+  String token = 'session-token',
+  String userId = 'user-1',
+  DateTime? expiresAt,
+}) {
+  final now = DateTime.utc(2026, 1, 1);
+  return Session(
+    id: id,
+    token: token,
+    userId: userId,
+    expiresAt: expiresAt ?? now.add(const Duration(days: 7)),
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+/// Build a [SupportTicket] with the required scalars filled in.
+SupportTicket buildSupportTicket({
+  String id = 'ticket-1',
+  String title = 'Test ticket',
+  String description = 'Something is broken',
+  String userId = 'user-1',
+  SupportTicketStatus status = SupportTicketStatus.open,
+  SupportPriority priority = SupportPriority.medium,
+  SupportIssueType? issueType,
+}) {
+  final now = DateTime.utc(2026, 1, 1);
+  return SupportTicket(
+    id: id,
+    title: title,
+    description: description,
+    userId: userId,
+    status: status,
+    priority: priority,
+    issueType: issueType,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+/// Build a [SupportResponse] with the required scalars filled in.
+SupportResponse buildSupportResponse({
+  String id = 'response-1',
+  String message = 'We are on it',
+  String supportTicketId = 'ticket-1',
+  String userId = 'user-1',
+}) {
+  final now = DateTime.utc(2026, 1, 1);
+  return SupportResponse(
+    id: id,
+    message: message,
+    supportTicketId: supportTicketId,
+    userId: userId,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+/// Build a [SupportTicketAttachment] with the required scalars filled in.
+SupportTicketAttachment buildSupportTicketAttachment({
+  String id = 'attachment-1',
+  String fileName = 'screenshot.png',
+  String ticketId = 'ticket-1',
+}) {
+  return SupportTicketAttachment(
+    id: id,
+    fileName: fileName,
+    originalName: fileName,
+    fileSize: 1024,
+    mimeType: 'image/png',
+    fileUrl: 'https://example.test/$fileName',
+    storagePath: 'tickets/$ticketId/$fileName',
+    ticketId: ticketId,
+    uploadedAt: DateTime.utc(2026, 1, 1),
+  );
 }
