@@ -14,8 +14,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
   try {
     final db = context.read<DatabaseClient>();
 
-    final domain = await db.prisma.domain.findFirst(
-      where: DomainWhereInput(id: StringFilter(equals: id)),
+    final domain = await db.prisma.domain.findUnique(
+      where: DomainWhereUniqueInput(id: id),
     );
 
     if (domain == null) {

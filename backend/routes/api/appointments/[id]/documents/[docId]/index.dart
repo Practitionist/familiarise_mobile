@@ -42,8 +42,8 @@ Future<Response> _handle(
 
     // Verify user is a participant in the appointment
     final db = context.read<DatabaseClient>();
-    final appointmentRecord = await db.prisma.appointment.findFirst(
-      where: AppointmentWhereInput(id: StringFilter(equals: appointmentId)),
+    final appointmentRecord = await db.prisma.appointment.findUnique(
+      where: AppointmentWhereUniqueInput(id: appointmentId),
     );
     if (appointmentRecord == null) {
       return Response.json(

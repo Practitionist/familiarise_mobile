@@ -45,10 +45,8 @@ Future<Response> _handle(
       );
     }
 
-    final slot = await db.prisma.slotOfAvailabilityCustom.findFirst(
-      where: SlotOfAvailabilityCustomWhereInput(
-        id: StringFilter(equals: id),
-      ),
+    final slot = await db.prisma.slotOfAvailabilityCustom.findUnique(
+      where: SlotOfAvailabilityCustomWhereUniqueInput(id: id),
     );
 
     if (slot == null || slot.consultantProfileId != userCpId) {

@@ -20,7 +20,7 @@ Future<Response> onRequest(RequestContext context) async {
     // JsonQueryBuilder path. Compile-time-checked model, field, and filter.
     final tags = await db.prisma.tag.findMany(
       where: (search != null && search.isNotEmpty)
-          ? TagWhereInput(name: StringFilter(contains: search))
+          ? TagWhereInput(name: StringFilter(contains: search, mode: 'insensitive'))
           : null,
     );
 

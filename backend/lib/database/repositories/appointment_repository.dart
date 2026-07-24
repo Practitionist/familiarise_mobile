@@ -2343,9 +2343,22 @@ class AppointmentRepository extends BaseRepository {
 
     final consulteeProfileId = profile['id'] as String;
     final now = DateTime.now().toUtc();
-    final cancellationReason = reason != null
-        ? CancellationReason.values.firstWhere((e) => e.toJson() == reason)
-        : null;
+    // Guard external enum wire value: an unknown reason must surface as a
+    // validation error (ArgumentError -> 400), not a StateError -> 500.
+    CancellationReason? cancellationReason;
+    if (reason != null) {
+      final matches =
+          CancellationReason.values.where((e) => e.toJson() == reason);
+      if (matches.isEmpty) {
+        throw ArgumentError.value(
+          reason,
+          'reason',
+          'Unsupported cancellation reason. Allowed: '
+              '${CancellationReason.values.map((e) => e.toJson()).join(', ')}',
+        );
+      }
+      cancellationReason = matches.first;
+    }
 
     // Use explicit model queries instead of dynamic table names
     if (type == 'CONSULTATION') {

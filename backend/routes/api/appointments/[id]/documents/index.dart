@@ -25,8 +25,8 @@ Future<Object> _authorizeParticipant(
   String userId,
 ) async {
   final db = context.read<DatabaseClient>();
-  final appointment = await db.prisma.appointment.findFirst(
-    where: AppointmentWhereInput(id: StringFilter(equals: appointmentId)),
+  final appointment = await db.prisma.appointment.findUnique(
+    where: AppointmentWhereUniqueInput(id: appointmentId),
   );
   if (appointment == null) {
     return Response.json(

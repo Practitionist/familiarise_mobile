@@ -61,8 +61,17 @@ Future<Response> onRequest(
     // Typed update auto-refreshes updatedAt — no manual timestamp needed.
     FeedbackStatus? status;
     if (body.containsKey('status')) {
-      status = FeedbackStatus.values
-          .firstWhere((e) => e.toJson() == body['status']);
+      final matches =
+          FeedbackStatus.values.where((e) => e.toJson() == body['status']);
+      if (matches.isEmpty) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {'message': 'Invalid status: ${body['status']}'},
+          },
+        );
+      }
+      status = matches.first;
     }
 
     final updated = await db.prisma.feedback.update(

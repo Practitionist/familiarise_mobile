@@ -32,14 +32,25 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final status = context.request.uri.queryParameters['status'];
+    SupportTicketStatus? statusFilter;
+    if (status != null) {
+      final matches =
+          SupportTicketStatus.values.where((e) => e.toJson() == status);
+      if (matches.isEmpty) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {'message': 'Invalid status: $status'},
+          },
+        );
+      }
+      statusFilter = matches.first;
+    }
 
     final tickets = await db.prisma.supportTicket.findMany(
-      where: status != null
+      where: statusFilter != null
           ? SupportTicketWhereInput(
-              status: SupportTicketStatusFilter(
-                equals: SupportTicketStatus.values
-                    .firstWhere((e) => e.toJson() == status),
-              ),
+              status: SupportTicketStatusFilter(equals: statusFilter),
             )
           : null,
       orderBy: const SupportTicketOrderByInput(createdAt: SortOrder.desc),

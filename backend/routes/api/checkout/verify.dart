@@ -305,7 +305,7 @@ Future<Response> _buildVerificationResponse(
           orderBy: const SlotOfAppointmentOrderByInput(startsAt: SortOrder.asc),
         );
         if (slot != null) {
-          scheduledAt = slot.startsAt.toString();
+          scheduledAt = slot.startsAt.toUtc().toIso8601String();
         }
       } else if (subscriptionId != null) {
         bookingType = 'SUBSCRIPTION';

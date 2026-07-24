@@ -54,13 +54,31 @@ Future<Response> onRequest(
       // Typed update auto-refreshes updatedAt — no manual timestamp needed.
       SupportTicketStatus? status;
       if (body.containsKey('status')) {
-        status = SupportTicketStatus.values
-            .firstWhere((e) => e.toJson() == body['status']);
+        final matches = SupportTicketStatus.values
+            .where((e) => e.toJson() == body['status']);
+        if (matches.isEmpty) {
+          return Response.json(
+            statusCode: HttpStatus.badRequest,
+            body: {
+              'error': {'message': 'Invalid status: ${body['status']}'},
+            },
+          );
+        }
+        status = matches.first;
       }
       SupportPriority? priority;
       if (body.containsKey('priority')) {
-        priority = SupportPriority.values
-            .firstWhere((e) => e.toJson() == body['priority']);
+        final matches = SupportPriority.values
+            .where((e) => e.toJson() == body['priority']);
+        if (matches.isEmpty) {
+          return Response.json(
+            statusCode: HttpStatus.badRequest,
+            body: {
+              'error': {'message': 'Invalid priority: ${body['priority']}'},
+            },
+          );
+        }
+        priority = matches.first;
       }
 
       final updated = await db.prisma.supportTicket.update(

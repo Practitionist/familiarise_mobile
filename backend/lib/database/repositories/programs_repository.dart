@@ -10,15 +10,6 @@ class ProgramsRepository extends BaseRepository {
 
   final PrismaClient _prisma;
 
-  /// Typed search filter for title/description contains (case-insensitive).
-  List<T> _searchOr<T>(
-    String q,
-    T Function({StringFilter? title, StringFilter? description}) make,
-  ) =>
-      [
-        make(title: StringFilter(contains: q, mode: 'insensitive')),
-        make(description: StringFilter(contains: q, mode: 'insensitive')),
-      ];
 
   /// Find webinar plans with optional filters
   ///
