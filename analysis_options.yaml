@@ -9,6 +9,17 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # `backend/` is a separate Dart package (dart_frog server) with its own
+    # pubspec, analysis_options and CI job. Its dependencies are not resolved
+    # in the Flutter workspace and its Prisma client is generated at build
+    # time, so analyzing it from here only produces phantom errors.
+    - backend/**
+    # Gitignored build output, including third-party SPM/CocoaPods checkouts
+    # (e.g. build/ios/SourcePackages/**) that carry their own example apps.
+    - build/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
