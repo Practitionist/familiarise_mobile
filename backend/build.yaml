@@ -1,0 +1,40 @@
+# Backend code-generation scope.
+#
+# ── Why this file exists ─────────────────────────────────────────────────────
+#
+# json_serializable was running as a build phase over every Dart file in this
+# package and producing NOTHING. There is not a single `part '*.g.dart'`
+# directive under backend/lib or backend/routes, and no generated .freezed.dart
+# references _$…FromJson — the Prisma connector emits hand-written
+# fromJson/toJson bodies instead (see lib/generated/models/*.dart).
+#
+# The one .g.dart in the package, lib/generated/schema_registry.g.dart, is
+# emitted by `prisma_flutter_connector:generate`, NOT by build_runner, so
+# disabling json_serializable cannot affect it.
+#
+# Disabling it also removes two more phases for free: json_serializable
+# `applies_builders: [source_gen|combining_builder]`, and combining_builder is
+# `auto_apply: none` (so nothing else pulls it in) and itself applies
+# source_gen|part_cleanup. It additionally drops freezed's
+# `runs_before: [json_serializable]` ordering barrier, allowing more parallelism.
+#
+# If you ever add an @JsonSerializable class to the backend, set `enabled: true`
+# below and delete this comment.
+
+targets:
+  $default:
+    builders:
+      json_serializable:json_serializable:
+        enabled: false
+
+      freezed:freezed:
+        enabled: true
+        # Every @freezed class in this package is Prisma-generated. Scoping
+        # freezed to lib/generated stops it walking routes/ (132 files) and the
+        # hand-written parts of lib/ looking for annotations that cannot be
+        # there.
+        generate_for:
+          include:
+            - lib/generated/**.dart
+          exclude:
+            - lib/generated/**.freezed.dart

@@ -18,6 +18,7 @@ export PATH="$HOME/.pub-cache/bin:$PATH"
 RUN_PRISMA=false
 RUN_DARTFROG=false
 RUN_FLUTTER=false
+FORCE=0
 
 if [ $# -eq 0 ]; then
   RUN_PRISMA=true
@@ -36,9 +37,17 @@ else
       --prisma)
         RUN_PRISMA=true
         ;;
+      --force)
+        FORCE=1
+        ;;
       *)
         echo "Unknown option: $arg"
-        echo "Usage: $0 [--backend] [--frontend] [--prisma]"
+        echo "Usage: $0 [--backend] [--frontend] [--prisma] [--force]"
+        echo ""
+        echo "  --force  Wipe and regenerate even when inputs are unchanged."
+        echo "           Without it, codegen is skipped when prisma/schema.prisma,"
+        echo "           the connector/freezed versions and build.yaml all match"
+        echo "           the last run."
         exit 1
         ;;
     esac
@@ -46,43 +55,23 @@ else
 fi
 
 # ============================================
-# 1. Prisma Dart Client (backend/lib/generated/)
+# 1-2. Backend codegen (Prisma client + freezed), hash-guarded
 # ============================================
+# Previously these were two stages that each began by deleting their own
+# output — `rm -rf backend/lib/generated` and a `find … | xargs rm -f` over
+# every *.freezed.dart. That ran on every invocation regardless of whether
+# anything had changed, destroying build_runner's asset graph and forcing a
+# cold rebuild of ~735k generated lines each time.
+#
+# ensure-generated.sh now owns both stages and skips them when schema.prisma,
+# the connector/freezed versions and build.yaml are all unchanged. Pass
+# --force to get the old wipe-and-rebuild behaviour.
 if [ "$RUN_PRISMA" = true ]; then
   echo ""
-  echo "=== [1/4] Prisma Dart Client ==="
-  echo "Deleting backend/lib/generated/..."
-  rm -rf backend/lib/generated
-
-  echo "Running dart pub get in backend/..."
+  echo "=== [1-2/4] Backend codegen (Prisma client + freezed) ==="
   cd "$ROOT_DIR/backend"
-  dart pub get
-
-  echo "Generating Prisma client from schema..."
-  dart run prisma_flutter_connector:generate \
-    --schema prisma/schema.prisma \
-    --output lib/generated \
-    --server
-
+  FORCE_CODEGEN="$FORCE" ./scripts/ensure-generated.sh
   cd "$ROOT_DIR"
-  echo "Prisma client generated."
-
-  # ============================================
-  # 2. Backend CodeGen (freezed/json for generated models)
-  # ============================================
-  echo ""
-  echo "=== [2/4] Backend CodeGen (freezed/json for Prisma models) ==="
-  echo "Deleting backend *.g.dart and *.freezed.dart files..."
-  cd "$ROOT_DIR/backend"
-  # Keep lib/generated/schema_registry.g.dart: it is emitted by the Prisma
-  # generator (step 1), not by build_runner, so deleting it here loses it
-  find lib \( -name "*.g.dart" ! -path "*/generated/schema_registry.g.dart" -o -name "*.freezed.dart" \) | xargs rm -f 2>/dev/null || true
-
-  echo "Running build_runner in backend/..."
-  dart run build_runner build --delete-conflicting-outputs
-
-  cd "$ROOT_DIR"
-  echo "Backend codegen complete."
 fi
 
 # ============================================
@@ -108,8 +97,15 @@ fi
 if [ "$RUN_FLUTTER" = true ]; then
   echo ""
   echo "=== [4/4] Flutter CodeGen ==="
-  echo "Deleting *.g.dart and *.freezed.dart files..."
-  find lib -name "*.g.dart" -o -name "*.freezed.dart" | xargs rm -f 2>/dev/null || true
+  # Only wipe on --force. Deleting every generated file discards build_runner's
+  # asset graph, which turns an incremental rebuild (seconds) into a cold one
+  # (minutes) across freezed + json_serializable + riverpod_generator + envied.
+  # --delete-conflicting-outputs below already resolves the collisions this
+  # was guarding against.
+  if [ "$FORCE" = "1" ]; then
+    echo "Deleting *.g.dart and *.freezed.dart files (--force)..."
+    find lib -name "*.g.dart" -o -name "*.freezed.dart" | xargs rm -f 2>/dev/null || true
+  fi
 
   echo "Running flutter pub get..."
   flutter pub get

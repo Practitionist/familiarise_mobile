@@ -1,0 +1,160 @@
+# Local development stack.
+#
+#   docker compose up            → everything (Postgres + API + Flutter web)
+#   docker compose up db-init    → Postgres only, provisioned (the fast path)
+#   docker compose down          → stop, KEEP the database and build caches
+#   docker compose down -v       → stop and destroy them (full cold rebuild next time)
+#
+# ── Two things in here are load-bearing; do not "clean them up" ──────────────
+#
+# 1. `?sslmode=disable` on every local DIRECT_URL.
+#    DatabaseClient.initialize() only treats `localhost` / `127.0.0.1` as local
+#    and otherwise defaults to SslMode.require. Inside this network the host is
+#    `db`, so without the explicit parameter the backend attempts TLS against a
+#    plain postgres image and the handshake fails.
+#
+# 2. The `FAM_` prefix on every interpolated variable.
+#    Compose automatically reads the repo-root .env for interpolation, and that
+#    file contains DATABASE_URL / DIRECT_URL pointing at production Supabase.
+#    Namespacing means nothing in it can silently reach a container. Never
+#    reference a bare ${DATABASE_URL} or ${DIRECT_URL} here.
+#
+# DART_ENV is also deliberately unset: routes/_middleware.dart switches to
+# production CORS when it is `production`, which would block localhost:3000.
+
+name: familiarise
+
+services:
+  # ── Postgres ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: familiarise
+      POSTGRES_PASSWORD: familiarise
+      POSTGRES_DB: familiarise
+    # Durability traded for speed. This database is disposable: every byte in
+    # it is reproducible from `prisma db push` + the seed.
+    command: >
+      postgres
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+      -c max_connections=200
+      -c shared_buffers=256MB
+    ports:
+      # 5433 on the host: 5432 is often taken by a Homebrew postgres.
+      - "${FAM_PG_PORT:-5433}:5432"
+    volumes:
+      # NAMED, never a bind mount — a Postgres data directory on macOS
+      # virtiofs is both dramatically slower and a corruption risk.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familiarise -d familiarise"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  # ── Schema provisioning (one-shot, exits 0) ────────────────────────────────
+  db-init:
+    build:
+      context: ./docker/db-init
+    image: familiarise/db-init:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DIRECT_URL: ${FAM_DIRECT_URL:-postgresql://familiarise:familiarise@db:5432/familiarise?sslmode=disable}
+    volumes:
+      # Read-only: the in-repo schema and SQL stay the single source of truth.
+      - ./backend/prisma:/work/prisma:ro
+    restart: "no"
+
+  # ── Dart Frog API (hot reload) ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: familiarise/api:dev
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DIRECT_URL: ${FAM_DIRECT_URL:-postgresql://familiarise:familiarise@db:5432/familiarise?sslmode=disable}
+      DATABASE_URL: ${FAM_DIRECT_URL:-postgresql://familiarise:familiarise@db:5432/familiarise?sslmode=disable}
+      PORT: "8080"
+      APP_BASE_URL: http://localhost:3000
+      # Dev-only defaults. Override via FAM_* to exercise the real integrations.
+      JWT_SECRET: ${FAM_JWT_SECRET:-dev-only-jwt-secret-do-not-use-in-production}
+      PAN_ENCRYPTION_KEY: ${FAM_PAN_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      SENTRY_DSN: ${FAM_SENTRY_DSN:-}
+      SUPABASE_URL: ${FAM_SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${FAM_SUPABASE_SERVICE_ROLE_KEY:-}
+      STREAM_API_KEY: ${FAM_STREAM_API_KEY:-}
+      STREAM_API_SECRET: ${FAM_STREAM_API_SECRET:-}
+      RAZORPAY_KEY_ID: ${FAM_RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${FAM_RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${FAM_RAZORPAY_WEBHOOK_SECRET:-}
+      STRIPE_SECRET_KEY: ${FAM_STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${FAM_STRIPE_WEBHOOK_SECRET:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      # Source is bind-mounted so edits hot-reload...
+      - ./backend:/app
+      # ...but every heavy generated/cache directory is shadowed by a named
+      # volume so it lives on the VM's native filesystem instead of virtiofs.
+      # For .dart_tool this is not merely an optimisation: package_config.json
+      # holds absolute /Users/... paths that do not exist inside the container.
+      - api_dart_tool:/app/.dart_tool
+      - api_generated:/app/lib/generated
+      - api_dart_frog:/app/.dart_frog
+      - api_build:/app/build
+      - pub_cache:/root/.pub-cache
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 90
+      # First boot regenerates ~735k lines of Dart. Be generous.
+      start_period: 600s
+    stdin_open: true
+    tty: true
+
+  # ── Flutter web ────────────────────────────────────────────────────────────
+  # Slowest and least essential part of the stack — see docs/local-dev.md.
+  # If it drags, drop it: `docker compose up db-init api`.
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    image: familiarise/web:dev
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Baked into env_config.g.dart by envied at codegen time. This must be
+      # correct from the BROWSER's point of view (the browser runs on the
+      # host), so it is the published host port — not http://api:8080.
+      FAM_API_BASE_URL: ${FAM_API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./lib:/app/lib
+      - ./web:/app/web
+      - ./assets:/app/assets
+      - web_dart_tool:/app/.dart_tool
+      - web_build:/app/build
+      - pub_cache:/root/.pub-cache
+    stdin_open: true
+    tty: true
+
+volumes:
+  pgdata:
+  pub_cache:
+  api_dart_tool:
+  api_generated:
+  api_dart_frog:
+  api_build:
+  web_dart_tool:
+  web_build:
