@@ -11,7 +11,10 @@ on:
     types: [published]
 
 env:
-  FLUTTER_VERSION: '3.24.3'
+  # Must ship Dart >=3.7: bcrypt and skeletonizer both require it. The old
+  # 3.24.3 pin (Dart 3.5.3) failed resolution the moment this workflow
+  # actually ran again.
+  FLUTTER_VERSION: '3.44.1'
   JAVA_VERSION: '17'
 
 jobs:
