@@ -305,3 +305,39 @@ SupportTicketAttachment buildSupportTicketAttachment({
     uploadedAt: DateTime.utc(2026, 1, 1),
   );
 }
+
+class MockConsultantProfileDelegate extends Mock
+    implements ConsultantProfileDelegate {}
+
+class MockConsultantReviewDelegate extends Mock
+    implements ConsultantReviewDelegate {}
+
+class MockConsultationPlanDelegate extends Mock
+    implements ConsultationPlanDelegate {}
+
+class MockSubscriptionPlanDelegate extends Mock
+    implements SubscriptionPlanDelegate {}
+
+class FakeConsultantProfileWhereInput extends Fake
+    implements ConsultantProfileWhereInput {}
+
+class FakeConsultantReviewWhereInput extends Fake
+    implements ConsultantReviewWhereInput {}
+
+class FakeConsultationPlanWhereInput extends Fake
+    implements ConsultationPlanWhereInput {}
+
+class FakeSubscriptionPlanWhereInput extends Fake
+    implements SubscriptionPlanWhereInput {}
+
+class FakeConsulteeProfileWhereInput extends Fake
+    implements ConsulteeProfileWhereInput {}
+
+/// Register fallbacks for the explore/profile typed inputs.
+void registerExploreFallbacks() {
+  registerFallbackValue(FakeConsultantProfileWhereInput());
+  registerFallbackValue(FakeConsultantReviewWhereInput());
+  registerFallbackValue(FakeConsultationPlanWhereInput());
+  registerFallbackValue(FakeSubscriptionPlanWhereInput());
+  registerFallbackValue(FakeConsulteeProfileWhereInput());
+}
