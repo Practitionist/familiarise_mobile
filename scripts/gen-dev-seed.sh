@@ -1,47 +1,66 @@
 #!/bin/bash
-# Regenerate backend/prisma/sql/seed-dev.sql from the test prompts.
+# Regenerate backend/prisma/sql/seed.d/ from the test prompts.
 #
 # The `## Data Seeding` blocks in prompts/testing/unit/*.md are the fixtures the
 # agent-driven test prompts already assume exist. Rather than maintain a second,
-# drifting copy of that data, this script concatenates them into a single seed
-# applied to the local Postgres by docker/db-init.
+# drifting copy of that data, this script extracts them.
+#
+# One file per prompt, NOT one concatenated script: the prompts were written to
+# run standalone, so some reference tables that no longer exist in
+# backend/prisma/schema.prisma. docker/db-init applies each file in its own
+# transaction and reports the ones that do not apply, so drift is visible
+# instead of aborting the whole seed.
 #
 # Run after editing any prompts/testing/unit/*.md seeding block.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-OUT=backend/prisma/sql/seed-dev.sql
-SRC_GLOB=prompts/testing/unit/*.md
+OUT_DIR=backend/prisma/sql/seed.d
+rm -rf "$OUT_DIR"
+mkdir -p "$OUT_DIR"
 
-{
-  cat <<'HDR'
--- ─────────────────────────────────────────────────────────────
--- Local development seed.
---
--- HARVESTED from the `## Data Seeding` blocks of prompts/testing/unit/*.md,
--- which are the fixtures the E2E/agent test prompts already assume exist.
--- Regenerate with: ./scripts/gen-dev-seed.sh
---
--- Each source file uses its own `test_unit_<area>_*` id prefix, so the blocks
--- are self-contained and safe to concatenate in file order.
---
--- NOT idempotent on its own — docker/db-init/entrypoint.sh guards it with a
--- marker-row check so a re-run of `docker compose up` does not re-insert.
--- ─────────────────────────────────────────────────────────────
+count=0
+for f in prompts/testing/unit/*.md; do
+  base=$(basename "$f" .md)
+  out="$OUT_DIR/${base}.sql"
 
-BEGIN;
-HDR
-
-  for f in $SRC_GLOB; do
-    printf '\n-- ===== %s =====\n' "$(basename "$f")"
-    # Take the fenced ```sql block that follows the "## Data Seeding" heading.
-    # `-- execute_sql` is an agent directive, not SQL, so drop it.
+  {
+    printf -- '-- Generated from prompts/testing/unit/%s by scripts/gen-dev-seed.sh.\n' "$(basename "$f")"
+    printf -- '-- Do not edit directly; edit the prompt and regenerate.\n\n'
+    printf -- 'BEGIN;\n\n'
+    # The fenced ```sql block following the "## Data Seeding" heading.
+    # `-- execute_sql` is an agent directive, not SQL.
     awk '/^## Data Seeding/{flag=1;next} flag&&/^```sql/{inb=1;next} inb&&/^```/{exit} inb{print}' "$f" \
       | grep -v '^-- execute_sql$'
-  done
+    printf -- '\nCOMMIT;\n'
+  } > "$out"
 
-  printf '\nCOMMIT;\n'
-} > "$OUT"
+  # ── Disambiguate Domain.name ──────────────────────────────────────────────
+  # 17 prompts insert a Domain with a distinct id but the same name,
+  # 'Technology'. Domain.name is UNIQUE (Domain_name_key), and the prompts'
+  # `ON CONFLICT (id) DO NOTHING` does not cover a name collision, so they
+  # cannot coexist in one database. The rows cannot simply be dropped either:
+  # each block's ConsultantProfile references its OWN domainId. Suffixing the
+  # name with the row id keeps every foreign key intact and the names unique.
+  python3 - "$out" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p).read()
+s = re.sub(
+    r'INSERT INTO "Domain"[^;]*;',
+    lambda m: re.sub(
+        r"\('([^']+)',\s*'([^']+)'",
+        lambda t: "('%s', '%s [%s]'" % (t.group(1), t.group(2), t.group(1)),
+        m.group(0),
+    ),
+    s,
+)
+open(p, 'w').write(s)
+PY
 
-echo "Wrote $OUT ($(wc -l < "$OUT" | tr -d ' ') lines, $(grep -c 'INSERT INTO\|^UPDATE' "$OUT") statements)"
+  count=$((count + 1))
+done
+
+echo "Wrote $count files to $OUT_DIR/"
+grep -c 'INSERT INTO\|^UPDATE' "$OUT_DIR"/*.sql | awk -F: '{n+=$2} END{print "  " n " statements total"}'

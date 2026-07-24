@@ -90,17 +90,32 @@ to run `prisma db push --accept-data-loss` against production.
 There is no `migrations/` directory in this repo — `familiarise_web` owns
 migrations. Provisioning therefore runs, in order:
 
-1. `prisma db push` from the in-repo `backend/prisma/schema.prisma` (129 models,
-   106 enums) using Prisma 7.7.0, matching `familiarise_web`.
+1. `prisma db push` from the in-repo `backend/prisma/schema.prisma`, using
+   Prisma 7.7.0 to match `familiarise_web`. Takes well under a second and
+   produces 127 tables and 100 enums.
 2. `backend/prisma/sql/ledger-triggers.sql` and `check-constraints.sql` —
    vendored from `familiarise_web`, because `db push` does not manage triggers
    or CHECK constraints. Both are idempotent.
-3. `backend/prisma/sql/seed-dev.sql` — the fixtures the test prompts already
-   assume, harvested from the `## Data Seeding` blocks in
-   `prompts/testing/unit/*.md`. Regenerate with `make seed-sql`.
+3. `backend/prisma/sql/seed.d/*.sql` — one file per test prompt, extracted from
+   the `## Data Seeding` blocks in `prompts/testing/unit/*.md`. Regenerate with
+   `make seed-sql`.
 
 Steps 1 and 2 run on every `docker compose up` and are near no-ops when nothing
 changed. Step 3 is skipped once a marker row exists.
+
+Each seed block is applied in its own transaction, because the prompts were
+written to run standalone and a few have drifted from the schema. At the time
+of writing 19 of 23 apply; the rest are reported by name, e.g.
+
+```
+! 16-support.sql: ERROR: relation "support_tickets" does not exist
+! 23-dashboard.sql: ERROR: column "totalRevenue" of relation "ConsultantProfile" does not exist
+```
+
+Those are **stale prompts, not provisioning failures** — the model is
+`SupportTicket`, not `support_tickets`. Fixing the prompts is worthwhile but out
+of scope here; running them per-block means the drift is visible and costs one
+fixture set instead of the entire seed.
 
 To refresh the vendored SQL after an upstream change:
 

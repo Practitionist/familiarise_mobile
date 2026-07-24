@@ -55,17 +55,39 @@ psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -q \
   -f prisma/sql/check-constraints.sql
 
 # ── 3. Seed ────────────────────────────────────────────────────
-# seed-dev.sql is a plain concatenation of the prompt fixtures and is not
-# itself idempotent, so gate it on a marker row from the first block.
+# One file per test prompt, each applied in its own transaction. The prompts
+# were written to run standalone against the shared database, so a few of them
+# reference tables this schema no longer has. Applying them independently means
+# that drift costs you one block instead of the whole seed — and gets reported
+# rather than silently swallowed.
+#
+# The blocks are not individually idempotent, so gate the whole step on a
+# marker row from the first one.
 echo "==> [3/3] dev seed"
 SEEDED=$(psql "$DIRECT_URL" -tAc \
   "SELECT count(*) FROM \"users\" WHERE id = 'test_unit_auth_u1'")
 
-if [ "$SEEDED" = "0" ]; then
-  psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -q -f prisma/sql/seed-dev.sql
-  echo "    seeded"
-else
+if [ "$SEEDED" != "0" ]; then
   echo "    already seeded, skipping"
+else
+  ok=0
+  skipped=""
+  for f in prisma/sql/seed.d/*.sql; do
+    if err=$(psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -q -f "$f" 2>&1); then
+      ok=$((ok + 1))
+    else
+      skipped="$skipped $(basename "$f" .sql)"
+      # First ERROR line is the useful one; the rest is context.
+      echo "    ! $(basename "$f"): $(echo "$err" | grep -m1 ERROR || echo "$err" | head -1)"
+    fi
+  done
+
+  echo "    seeded $ok/$(ls prisma/sql/seed.d/*.sql | wc -l | tr -d ' ') blocks"
+  if [ -n "$skipped" ]; then
+    echo "    skipped:$skipped"
+    echo "    (these prompts reference tables this schema does not have —"
+    echo "     prompt drift, not a provisioning failure)"
+  fi
 fi
 
 TABLES=$(psql "$DIRECT_URL" -tAc \
