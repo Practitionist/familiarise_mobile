@@ -1,11 +1,3 @@
-@Skip(
-  'Pending migration to typed delegate mocks: this suite still stubs the '
-  'raw QueryExecutor, which the repository no longer uses after the '
-  'JQB->typed-delegate migration. See test/helpers/prisma_mocks.dart for '
-  'the pattern used by the already-migrated suites.',
-)
-library;
-
 import 'package:backend/database/repositories/appointment_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
@@ -19,28 +11,124 @@ class FakeJsonQuery extends Fake implements JsonQuery {}
 
 void main() {
   late MockQueryExecutor mockExecutor;
+  late MockPrismaClient mockPrisma;
+  late MockConsultationPlanDelegate mockConsultationPlans;
+  late MockSubscriptionPlanDelegate mockSubscriptionPlans;
+  late MockConsultationDelegate mockConsultations;
+  late MockSubscriptionDelegate mockSubscriptions;
+  late MockAppointmentDelegate mockAppointments;
+  late MockSlotOfAppointmentDelegate mockSlots;
+  late MockConsulteeProfileDelegate mockConsulteeProfiles;
+  late MockConsultantProfileDelegate mockConsultantProfiles;
+  late MockClassModelDelegate mockClasses;
+  late MockClassPlanDelegate mockClassPlans;
+  late MockWebinarDelegate mockWebinars;
+  late MockWebinarPlanDelegate mockWebinarPlans;
+  late MockTrialSessionDelegate mockTrialSessions;
   late AppointmentRepository repository;
+
+  /// Stub every projected finder the booking fetchers touch to an empty
+  /// result, so each test only stubs what it actually asserts on.
+  void stubEmptyProjections() {
+    void empty(dynamic delegate) {
+      when(
+        () => delegate.findManyProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+          orderBy: any(named: 'orderBy'),
+          take: any(named: 'take'),
+          skip: any(named: 'skip'),
+          include: any(named: 'include'),
+          distinct: any(named: 'distinct'),
+        ),
+      ).thenAnswer((_) async => <Map<String, dynamic>>[]);
+    }
+
+    empty(mockConsultationPlans);
+    empty(mockSubscriptionPlans);
+    empty(mockConsultations);
+    empty(mockSubscriptions);
+    empty(mockAppointments);
+    empty(mockClasses);
+    empty(mockClassPlans);
+    empty(mockWebinars);
+    empty(mockWebinarPlans);
+    empty(mockTrialSessions);
+    empty(mockConsultantProfiles);
+  }
 
   setUpAll(() {
     registerFallbackValue(FakeJsonQuery());
+    registerPrismaFallbacks();
+    registerExploreFallbacks();
+    registerBookingFallbacks();
+    registerProgramFallbacks();
   });
 
   setUp(() {
     mockExecutor = MockQueryExecutor();
-    repository = AppointmentRepository(mockExecutor, MockPrismaClient());
+    mockPrisma = MockPrismaClient();
+    mockConsultationPlans = MockConsultationPlanDelegate();
+    mockSubscriptionPlans = MockSubscriptionPlanDelegate();
+    mockConsultations = MockConsultationDelegate();
+    mockSubscriptions = MockSubscriptionDelegate();
+    mockAppointments = MockAppointmentDelegate();
+    mockSlots = MockSlotOfAppointmentDelegate();
+    mockConsulteeProfiles = MockConsulteeProfileDelegate();
+    mockConsultantProfiles = MockConsultantProfileDelegate();
+    mockClasses = MockClassModelDelegate();
+    mockClassPlans = MockClassPlanDelegate();
+    mockWebinars = MockWebinarDelegate();
+    mockWebinarPlans = MockWebinarPlanDelegate();
+    mockTrialSessions = MockTrialSessionDelegate();
+
+    when(() => mockPrisma.consultationPlan).thenReturn(mockConsultationPlans);
+    when(() => mockPrisma.subscriptionPlan).thenReturn(mockSubscriptionPlans);
+    when(() => mockPrisma.consultation).thenReturn(mockConsultations);
+    when(() => mockPrisma.subscription).thenReturn(mockSubscriptions);
+    when(() => mockPrisma.appointment).thenReturn(mockAppointments);
+    when(() => mockPrisma.slotOfAppointment).thenReturn(mockSlots);
+    when(() => mockPrisma.consulteeProfile).thenReturn(mockConsulteeProfiles);
+    when(() => mockPrisma.consultantProfile).thenReturn(mockConsultantProfiles);
+    when(() => mockPrisma.classModel).thenReturn(mockClasses);
+    when(() => mockPrisma.classPlan).thenReturn(mockClassPlans);
+    when(() => mockPrisma.webinar).thenReturn(mockWebinars);
+    when(() => mockPrisma.webinarPlan).thenReturn(mockWebinarPlans);
+    when(() => mockPrisma.trialSession).thenReturn(mockTrialSessions);
+
+    stubEmptyProjections();
+    when(() => mockConsultations.count(where: any(named: 'where')))
+        .thenAnswer((_) async => 0);
+    when(() => mockSubscriptions.count(where: any(named: 'where')))
+        .thenAnswer((_) async => 0);
+    when(() => mockSlots.count(where: any(named: 'where')))
+        .thenAnswer((_) async => 0);
+
+    repository = AppointmentRepository(mockExecutor, mockPrisma);
   });
+
+  /// Stub the consultant's plan lookup (step 1 of the "active booking" checks).
+  void stubPlans(dynamic delegate, List<String> ids) {
+    when(
+      () => delegate.findManyProjected(
+        where: any(named: 'where'),
+        select: any(named: 'select'),
+        orderBy: any(named: 'orderBy'),
+        take: any(named: 'take'),
+        skip: any(named: 'skip'),
+        include: any(named: 'include'),
+        distinct: any(named: 'distinct'),
+      ),
+    ).thenAnswer((_) async => [
+          for (final id in ids) {'id': id}
+        ]);
+  }
 
   group('hasActiveConsultationBooking', () {
     test('returns true when active consultation exists', () async {
-      // First query: find plans for consultant
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => [
-                {'id': 'plan-1'},
-                {'id': 'plan-2'},
-              ]);
-
-      // Second query: count active consultations
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
+      stubPlans(mockConsultationPlans, ['plan-1', 'plan-2']);
+      when(() => mockConsultations.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 1);
 
       final result = await repository.hasActiveConsultationBooking(
         consulteeProfileId: 'consultee-1',
@@ -51,8 +139,7 @@ void main() {
     });
 
     test('returns false when no plans exist for consultant', () async {
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
+      stubPlans(mockConsultationPlans, []);
 
       final result = await repository.hasActiveConsultationBooking(
         consulteeProfileId: 'consultee-1',
@@ -61,16 +148,13 @@ void main() {
 
       expect(result, isFalse);
       // Should not attempt count when no plans exist
-      verifyNever(() => mockExecutor.executeCount(any()));
+      verifyNever(() => mockConsultations.count(where: any(named: 'where')));
     });
 
     test('returns false when no active consultations exist', () async {
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => [
-                {'id': 'plan-1'},
-              ]);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      stubPlans(mockConsultationPlans, ['plan-1']);
+      when(() => mockConsultations.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 0);
 
       final result = await repository.hasActiveConsultationBooking(
         consulteeProfileId: 'consultee-1',
@@ -83,12 +167,9 @@ void main() {
 
   group('hasActiveSubscriptionBooking', () {
     test('returns true when active subscription exists', () async {
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => [
-                {'id': 'sub-plan-1'},
-              ]);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
+      stubPlans(mockSubscriptionPlans, ['sub-plan-1']);
+      when(() => mockSubscriptions.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 1);
 
       final result = await repository.hasActiveSubscriptionBooking(
         consulteeProfileId: 'consultee-1',
@@ -99,8 +180,7 @@ void main() {
     });
 
     test('returns false when no subscription plans exist', () async {
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
+      stubPlans(mockSubscriptionPlans, []);
 
       final result = await repository.hasActiveSubscriptionBooking(
         consulteeProfileId: 'consultee-1',
@@ -108,15 +188,13 @@ void main() {
       );
 
       expect(result, isFalse);
+      verifyNever(() => mockSubscriptions.count(where: any(named: 'where')));
     });
 
     test('returns false when no active subscriptions exist', () async {
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => [
-                {'id': 'sub-plan-1'},
-              ]);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      stubPlans(mockSubscriptionPlans, ['sub-plan-1']);
+      when(() => mockSubscriptions.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 0);
 
       final result = await repository.hasActiveSubscriptionBooking(
         consulteeProfileId: 'consultee-1',
@@ -129,11 +207,7 @@ void main() {
 
   group('checkSlotConflicts', () {
     test('returns empty list when no existing appointments', () async {
-      // _getConsultantAppointmentIds queries multiple models
-      // and returns empty when no plans exist
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
-
+      // _getConsultantAppointmentIds finds no plans -> no appointment ids.
       final conflicts = await repository.checkSlotConflicts(
         consultantProfileId: 'consultant-1',
         slotStartTimes: [DateTime(2025, 6, 15, 10, 0)],
@@ -141,39 +215,16 @@ void main() {
       );
 
       expect(conflicts, isEmpty);
+      // No appointments -> never reaches the overlap count.
+      verifyNever(() => mockSlots.count(where: any(named: 'where')));
     });
 
     test('returns conflicting slots when conflicts exist', () async {
-      // Multiple calls to executeQueryAsMaps for _getConsultantAppointmentIds
-      var queryMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
-        queryMapCallCount++;
-        switch (queryMapCallCount) {
-          case 1:
-            // ConsultationPlan IDs
-            return [
-              {'id': 'plan-1'}
-            ];
-          case 2:
-            // SubscriptionPlan IDs
-            return [];
-          case 3:
-            // Consultation IDs for plans
-            return [
-              {'id': 'cons-1'}
-            ];
-          case 4:
-            // Appointment IDs for consultations
-            return [
-              {'id': 'apt-1'}
-            ];
-          default:
-            return [];
-        }
-      });
-
-      // Slot conflict count check returns > 0
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
+      stubPlans(mockConsultationPlans, ['plan-1']);
+      stubPlans(mockConsultations, ['cons-1']);
+      stubPlans(mockAppointments, ['apt-1']);
+      when(() => mockSlots.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 1);
 
       final slotStart = DateTime(2025, 6, 15, 10, 0);
       final conflicts = await repository.checkSlotConflicts(
@@ -187,30 +238,11 @@ void main() {
     });
 
     test('returns empty when no conflicts found', () async {
-      var queryMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
-        queryMapCallCount++;
-        switch (queryMapCallCount) {
-          case 1:
-            return [
-              {'id': 'plan-1'}
-            ];
-          case 2:
-            return [];
-          case 3:
-            return [
-              {'id': 'cons-1'}
-            ];
-          case 4:
-            return [
-              {'id': 'apt-1'}
-            ];
-          default:
-            return [];
-        }
-      });
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      stubPlans(mockConsultationPlans, ['plan-1']);
+      stubPlans(mockConsultations, ['cons-1']);
+      stubPlans(mockAppointments, ['apt-1']);
+      when(() => mockSlots.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 0);
 
       final conflicts = await repository.checkSlotConflicts(
         consultantProfileId: 'consultant-1',
@@ -224,15 +256,12 @@ void main() {
 
   group('getMyBookings', () {
     test('returns empty bookings when consultee profile not found', () async {
-      // Profile query returns null
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
-
-      // The webinar/class booking fetches use executeQueryAsMaps
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      when(
+        () => mockConsulteeProfiles.findFirstProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+        ),
+      ).thenAnswer((_) async => null);
 
       final result = await repository.getMyBookings(userId: 'user-1');
 
@@ -241,18 +270,12 @@ void main() {
     });
 
     test('returns bookings sorted by createdAt descending', () async {
-      // ConsulteeProfile
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => {
-                'id': 'cp-1',
-                'userId': 'user-1',
-              });
-
-      // All booking queries return empty for simplicity
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      when(
+        () => mockConsulteeProfiles.findFirstProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+        ),
+      ).thenAnswer((_) async => {'id': 'cp-1', 'userId': 'user-1'});
 
       final result = await repository.getMyBookings(userId: 'user-1');
 
@@ -261,18 +284,14 @@ void main() {
     });
 
     test('fetches consultant bookings when asConsultant is true', () async {
-      // ConsultantProfile
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => {
-                'id': 'consultant-profile-1',
-                'userId': 'user-1',
-              });
-
-      // All booking queries return empty
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      when(
+        () => mockConsultantProfiles.findFirstProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+        ),
+      ).thenAnswer(
+        (_) async => {'id': 'consultant-profile-1', 'userId': 'user-1'},
+      );
 
       final result = await repository.getMyBookings(
         userId: 'user-1',
@@ -283,13 +302,12 @@ void main() {
     });
 
     test('returns empty when consultant profile not found', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
-
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => []);
-
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
+      when(
+        () => mockConsultantProfiles.findFirstProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+        ),
+      ).thenAnswer((_) async => null);
 
       final result = await repository.getMyBookings(
         userId: 'user-1',
@@ -303,14 +321,9 @@ void main() {
   group('createConsultationBooking', () {
     test('throws DuplicateBookingException when active booking exists',
         () async {
-      // hasActiveConsultationBooking: plans query returns plans
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => [
-                {'id': 'plan-1'},
-              ]);
-
-      // Count active consultations > 0
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
+      stubPlans(mockConsultationPlans, ['plan-1']);
+      when(() => mockConsultations.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 1);
 
       expect(
         () => repository.createConsultationBooking(
@@ -328,21 +341,16 @@ void main() {
   group('createSubscriptionBooking', () {
     test('throws DuplicateBookingException when active subscription exists',
         () async {
-      // hasActiveSubscriptionBooking: plans query returns plans
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async => [
-                {'id': 'sub-plan-1'},
-              ]);
-
-      // Count active subscriptions > 0
-      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
+      stubPlans(mockSubscriptionPlans, ['sub-plan-1']);
+      when(() => mockSubscriptions.count(where: any(named: 'where')))
+          .thenAnswer((_) async => 1);
 
       expect(
         () => repository.createSubscriptionBooking(
           consultantProfileId: 'consultant-1',
           planId: 'sub-plan-1',
           requestedById: 'consultee-1',
-          schedulingPeriodStart: DateTime(2025, 7, 1),
+          schedulingPeriodStart: DateTime(2025, 6, 15, 10, 0),
         ),
         throwsA(isA<DuplicateBookingException>()),
       );

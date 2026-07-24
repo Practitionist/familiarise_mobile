@@ -73,7 +73,7 @@ class CheckoutRepository extends BaseRepository {
       where: PaymentWhereUniqueInput(id: paymentId),
       data: UpdatePaymentInput(
         paymentStatus:
-            PaymentStatus.values.firstWhere((e) => e.toJson() == status),
+            enumFromWire(PaymentStatus.values, status, field: 'status'),
         receiptUrl: receiptUrl,
       ),
     );
@@ -191,8 +191,14 @@ class CheckoutRepository extends BaseRepository {
     if (amount != null) {
       if (discountType == 'PERCENTAGE') {
         discountAmount = (amount * discountValue / 100);
-        // Apply max discount if set
-        final maxDiscount = (discount['maxDiscount'] as num?)?.toDouble();
+        // Apply max discount if set. maxDiscount is a BigInt column, which
+        // toJson() serializes as a String — parse rather than cast.
+        final maxDiscount = switch (discount['maxDiscount']) {
+          final num n => n.toDouble(),
+          final BigInt b => b.toDouble(),
+          final String str => double.tryParse(str),
+          _ => null,
+        };
         if (maxDiscount != null && discountAmount > maxDiscount) {
           discountAmount = maxDiscount;
         }
@@ -234,7 +240,7 @@ class CheckoutRepository extends BaseRepository {
   }) async {
     // The Dart field is `status` (@map'd to the requestStatus column).
     final typedStatus =
-        AppointmentStatus.values.firstWhere((e) => e.toJson() == status);
+        enumFromWire(AppointmentStatus.values, status, field: 'status');
     if (bookingType.toUpperCase() == 'CONSULTATION') {
       await _prisma.consultation.update(
         where: ConsultationWhereUniqueInput(id: bookingId),
