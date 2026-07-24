@@ -26,12 +26,12 @@ class BookingCard extends StatelessWidget {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.5),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.04),
+            color: colorScheme.shadow.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -93,7 +93,7 @@ class BookingCard extends StatelessWidget {
                 // Divider
                 Container(
                   height: 1,
-                  color: colorScheme.outlineVariant.withOpacity(0.3),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                 ),
 
                 const SizedBox(height: 12),
@@ -128,7 +128,7 @@ class BookingCard extends StatelessWidget {
                           'Requested ${_formatRelativeDate(booking.createdAt!)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color:
-                                colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                         ),
                       _buildPriceTag(theme),
@@ -431,28 +431,28 @@ class BookingCard extends StatelessWidget {
         return (
           Icons.videocam_outlined,
           'Consultation',
-          colorScheme.secondaryContainer.withOpacity(0.5),
+          colorScheme.secondaryContainer.withValues(alpha: 0.5),
           colorScheme.onSecondaryContainer,
         );
       case BookingType.subscription:
         return (
           Icons.repeat,
           'Subscription',
-          colorScheme.tertiaryContainer.withOpacity(0.5),
+          colorScheme.tertiaryContainer.withValues(alpha: 0.5),
           colorScheme.onTertiaryContainer,
         );
       case BookingType.webinar:
         return (
           Icons.groups_outlined,
           'Webinar',
-          colorScheme.primaryContainer.withOpacity(0.5),
+          colorScheme.primaryContainer.withValues(alpha: 0.5),
           colorScheme.onPrimaryContainer,
         );
       case BookingType.classes:
         return (
           Icons.school_outlined,
           'Class',
-          const Color(0xFFE8EAF6).withOpacity(0.7), // Indigo container
+          const Color(0xFFE8EAF6).withValues(alpha: 0.7), // Indigo container
           const Color(0xFF3949AB), // Indigo accent
         );
       case BookingType.trial:

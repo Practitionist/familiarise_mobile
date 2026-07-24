@@ -41,10 +41,10 @@ abstract class EnvConfig {
 
   // API
   @EnviedField(varName: 'API_BASE_URL', defaultValue: 'http://localhost:3000')
-  static String _apiBaseUrlRaw = _EnvConfig._apiBaseUrlRaw;
+  static final String _apiBaseUrlRaw = _EnvConfig._apiBaseUrlRaw;
 
   @EnviedField(varName: 'PHYSICAL_DEVICE_API_URL', defaultValue: '')
-  static String _physicalDeviceApiUrl = _EnvConfig._physicalDeviceApiUrl;
+  static final String _physicalDeviceApiUrl = _EnvConfig._physicalDeviceApiUrl;
 
   // Device type flag (set at startup via initializeDeviceDetection)
   static bool _isPhysicalDevice = false;

@@ -134,14 +134,12 @@ class BookingRepositoryImpl implements BookingRepository {
           consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
               .copyWith(
             allBookingTypes:
-                booking.bookingType != null ? [booking.bookingType!] : [],
+                [booking.bookingType],
           );
         } else {
           final existing = consultantsMap[userId]!;
           final types = {...existing.allBookingTypes};
-          if (booking.bookingType != null) {
-            types.add(booking.bookingType!);
-          }
+          types.add(booking.bookingType);
 
           if (booking.createdAt != null &&
               (existing.lastAppointmentDate == null ||

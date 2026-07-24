@@ -16,6 +16,8 @@ class AppTheme {
   static const _lightPrimaryForeground = Color(0xFFFAFAFA);
   static const _lightSecondary = Color(0xFFF4F4F5);
   static const _lightSecondaryForeground = Color(0xFF18181B);
+  // Part of the shadcn token set; retained for parity with the web palette.
+  // ignore: unused_field
   static const _lightMuted = Color(0xFFF4F4F5);
   static const _lightMutedForeground = Color(0xFF71717A);
   static const _lightBorder = Color(0xFFE4E4E7);
@@ -27,6 +29,7 @@ class AppTheme {
   static const _darkPrimaryForeground = Color(0xFF18181B);
   static const _darkSecondary = Color(0xFF27272A);
   static const _darkSecondaryForeground = Color(0xFFFAFAFA);
+  // ignore: unused_field
   static const _darkMuted = Color(0xFF27272A);
   static const _darkMutedForeground = Color(0xFFA1A1AA);
   static const _darkBorder = Color(0xFF27272A);

@@ -129,8 +129,9 @@ class _TagInputState extends State<TagInput> {
     final trimmed = tag.trim();
     if (trimmed.isEmpty) return;
     // Case-insensitive duplicate check to prevent "React" and "react" as separate tags
-    if (widget.tags.any((t) => t.toLowerCase() == trimmed.toLowerCase()))
+    if (widget.tags.any((t) => t.toLowerCase() == trimmed.toLowerCase())) {
       return;
+    }
     if (widget.maxTags != null && widget.tags.length >= widget.maxTags!) return;
 
     widget.onChanged([...widget.tags, trimmed]);

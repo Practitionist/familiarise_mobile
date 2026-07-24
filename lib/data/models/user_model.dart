@@ -1,3 +1,9 @@
+// @JsonKey on a freezed constructor parameter is the documented pattern for
+// mapping snake_case API fields, but it trips this lint (the annotation lands
+// on the generated field, not the parameter). Suppressed file-wide, matching
+// what the Prisma client generator emits for the same reason.
+// ignore_for_file: invalid_annotation_target
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../core/constants/enums.dart';

@@ -46,7 +46,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   // For subscription bookings
   DateTime? _periodStartDate;
   // Note: End date is calculated based on plan duration
-  int _planDurationMonths = 1; // Default, will be updated from plan data
+  final int _planDurationMonths = 1; // Default, will be updated from plan data
 
   @override
   void initState() {

@@ -44,7 +44,7 @@ Dio dio(Ref ref) {
   return dio;
 }
 
-/// Interceptor to convert _JsonMap to Map<String, dynamic> on web
+/// Interceptor to convert _JsonMap to `Map<String, dynamic>` on web
 class JsonMapConversionInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
@@ -232,7 +232,7 @@ class ErrorInterceptor extends Interceptor {
     );
   }
 
-  /// Safely convert response data to Map<String, dynamic>
+  /// Safely convert response data to `Map<String, dynamic>`
   /// Handles _JsonMap on Flutter web
   Map<String, dynamic>? _safeMapFromData(dynamic data) {
     if (data == null) return null;
