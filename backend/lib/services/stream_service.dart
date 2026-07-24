@@ -109,41 +109,60 @@ class StreamService {
     required String userId,
     String? name,
     String? image,
-  }) async {
+  }) =>
+      upsertUsers([
+        {
+          'id': userId,
+          if (name != null) 'name': name,
+          if (image != null) 'image': image,
+        }
+      ]);
+
+  /// Batch-upsert users in Stream Chat (the /users endpoint natively accepts
+  /// many users per request). Deduplicates by id and chunks to 100 users per
+  /// call — one API call instead of N, which is what tripped Stream's
+  /// 300 UpdateUsers/min rate limit when callers looped over upsertUser.
+  Future<void> upsertUsers(List<Map<String, dynamic>> users) async {
     if (!isConfigured) {
       throw StateError('Stream API key and secret must be configured');
     }
+    if (users.isEmpty) return;
+
+    // Dedupe by id (later entries win so richer data overwrites bare ids).
+    final byId = <String, Map<String, dynamic>>{};
+    for (final u in users) {
+      final id = u['id'] as String?;
+      if (id == null) continue;
+      byId[id] = {...?byId[id], ...u};
+    }
 
     final url = Uri.parse('$_streamApiBaseUrl/users');
+    final ids = byId.keys.toList();
+    const chunkSize = 100; // Stream's per-request user cap
 
-    // Generate server token (no user_id claim = server token)
-    final serverToken = _createServerToken();
-
-    final userData = <String, dynamic>{
-      'id': userId,
-    };
-    if (name != null) userData['name'] = name;
-    if (image != null) userData['image'] = image;
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': serverToken,
-        'Stream-Auth-Type': 'jwt',
-        'api_key': _apiKey,
-      },
-      body: jsonEncode({
-        'users': {
-          userId: userData,
+    for (var i = 0; i < ids.length; i += chunkSize) {
+      final chunk = ids.sublist(
+          i, i + chunkSize > ids.length ? ids.length : i + chunkSize);
+      final serverToken = _createServerToken();
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': serverToken,
+          'Stream-Auth-Type': 'jwt',
+          'api_key': _apiKey,
         },
-      }),
-    );
-
-    if (response.statusCode != 201 && response.statusCode != 200) {
-      throw Exception(
-        'Failed to upsert user in Stream Chat: ${response.statusCode} - ${response.body}',
+        body: jsonEncode({
+          'users': {for (final id in chunk) id: byId[id]},
+        }),
       );
+
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        throw Exception(
+          'Failed to upsert users in Stream Chat: '
+          '${response.statusCode} - ${response.body}',
+        );
+      }
     }
   }
 
@@ -184,11 +203,11 @@ class StreamService {
       throw StateError('Stream API key and secret must be configured');
     }
 
-    // First, ensure all users exist in Stream Chat
-    for (final userId in memberIds) {
-      await upsertUser(userId: userId);
-    }
-    await upsertUser(userId: createdByUserId);
+    // Ensure all users exist in Stream Chat — one batched call
+    await upsertUsers([
+      for (final userId in memberIds) {'id': userId},
+      {'id': createdByUserId},
+    ]);
 
     final url = Uri.parse(
       '$_streamApiBaseUrl/channels/team/$channelId/query',
@@ -232,14 +251,19 @@ class StreamService {
     required String channelType,
     required String channelId,
     required List<String> memberIds,
+    bool ensureUsers = true,
   }) async {
     if (!isConfigured) {
       throw StateError('Stream API key and secret must be configured');
     }
 
-    // First, ensure all users exist in Stream Chat
-    for (final userId in memberIds) {
-      await upsertUser(userId: userId);
+    // Ensure all users exist in Stream Chat (one batched call). Callers that
+    // already upserted the users pass ensureUsers: false to avoid duplicate
+    // UpdateUsers traffic.
+    if (ensureUsers) {
+      await upsertUsers([
+        for (final userId in memberIds) {'id': userId},
+      ]);
     }
 
     final url = Uri.parse(
@@ -394,30 +418,35 @@ class StreamService {
     String? instructorImage,
     String? participantName,
     String? participantImage,
+    bool ensureUsers = true,
   }) async {
     if (!isConfigured) {
       throw StateError('Stream API key and secret must be configured');
     }
 
     try {
-      // Ensure both users exist in Stream Chat first
-      await Future.wait([
-        upsertUser(
-          userId: instructorUserId,
-          name: instructorName,
-          image: instructorImage,
-        ),
-        upsertUser(
-          userId: participantUserId,
-          name: participantName,
-          image: participantImage,
-        ),
-      ]);
+      // Ensure both users exist in Stream Chat first (one batched call).
+      // Bulk callers (e.g. fix-group-channels) pre-upsert every unique user
+      // once and pass ensureUsers: false.
+      if (ensureUsers) {
+        await upsertUsers([
+          {
+            'id': instructorUserId,
+            if (instructorName != null) 'name': instructorName,
+            if (instructorImage != null) 'image': instructorImage,
+          },
+          {
+            'id': participantUserId,
+            if (participantName != null) 'name': participantName,
+            if (participantImage != null) 'image': participantImage,
+          },
+        ]);
 
-      SentryLogger.debug(
-        'Users upserted: $instructorUserId, $participantUserId',
-        context: 'StreamService.getOrCreateGroupChannelAndAddMember',
-      );
+        SentryLogger.debug(
+          'Users upserted: $instructorUserId, $participantUserId',
+          context: 'StreamService.getOrCreateGroupChannelAndAddMember',
+        );
+      }
 
       // Create or get the channel using /query endpoint
       // Note: The /query endpoint creates the channel if it doesn't exist,
@@ -467,6 +496,9 @@ class StreamService {
       await addChannelMembers(
         channelType: 'team',
         channelId: channelId,
+        // Users were just upserted above (or pre-upserted by a bulk caller) —
+        // don't re-upsert them per channel.
+        ensureUsers: false,
         memberIds: [instructorUserId, participantUserId],
       );
 

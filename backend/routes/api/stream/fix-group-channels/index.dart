@@ -96,6 +96,42 @@ Future<Response> _handleFixChannels(RequestContext context) async {
       context: 'FixGroupChannelsRoute',
     );
 
+    // Pre-pass: batch-upsert every UNIQUE user once (instructors repeat
+    // across hundreds of appointments). Previously each appointment upserted
+    // its 2 users twice (4 UpdateUsers calls each) — ~1,700 calls per run,
+    // which tripped Stream's 300 UpdateUsers/min rate limit. Now it's a
+    // handful of batched calls for the whole migration.
+    final uniqueUsers = <String, Map<String, dynamic>>{};
+    for (final appointment in appointments) {
+      final instructor = appointment.webinar?.webinarPlan?.consultantProfile
+              ?.user ??
+          appointment.classRef?.classPlan?.consultantProfile?.user;
+      if (instructor != null) {
+        uniqueUsers[instructor.id] = {
+          'id': instructor.id,
+          if (instructor.name != null) 'name': instructor.name,
+          if (instructor.image != null) 'image': instructor.image,
+        };
+      }
+      final slots = appointment.slotsOfAppointment;
+      if (slots != null && slots.isNotEmpty) {
+        final users = slots.first.user;
+        if (users != null && users.isNotEmpty) {
+          final participant = users.first;
+          uniqueUsers[participant.id] = {
+            'id': participant.id,
+            if (participant.name != null) 'name': participant.name,
+            if (participant.image != null) 'image': participant.image,
+          };
+        }
+      }
+    }
+    await streamService.upsertUsers(uniqueUsers.values.toList());
+    SentryLogger.info(
+      'Pre-upserted ${uniqueUsers.length} unique users in batch',
+      context: 'FixGroupChannelsRoute',
+    );
+
     for (final appointment in appointments) {
       final webinar = appointment.webinar;
       final classRecord = appointment.classRef;
@@ -179,6 +215,8 @@ Future<Response> _handleFixChannels(RequestContext context) async {
           instructorImage: instructorImage,
           participantName: participantName,
           participantImage: participantImage,
+          // All unique users were batch-upserted in the pre-pass above.
+          ensureUsers: false,
         );
         fixed.add(channelId);
 
