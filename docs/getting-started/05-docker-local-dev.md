@@ -40,6 +40,26 @@ changed. Docker cannot fix that — see [Codegen](#codegen) below for what does.
 Docker Desktop with **at least 8 GB RAM, 4 CPUs and 60 GB disk**. The defaults
 are too small: a Flutter web build and build_runner over 500 files will OOM.
 
+You also need **real free space on the host** — around 15 GB. The Flutter image
+is roughly 4 GB, and Docker's VM disk grows on demand. If the host fills up
+while Docker is writing, the writes fail *inside* the VM and corrupt its
+containerd content store. The symptom is unmistakable:
+
+```
+failed to solve: failed to compute cache key: input/output error
+Error response from daemon: ... blob sha256:… : input/output error
+write /var/lib/desktop-containerd/…/meta.db: input/output error
+```
+
+Once that happens, `docker system prune` cannot fix it — pruning has to read
+the very blobs that are unreadable — and Docker Desktop may stop launching.
+Recover with **Docker Desktop → Troubleshoot → Reset to factory defaults** (or
+*Purge data*), then free host space before retrying. Nothing here is lost by
+that reset: `make db` rebuilds the image in about 20 s and reprovisions the
+database in under a second.
+
+`make doctor` reports the daemon state before you start.
+
 ## What runs where
 
 | | Where | Why |
