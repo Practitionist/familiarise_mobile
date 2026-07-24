@@ -302,9 +302,14 @@ class AuthService {
           ),
         );
 
-        // Create consultee profile
-        await tx.consulteeProfile.create(
+        // Create consultee profile and link it back on the user (mirrors the
+        // email-signup path; consulteeProfileId is a User FK the app reads).
+        final profile = await tx.consulteeProfile.create(
           data: CreateConsulteeProfileInput(userId: newUserId),
+        );
+        final linkedUser = await tx.user.update(
+          where: UserWhereUniqueInput(id: newUserId),
+          data: UpdateUserInput(consulteeProfileId: profile.id),
         );
 
         // Create default preferences (matches web BetterAuth databaseHooks)
@@ -315,7 +320,7 @@ class AuthService {
           data: CreateNotificationPreferenceInput(userId: newUserId),
         );
 
-        return newUser.toJson();
+        return (linkedUser ?? newUser).toJson();
       });
     } else {
       // Update user info from verified token
@@ -402,9 +407,14 @@ class AuthService {
           ),
         );
 
-        // Create consultee profile
-        await tx.consulteeProfile.create(
+        // Create consultee profile and link it back on the user (mirrors the
+        // email-signup path; consulteeProfileId is a User FK the app reads).
+        final profile = await tx.consulteeProfile.create(
           data: CreateConsulteeProfileInput(userId: newUserId),
+        );
+        final linkedUser = await tx.user.update(
+          where: UserWhereUniqueInput(id: newUserId),
+          data: UpdateUserInput(consulteeProfileId: profile.id),
         );
 
         // Create default preferences (matches web BetterAuth databaseHooks)
@@ -415,7 +425,7 @@ class AuthService {
           data: CreateNotificationPreferenceInput(userId: newUserId),
         );
 
-        return newUser.toJson();
+        return (linkedUser ?? newUser).toJson();
       });
     } else {
       // Update user info if changed

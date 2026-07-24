@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:io' as io show Platform;
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
+import 'package:backend/utils/pan_crypto.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
@@ -113,7 +115,7 @@ Future<Response> _handlePut(RequestContext context) async {
         where: ConsultantTaxInfoWhereUniqueInput(id: existing.id),
         data: UpdateConsultantTaxInfoInput(
           panEncrypted: (body.containsKey('panNumber') && panNumber != null)
-              ? utf8.encode(panNumber)
+              ? PanCrypto.encrypt(panNumber, keyHex: _panKey())
               : null,
           panLast4:
               body.containsKey('panNumber') ? _last4(panNumber) : null,
@@ -146,7 +148,7 @@ Future<Response> _handlePut(RequestContext context) async {
       final result = await db.prisma.consultantTaxInfo.create(
         data: CreateConsultantTaxInfoInput(
           consultantProfileId: consultantProfileId,
-          panEncrypted: utf8.encode(panNumber),
+          panEncrypted: PanCrypto.encrypt(panNumber, keyHex: _panKey()),
           panLast4: _last4(panNumber),
           gstin: gstNumber,
           country: taxResidency,
@@ -198,12 +200,31 @@ String? _last4(String? value) {
   return value.substring(value.length - 4);
 }
 
+String _panKey() => io.Platform.environment['PAN_ENCRYPTION_KEY'] ?? '';
+
+/// Decrypt the stored AES-256-GCM PAN ciphertext back to plaintext.
+/// Tolerates legacy plaintext-bytes rows written before encryption landed.
 String? _panValue(dynamic value) {
   if (value == null) return null;
-  if (value is String) return value;
-  if (value is List<int>) return utf8.decode(value);
-  if (value is List) {
-    return utf8.decode(value.cast<int>());
+  List<int>? bytes;
+  if (value is List<int>) {
+    bytes = value;
+  } else if (value is List) {
+    bytes = value.cast<int>();
+  } else if (value is String) {
+    return value;
+  } else {
+    return value.toString();
   }
-  return value.toString();
+  try {
+    return PanCrypto.decrypt(bytes, keyHex: _panKey());
+  } catch (_) {
+    // Legacy row stored as raw UTF-8 bytes, or a wrong/absent key — fall back
+    // to a best-effort plaintext decode rather than throwing on read.
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
 }

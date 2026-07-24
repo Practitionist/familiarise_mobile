@@ -144,8 +144,12 @@ Future<Response> handleRecordingSync(RequestContext context) async {
         final filename = rec['filename'] as String?;
         final fileSize = rec['file_size'] as int?;
 
-        await tx.recording.create(
-          data: CreateRecordingInput(
+        // Idempotent: streamRecordingId is unique, so replaying the sync for
+        // the same callId must not blow up the whole $transaction on a
+        // duplicate-key violation.
+        await tx.recording.upsert(
+          where: RecordingWhereUniqueInput(streamRecordingId: recId),
+          create: CreateRecordingInput(
             meetingSessionId: meetingSessionId,
             streamRecordingId: recId,
             streamCallId: callId,
@@ -155,6 +159,11 @@ Future<Response> handleRecordingSync(RequestContext context) async {
             durationInMinutes: (rec['duration'] as int?) ?? 0,
             fileSize: fileSize != null ? BigInt.from(fileSize) : null,
             recordedAt: now,
+          ),
+          update: UpdateRecordingInput(
+            recordingUrl: streamUrl ?? '',
+            durationInMinutes: (rec['duration'] as int?) ?? 0,
+            fileSize: fileSize != null ? BigInt.from(fileSize) : null,
           ),
         );
         count++;
