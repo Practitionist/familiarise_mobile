@@ -1,1 +1,10 @@
 include: package:dart_frog_lint/recommended.yaml
+
+analyzer:
+  exclude:
+    # Generated from prisma/schema.prisma by prisma_flutter_connector, plus the
+    # freezed/json_serializable output. Gitignored and never hand-edited, so it
+    # is not worth linting (and it dominates the issue count otherwise).
+    - lib/generated/**
+    - "**/*.freezed.dart"
+    - "**/*.g.dart"

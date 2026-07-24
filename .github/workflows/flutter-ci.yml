@@ -2,9 +2,11 @@ name: Flutter CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    # `dev` is this repo's default/base branch — without it this workflow
+    # never ran on day-to-day pushes or PRs.
+    branches: [dev, main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [dev, main, develop]
   release:
     types: [published]
 
