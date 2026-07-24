@@ -173,6 +173,22 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     return Response.json(
       body: {'message': 'Professional background updated'},
     );
+  } on FormatException catch (e) {
+    // Malformed date / field in the replace payload -> validation error.
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Invalid field format: ${e.message}'},
+      },
+    );
+  } on TypeError catch (_) {
+    // Missing required field (e.g. a null where a String is expected).
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'Missing or invalid required field'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Failed to update professional background',
