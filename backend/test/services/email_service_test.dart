@@ -69,8 +69,7 @@ void main() {
       // service configuration and verify the email sending path throws
       // properly for non-200 responses.
 
-      test(
-          'sendPasswordResetEmail throws Exception on non-200 HTTP response',
+      test('sendPasswordResetEmail throws Exception on non-200 HTTP response',
           () async {
         // Note: EmailService uses the global http.post function, which cannot
         // easily be mocked without dependency injection. We test that the
@@ -90,8 +89,7 @@ void main() {
         );
       });
 
-      test(
-          'sendVerificationEmail throws Exception on non-200 HTTP response',
+      test('sendVerificationEmail throws Exception on non-200 HTTP response',
           () async {
         final service = EmailService(apiKey: 'invalid-key');
 

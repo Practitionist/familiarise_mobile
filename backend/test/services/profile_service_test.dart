@@ -63,10 +63,12 @@ void main() {
             .toIso8601String(),
       };
 
-      when(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: any(named: 'value'),
-            identifierPrefix: any(named: 'identifierPrefix'),
-          ),).thenAnswer((_) async => verification);
+      when(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: any(named: 'value'),
+          identifierPrefix: any(named: 'identifierPrefix'),
+        ),
+      ).thenAnswer((_) async => verification);
 
       when(() => mockUsers.findByEmail(any()))
           .thenAnswer((_) async => {'id': 'u1', 'email': 'test@example.com'});
@@ -74,10 +76,12 @@ void main() {
       when(() => mockAccounts.findCredentialAccount(any()))
           .thenAnswer((_) async => {'id': 'a1', 'password': 'oldhash'});
 
-      when(() => mockAccounts.updatePassword(
-            accountId: any(named: 'accountId'),
-            hashedPassword: any(named: 'hashedPassword'),
-          ),).thenAnswer((_) async => {});
+      when(
+        () => mockAccounts.updatePassword(
+          accountId: any(named: 'accountId'),
+          hashedPassword: any(named: 'hashedPassword'),
+        ),
+      ).thenAnswer((_) async => {});
 
       when(() => mockVerifications.delete(any())).thenAnswer((_) async {});
 
@@ -86,17 +90,21 @@ void main() {
         newPassword: 'newPassword123',
       );
 
-      verify(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: 'token123',
-            identifierPrefix: 'password-reset:',
-          ),).called(1);
+      verify(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: 'token123',
+          identifierPrefix: 'password-reset:',
+        ),
+      ).called(1);
     });
 
     test('throws AuthException when verification is null', () async {
-      when(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: any(named: 'value'),
-            identifierPrefix: any(named: 'identifierPrefix'),
-          ),).thenAnswer((_) async => null);
+      when(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: any(named: 'value'),
+          identifierPrefix: any(named: 'identifierPrefix'),
+        ),
+      ).thenAnswer((_) async => null);
 
       expect(
         () => service.resetPassword(
@@ -118,10 +126,12 @@ void main() {
             .toIso8601String(),
       };
 
-      when(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: any(named: 'value'),
-            identifierPrefix: any(named: 'identifierPrefix'),
-          ),).thenAnswer((_) async => verification);
+      when(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: any(named: 'value'),
+          identifierPrefix: any(named: 'identifierPrefix'),
+        ),
+      ).thenAnswer((_) async => verification);
 
       when(() => mockVerifications.delete(any())).thenAnswer((_) async {});
 
@@ -147,34 +157,42 @@ void main() {
             .toIso8601String(),
       };
 
-      when(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: any(named: 'value'),
-            identifierPrefix: any(named: 'identifierPrefix'),
-          ),).thenAnswer((_) async => verification);
+      when(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: any(named: 'value'),
+          identifierPrefix: any(named: 'identifierPrefix'),
+        ),
+      ).thenAnswer((_) async => verification);
 
       when(() => mockUsers.findByEmail(any()))
           .thenAnswer((_) async => {'id': 'u1', 'email': 'test@example.com'});
 
-      when(() => mockUsers.updateEmailVerified(
-            id: any(named: 'id'),
-            verified: any(named: 'verified'),
-          ),).thenAnswer((_) async => {});
+      when(
+        () => mockUsers.updateEmailVerified(
+          id: any(named: 'id'),
+          verified: any(named: 'verified'),
+        ),
+      ).thenAnswer((_) async => {});
 
       when(() => mockVerifications.delete(any())).thenAnswer((_) async {});
 
       await service.confirmEmailVerification(token: 'verify-token');
 
-      verify(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: 'verify-token',
-            identifierPrefix: 'email-verify:',
-          ),).called(1);
+      verify(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: 'verify-token',
+          identifierPrefix: 'email-verify:',
+        ),
+      ).called(1);
     });
 
     test('throws AuthException when verification is null', () async {
-      when(() => mockVerifications.findByValueAndIdentifierPrefix(
-            value: any(named: 'value'),
-            identifierPrefix: any(named: 'identifierPrefix'),
-          ),).thenAnswer((_) async => null);
+      when(
+        () => mockVerifications.findByValueAndIdentifierPrefix(
+          value: any(named: 'value'),
+          identifierPrefix: any(named: 'identifierPrefix'),
+        ),
+      ).thenAnswer((_) async => null);
 
       expect(
         () => service.confirmEmailVerification(token: 'bad-token'),

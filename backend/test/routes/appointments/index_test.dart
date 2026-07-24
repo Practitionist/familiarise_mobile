@@ -295,8 +295,8 @@ void main() {
           'planId': 'plan-123',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final response = await route.onRequest(context);
 
@@ -321,8 +321,8 @@ void main() {
           'message': 'Looking forward to it',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final bookingResult = {
         'id': 'booking-789',
@@ -360,8 +360,8 @@ void main() {
           'planId': 'plan-123',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final response = await route.onRequest(context);
 
@@ -385,8 +385,8 @@ void main() {
           'planId': 'plan-123',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final response = await route.onRequest(context);
 
@@ -413,8 +413,8 @@ void main() {
           'slotStartTimes': ['2025-06-15T09:00:00Z'],
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       when(
         () => appointmentRepo.createConsultationBooking(
@@ -453,8 +453,8 @@ void main() {
           'slotStartTimes': ['2025-06-15T09:00:00Z'],
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       when(
         () => appointmentRepo.createConsultationBooking(

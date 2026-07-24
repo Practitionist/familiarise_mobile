@@ -22,8 +22,7 @@ void main() {
 
   group('findMany', () {
     test('returns consultants with pagination', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 2);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 2);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => [
@@ -85,8 +84,7 @@ void main() {
     });
 
     test('returns empty list when no consultants found', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -99,8 +97,7 @@ void main() {
     });
 
     test('clamps page size to maximum 50', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -111,8 +108,7 @@ void main() {
     });
 
     test('calculates pagination correctly', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 45);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 45);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -129,8 +125,7 @@ void main() {
     });
 
     test('hasNextPage is false on last page', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 10);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 10);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -142,8 +137,7 @@ void main() {
     });
 
     test('applies domain filter', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => [
@@ -177,8 +171,7 @@ void main() {
     });
 
     test('applies search query', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -191,8 +184,7 @@ void main() {
     });
 
     test('applies minimum rating filter', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -270,12 +262,10 @@ void main() {
 
   group('getReviews', () {
     test('returns paginated reviews for consultant', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 2);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 2);
 
       var queryMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async {
+      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
         queryMapCallCount++;
         switch (queryMapCallCount) {
           case 1:
@@ -328,8 +318,7 @@ void main() {
     });
 
     test('returns empty reviews when none exist', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -341,12 +330,10 @@ void main() {
     });
 
     test('handles reviews without consultee profile IDs', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       var queryMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async {
+      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
         queryMapCallCount++;
         if (queryMapCallCount == 1) {
           return [
@@ -370,8 +357,7 @@ void main() {
     });
 
     test('clamps page size to 50', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);

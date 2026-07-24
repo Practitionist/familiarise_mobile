@@ -30,8 +30,7 @@ void main() {
               ]);
 
       // Second query: count active consultations
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       final result = await repository.hasActiveConsultationBooking(
         consulteeProfileId: 'consultee-1',
@@ -61,8 +60,7 @@ void main() {
                 {'id': 'plan-1'},
               ]);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.hasActiveConsultationBooking(
         consulteeProfileId: 'consultee-1',
@@ -80,8 +78,7 @@ void main() {
                 {'id': 'sub-plan-1'},
               ]);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       final result = await repository.hasActiveSubscriptionBooking(
         consulteeProfileId: 'consultee-1',
@@ -109,8 +106,7 @@ void main() {
                 {'id': 'sub-plan-1'},
               ]);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.hasActiveSubscriptionBooking(
         consulteeProfileId: 'consultee-1',
@@ -140,8 +136,7 @@ void main() {
     test('returns conflicting slots when conflicts exist', () async {
       // Multiple calls to executeQueryAsMaps for _getConsultantAppointmentIds
       var queryMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async {
+      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
         queryMapCallCount++;
         switch (queryMapCallCount) {
           case 1:
@@ -168,8 +163,7 @@ void main() {
       });
 
       // Slot conflict count check returns > 0
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       final slotStart = DateTime(2025, 6, 15, 10, 0);
       final conflicts = await repository.checkSlotConflicts(
@@ -184,8 +178,7 @@ void main() {
 
     test('returns empty when no conflicts found', () async {
       var queryMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async {
+      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
         queryMapCallCount++;
         switch (queryMapCallCount) {
           case 1:
@@ -207,8 +200,7 @@ void main() {
         }
       });
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final conflicts = await repository.checkSlotConflicts(
         consultantProfileId: 'consultant-1',
@@ -230,8 +222,7 @@ void main() {
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.getMyBookings(userId: 'user-1');
 
@@ -251,8 +242,7 @@ void main() {
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.getMyBookings(userId: 'user-1');
 
@@ -272,8 +262,7 @@ void main() {
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.getMyBookings(
         userId: 'user-1',
@@ -290,8 +279,7 @@ void main() {
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
 
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.getMyBookings(
         userId: 'user-1',
@@ -312,8 +300,7 @@ void main() {
               ]);
 
       // Count active consultations > 0
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       expect(
         () => repository.createConsultationBooking(
@@ -338,8 +325,7 @@ void main() {
               ]);
 
       // Count active subscriptions > 0
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       expect(
         () => repository.createSubscriptionBooking(

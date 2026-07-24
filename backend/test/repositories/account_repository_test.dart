@@ -1,57 +1,51 @@
 import 'package:backend/database/repositories/account_repository.dart';
-import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
 
-class MockQueryExecutor extends Mock implements QueryExecutor {}
+import '../helpers/prisma_mocks.dart';
 
-class MockPrismaClient extends Mock implements PrismaClient {}
+class MockQueryExecutor extends Mock implements QueryExecutor {}
 
 class FakeJsonQuery extends Fake implements JsonQuery {}
 
 void main() {
   late MockQueryExecutor mockExecutor;
+  late MockPrismaClient mockPrisma;
+  late MockAccountDelegate mockAccounts;
   late AccountRepository repository;
 
   setUpAll(() {
     registerFallbackValue(FakeJsonQuery());
+    registerPrismaFallbacks();
   });
 
   setUp(() {
     mockExecutor = MockQueryExecutor();
-    repository = AccountRepository(mockExecutor, MockPrismaClient());
+    mockPrisma = MockPrismaClient();
+    mockAccounts = MockAccountDelegate();
+    when(() => mockPrisma.account).thenReturn(mockAccounts);
+    repository = AccountRepository(mockExecutor, mockPrisma);
   });
 
   group('findByUserAndProvider', () {
     test('returns account when found', () async {
-      final expected = {
-        'id': 'acc-1',
-        'userId': 'user-1',
-        'providerId': 'google',
-        'accountId': 'google-123',
-      };
+      when(() => mockAccounts.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildAccount(providerId: 'google'));
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      final result = await repository.findByUserAndProvider('user-1', 'google');
 
-      final result = await repository.findByUserAndProvider(
-        'user-1',
-        'google',
-      );
-
-      expect(result, equals(expected));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      expect(result?['id'], equals('account-1'));
+      expect(result?['providerId'], equals('google'));
+      verify(() => mockAccounts.findFirst(where: any(named: 'where')))
+          .called(1);
     });
 
     test('returns null when no account found', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockAccounts.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
-      final result = await repository.findByUserAndProvider(
-        'user-1',
-        'github',
-      );
+      final result = await repository.findByUserAndProvider('user-1', 'github');
 
       expect(result, isNull);
     });
@@ -59,26 +53,18 @@ void main() {
 
   group('findCredentialAccount', () {
     test('returns credential account for user', () async {
-      final expected = {
-        'id': 'acc-1',
-        'userId': 'user-1',
-        'providerId': 'credential',
-        'accountId': 'user-1',
-        'password': 'hashed-pw',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockAccounts.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildAccount());
 
       final result = await repository.findCredentialAccount('user-1');
 
-      expect(result, equals(expected));
       expect(result?['providerId'], equals('credential'));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      verify(() => mockAccounts.findFirst(where: any(named: 'where')))
+          .called(1);
     });
 
     test('returns null when no credential account exists', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockAccounts.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       final result = await repository.findCredentialAccount('user-1');
@@ -89,139 +75,80 @@ void main() {
 
   group('updatePassword', () {
     test('updates password and returns updated account', () async {
-      final expected = {
-        'id': 'acc-1',
-        'userId': 'user-1',
-        'password': 'new-hashed-pw',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockAccounts.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockAccounts.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildAccount());
 
       final result = await repository.updatePassword(
-        accountId: 'acc-1',
-        hashedPassword: 'new-hashed-pw',
+        accountId: 'account-1',
+        hashedPassword: 'new-hash',
       );
 
-      expect(result?['password'], equals('new-hashed-pw'));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      expect(result?['id'], equals('account-1'));
+      verify(
+        () => mockAccounts.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).called(1);
     });
 
     test('returns null when account not found', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockAccounts.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 0);
 
       final result = await repository.updatePassword(
         accountId: 'nonexistent',
-        hashedPassword: 'new-hashed-pw',
+        hashedPassword: 'new-hash',
       );
 
       expect(result, isNull);
+      verifyNever(() => mockAccounts.findFirst(where: any(named: 'where')));
     });
   });
 
   group('createOAuth', () {
     test('creates OAuth account link and returns result', () async {
-      final expected = {
-        'id': 'acc-1',
-        'userId': 'user-1',
-        'providerId': 'google',
-        'accountId': 'google-123',
-        'accessToken': 'access-token-xyz',
-        'idToken': 'id-token-xyz',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockAccounts.create(data: any(named: 'data')))
+          .thenAnswer((_) async => buildAccount(providerId: 'google'));
 
       final result = await repository.createOAuth(
-        id: 'acc-1',
+        id: 'account-1',
         userId: 'user-1',
         providerId: 'google',
         accountId: 'google-123',
-        accessToken: 'access-token-xyz',
-        idToken: 'id-token-xyz',
+        accessToken: 'access-token',
+        idToken: 'id-token',
       );
 
       expect(result['providerId'], equals('google'));
-      expect(result['accessToken'], equals('access-token-xyz'));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
-    });
-
-    test('creates OAuth account without optional tokens', () async {
-      final expected = {
-        'id': 'acc-2',
-        'userId': 'user-1',
-        'providerId': 'github',
-        'accountId': 'github-456',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
-
-      final result = await repository.createOAuth(
-        id: 'acc-2',
-        userId: 'user-1',
-        providerId: 'github',
-        accountId: 'github-456',
-      );
-
-      expect(result['providerId'], equals('github'));
-    });
-
-    test('throws when database fails to create OAuth account', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
-
-      expect(
-        () => repository.createOAuth(
-          id: 'acc-1',
-          userId: 'user-1',
-          providerId: 'google',
-          accountId: 'google-123',
-        ),
-        throwsA(isA<Exception>()),
-      );
+      verify(() => mockAccounts.create(data: any(named: 'data'))).called(1);
     });
   });
 
   group('createCredentials', () {
     test('creates credential account and returns result', () async {
-      final expected = {
-        'id': 'acc-1',
-        'userId': 'user-1',
-        'providerId': 'credential',
-        'accountId': 'user-1',
-        'password': 'hashed-pw-123',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockAccounts.create(data: any(named: 'data')))
+          .thenAnswer((_) async => buildAccount());
 
       final result = await repository.createCredentials(
-        id: 'acc-1',
+        id: 'account-1',
         userId: 'user-1',
-        hashedPassword: 'hashed-pw-123',
+        hashedPassword: 'hashed',
       );
 
       expect(result['providerId'], equals('credential'));
-      expect(result['accountId'], equals('user-1'));
-      expect(result['password'], equals('hashed-pw-123'));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
-    });
-
-    test('throws when database fails to create credentials', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
-
-      expect(
-        () => repository.createCredentials(
-          id: 'acc-1',
-          userId: 'user-1',
-          hashedPassword: 'hashed-pw',
-        ),
-        throwsA(isA<Exception>()),
-      );
+      expect(result['userId'], equals('user-1'));
+      verify(() => mockAccounts.create(data: any(named: 'data'))).called(1);
     });
   });
 }

@@ -1,7 +1,8 @@
 import 'package:backend/database/repositories/support_ticket_repository.dart';
 import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart' hide RecordNotFoundException;
+import 'package:prisma_flutter_connector/runtime_server.dart'
+    hide RecordNotFoundException;
 import 'package:test/test.dart';
 
 class MockQueryExecutor extends Mock implements QueryExecutor {}
@@ -25,8 +26,7 @@ void main() {
 
   group('getTicketsByUserId', () {
     test('returns tickets with pagination', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 2);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 2);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => [
@@ -54,8 +54,7 @@ void main() {
     });
 
     test('filters tickets by status', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 1);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => [
@@ -77,8 +76,7 @@ void main() {
     });
 
     test('returns empty list when no tickets', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -90,8 +88,7 @@ void main() {
     });
 
     test('clamps page size to maximum 50', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -105,8 +102,7 @@ void main() {
     });
 
     test('supports pagination with page parameter', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 25);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 25);
 
       when(() => mockExecutor.executeQueryAsMaps(any()))
           .thenAnswer((_) async => []);
@@ -136,8 +132,7 @@ void main() {
 
       // executeQueryAsMaps: first for responses, then attachments
       var queryAsMapsCallCount = 0;
-      when(() => mockExecutor.executeQueryAsMaps(any()))
-          .thenAnswer((_) async {
+      when(() => mockExecutor.executeQueryAsMaps(any())).thenAnswer((_) async {
         queryAsMapsCallCount++;
         if (queryAsMapsCallCount == 1) {
           // Responses
@@ -389,8 +384,7 @@ void main() {
     });
 
     test('returns zeros when no tickets exist', () async {
-      when(() => mockExecutor.executeCount(any()))
-          .thenAnswer((_) async => 0);
+      when(() => mockExecutor.executeCount(any())).thenAnswer((_) async => 0);
 
       final result = await repository.getTicketCountsByStatus('user-1');
 
