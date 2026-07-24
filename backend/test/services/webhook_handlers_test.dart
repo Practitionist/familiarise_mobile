@@ -1,11 +1,3 @@
-@Skip(
-  'Pending migration to typed delegate mocks: this suite still stubs the '
-  'raw QueryExecutor, which the code under test no longer uses after the '
-  'JQB->typed-delegate migration. See test/helpers/prisma_mocks.dart for '
-  'the pattern used by the already-migrated suites.',
-)
-library;
-
 import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/checkout_repository.dart';
 import 'package:backend/database/repositories/dispute_repository.dart';
@@ -15,6 +7,8 @@ import 'package:backend/services/webhook_handlers.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
+
+import '../helpers/prisma_mocks.dart';
 
 // Mocks
 class MockDatabaseClient extends Mock implements DatabaseClient {}
@@ -34,6 +28,9 @@ class FakeJsonQuery extends Fake implements JsonQuery {}
 void main() {
   setUpAll(() {
     registerFallbackValue(FakeJsonQuery());
+    registerPrismaFallbacks();
+    registerExploreFallbacks();
+    registerBookingFallbacks();
   });
 
   late MockDatabaseClient mockDb;
@@ -42,6 +39,10 @@ void main() {
   late MockDisputeRepository mockDisputes;
   late MockStreamService mockStreamService;
   late MockQueryExecutor mockExecutor;
+  late MockPrismaClient mockPrisma;
+  late MockPaymentDelegate mockPayments;
+  late MockAppointmentDelegate mockAppointments;
+  late MockConsultantProfileDelegate mockConsultantProfiles;
   late WebhookHandlers handlers;
 
   setUp(() {
@@ -57,19 +58,38 @@ void main() {
     when(() => mockDb.disputes).thenReturn(mockDisputes);
     when(() => mockDb.executor).thenReturn(mockExecutor);
 
+    // Typed Prisma surface used by the payment/appointment lookups.
+    mockPrisma = MockPrismaClient();
+    mockPayments = MockPaymentDelegate();
+    mockAppointments = MockAppointmentDelegate();
+    mockConsultantProfiles = MockConsultantProfileDelegate();
+    when(() => mockDb.prisma).thenReturn(mockPrisma);
+    when(() => mockPrisma.payment).thenReturn(mockPayments);
+    when(() => mockPrisma.appointment).thenReturn(mockAppointments);
+    when(() => mockPrisma.consultantProfile).thenReturn(mockConsultantProfiles);
+    when(
+      () => mockAppointments.findUnique(
+        where: any(named: 'where'),
+        include: any(named: 'include'),
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => mockConsultantProfiles.findUnique(
+        where: any(named: 'where'),
+        include: any(named: 'include'),
+      ),
+    ).thenAnswer((_) async => null);
+
     handlers = WebhookHandlers(mockDb, streamService: mockStreamService);
   });
 
   group('handlePaymentSuccess', () {
     test('updates payment status to SUCCEEDED', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-1',
-        'appointmentId': null,
-        'paymentStatus': 'PENDING',
-      };
+      final payment =
+          buildPayment(id: 'payment-1', paymentStatus: PaymentStatus.pending);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       when(() => mockCheckout.updatePaymentStatus(
@@ -92,7 +112,7 @@ void main() {
 
     test('skips processing when payment not found', () async {
       // Arrange
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       // Act
@@ -110,13 +130,10 @@ void main() {
 
     test('skips processing when payment already SUCCEEDED', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-1',
-        'appointmentId': null,
-        'paymentStatus': 'SUCCEEDED',
-      };
+      final payment =
+          buildPayment(id: 'payment-1', paymentStatus: PaymentStatus.succeeded);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       // Act
@@ -135,30 +152,19 @@ void main() {
     test('confirms booking when appointmentId is present (consultation)',
         () async {
       // Arrange
-      final payment = {
-        'id': 'payment-1',
-        'appointmentId': 'appointment-1',
-        'paymentStatus': 'PENDING',
-      };
+      final payment =
+          buildPayment(id: 'payment-1', paymentStatus: PaymentStatus.pending);
 
-      var singleMapCallCount = 0;
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async {
-        singleMapCallCount++;
-        if (singleMapCallCount == 1) {
-          // First call: _findPaymentByIntent
-          return payment;
-        }
-        // Second call: appointment query
-        return {
-          'id': 'appointment-1',
-          'consultationId': 'consultation-1',
-          'subscriptionId': null,
-          'webinarId': null,
-          'classId': null,
-          'appointmentType': 'CONSULTATION',
-        };
-      });
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => payment);
+      when(
+        () => mockAppointments.findUnique(
+          where: any(named: 'where'),
+          include: any(named: 'include'),
+        ),
+      ).thenAnswer(
+        (_) async => buildAppointment(id: 'appointment-1'),
+      );
 
       when(() => mockCheckout.updatePaymentStatus(
             paymentId: any(named: 'paymentId'),
@@ -190,12 +196,10 @@ void main() {
   group('handlePaymentFailure', () {
     test('updates payment status to FAILED', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-2',
-        'paymentStatus': 'PENDING',
-      };
+      final payment =
+          buildPayment(id: 'payment-2', paymentStatus: PaymentStatus.pending);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       when(() => mockCheckout.updatePaymentStatus(
@@ -219,7 +223,7 @@ void main() {
 
     test('skips when payment not found', () async {
       // Arrange
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       // Act
@@ -237,12 +241,10 @@ void main() {
 
     test('skips when payment already FAILED', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-2',
-        'paymentStatus': 'FAILED',
-      };
+      final payment =
+          buildPayment(id: 'payment-2', paymentStatus: PaymentStatus.failed);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       // Act
@@ -260,12 +262,10 @@ void main() {
 
     test('skips when payment already SUCCEEDED', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-3',
-        'paymentStatus': 'SUCCEEDED',
-      };
+      final payment =
+          buildPayment(id: 'payment-3', paymentStatus: PaymentStatus.succeeded);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       // Act
@@ -285,12 +285,10 @@ void main() {
   group('handleRefundProcessed', () {
     test('creates refund record with mapped status', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-4',
-        'paymentStatus': 'SUCCEEDED',
-      };
+      final payment =
+          buildPayment(id: 'payment-4', paymentStatus: PaymentStatus.succeeded);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       when(() => mockRefunds.createRefund(
@@ -328,7 +326,7 @@ void main() {
 
     test('skips when payment not found', () async {
       // Arrange
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       // Act
@@ -355,8 +353,8 @@ void main() {
 
     test('maps "processed" status to SUCCEEDED', () async {
       // Arrange
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => {'id': 'payment-5'});
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildPayment(id: 'payment-5'));
 
       when(() => mockRefunds.createRefund(
             refundId: any(named: 'refundId'),
@@ -391,8 +389,8 @@ void main() {
     });
 
     test('maps "pending" status to PENDING', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => {'id': 'payment-6'});
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildPayment(id: 'payment-6'));
 
       when(() => mockRefunds.createRefund(
             refundId: any(named: 'refundId'),
@@ -425,8 +423,8 @@ void main() {
     });
 
     test('maps unknown status to PENDING', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => {'id': 'payment-7'});
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildPayment(id: 'payment-7'));
 
       when(() => mockRefunds.createRefund(
             refundId: any(named: 'refundId'),
@@ -462,12 +460,10 @@ void main() {
   group('handleDisputeCreated', () {
     test('creates dispute record', () async {
       // Arrange
-      final payment = {
-        'id': 'payment-8',
-        'paymentStatus': 'SUCCEEDED',
-      };
+      final payment =
+          buildPayment(id: 'payment-8', paymentStatus: PaymentStatus.succeeded);
 
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => payment);
 
       when(() => mockDisputes.createDispute(
@@ -509,7 +505,7 @@ void main() {
 
     test('skips when payment not found', () async {
       // Arrange
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       // Act
@@ -539,8 +535,8 @@ void main() {
 
     test('passes dueBy and isChargeRefundable fields', () async {
       // Arrange
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => {'id': 'payment-9'});
+      when(() => mockPayments.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildPayment(id: 'payment-9'));
 
       final dueDate = DateTime(2025, 6, 15);
 

@@ -1,11 +1,3 @@
-@Skip(
-  'Pending migration to typed delegate mocks: this suite still stubs the '
-  'raw QueryExecutor, which the code under test no longer uses after the '
-  'JQB->typed-delegate migration. See test/helpers/prisma_mocks.dart for '
-  'the pattern used by the already-migrated suites.',
-)
-library;
-
 import 'dart:io' as io;
 
 import 'package:backend/database/database_client.dart' hide Platform;
@@ -15,6 +7,8 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
+
+import '../../helpers/prisma_mocks.dart';
 
 import '../../../routes/api/checkout/verify.dart' as route;
 
@@ -34,6 +28,9 @@ class _FakeJsonQuery extends Fake implements JsonQuery {}
 
 void main() {
   setUpAll(() {
+    registerPrismaFallbacks();
+    registerExploreFallbacks();
+    registerBookingFallbacks();
     registerFallbackValue(_FakeJsonQuery());
   });
 
@@ -43,6 +40,10 @@ void main() {
   late _MockJwtService jwtService;
   late _MockCheckoutRepository checkoutRepo;
   late _MockQueryExecutor executor;
+  late MockPrismaClient prisma;
+  late MockPaymentDelegate payments;
+  late MockAppointmentDelegate appointments;
+  late MockSlotOfAppointmentDelegate slots;
 
   setUp(() {
     context = _MockRequestContext();
@@ -58,6 +59,27 @@ void main() {
 
     when(() => db.checkout).thenReturn(checkoutRepo);
     when(() => db.executor).thenReturn(executor);
+
+    prisma = MockPrismaClient();
+    payments = MockPaymentDelegate();
+    appointments = MockAppointmentDelegate();
+    slots = MockSlotOfAppointmentDelegate();
+    when(() => db.prisma).thenReturn(prisma);
+    when(() => prisma.payment).thenReturn(payments);
+    when(() => prisma.appointment).thenReturn(appointments);
+    when(() => prisma.slotOfAppointment).thenReturn(slots);
+    when(
+      () => appointments.findUnique(
+        where: any(named: 'where'),
+        include: any(named: 'include'),
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => slots.findFirst(
+        where: any(named: 'where'),
+        orderBy: any(named: 'orderBy'),
+      ),
+    ).thenAnswer((_) async => null);
   });
 
   group('GET /api/checkout/verify', () {
@@ -133,7 +155,7 @@ void main() {
         ),
       );
       when(
-        () => executor.executeQueryAsSingleMap(any()),
+        () => payments.findUnique(where: any(named: 'where')),
       ).thenAnswer((_) async => null);
 
       final response = await route.onRequest(context);
@@ -159,15 +181,16 @@ void main() {
 
       // First call returns the payment record
       when(
-        () => executor.executeQueryAsSingleMap(any()),
-      ).thenAnswer((_) async => {
-            'id': 'pay-123',
-            'appointmentId': null,
-            'paymentStatus': 'SUCCEEDED',
-          });
+        () => payments.findUnique(where: any(named: 'where')),
+      ).thenAnswer(
+        (_) async => buildPayment(
+          id: 'pay-123',
+          paymentStatus: PaymentStatus.succeeded,
+          userId: 'user-123',
+        ),
+      );
 
       final response = await route.onRequest(context);
-
       expect(response.statusCode, equals(io.HttpStatus.ok));
       final body = await response.json();
       expect(body['success'], isTrue);
@@ -188,12 +211,14 @@ void main() {
       );
 
       when(
-        () => executor.executeQueryAsSingleMap(any()),
-      ).thenAnswer((_) async => {
-            'id': 'pay-123',
-            'appointmentId': null,
-            'paymentStatus': 'FAILED',
-          });
+        () => payments.findUnique(where: any(named: 'where')),
+      ).thenAnswer(
+        (_) async => buildPayment(
+          id: 'pay-123',
+          paymentStatus: PaymentStatus.failed,
+          userId: 'user-123',
+        ),
+      );
 
       final response = await route.onRequest(context);
 
@@ -218,12 +243,15 @@ void main() {
 
       // Payment exists but is PENDING (not yet processed)
       when(
-        () => executor.executeQueryAsSingleMap(any()),
-      ).thenAnswer((_) async => {
-            'id': 'pay-123',
-            'appointmentId': null,
-            'paymentStatus': 'PENDING',
-          });
+        () => payments.findUnique(where: any(named: 'where')),
+      ).thenAnswer(
+        (_) async => buildPayment(
+          id: 'pay-123',
+          paymentStatus: PaymentStatus.pending,
+          userId: 'user-123',
+          paymentGateway: PaymentGateway.razorpay,
+        ),
+      );
 
       final response = await route.onRequest(context);
 

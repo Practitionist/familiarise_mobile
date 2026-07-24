@@ -1,11 +1,3 @@
-@Skip(
-  'Pending migration to typed delegate mocks: this suite still stubs the '
-  'raw QueryExecutor, which the code under test no longer uses after the '
-  'JQB->typed-delegate migration. See test/helpers/prisma_mocks.dart for '
-  'the pattern used by the already-migrated suites.',
-)
-library;
-
 import 'package:backend/database/repositories/consultant_explore_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
@@ -57,6 +49,8 @@ void main() {
         where: any(named: 'where'),
         select: any(named: 'select'),
         orderBy: any(named: 'orderBy'),
+        take: any(named: 'take'),
+        skip: any(named: 'skip'),
       ),
     ).thenAnswer((_) async => []);
     when(
@@ -64,6 +58,8 @@ void main() {
         where: any(named: 'where'),
         select: any(named: 'select'),
         orderBy: any(named: 'orderBy'),
+        take: any(named: 'take'),
+        skip: any(named: 'skip'),
       ),
     ).thenAnswer((_) async => []);
     when(
@@ -74,6 +70,27 @@ void main() {
     ).thenAnswer((_) async => []);
     when(() => mockReviews.count(where: any(named: 'where')))
         .thenAnswer((_) async => 0);
+    when(
+      () => mockConsulteeProfiles.findManyProjected(
+        where: any(named: 'where'),
+        select: any(named: 'select'),
+      ),
+    ).thenAnswer((_) async => []);
+    when(
+      () => mockProfiles.findFirstProjected(
+        where: any(named: 'where'),
+        select: any(named: 'select'),
+        include: any(named: 'include'),
+      ),
+    ).thenAnswer((_) async => null);
+    when(
+      () => mockReviews.aggregate(
+        where: any(named: 'where'),
+        count: any(named: 'count'),
+        avg: any(named: 'avg'),
+        countFiltered: any(named: 'countFiltered'),
+      ),
+    ).thenAnswer((_) async => <String, dynamic>{'_count': 0});
 
     repository = ConsultantExploreRepository(mockExecutor, mockPrisma);
   });
@@ -87,10 +104,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => [
             {
@@ -158,10 +176,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -180,10 +199,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -200,10 +220,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -226,10 +247,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -247,10 +269,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => [
             {
@@ -290,10 +313,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -305,10 +329,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).called(1);
     });
@@ -321,10 +346,11 @@ void main() {
         () => mockProfiles.findManyProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
+          computed: any(named: 'computed'),
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -339,51 +365,46 @@ void main() {
     test('returns consultant details with plans and reviews', () async {
       // First call for profile query
       when(
-        () => mockProfiles.findManyProjected(
+        () => mockProfiles.findFirstProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
-          orderBy: any(named: 'orderBy'),
-          take: any(named: 'take'),
-          skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
-      ).thenAnswer((_) async => [
-            {
-              'id': 'cp-1',
-              'userId': 'user-1',
-              'headline': 'Expert Dev',
-              'description': 'Senior developer',
-              'rating': 4.5,
-              'experience': 5,
-              'languages': '["English"]',
-              'toolsAndTechnologies': '["Flutter"]',
-              'totalMenteesHelped': 50,
-              'isVerified': true,
-              'domainId': 'dom-1',
-              'mentoringStyle': 'Hands-on',
-              'sessionTypes': '["VIDEO","CHAT"]',
-              'websiteUrl': 'https://example.com',
-              'twitterUrl': null,
-              'githubUrl': 'https://github.com/test',
-              'videoIntroUrl': null,
-              'createdAt': '2025-01-01T00:00:00.000Z',
-              'updatedAt': '2025-06-01T00:00:00.000Z',
-              'user': {
-                'name': 'John Doe',
-                'image': null,
-                'email': 'john@example.com',
-                'timezone': 'Asia/Kolkata',
-              },
-              'domain': {'id': 'dom-1', 'name': 'Technology'},
-              'subDomains': [
-                {'id': 'sd-1', 'name': 'Mobile Dev', 'domainId': 'dom-1'}
-              ],
-              'tags': [
-                {'name': 'flutter'},
-                {'name': 'dart'},
-              ],
+      ).thenAnswer((_) async => {
+            'id': 'cp-1',
+            'userId': 'user-1',
+            'headline': 'Expert Dev',
+            'description': 'Senior developer',
+            'rating': 4.5,
+            'experience': 5,
+            'languages': '["English"]',
+            'toolsAndTechnologies': '["Flutter"]',
+            'totalMenteesHelped': 50,
+            'isVerified': true,
+            'domainId': 'dom-1',
+            'mentoringStyle': 'Hands-on',
+            'sessionTypes': '["VIDEO","CHAT"]',
+            'websiteUrl': 'https://example.com',
+            'twitterUrl': null,
+            'githubUrl': 'https://github.com/test',
+            'videoIntroUrl': null,
+            'createdAt': '2025-01-01T00:00:00.000Z',
+            'updatedAt': '2025-06-01T00:00:00.000Z',
+            'user': {
+              'name': 'John Doe',
+              'image': null,
+              'email': 'john@example.com',
+              'timezone': 'Asia/Kolkata',
             },
-          ]);
+            'domain': {'id': 'dom-1', 'name': 'Technology'},
+            'subDomains': [
+              {'id': 'sd-1', 'name': 'Mobile Dev', 'domainId': 'dom-1'}
+            ],
+            'tags': [
+              {'name': 'flutter'},
+              {'name': 'dart'},
+            ],
+          });
 
       final result = await repository.findByIdWithDetails('cp-1');
 
@@ -399,15 +420,12 @@ void main() {
 
     test('returns null when consultant not found', () async {
       when(
-        () => mockProfiles.findManyProjected(
+        () => mockProfiles.findFirstProjected(
           where: any(named: 'where'),
           select: any(named: 'select'),
-          orderBy: any(named: 'orderBy'),
-          take: any(named: 'take'),
-          skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
+          include: any(named: 'include'),
         ),
-      ).thenAnswer((_) async => []);
+      ).thenAnswer((_) async => null);
 
       final result = await repository.findByIdWithDetails('nonexistent');
 
@@ -417,10 +435,9 @@ void main() {
 
   group('getReviews', () {
     test('returns paginated reviews for consultant', () async {
-      when(() => mockProfiles.count(where: any(named: 'where')))
+      when(() => mockReviews.count(where: any(named: 'where')))
           .thenAnswer((_) async => 2);
 
-      var queryMapCallCount = 0;
       when(
         () => mockReviews.findManyProjected(
           where: any(named: 'where'),
@@ -428,45 +445,43 @@ void main() {
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
         ),
-      ).thenAnswer((_) async {
-        queryMapCallCount++;
-        switch (queryMapCallCount) {
-          case 1:
-            // Reviews query
-            return [
-              {
-                'id': 'rev-1',
-                'rating': 5,
-                'reviewDescription': 'Excellent mentor',
-                'consulteeProfileId': 'consultee-1',
-                'createdAt': '2025-06-01T00:00:00.000Z',
-              },
-              {
-                'id': 'rev-2',
-                'rating': 4,
-                'reviewDescription': 'Very helpful',
-                'consulteeProfileId': 'consultee-2',
-                'createdAt': '2025-05-15T00:00:00.000Z',
-              },
-            ];
-          case 2:
-            // ConsulteeProfile query
-            return [
-              {'id': 'consultee-1', 'userId': 'user-10'},
-              {'id': 'consultee-2', 'userId': 'user-11'},
-            ];
-          case 3:
-            // Users query
-            return [
-              {'id': 'user-10', 'name': 'Alice', 'image': null},
-              {'id': 'user-11', 'name': 'Bob', 'image': 'bob.jpg'},
-            ];
-          default:
-            return [];
-        }
-      });
+      ).thenAnswer((_) async => [
+            {
+              'id': 'rev-1',
+              'rating': 5,
+              'reviewDescription': 'Excellent mentor',
+              'consulteeProfileId': 'consultee-1',
+              'createdAt': '2025-06-01T00:00:00.000Z',
+            },
+            {
+              'id': 'rev-2',
+              'rating': 4,
+              'reviewDescription': 'Very helpful',
+              'consulteeProfileId': 'consultee-2',
+              'createdAt': '2025-05-15T00:00:00.000Z',
+            },
+          ]);
+
+      // Reviewer resolution: consulteeProfile -> user
+      when(
+        () => mockConsulteeProfiles.findManyProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+        ),
+      ).thenAnswer((_) async => [
+            {'id': 'consultee-1', 'userId': 'user-10'},
+            {'id': 'consultee-2', 'userId': 'user-11'},
+          ]);
+      when(
+        () => mockUsers.findManyProjected(
+          where: any(named: 'where'),
+          select: any(named: 'select'),
+        ),
+      ).thenAnswer((_) async => [
+            {'id': 'user-10', 'name': 'Alice', 'image': null},
+            {'id': 'user-11', 'name': 'Bob', 'image': 'bob.jpg'},
+          ]);
 
       final result = await repository.getReviews(
         consultantId: 'cp-1',
@@ -483,7 +498,7 @@ void main() {
     });
 
     test('returns empty reviews when none exist', () async {
-      when(() => mockProfiles.count(where: any(named: 'where')))
+      when(() => mockReviews.count(where: any(named: 'where')))
           .thenAnswer((_) async => 0);
 
       when(
@@ -493,7 +508,6 @@ void main() {
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
         ),
       ).thenAnswer((_) async => []);
 
@@ -504,7 +518,7 @@ void main() {
     });
 
     test('handles reviews without consultee profile IDs', () async {
-      when(() => mockProfiles.count(where: any(named: 'where')))
+      when(() => mockReviews.count(where: any(named: 'where')))
           .thenAnswer((_) async => 1);
 
       var queryMapCallCount = 0;
@@ -515,7 +529,6 @@ void main() {
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
         ),
       ).thenAnswer((_) async {
         queryMapCallCount++;
@@ -541,7 +554,7 @@ void main() {
     });
 
     test('clamps page size to 50', () async {
-      when(() => mockProfiles.count(where: any(named: 'where')))
+      when(() => mockReviews.count(where: any(named: 'where')))
           .thenAnswer((_) async => 0);
 
       when(
@@ -551,7 +564,6 @@ void main() {
           orderBy: any(named: 'orderBy'),
           take: any(named: 'take'),
           skip: any(named: 'skip'),
-          computed: any(named: 'computed'),
         ),
       ).thenAnswer((_) async => []);
 

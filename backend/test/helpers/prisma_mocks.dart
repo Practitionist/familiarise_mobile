@@ -401,6 +401,15 @@ class FakeUpdateSlotOfAppointmentInput extends Fake
 
 class FakeAppointmentInclude extends Fake implements AppointmentInclude {}
 
+class FakeAppointmentWhereUniqueInput extends Fake
+    implements AppointmentWhereUniqueInput {}
+
+class FakeConsultantProfileWhereUniqueInput extends Fake
+    implements ConsultantProfileWhereUniqueInput {}
+
+class FakeConsultantProfileInclude extends Fake
+    implements ConsultantProfileInclude {}
+
 class FakeConsultationPlanInclude extends Fake
     implements ConsultationPlanInclude {}
 
@@ -430,6 +439,9 @@ void registerBookingFallbacks() {
   registerFallbackValue(FakeSubscriptionPlanWhereUniqueInput());
   registerFallbackValue(FakeUpdateSlotOfAppointmentInput());
   registerFallbackValue(FakeAppointmentInclude());
+  registerFallbackValue(FakeAppointmentWhereUniqueInput());
+  registerFallbackValue(FakeConsultantProfileWhereUniqueInput());
+  registerFallbackValue(FakeConsultantProfileInclude());
   registerFallbackValue(FakeConsultationPlanInclude());
   registerFallbackValue(FakeSubscriptionPlanInclude());
   registerFallbackValue(FakeConsultationInclude());
