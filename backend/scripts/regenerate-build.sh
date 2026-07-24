@@ -21,8 +21,18 @@ for arg in "$@"; do
   esac
 done
 
-echo "==> dart pub get"
-dart pub get
+# prisma_flutter_connector depends on the Flutter SDK, so resolution must go
+# through `flutter pub` when Flutter is available (it always is in CI and on
+# dev machines); plain `dart pub get` fails with "the Flutter SDK is not
+# available".
+if command -v flutter >/dev/null 2>&1; then
+  PUB="flutter pub"
+else
+  PUB="dart pub"
+fi
+
+echo "==> $PUB get"
+$PUB get
 
 if [ "$REGEN_PRISMA" = true ] || [ ! -d lib/generated ]; then
   echo "==> Generating Prisma client from prisma/schema.prisma"

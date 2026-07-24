@@ -23,10 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      # The backend is server-side Dart, but prisma_flutter_connector depends on
+      # the Flutter SDK, so pub resolution needs Flutter (not plain Dart).
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: '3.5'
+          flutter-version: '3.24.3'
+          cache: true
 
       # lib/generated/** is gitignored — it is derived from prisma/schema.prisma
       # (copied verbatim from familiarise_web) and must be regenerated here.
