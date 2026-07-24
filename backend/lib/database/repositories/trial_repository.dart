@@ -100,8 +100,8 @@ class TrialRepository extends BaseRepository {
     final result = await _prisma.trialSession.update(
       where: TrialSessionWhereUniqueInput(id: id),
       data: UpdateTrialSessionInput(
-        status: TrialSessionStatus.values
-            .firstWhere((e) => e.toJson() == status),
+        status:
+            TrialSessionStatus.values.firstWhere((e) => e.toJson() == status),
       ),
     );
     return result.toJson();
@@ -110,12 +110,9 @@ class TrialRepository extends BaseRepository {
   /// Get trial stats for a consultant.
   Future<Map<String, int>> getStats(String consultantProfileId) async {
     final all = await findByConsultant(consultantProfileId);
-    final pending =
-        all.where((t) => t['status'] == 'PENDING').length;
-    final completed =
-        all.where((t) => t['status'] == 'COMPLETED').length;
-    final converted =
-        all.where((t) => t['status'] == 'CONVERTED').length;
+    final pending = all.where((t) => t['status'] == 'PENDING').length;
+    final completed = all.where((t) => t['status'] == 'COMPLETED').length;
+    final converted = all.where((t) => t['status'] == 'CONVERTED').length;
     return {
       'total': all.length,
       'pending': pending,

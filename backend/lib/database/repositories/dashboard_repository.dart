@@ -302,8 +302,7 @@ class DashboardRepository extends BaseRepository {
     String planModel,
     String consultantProfileId,
   ) async {
-    final consultantProfileIdFilter =
-        StringFilter(equals: consultantProfileId);
+    final consultantProfileIdFilter = StringFilter(equals: consultantProfileId);
     final List<Map<String, dynamic>> plans;
     switch (planModel) {
       case 'SubscriptionPlan':
@@ -595,8 +594,7 @@ class DashboardRepository extends BaseRepository {
       for (final w in webinars) {
         final appointment = w['appointment'] as Map<String, dynamic>?;
         if (appointment == null) continue;
-        final slots =
-            appointment['slotsOfAppointment'] as List<dynamic>? ?? [];
+        final slots = appointment['slotsOfAppointment'] as List<dynamic>? ?? [];
         for (final slot in slots) {
           final slotMap = slot as Map<String, dynamic>;
           final users = slotMap['user'] as List<dynamic>? ?? [];

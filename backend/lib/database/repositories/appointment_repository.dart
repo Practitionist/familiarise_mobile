@@ -532,32 +532,28 @@ class AppointmentRepository extends BaseRepository {
         allBookings.addAll(consultantBookings);
 
         // 2. Fetch SUBSCRIPTIONS
-        final subscriptionBookings =
-            await _fetchConsultantSubscriptionBookings(
+        final subscriptionBookings = await _fetchConsultantSubscriptionBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(subscriptionBookings);
 
         // 3. Fetch WEBINARS
-        final webinarBookings =
-            await _fetchConsultantWebinarBookings(
+        final webinarBookings = await _fetchConsultantWebinarBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(webinarBookings);
 
         // 4. Fetch CLASSES
-        final classBookings =
-            await _fetchConsultantClassBookings(
+        final classBookings = await _fetchConsultantClassBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(classBookings);
 
         // 5. Fetch TRIAL SESSIONS
-        final trialBookings =
-            await _fetchConsultantTrialBookings(
+        final trialBookings = await _fetchConsultantTrialBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
@@ -708,10 +704,8 @@ class AppointmentRepository extends BaseRepository {
       final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
 
       // Get consultee info
-      final requestedBy =
-          c['requestedBy'] as Map<String, dynamic>?;
-      final consulteeUser =
-          requestedBy?['user'] as Map<String, dynamic>?;
+      final requestedBy = c['requestedBy'] as Map<String, dynamic>?;
+      final consulteeUser = requestedBy?['user'] as Map<String, dynamic>?;
 
       bookings.add({
         'id': c['id'],
@@ -729,8 +723,7 @@ class AppointmentRepository extends BaseRepository {
         'consulteeUserId': consulteeUser?['id'],
         'consulteeName': consulteeUser?['name'],
         'consulteeImage': consulteeUser?['image'],
-        if (slots != null && slots.isNotEmpty)
-          'slots': _formatSlots(slots),
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
       });
     }
 
@@ -789,10 +782,8 @@ class AppointmentRepository extends BaseRepository {
       final planId = s['subscriptionPlanId'] as String?;
       final plan = planId != null ? planLookup[planId] : null;
 
-      final requestedBy =
-          s['requestedBy'] as Map<String, dynamic>?;
-      final consulteeUser =
-          requestedBy?['user'] as Map<String, dynamic>?;
+      final requestedBy = s['requestedBy'] as Map<String, dynamic>?;
+      final consulteeUser = requestedBy?['user'] as Map<String, dynamic>?;
 
       bookings.add({
         'id': s['id'],
@@ -868,8 +859,7 @@ class AppointmentRepository extends BaseRepository {
     if (filteredWebinars.isEmpty) return [];
 
     // Batch fetch appointments with slots + enrolled users for all webinars
-    final webinarIds =
-        filteredWebinars.map((w) => w['id'] as String).toList();
+    final webinarIds = filteredWebinars.map((w) => w['id'] as String).toList();
 
     final appointments = await _prisma.appointment.findManyProjected(
       where: AppointmentWhereInput(
@@ -910,8 +900,7 @@ class AppointmentRepository extends BaseRepository {
         'planCurrency': plan?['priceCurrency'],
         'planDuration': plan?['durationInHours'],
         'maxParticipants': plan?['maxParticipants'],
-        if (slots != null && slots.isNotEmpty)
-          'slots': _formatSlots(slots),
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
         'participants': participantData['participants'],
         'participantCount': participantData['participantCount'],
       });
@@ -970,8 +959,7 @@ class AppointmentRepository extends BaseRepository {
     if (filteredClasses.isEmpty) return [];
 
     // Batch fetch appointments with slots + enrolled users for all classes
-    final classIds =
-        filteredClasses.map((c) => c['id'] as String).toList();
+    final classIds = filteredClasses.map((c) => c['id'] as String).toList();
 
     final appointments = await _prisma.appointment.findManyProjected(
       where: AppointmentWhereInput(
@@ -983,14 +971,11 @@ class AppointmentRepository extends BaseRepository {
     );
 
     // Classes can have multiple appointments; group by classId
-    final appointmentsByClass =
-        <String, List<Map<String, dynamic>>>{};
+    final appointmentsByClass = <String, List<Map<String, dynamic>>>{};
     for (final a in appointments) {
       final cId = a['classId'] as String?;
       if (cId != null) {
-        appointmentsByClass
-            .putIfAbsent(cId, () => [])
-            .add(a);
+        appointmentsByClass.putIfAbsent(cId, () => []).add(a);
       }
     }
 
@@ -1000,8 +985,7 @@ class AppointmentRepository extends BaseRepository {
       final classId = c['id'] as String;
       final planId = c['classPlanId'] as String?;
       final plan = planId != null ? planLookup[planId] : null;
-      final classAppointments =
-          appointmentsByClass[classId] ?? [];
+      final classAppointments = appointmentsByClass[classId] ?? [];
 
       // Collect all slots from all appointments
       final allSlots = <dynamic>[];
@@ -1020,29 +1004,23 @@ class AppointmentRepository extends BaseRepository {
         'status': _mapClassStatusToRequestStatus(
           c['status'] as String?,
         ),
-        'appointmentId': classAppointments.isNotEmpty
-            ? classAppointments.first['id']
-            : null,
+        'appointmentId':
+            classAppointments.isNotEmpty ? classAppointments.first['id'] : null,
         'createdAt': classAppointments.isNotEmpty
-            ? (classAppointments.first['createdAt'] ??
-                c['createdAt'])
+            ? (classAppointments.first['createdAt'] ?? c['createdAt'])
             : c['createdAt'],
-        'schedulingPeriodStartsAt':
-            c['schedulingPeriodStartsAt'],
-        'schedulingPeriodEndsAt':
-            c['schedulingPeriodEndsAt'],
+        'schedulingPeriodStartsAt': c['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt': c['schedulingPeriodEndsAt'],
         'schedulingTimezone': c['schedulingTimezone'],
         'planId': plan?['id'],
         'planTitle': plan?['title'],
         'planPrice': plan?['price'],
         'planCurrency': plan?['priceCurrency'],
         'totalSessions': plan?['totalSessions'],
-        'sessionDurationInHours':
-            plan?['sessionDurationInHours'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
         'durationInMonths': plan?['durationInMonths'],
         'maxParticipants': plan?['maxParticipants'],
-        if (allSlots.isNotEmpty)
-          'slots': _formatSlots(allSlots),
+        if (allSlots.isNotEmpty) 'slots': _formatSlots(allSlots),
         'participants': participantData['participants'],
         'participantCount': participantData['participantCount'],
       });
@@ -1104,10 +1082,8 @@ class AppointmentRepository extends BaseRepository {
     final bookings = <Map<String, dynamic>>[];
     for (final t in trials) {
       final plan = t['subscriptionPlan'] as Map<String, dynamic>?;
-      final consulteeProfile =
-          t['consulteeProfile'] as Map<String, dynamic>?;
-      final consulteeUser =
-          consulteeProfile?['user'] as Map<String, dynamic>?;
+      final consulteeProfile = t['consulteeProfile'] as Map<String, dynamic>?;
+      final consulteeUser = consulteeProfile?['user'] as Map<String, dynamic>?;
       final appointmentId = t['appointmentId'] as String?;
       final appointment =
           appointmentId != null ? appointmentLookup[appointmentId] : null;
@@ -1123,8 +1099,7 @@ class AppointmentRepository extends BaseRepository {
         'planTitle': plan?['title'],
         'planPrice': 0,
         'planCurrency': plan?['priceCurrency'] ?? 'INR',
-        'planDuration':
-            (plan?['trialDurationMinutes'] as num?)?.toDouble(),
+        'planDuration': (plan?['trialDurationMinutes'] as num?)?.toDouble(),
         'freeTrialDurationMinutes': plan?['trialDurationMinutes'],
         'consulteeProfileId': consulteeProfile?['id'],
         'consulteeUserId': consulteeUser?['id'],
@@ -1561,8 +1536,7 @@ class AppointmentRepository extends BaseRepository {
         'planTitle': plan?['title'],
         'planPrice': 0, // Trials are free
         'planCurrency': plan?['priceCurrency'] ?? 'INR',
-        'planDuration': (plan?['trialDurationMinutes'] as num?)
-            ?.toDouble(),
+        'planDuration': (plan?['trialDurationMinutes'] as num?)?.toDouble(),
         'freeTrialDurationMinutes': plan?['trialDurationMinutes'],
         ...consultantInfo,
         if (appointmentId != null) 'appointmentId': appointmentId,
@@ -1808,8 +1782,7 @@ class AppointmentRepository extends BaseRepository {
       }
 
       final plan = result['consultationPlan'] as Map<String, dynamic>?;
-      final profile =
-          plan?['consultantProfile'] as Map<String, dynamic>?;
+      final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
       final user = profile?['user'] as Map<String, dynamic>?;
 
       // Fetch consultee (requestedBy) profile and user
@@ -1871,16 +1844,14 @@ class AppointmentRepository extends BaseRepository {
           orderBy: {'startsAt': 'asc'},
         );
         if (slots.isNotEmpty) {
-          booking['slots'] = slots
-              .map((slot) {
-                return {
-                  'id': slot['id'],
-                  'startsAt': slot['startsAt'],
-                  'endsAt': slot['endsAt'],
-                  'isTentative': slot['isTentative'],
-                };
-              })
-              .toList();
+          booking['slots'] = slots.map((slot) {
+            return {
+              'id': slot['id'],
+              'startsAt': slot['startsAt'],
+              'endsAt': slot['endsAt'],
+              'isTentative': slot['isTentative'],
+            };
+          }).toList();
         }
       }
 
@@ -1906,8 +1877,7 @@ class AppointmentRepository extends BaseRepository {
       }
 
       final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-      final profile =
-          plan?['consultantProfile'] as Map<String, dynamic>?;
+      final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
       final user = profile?['user'] as Map<String, dynamic>?;
 
       // Fetch consultee (requestedBy) profile and user
@@ -2065,8 +2035,7 @@ class AppointmentRepository extends BaseRepository {
           // Extract participants from slots
           final participantData = _extractParticipants(slots);
           booking['participants'] = participantData['participants'];
-          booking['participantCount'] =
-              participantData['participantCount'];
+          booking['participantCount'] = participantData['participantCount'];
         }
       }
 
@@ -2204,8 +2173,7 @@ class AppointmentRepository extends BaseRepository {
           // Extract participants from slots
           final participantData = _extractParticipants(allSlots);
           booking['participants'] = participantData['participants'];
-          booking['participantCount'] =
-              participantData['participantCount'];
+          booking['participantCount'] = participantData['participantCount'];
         }
       }
 
@@ -2278,8 +2246,7 @@ class AppointmentRepository extends BaseRepository {
         'planPrice': 0, // Trials are free
         'planCurrency': plan?['priceCurrency'] ?? 'INR',
         'planDuration': plan?['trialDurationMinutes'],
-        'freeTrialDurationMinutes':
-            plan?['trialDurationMinutes'],
+        'freeTrialDurationMinutes': plan?['trialDurationMinutes'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -2291,8 +2258,7 @@ class AppointmentRepository extends BaseRepository {
       };
 
       // Get linked appointment if exists
-      final appointmentId =
-          result['appointmentId'] as String?;
+      final appointmentId = result['appointmentId'] as String?;
       if (appointmentId != null) {
         booking['appointmentId'] = appointmentId;
 
@@ -2547,9 +2513,7 @@ class AppointmentRepository extends BaseRepository {
           if (slotId != null) {
             // Individual session reschedule
             final targetSlot = slots.firstWhere(
-              (s) =>
-                  (s as Map<String, dynamic>)['id'] ==
-                  slotId,
+              (s) => (s as Map<String, dynamic>)['id'] == slotId,
               orElse: () => null,
             );
 
@@ -2668,9 +2632,8 @@ class AppointmentRepository extends BaseRepository {
         );
         if (result != null) {
           final plan = result['consultationPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['consultationPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['consultationPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'SUBSCRIPTION') {
@@ -2684,9 +2647,8 @@ class AppointmentRepository extends BaseRepository {
         );
         if (result != null) {
           final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['subscriptionPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['subscriptionPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'WEBINAR') {
@@ -2698,9 +2660,8 @@ class AppointmentRepository extends BaseRepository {
         );
         if (result != null) {
           final plan = result['webinarPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['webinarPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['webinarPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'CLASS') {
@@ -2712,9 +2673,8 @@ class AppointmentRepository extends BaseRepository {
         );
         if (result != null) {
           final plan = result['classPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['classPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['classPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'TRIAL') {
@@ -2728,9 +2688,8 @@ class AppointmentRepository extends BaseRepository {
         );
         if (result != null) {
           final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['subscriptionPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['subscriptionPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       }
@@ -2786,8 +2745,7 @@ class AppointmentRepository extends BaseRepository {
           appointmentType: AppointmentsTypeFilter(
             equals: _appointmentsTypeFromString(type),
           ),
-          webinarId:
-              type == 'WEBINAR' ? StringFilter(equals: bookingId) : null,
+          webinarId: type == 'WEBINAR' ? StringFilter(equals: bookingId) : null,
           classId: type == 'CLASS' ? StringFilter(equals: bookingId) : null,
         ),
       );
@@ -2827,11 +2785,11 @@ class AppointmentRepository extends BaseRepository {
 
     final profile =
         await (client ?? _prisma).consulteeProfile.findFirstProjected(
-      where: ConsulteeProfileWhereInput(
-        id: StringFilter(equals: consulteeProfileId),
-      ),
-      include: const ConsulteeProfileInclude(user: UserInclude()),
-    );
+              where: ConsulteeProfileWhereInput(
+                id: StringFilter(equals: consulteeProfileId),
+              ),
+              include: const ConsulteeProfileInclude(user: UserInclude()),
+            );
 
     final user = profile?['user'] as Map<String, dynamic>?;
 

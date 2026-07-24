@@ -133,8 +133,7 @@ class SupportTicketRepository extends BaseRepository {
         priority: SupportPriority.values
             .firstWhere((e) => e.toJson() == (priority ?? 'MEDIUM')),
         issueType: issueType != null
-            ? SupportIssueType.values
-                .firstWhere((e) => e.toJson() == issueType)
+            ? SupportIssueType.values.firstWhere((e) => e.toJson() == issueType)
             : null,
         category: category,
         consultationId: consultationId,

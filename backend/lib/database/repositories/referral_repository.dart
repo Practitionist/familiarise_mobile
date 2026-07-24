@@ -168,9 +168,7 @@ class ReferralRepository extends BaseRepository {
 
     if (userName != null && userName.isNotEmpty) {
       // Clean name: uppercase alpha only, 3-6 chars
-      final clean = userName
-          .toUpperCase()
-          .replaceAll(RegExp('[^A-Z]'), '');
+      final clean = userName.toUpperCase().replaceAll(RegExp('[^A-Z]'), '');
 
       if (clean.length >= 3) {
         final base = clean.substring(0, clean.length.clamp(0, 6));

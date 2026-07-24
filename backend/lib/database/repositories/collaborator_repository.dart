@@ -98,8 +98,8 @@ class CollaboratorRepository extends BaseRepository {
     await _prisma.collaborator.update(
       where: CollaboratorWhereUniqueInput(id: id),
       data: UpdateCollaboratorInput(
-        status: CollaboratorStatus.values
-            .firstWhere((e) => e.toJson() == response),
+        status:
+            CollaboratorStatus.values.firstWhere((e) => e.toJson() == response),
         respondedAt: now,
       ),
     );
@@ -150,14 +150,15 @@ class CollaboratorRepository extends BaseRepository {
         plan['consultantProfile'] as Map<String, dynamic>? ?? {};
     final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
     final invitedByProfile = wc['invitedBy'] as Map<String, dynamic>? ?? {};
-    final inviterUser =
-        invitedByProfile['user'] as Map<String, dynamic>? ?? {};
+    final inviterUser = invitedByProfile['user'] as Map<String, dynamic>? ?? {};
 
     return {
       'id': wc['id'],
       'role': wc['role'],
       'status': wc['status'],
-      'revenueSharePercentage': (wc['revenueShareBps'] as int?) == null ? null : (wc['revenueShareBps'] as int) / 100,
+      'revenueSharePercentage': (wc['revenueShareBps'] as int?) == null
+          ? null
+          : (wc['revenueShareBps'] as int) / 100,
       'createdAt': wc['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],
@@ -178,14 +179,15 @@ class CollaboratorRepository extends BaseRepository {
         plan['consultantProfile'] as Map<String, dynamic>? ?? {};
     final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
     final invitedByProfile = cc['invitedBy'] as Map<String, dynamic>? ?? {};
-    final inviterUser =
-        invitedByProfile['user'] as Map<String, dynamic>? ?? {};
+    final inviterUser = invitedByProfile['user'] as Map<String, dynamic>? ?? {};
 
     return {
       'id': cc['id'],
       'role': cc['role'],
       'status': cc['status'],
-      'revenueSharePercentage': (cc['revenueShareBps'] as int?) == null ? null : (cc['revenueShareBps'] as int) / 100,
+      'revenueSharePercentage': (cc['revenueShareBps'] as int?) == null
+          ? null
+          : (cc['revenueShareBps'] as int) / 100,
       'createdAt': cc['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],

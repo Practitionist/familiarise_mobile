@@ -91,9 +91,7 @@ class WebhookEventRepository extends BaseRepository {
   }) async {
     final where = WebhookEventWhereInput(
       processed: const BooleanFilter(equals: false),
-      provider: provider != null
-          ? StringFilter(equals: provider)
-          : null,
+      provider: provider != null ? StringFilter(equals: provider) : null,
     );
 
     final events = await _prisma.webhookEvent.findMany(

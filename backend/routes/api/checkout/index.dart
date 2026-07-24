@@ -541,6 +541,13 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         'error': {'message': 'Invalid request body format'},
       },
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in POST /api/checkout',

@@ -1,4 +1,5 @@
 import 'package:backend/database/database_client.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -73,11 +74,11 @@ class ConsulteeProfileRepository extends BaseRepository {
   }) async {
     // Map wire strings to generated enums for the typed inputs.
     final careerStageEnum = careerStage != null
-        ? CareerStage.values.firstWhere((e) => e.toJson() == careerStage)
+        ? enumFromWire(CareerStage.values, careerStage, field: 'careerStage')
         : null;
     final budgetPreferenceEnum = budgetPreference != null
-        ? BudgetPreference.values
-            .firstWhere((e) => e.toJson() == budgetPreference)
+        ? enumFromWire(BudgetPreference.values, budgetPreference,
+            field: 'budgetPreference')
         : null;
 
     // Use the connector's native upsert (ON CONFLICT DO UPDATE) keyed on the

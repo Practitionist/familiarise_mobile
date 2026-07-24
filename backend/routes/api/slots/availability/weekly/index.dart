@@ -19,8 +19,7 @@ Future<Response> onRequest(RequestContext context) async {
 
 Future<Response> _handleGet(RequestContext context) async {
   try {
-    final cpId =
-        context.request.uri.queryParameters['consultantProfileId'];
+    final cpId = context.request.uri.queryParameters['consultantProfileId'];
     if (cpId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -38,6 +37,13 @@ Future<Response> _handleGet(RequestContext context) async {
     return Response.json(
       body: {'data': slots.map(serializeForJson).toList()},
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'List weekly slots failed',
@@ -47,7 +53,9 @@ Future<Response> _handleGet(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list slots'}},
+      body: {
+        'error': {'message': 'Failed to list slots'}
+      },
     );
   }
 }
@@ -58,7 +66,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -68,7 +78,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (cpId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Not a consultant'}},
+        body: {
+          'error': {'message': 'Not a consultant'}
+        },
       );
     }
 
@@ -79,8 +91,10 @@ Future<Response> _handlePost(RequestContext context) async {
     final endTimeUtc = (body['endTimeUtc'] as num?)?.toInt();
     final utcOffsetMinutes = (body['utcOffsetMinutes'] as num?)?.toInt() ?? 0;
 
-    if (startDay == null || endDay == null ||
-        startTimeUtc == null || endTimeUtc == null) {
+    if (startDay == null ||
+        endDay == null ||
+        startTimeUtc == null ||
+        endTimeUtc == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
@@ -93,8 +107,10 @@ Future<Response> _handlePost(RequestContext context) async {
     }
 
     // Validate time range (0-1439 minutes)
-    if (startTimeUtc < 0 || startTimeUtc > 1439 ||
-        endTimeUtc < 0 || endTimeUtc > 1439) {
+    if (startTimeUtc < 0 ||
+        startTimeUtc > 1439 ||
+        endTimeUtc < 0 ||
+        endTimeUtc > 1439) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
@@ -118,6 +134,13 @@ Future<Response> _handlePost(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: {'data': serializeForJson(slot)},
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Create weekly slot failed',
@@ -127,7 +150,9 @@ Future<Response> _handlePost(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create slot'}},
+      body: {
+        'error': {'message': 'Failed to create slot'}
+      },
     );
   }
 }

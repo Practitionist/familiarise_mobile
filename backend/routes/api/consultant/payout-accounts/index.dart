@@ -23,14 +23,15 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -46,6 +47,13 @@ Future<Response> _handleGet(RequestContext context) async {
     return Response.json(
       body: {'data': accounts.map(serializeForJson).toList()},
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Payout accounts list failed',
@@ -55,7 +63,9 @@ Future<Response> _handleGet(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list payout accounts'}},
+      body: {
+        'error': {'message': 'Failed to list payout accounts'}
+      },
     );
   }
 }
@@ -66,14 +76,15 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -85,8 +96,7 @@ Future<Response> _handlePost(RequestContext context) async {
 
     final body = await context.request.json() as Map<String, dynamic>;
     final provider = body['provider'] as String? ?? 'RAZORPAY';
-    final accountType =
-        body['accountType'] as String? ?? 'BANK_ACCOUNT';
+    final accountType = body['accountType'] as String? ?? 'BANK_ACCOUNT';
 
     final account = await db.payoutAccounts.create(
       consultantProfileId: consultantProfileId,
@@ -103,6 +113,13 @@ Future<Response> _handlePost(RequestContext context) async {
       statusCode: HttpStatus.created,
       body: {'data': serializeForJson(account)},
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Payout account creation failed',
@@ -112,7 +129,9 @@ Future<Response> _handlePost(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create payout account'}},
+      body: {
+        'error': {'message': 'Failed to create payout account'}
+      },
     );
   }
 }

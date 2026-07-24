@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
 
@@ -92,12 +93,11 @@ class DisputeRepository extends BaseRepository {
           disputeId: disputeId,
           paymentId: paymentId,
           amountPaise: BigInt.from(amount),
-          currency: Currency.values.firstWhere((e) => e.toJson() == currency),
+          currency: enumFromWire(Currency.values, currency, field: 'currency'),
           reason: reason,
-          status:
-              DisputeStatus.values.firstWhere((e) => e.toJson() == status),
-          paymentGateway: PaymentGateway.values
-              .firstWhere((e) => e.toJson() == paymentGateway),
+          status: enumFromWire(DisputeStatus.values, status, field: 'status'),
+          paymentGateway: enumFromWire(PaymentGateway.values, paymentGateway,
+              field: 'paymentGateway'),
           dueBy: dueBy,
           isChargeRefundable: isChargeRefundable,
           evidence: evidence,

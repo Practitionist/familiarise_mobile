@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -49,12 +50,11 @@ class ConsultantProfileRepository extends BaseRepository {
     TransactionExecutor? txn,
   }) async {
     // Map wire strings to generated enums for the typed inputs.
-    final scheduleTypeEnum = ScheduleType.values
-        .firstWhere((e) => e.toJson() == (scheduleType ?? 'WEEKLY'));
+    final scheduleTypeEnum = enumFromWire(
+        ScheduleType.values, scheduleType ?? 'WEEKLY',
+        field: 'scheduleType');
     final sessionTypeEnums = sessionTypes
-        ?.map(
-          (s) => SessionType.values.firstWhere((e) => e.toJson() == s),
-        )
+        ?.map((s) => enumFromWire(SessionType.values, s, field: 'sessionTypes'))
         .toList();
 
     // Use the connector's native upsert (ON CONFLICT DO UPDATE) keyed on the

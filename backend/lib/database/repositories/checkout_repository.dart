@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:uuid/uuid.dart';
 
@@ -30,11 +31,11 @@ class CheckoutRepository extends BaseRepository {
       data: CreatePaymentInput(
         amount: BigInt.from(amount),
         originalAmount: BigInt.from(originalAmount ?? amount),
-        currency: Currency.values.firstWhere((e) => e.toJson() == currency),
+        currency: enumFromWire(Currency.values, currency, field: 'currency'),
         paymentMethod: 'CARD',
         paymentIntent: paymentIntent,
-        paymentGateway:
-            PaymentGateway.values.firstWhere((e) => e.toJson() == paymentGateway),
+        paymentGateway: enumFromWire(PaymentGateway.values, paymentGateway,
+            field: 'paymentGateway'),
         paymentStatus: PaymentStatus.pending,
         isMockPayment: false,
         userId: userId,

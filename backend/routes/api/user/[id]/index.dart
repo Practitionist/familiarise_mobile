@@ -90,6 +90,13 @@ Future<Response> _handleGet(RequestContext context, String id) async {
 
     user.remove('password');
     return Response.json(body: {'data': serializeForJson(user)});
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Failed to get user profile',
@@ -208,6 +215,13 @@ Future<Response> _handlePut(RequestContext context, String id) async {
       statusCode: HttpStatus.badRequest,
       body: {
         'error': {'message': 'Invalid request body format'},
+      },
+    );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
       },
     );
   } catch (e, stackTrace) {

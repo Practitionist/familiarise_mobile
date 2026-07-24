@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -51,7 +52,7 @@ class UserRepository extends BaseRepository {
         email: email,
         name: name ?? '',
         image: image,
-        role: UserRole.values.firstWhere((e) => e.toJson() == role),
+        role: enumFromWire(UserRole.values, role, field: 'role'),
       ),
     );
     return result.toJson();
@@ -83,7 +84,7 @@ class UserRepository extends BaseRepository {
         bio: bio,
         dateOfBirth: dateOfBirth != null ? DateTime.parse(dateOfBirth) : null,
         gender: gender != null
-            ? Gender.values.firstWhere((e) => e.toJson() == gender)
+            ? enumFromWire(Gender.values, gender, field: 'gender')
             : null,
         city: city,
         country: country,
@@ -135,13 +136,13 @@ class UserRepository extends BaseRepository {
     final result = await delegate.update(
       where: UserWhereUniqueInput(id: id),
       data: UpdateUserInput(
-        role: UserRole.values.firstWhere((e) => e.toJson() == role),
+        role: enumFromWire(UserRole.values, role, field: 'role'),
         name: name,
         onboardingCompleted: onboardingCompleted,
         phone: phone,
         dateOfBirth: dateOfBirth,
         gender: gender != null
-            ? Gender.values.firstWhere((e) => e.toJson() == gender)
+            ? enumFromWire(Gender.values, gender, field: 'gender')
             : null,
         timezone: timezone,
         image: image,

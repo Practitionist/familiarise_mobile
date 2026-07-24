@@ -10,7 +10,6 @@ class ProgramsRepository extends BaseRepository {
 
   final PrismaClient _prisma;
 
-
   /// Find webinar plans with optional filters
   ///
   /// Returns paginated list of webinar plans with upcoming sessions.
@@ -37,8 +36,7 @@ class ProgramsRepository extends BaseRepository {
       OR: (searchQuery != null && searchQuery.isNotEmpty)
           ? [
               WebinarPlanWhereInput(
-                title:
-                    StringFilter(contains: searchQuery, mode: 'insensitive'),
+                title: StringFilter(contains: searchQuery, mode: 'insensitive'),
               ),
               WebinarPlanWhereInput(
                 description:
@@ -178,8 +176,7 @@ class ProgramsRepository extends BaseRepository {
       OR: (searchQuery != null && searchQuery.isNotEmpty)
           ? [
               ClassPlanWhereInput(
-                title:
-                    StringFilter(contains: searchQuery, mode: 'insensitive'),
+                title: StringFilter(contains: searchQuery, mode: 'insensitive'),
               ),
               ClassPlanWhereInput(
                 description:

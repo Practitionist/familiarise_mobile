@@ -1,6 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
-
 
 /// Repository for payout account operations.
 class PayoutAccountRepository extends BaseRepository {
@@ -25,9 +25,10 @@ class PayoutAccountRepository extends BaseRepository {
     final result = await _prisma.payoutAccount.create(
       data: CreatePayoutAccountInput(
         consultantProfileId: consultantProfileId,
-        provider: PaymentGateway.values.firstWhere((e) => e.toJson() == provider),
-        accountType:
-            PayoutAccountType.values.firstWhere((e) => e.toJson() == accountType),
+        provider:
+            enumFromWire(PaymentGateway.values, provider, field: 'provider'),
+        accountType: enumFromWire(PayoutAccountType.values, accountType,
+            field: 'accountType'),
         accountHolderName: accountHolderName,
         bankName: bankName,
         accountNumberLast4: accountNumberLast4,
@@ -46,8 +47,7 @@ class PayoutAccountRepository extends BaseRepository {
   ) async {
     final results = await _prisma.payoutAccount.findMany(
       where: PayoutAccountWhereInput(
-        consultantProfileId:
-            StringFilter(equals: consultantProfileId),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
       ),
     );
     return results.map((r) => r.toJson()).toList();

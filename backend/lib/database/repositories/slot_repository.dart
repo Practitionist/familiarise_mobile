@@ -1,6 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
-
 
 /// Repository for consultant availability slot operations
 ///
@@ -251,17 +251,15 @@ class SlotRepository extends BaseRepository {
       );
 
       // Filter windows that START on this day
-      final dayWindows = weeklySlots
-          .where((s) => s['startDay'] == dayOfWeek)
-          .toList();
+      final dayWindows =
+          weeklySlots.where((s) => s['startDay'] == dayOfWeek).toList();
 
       // Also get cross-day windows that END on this day (started on previous day)
       // This handles overnight availability like Mon 22:00 - Tue 02:00
       // when the query range starts on Tuesday
       final crossDayWindows = weeklySlots
           .where((s) =>
-              s['endDay'] == dayOfWeek &&
-              s['startDay'] == previousDayOfWeek)
+              s['endDay'] == dayOfWeek && s['startDay'] == previousDayOfWeek)
           .toList();
 
       // Process cross-day windows: only the post-midnight portion
@@ -556,8 +554,8 @@ class SlotRepository extends BaseRepository {
     final created = await _prisma.slotOfAvailabilityWeekly.create(
       data: CreateSlotOfAvailabilityWeeklyInput(
         consultantProfileId: consultantProfileId,
-        startDay: DayOfWeek.values.firstWhere((e) => e.toJson() == startDay),
-        endDay: DayOfWeek.values.firstWhere((e) => e.toJson() == endDay),
+        startDay: enumFromWire(DayOfWeek.values, startDay, field: 'startDay'),
+        endDay: enumFromWire(DayOfWeek.values, endDay, field: 'endDay'),
         startTimeUtc: startTimeUtc,
         endTimeUtc: endTimeUtc,
         utcOffsetMinutes: utcOffsetMinutes,
@@ -585,10 +583,10 @@ class SlotRepository extends BaseRepository {
       data: UpdateSlotOfAvailabilityWeeklyInput(
         startDay: startDay == null
             ? null
-            : DayOfWeek.values.firstWhere((e) => e.toJson() == startDay),
+            : enumFromWire(DayOfWeek.values, startDay, field: 'startDay'),
         endDay: endDay == null
             ? null
-            : DayOfWeek.values.firstWhere((e) => e.toJson() == endDay),
+            : enumFromWire(DayOfWeek.values, endDay, field: 'endDay'),
         startTimeUtc: startTimeUtc,
         endTimeUtc: endTimeUtc,
       ),

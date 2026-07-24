@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
 
@@ -35,10 +36,10 @@ class RefundRepository extends BaseRepository {
           refundId: refundId,
           paymentId: paymentId,
           amountPaise: BigInt.from(amount),
-          currency: Currency.values.firstWhere((e) => e.toJson() == currency),
-          status: RefundStatus.values.firstWhere((e) => e.toJson() == status),
-          paymentGateway: PaymentGateway.values
-              .firstWhere((e) => e.toJson() == paymentGateway),
+          currency: enumFromWire(Currency.values, currency, field: 'currency'),
+          status: enumFromWire(RefundStatus.values, status, field: 'status'),
+          paymentGateway: enumFromWire(PaymentGateway.values, paymentGateway,
+              field: 'paymentGateway'),
           reason: reason,
           metadata: metadata, // Json column — pass the map directly
         ),

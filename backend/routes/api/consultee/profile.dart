@@ -25,7 +25,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -35,11 +37,20 @@ Future<Response> _handleGet(RequestContext context) async {
     if (profile == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Consultee profile not found'}},
+        body: {
+          'error': {'message': 'Consultee profile not found'}
+        },
       );
     }
 
     return Response.json(body: serializeForJson(profile));
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in GET /api/consultee/profile',
@@ -50,7 +61,9 @@ Future<Response> _handleGet(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch consultee profile'}},
+      body: {
+        'error': {'message': 'Failed to fetch consultee profile'}
+      },
     );
   }
 }
@@ -78,7 +91,9 @@ Future<Response> _handlePatch(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -89,7 +104,9 @@ Future<Response> _handlePatch(RequestContext context) async {
     if (existing == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Consultee profile not found'}},
+        body: {
+          'error': {'message': 'Consultee profile not found'}
+        },
       );
     }
 
@@ -119,6 +136,13 @@ Future<Response> _handlePatch(RequestContext context) async {
         'error': {'message': 'Invalid request body format'},
       },
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in PATCH /api/consultee/profile',
@@ -129,7 +153,9 @@ Future<Response> _handlePatch(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update consultee profile'}},
+      body: {
+        'error': {'message': 'Failed to update consultee profile'}
+      },
     );
   }
 }

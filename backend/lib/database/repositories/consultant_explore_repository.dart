@@ -105,8 +105,7 @@ class ConsultantExploreRepository extends BaseRepository {
     );
 
     // Count total using the typed delegate with relation filters
-    final totalCount =
-        await _prisma.consultantProfile.count(where: ormWhere);
+    final totalCount = await _prisma.consultantProfile.count(where: ormWhere);
 
     // Determine sort field and direction
     final sortField = switch (sortBy) {
@@ -307,8 +306,8 @@ class ConsultantExploreRepository extends BaseRepository {
       'domain': row['domain'],
       'subDomains': row['subDomains'] ?? <Map<String, dynamic>>[],
       'tags': (row['tags'] as List?)
-          ?.map((t) => (t as Map<String, dynamic>)['name'] as String)
-          .toList() ??
+              ?.map((t) => (t as Map<String, dynamic>)['name'] as String)
+              .toList() ??
           <String>[],
       'consultationPlans': results[0],
       'subscriptionPlans': results[1],

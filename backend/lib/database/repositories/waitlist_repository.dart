@@ -86,8 +86,7 @@ class WaitlistRepository extends BaseRepository {
     return _prisma.waitlist.count(
       where: WaitlistWhereInput(
         status: const WaitlistStatusFilter(equals: WaitlistStatus.waiting),
-        webinarId:
-            webinarId != null ? StringFilter(equals: webinarId) : null,
+        webinarId: webinarId != null ? StringFilter(equals: webinarId) : null,
         classId: classId != null ? StringFilter(equals: classId) : null,
       ),
     );
