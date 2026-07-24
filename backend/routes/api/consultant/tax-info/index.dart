@@ -217,9 +217,15 @@ String? _panValue(dynamic value) {
   }
   try {
     return PanCrypto.decrypt(bytes, keyHex: _panKey());
-  } catch (_) {
-    // Legacy row stored as raw UTF-8 bytes, or a wrong/absent key — fall back
-    // to a best-effort plaintext decode rather than throwing on read.
+  } catch (e) {
+    // A decrypt failure is usually a legacy raw-UTF-8 row, but it can also be
+    // a wrong/rotated/absent key — which would silently degrade every PAN.
+    // Log so a systemic key misconfiguration is visible, then fall back to a
+    // best-effort plaintext decode rather than throwing on read.
+    SentryLogger.warning(
+      'PAN decrypt failed ($e); falling back to plaintext decode',
+      context: 'TaxInfo._panValue',
+    );
     try {
       return utf8.decode(bytes);
     } catch (_) {
