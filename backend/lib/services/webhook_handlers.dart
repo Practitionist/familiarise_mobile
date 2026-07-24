@@ -298,8 +298,7 @@ class WebhookHandlers {
 
       // Get instructor info
       final consultantProfileId = webinarPlan.consultantProfileId;
-      final consultantInfo =
-          await _getConsultantUserInfo(consultantProfileId);
+      final consultantInfo = await _getConsultantUserInfo(consultantProfileId);
 
       // Get participant info from slots (enrolled users)
       final participantInfo = _getParticipantFromSlots(slots);
@@ -371,8 +370,7 @@ class WebhookHandlers {
 
       // Get instructor info
       final consultantProfileId = classPlan.consultantProfileId;
-      final consultantInfo =
-          await _getConsultantUserInfo(consultantProfileId);
+      final consultantInfo = await _getConsultantUserInfo(consultantProfileId);
 
       // Get participant info from slots (enrolled users)
       final participantInfo = _getParticipantFromSlots(slots);

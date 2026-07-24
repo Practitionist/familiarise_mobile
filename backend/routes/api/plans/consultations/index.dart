@@ -23,14 +23,15 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -56,7 +57,9 @@ Future<Response> _handleGet(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list plans'}},
+      body: {
+        'error': {'message': 'Failed to list plans'}
+      },
     );
   }
 }
@@ -67,14 +70,15 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -92,7 +96,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (title == null || title.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'title is required'}},
+        body: {
+          'error': {'message': 'title is required'}
+        },
       );
     }
     if (durationInHours == null ||
@@ -110,7 +116,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (price == null || price <= 0) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'price must be > 0'}},
+        body: {
+          'error': {'message': 'price must be > 0'}
+        },
       );
     }
 
@@ -133,7 +141,9 @@ Future<Response> _handlePost(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.badRequest,
       body: {
-        'error': {'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'}
+        'error': {
+          'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'
+        }
       },
     );
   } catch (e, stackTrace) {
@@ -145,7 +155,9 @@ Future<Response> _handlePost(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create plan'}},
+      body: {
+        'error': {'message': 'Failed to create plan'}
+      },
     );
   }
 }

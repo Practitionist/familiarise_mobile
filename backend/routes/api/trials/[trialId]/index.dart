@@ -39,7 +39,9 @@ Future<Response> _handleGet(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -48,7 +50,9 @@ Future<Response> _handleGet(
     if (trial == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Trial not found'}},
+        body: {
+          'error': {'message': 'Trial not found'}
+        },
       );
     }
 
@@ -62,7 +66,9 @@ Future<Response> _handleGet(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get trial'}},
+      body: {
+        'error': {'message': 'Failed to get trial'}
+      },
     );
   }
 }
@@ -76,7 +82,9 @@ Future<Response> _handlePut(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -85,7 +93,9 @@ Future<Response> _handlePut(
     if (statusStr == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'status is required'}},
+        body: {
+          'error': {'message': 'status is required'}
+        },
       );
     }
 
@@ -103,7 +113,9 @@ Future<Response> _handlePut(
   } on FormatException catch (e) {
     return Response.json(
       statusCode: HttpStatus.badRequest,
-      body: {'error': {'message': e.message}},
+      body: {
+        'error': {'message': e.message}
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -114,7 +126,9 @@ Future<Response> _handlePut(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update trial'}},
+      body: {
+        'error': {'message': 'Failed to update trial'}
+      },
     );
   }
 }

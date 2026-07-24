@@ -36,7 +36,9 @@ Future<Response> _handle(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -48,25 +50,23 @@ Future<Response> _handle(
     if (appointmentRecord == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Appointment not found'}},
+        body: {
+          'error': {'message': 'Appointment not found'}
+        },
       );
     }
     final appointment = appointmentRecord.toJson();
 
     final user = await db.users.findById(userId);
-    final consulteeProfileId =
-        user?['consulteeProfileId'] as String?;
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
-    final apptConsulteeId =
-        appointment['consulteeProfileId'] as String?;
-    final apptConsultantId =
-        appointment['consultantProfileId'] as String?;
+    final consulteeProfileId = user?['consulteeProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
+    final apptConsulteeId = appointment['consulteeProfileId'] as String?;
+    final apptConsultantId = appointment['consultantProfileId'] as String?;
 
-    final isConsultee = consulteeProfileId != null &&
-        consulteeProfileId == apptConsulteeId;
-    final isConsultant = consultantProfileId != null &&
-        consultantProfileId == apptConsultantId;
+    final isConsultee =
+        consulteeProfileId != null && consulteeProfileId == apptConsulteeId;
+    final isConsultant =
+        consultantProfileId != null && consultantProfileId == apptConsultantId;
 
     if (!isConsultee && !isConsultant) {
       return Response.json(
@@ -94,7 +94,9 @@ Future<Response> _handle(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }
@@ -104,7 +106,9 @@ Future<Response> _handleGet(DatabaseClient db, String docId) async {
   if (doc == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Document not found'}},
+      body: {
+        'error': {'message': 'Document not found'}
+      },
     );
   }
   return Response.json(body: {'data': doc.toJson()});
@@ -123,17 +127,18 @@ Future<Response> _handlePut(
   if (reviewStatusStr == null) {
     return Response.json(
       statusCode: HttpStatus.badRequest,
-      body: {'error': {'message': 'reviewStatus is required'}},
+      body: {
+        'error': {'message': 'reviewStatus is required'}
+      },
     );
   }
 
   // Validate reviewStatus — return 400 for invalid values
-  final reviewStatus = DocumentReviewStatus.values
-      .cast<DocumentReviewStatus?>()
-      .firstWhere(
-        (s) => s!.name.toUpperCase() == reviewStatusStr.toUpperCase(),
-        orElse: () => null,
-      );
+  final reviewStatus =
+      DocumentReviewStatus.values.cast<DocumentReviewStatus?>().firstWhere(
+            (s) => s!.name.toUpperCase() == reviewStatusStr.toUpperCase(),
+            orElse: () => null,
+          );
 
   if (reviewStatus == null) {
     return Response.json(

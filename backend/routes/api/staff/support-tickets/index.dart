@@ -17,7 +17,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -27,7 +29,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
@@ -70,7 +74,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load tickets'}},
+      body: {
+        'error': {'message': 'Failed to load tickets'}
+      },
     );
   }
 }

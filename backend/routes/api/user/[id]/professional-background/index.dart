@@ -53,14 +53,12 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     return Response.json(
       body: {
         'data': {
-          'workExperiences': workExperiences
-              .map((w) => serializeForJson(w.toJson()))
-              .toList(),
+          'workExperiences':
+              workExperiences.map((w) => serializeForJson(w.toJson())).toList(),
           'education':
               education.map((e) => serializeForJson(e.toJson())).toList(),
-          'certifications': certifications
-              .map((c) => serializeForJson(c.toJson()))
-              .toList(),
+          'certifications':
+              certifications.map((c) => serializeForJson(c.toJson())).toList(),
         },
       },
     );

@@ -29,7 +29,9 @@ Future<Response> _handle(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -41,7 +43,9 @@ Future<Response> _handle(
     if (userCpId == null) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Not a consultant'}},
+        body: {
+          'error': {'message': 'Not a consultant'}
+        },
       );
     }
 
@@ -52,13 +56,14 @@ Future<Response> _handle(
     if (slot == null || slot.consultantProfileId != userCpId) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Slot not found'}},
+        body: {
+          'error': {'message': 'Slot not found'}
+        },
       );
     }
 
     if (method == HttpMethod.put) {
-      final body =
-          await context.request.json() as Map<String, dynamic>;
+      final body = await context.request.json() as Map<String, dynamic>;
       final updated = await db.slots.updateCustomSlot(
         id: id,
         startsAt: body['startsAt'] as String?,
@@ -66,8 +71,7 @@ Future<Response> _handle(
       );
       return Response.json(
         body: {
-          'data':
-              updated != null ? serializeForJson(updated) : null,
+          'data': updated != null ? serializeForJson(updated) : null,
         },
       );
     }
@@ -84,7 +88,9 @@ Future<Response> _handle(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }

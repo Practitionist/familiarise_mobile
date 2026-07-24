@@ -32,8 +32,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
     final response = body['response'] as String?;
     final planType = body['planType'] as String?;
 
-    if (response == null ||
-        !['ACCEPTED', 'DECLINED'].contains(response)) {
+    if (response == null || !['ACCEPTED', 'DECLINED'].contains(response)) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {

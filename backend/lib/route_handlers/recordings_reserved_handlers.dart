@@ -18,7 +18,9 @@ Future<Response> handleRecordingStart(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -28,7 +30,9 @@ Future<Response> handleRecordingStart(RequestContext context) async {
     if (callId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'callId is required'}},
+        body: {
+          'error': {'message': 'callId is required'}
+        },
       );
     }
 
@@ -47,7 +51,9 @@ Future<Response> handleRecordingStart(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to start recording'}},
+      body: {
+        'error': {'message': 'Failed to start recording'}
+      },
     );
   }
 }
@@ -63,7 +69,9 @@ Future<Response> handleRecordingStop(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -73,7 +81,9 @@ Future<Response> handleRecordingStop(RequestContext context) async {
     if (callId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'callId is required'}},
+        body: {
+          'error': {'message': 'callId is required'}
+        },
       );
     }
 
@@ -92,7 +102,9 @@ Future<Response> handleRecordingStop(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to stop recording'}},
+      body: {
+        'error': {'message': 'Failed to stop recording'}
+      },
     );
   }
 }
@@ -108,7 +120,9 @@ Future<Response> handleRecordingSync(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -192,7 +206,9 @@ Future<Response> handleRecordingSync(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to sync recordings'}},
+      body: {
+        'error': {'message': 'Failed to sync recordings'}
+      },
     );
   }
 }

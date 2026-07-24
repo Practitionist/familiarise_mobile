@@ -25,7 +25,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -35,7 +37,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (profile == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Consultant profile not found'}},
+        body: {
+          'error': {'message': 'Consultant profile not found'}
+        },
       );
     }
 
@@ -50,7 +54,9 @@ Future<Response> _handleGet(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to fetch consultant profile'}},
+      body: {
+        'error': {'message': 'Failed to fetch consultant profile'}
+      },
     );
   }
 }
@@ -80,7 +86,9 @@ Future<Response> _handlePatch(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -91,7 +99,9 @@ Future<Response> _handlePatch(RequestContext context) async {
     if (existing == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Consultant profile not found'}},
+        body: {
+          'error': {'message': 'Consultant profile not found'}
+        },
       );
     }
 
@@ -145,7 +155,9 @@ Future<Response> _handlePatch(RequestContext context) async {
 
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update consultant profile'}},
+      body: {
+        'error': {'message': 'Failed to update consultant profile'}
+      },
     );
   }
 }

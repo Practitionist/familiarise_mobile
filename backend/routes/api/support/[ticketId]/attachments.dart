@@ -37,7 +37,9 @@ Future<Response> _handleGet(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -63,7 +65,9 @@ Future<Response> _handleGet(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list attachments'}},
+      body: {
+        'error': {'message': 'Failed to list attachments'}
+      },
     );
   }
 }
@@ -77,7 +81,9 @@ Future<Response> _handlePost(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -133,7 +139,9 @@ Future<Response> _handlePost(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to add attachment'}},
+      body: {
+        'error': {'message': 'Failed to add attachment'}
+      },
     );
   }
 }

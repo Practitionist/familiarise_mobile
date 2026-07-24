@@ -21,7 +21,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (domain == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Domain not found'}},
+        body: {
+          'error': {'message': 'Domain not found'}
+        },
       );
     }
 
@@ -29,8 +31,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
       where: SubDomainWhereInput(domainId: StringFilter(equals: id)),
     );
 
-    final result =
-        Map<String, dynamic>.from(serializeForJson(domain.toJson()));
+    final result = Map<String, dynamic>.from(serializeForJson(domain.toJson()));
     result['subdomains'] =
         subdomains.map((s) => serializeForJson(s.toJson())).toList();
 
@@ -44,7 +45,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get domain'}},
+      body: {
+        'error': {'message': 'Failed to get domain'}
+      },
     );
   }
 }

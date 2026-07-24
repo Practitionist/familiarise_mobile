@@ -30,8 +30,7 @@ Handler middleware(Handler handler) {
 }
 
 /// Pattern to match any localhost or 127.0.0.1 origin (any port)
-final _localhostPattern =
-    RegExp(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$');
+final _localhostPattern = RegExp(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$');
 
 /// Get CORS headers based on environment
 /// In production, restricts origins; in development, allows any localhost
@@ -40,14 +39,14 @@ Map<String, String> _getCorsHeaders(String? requestOrigin) {
 
   String allowedOrigin;
   if (isProduction) {
-    allowedOrigin = Platform.environment['ALLOWED_ORIGINS'] ??
-        'https://familiarise.com';
+    allowedOrigin =
+        Platform.environment['ALLOWED_ORIGINS'] ?? 'https://familiarise.com';
   } else {
     // Reflect the request origin if it's any localhost variant
-    allowedOrigin = (requestOrigin != null &&
-            _localhostPattern.hasMatch(requestOrigin))
-        ? requestOrigin
-        : 'http://localhost:3000';
+    allowedOrigin =
+        (requestOrigin != null && _localhostPattern.hasMatch(requestOrigin))
+            ? requestOrigin
+            : 'http://localhost:3000';
   }
 
   return {

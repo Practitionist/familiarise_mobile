@@ -20,7 +20,9 @@ Future<Response> onRequest(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -29,12 +31,12 @@ Future<Response> onRequest(
     final user = await db.users.findById(userId);
     final role = user?['role'] as String?;
     final userCpId = user?['consultantProfileId'] as String?;
-    if (userCpId != consultantId &&
-        role != 'STAFF' &&
-        role != 'ADMIN') {
+    if (userCpId != consultantId && role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Access denied'}},
+        body: {
+          'error': {'message': 'Access denied'}
+        },
       );
     }
 
@@ -69,11 +71,12 @@ Future<Response> onRequest(
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Consultant dashboard failed',
-        context: 'ConsultantDashboard',
-        error: e, stackTrace: stackTrace);
+        context: 'ConsultantDashboard', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load dashboard'}},
+      body: {
+        'error': {'message': 'Failed to load dashboard'}
+      },
     );
   }
 }

@@ -92,8 +92,10 @@ class DatabaseClient {
     _userRepository = UserRepository(_executor, _prisma);
     _accountRepository = AccountRepository(_executor, _prisma);
     _sessionRepository = SessionRepository(_executor, _userRepository, _prisma);
-    _consulteeProfileRepository = ConsulteeProfileRepository(_executor, _prisma);
-    _consultantProfileRepository = ConsultantProfileRepository(_executor, _prisma);
+    _consulteeProfileRepository =
+        ConsulteeProfileRepository(_executor, _prisma);
+    _consultantProfileRepository =
+        ConsultantProfileRepository(_executor, _prisma);
     _domainRepository = DomainRepository(_executor, _prisma);
     _consultantExploreRepository =
         ConsultantExploreRepository(_executor, _prisma);
@@ -116,8 +118,7 @@ class DatabaseClient {
         ConsultantVerificationRepository(_executor, _prisma);
     _trialRepository = TrialRepository(_executor, _prisma);
     _waitlistRepository = WaitlistRepository(_executor, _prisma);
-    _payoutAccountRepository =
-        PayoutAccountRepository(_executor, _prisma);
+    _payoutAccountRepository = PayoutAccountRepository(_executor, _prisma);
     _appointmentDocumentRepository =
         AppointmentDocumentRepository(_executor, _prisma);
     _announcementRepository = AnnouncementRepository(_executor, _prisma);
@@ -157,13 +158,11 @@ class DatabaseClient {
   late final VerificationRepository _verificationRepository;
   late final CollaboratorRepository _collaboratorRepository;
   late final ReferralRepository _referralRepository;
-  late final ConsultantVerificationRepository
-      _consultantVerificationRepository;
+  late final ConsultantVerificationRepository _consultantVerificationRepository;
   late final TrialRepository _trialRepository;
   late final WaitlistRepository _waitlistRepository;
   late final PayoutAccountRepository _payoutAccountRepository;
-  late final AppointmentDocumentRepository
-      _appointmentDocumentRepository;
+  late final AppointmentDocumentRepository _appointmentDocumentRepository;
   late final AnnouncementRepository _announcementRepository;
   late final MaintenanceRepository _maintenanceRepository;
   late final RecordingRepository _recordingRepository;
@@ -347,8 +346,7 @@ class DatabaseClient {
   WaitlistRepository get waitlists => _waitlistRepository;
 
   /// Payout account repository (for consultant bank/UPI accounts)
-  PayoutAccountRepository get payoutAccounts =>
-      _payoutAccountRepository;
+  PayoutAccountRepository get payoutAccounts => _payoutAccountRepository;
 
   /// Appointment document repository (for document review workflow)
   AppointmentDocumentRepository get appointmentDocuments =>

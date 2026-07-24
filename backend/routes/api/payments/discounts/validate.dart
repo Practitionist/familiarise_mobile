@@ -19,7 +19,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -30,7 +32,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (code == null || code.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'code is required'}},
+        body: {
+          'error': {'message': 'code is required'}
+        },
       );
     }
 
@@ -87,8 +91,7 @@ Future<Response> onRequest(RequestContext context) async {
         }
       } else {
         // FIXED_AMOUNT
-        discountAmount =
-            discountValue < amount ? discountValue : amount;
+        discountAmount = discountValue < amount ? discountValue : amount;
       }
     }
 
@@ -104,11 +107,12 @@ Future<Response> onRequest(RequestContext context) async {
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Discount validation failed',
-        context: 'DiscountValidate',
-        error: e, stackTrace: stackTrace);
+        context: 'DiscountValidate', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to validate code'}},
+      body: {
+        'error': {'message': 'Failed to validate code'}
+      },
     );
   }
 }

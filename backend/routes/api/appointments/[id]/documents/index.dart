@@ -31,7 +31,9 @@ Future<Object> _authorizeParticipant(
   if (appointment == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Appointment not found'}},
+      body: {
+        'error': {'message': 'Appointment not found'}
+      },
     );
   }
 
@@ -60,12 +62,10 @@ Future<Object> _authorizeParticipant(
     }
   }
 
-  if (consulteeProfileId != null &&
-      consulteeProfileId == apptConsulteeId) {
+  if (consulteeProfileId != null && consulteeProfileId == apptConsulteeId) {
     return 'CONSULTEE';
   }
-  if (consultantProfileId != null &&
-      consultantProfileId == apptConsultantId) {
+  if (consultantProfileId != null && consultantProfileId == apptConsultantId) {
     return 'CONSULTANT';
   }
 
@@ -85,7 +85,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -107,7 +109,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list documents'}},
+      body: {
+        'error': {'message': 'Failed to list documents'}
+      },
     );
   }
 }
@@ -118,7 +122,9 @@ Future<Response> _handlePost(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -163,8 +169,7 @@ Future<Response> _handlePost(RequestContext context, String id) async {
       storagePath: storagePath,
       description: body['description'] as String?,
       uploadedByRole: uploadedByRole,
-      responseToDocumentId:
-          body['responseToDocumentId'] as String?,
+      responseToDocumentId: body['responseToDocumentId'] as String?,
     );
 
     return Response.json(
@@ -180,7 +185,9 @@ Future<Response> _handlePost(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to upload document'}},
+      body: {
+        'error': {'message': 'Failed to upload document'}
+      },
     );
   }
 }

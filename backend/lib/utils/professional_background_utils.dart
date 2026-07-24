@@ -104,8 +104,7 @@ class ProfessionalBackgroundUtils {
       final query = JsonQueryBuilder()
           .model(model)
           .action(QueryAction.deleteMany)
-          .where({'userId': userId})
-          .build();
+          .where({'userId': userId}).build();
       await txn.executeMutation(query);
     }
   }

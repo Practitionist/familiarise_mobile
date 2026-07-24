@@ -26,7 +26,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     if (plan == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Plan not found'}},
+        body: {
+          'error': {'message': 'Plan not found'}
+        },
       );
     }
     return Response.json(body: {'data': serializeForJson(plan)});
@@ -39,7 +41,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get plan'}},
+      body: {
+        'error': {'message': 'Failed to get plan'}
+      },
     );
   }
 }
@@ -50,7 +54,9 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -60,13 +66,14 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     if (existing == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Plan not found'}},
+        body: {
+          'error': {'message': 'Plan not found'}
+        },
       );
     }
 
     final user = await db.users.findById(userId);
-    if (user?['consultantProfileId'] !=
-        existing['consultantProfileId']) {
+    if (user?['consultantProfileId'] != existing['consultantProfileId']) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
         body: {
@@ -80,8 +87,7 @@ Future<Response> _handlePut(RequestContext context, String id) async {
       id: id,
       title: body['title'] as String?,
       description: body['description'] as String?,
-      durationInHours:
-          (body['durationInHours'] as num?)?.toDouble(),
+      durationInHours: (body['durationInHours'] as num?)?.toDouble(),
       price: (body['price'] as num?)?.toInt(),
       language: body['language'] as String?,
       level: body['level'] as String?,
@@ -101,7 +107,9 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update plan'}},
+      body: {
+        'error': {'message': 'Failed to update plan'}
+      },
     );
   }
 }
@@ -115,7 +123,9 @@ Future<Response> _handleDelete(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -124,13 +134,14 @@ Future<Response> _handleDelete(
     if (existing == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Plan not found'}},
+        body: {
+          'error': {'message': 'Plan not found'}
+        },
       );
     }
 
     final user = await db.users.findById(userId);
-    if (user?['consultantProfileId'] !=
-        existing['consultantProfileId']) {
+    if (user?['consultantProfileId'] != existing['consultantProfileId']) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
         body: {
@@ -150,7 +161,9 @@ Future<Response> _handleDelete(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to delete plan'}},
+      body: {
+        'error': {'message': 'Failed to delete plan'}
+      },
     );
   }
 }

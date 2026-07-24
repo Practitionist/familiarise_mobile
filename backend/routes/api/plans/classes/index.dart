@@ -14,7 +14,9 @@ Future<Response> onRequest(RequestContext context) async {
       if (userId == null) {
         return Response.json(
           statusCode: HttpStatus.unauthorized,
-          body: {'error': {'message': 'Unauthorized'}},
+          body: {
+            'error': {'message': 'Unauthorized'}
+          },
         );
       }
       final db = context.read<DatabaseClient>();
@@ -23,7 +25,9 @@ Future<Response> onRequest(RequestContext context) async {
       if (cpId == null) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
-          body: {'error': {'message': 'Not a consultant'}},
+          body: {
+            'error': {'message': 'Not a consultant'}
+          },
         );
       }
       final plans = await db.plans.listClassPlans(cpId);
@@ -32,11 +36,12 @@ Future<Response> onRequest(RequestContext context) async {
       );
     } catch (e, stackTrace) {
       await SentryLogger.severe('List failed',
-          context: 'ClassPlansGet',
-          error: e, stackTrace: stackTrace);
+          context: 'ClassPlansGet', error: e, stackTrace: stackTrace);
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed'}},
+        body: {
+          'error': {'message': 'Failed'}
+        },
       );
     }
   }
@@ -47,7 +52,9 @@ Future<Response> onRequest(RequestContext context) async {
       if (userId == null) {
         return Response.json(
           statusCode: HttpStatus.unauthorized,
-          body: {'error': {'message': 'Unauthorized'}},
+          body: {
+            'error': {'message': 'Unauthorized'}
+          },
         );
       }
       final db = context.read<DatabaseClient>();
@@ -56,19 +63,24 @@ Future<Response> onRequest(RequestContext context) async {
       if (cpId == null) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
-          body: {'error': {'message': 'Not a consultant'}},
+          body: {
+            'error': {'message': 'Not a consultant'}
+          },
         );
       }
-      final body =
-          await context.request.json() as Map<String, dynamic>;
+      final body = await context.request.json() as Map<String, dynamic>;
       final title = body['title'] as String?;
       final price = (body['price'] as num?)?.toInt();
       final maxP = (body['maxParticipants'] as num?)?.toInt();
       final dur = (body['durationInMonths'] as num?)?.toInt();
 
-      if (title == null || price == null || price <= 0 ||
-          maxP == null || maxP <= 0 ||
-          dur == null || dur < 1) {
+      if (title == null ||
+          price == null ||
+          price <= 0 ||
+          maxP == null ||
+          maxP <= 0 ||
+          dur == null ||
+          dur < 1) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
           body: {
@@ -87,15 +99,12 @@ Future<Response> onRequest(RequestContext context) async {
         durationInMonths: dur,
         price: price,
         maxParticipants: maxP,
-        meetingsPerWeek:
-            (body['meetingsPerWeek'] as num?)?.toInt() ?? 1,
+        meetingsPerWeek: (body['meetingsPerWeek'] as num?)?.toInt() ?? 1,
         sessionDurationInHours:
-            (body['sessionDurationInHours'] as num?)?.toDouble() ??
-                1.0,
+            (body['sessionDurationInHours'] as num?)?.toDouble() ?? 1.0,
         language: body['language'] as String?,
         level: body['level'] as String?,
-        recordingEnabled:
-            body['recordingEnabled'] as bool? ?? false,
+        recordingEnabled: body['recordingEnabled'] as bool? ?? false,
       );
 
       return Response.json(
@@ -106,16 +115,20 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'}
+          'error': {
+            'message':
+                e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'
+          }
         },
       );
     } catch (e, stackTrace) {
       await SentryLogger.severe('Create failed',
-          context: 'ClassPlansPost',
-          error: e, stackTrace: stackTrace);
+          context: 'ClassPlansPost', error: e, stackTrace: stackTrace);
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed to create'}},
+        body: {
+          'error': {'message': 'Failed to create'}
+        },
       );
     }
   }

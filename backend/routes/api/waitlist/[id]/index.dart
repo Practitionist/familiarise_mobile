@@ -29,7 +29,9 @@ Future<Object> _fetchAndAuthorize(
   if (entry == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Waitlist entry not found'}},
+      body: {
+        'error': {'message': 'Waitlist entry not found'}
+      },
     );
   }
 
@@ -54,7 +56,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -71,7 +75,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get waitlist entry'}},
+      body: {
+        'error': {'message': 'Failed to get waitlist entry'}
+      },
     );
   }
 }
@@ -82,7 +88,9 @@ Future<Response> _handleDelete(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -103,7 +111,9 @@ Future<Response> _handleDelete(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to leave waitlist'}},
+      body: {
+        'error': {'message': 'Failed to leave waitlist'}
+      },
     );
   }
 }

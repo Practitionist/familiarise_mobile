@@ -19,7 +19,9 @@ Future<Response> onRequest(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -29,7 +31,9 @@ Future<Response> onRequest(
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
@@ -40,7 +44,9 @@ Future<Response> onRequest(
       if (ticket == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
-          body: {'error': {'message': 'Ticket not found'}},
+          body: {
+            'error': {'message': 'Ticket not found'}
+          },
         );
       }
       return Response.json(
@@ -49,8 +55,7 @@ Future<Response> onRequest(
     }
 
     if (method == HttpMethod.put) {
-      final body =
-          await context.request.json() as Map<String, dynamic>;
+      final body = await context.request.json() as Map<String, dynamic>;
       // Typed update auto-refreshes updatedAt — no manual timestamp needed.
       SupportTicketStatus? status;
       if (body.containsKey('status')) {
@@ -68,8 +73,8 @@ Future<Response> onRequest(
       }
       SupportPriority? priority;
       if (body.containsKey('priority')) {
-        final matches = SupportPriority.values
-            .where((e) => e.toJson() == body['priority']);
+        final matches =
+            SupportPriority.values.where((e) => e.toJson() == body['priority']);
         if (matches.isEmpty) {
           return Response.json(
             statusCode: HttpStatus.badRequest,
@@ -99,11 +104,12 @@ Future<Response> onRequest(
     return Response(statusCode: HttpStatus.methodNotAllowed);
   } catch (e, stackTrace) {
     await SentryLogger.severe('Staff ticket operation failed',
-        context: 'StaffTicket',
-        error: e, stackTrace: stackTrace);
+        context: 'StaffTicket', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }

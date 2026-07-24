@@ -17,7 +17,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -27,7 +29,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
@@ -42,11 +46,12 @@ Future<Response> onRequest(RequestContext context) async {
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Staff feedbacks failed',
-        context: 'StaffFeedbacks',
-        error: e, stackTrace: stackTrace);
+        context: 'StaffFeedbacks', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list feedbacks'}},
+      body: {
+        'error': {'message': 'Failed to list feedbacks'}
+      },
     );
   }
 }

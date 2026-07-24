@@ -103,9 +103,9 @@ Future<Response> _handleFixChannels(RequestContext context) async {
     // handful of batched calls for the whole migration.
     final uniqueUsers = <String, Map<String, dynamic>>{};
     for (final appointment in appointments) {
-      final instructor = appointment.webinar?.webinarPlan?.consultantProfile
-              ?.user ??
-          appointment.classRef?.classPlan?.consultantProfile?.user;
+      final instructor =
+          appointment.webinar?.webinarPlan?.consultantProfile?.user ??
+              appointment.classRef?.classPlan?.consultantProfile?.user;
       if (instructor != null) {
         uniqueUsers[instructor.id] = {
           'id': instructor.id,

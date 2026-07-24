@@ -20,7 +20,8 @@ Future<Response> onRequest(RequestContext context) async {
     // JsonQueryBuilder path. Compile-time-checked model, field, and filter.
     final tags = await db.prisma.tag.findMany(
       where: (search != null && search.isNotEmpty)
-          ? TagWhereInput(name: StringFilter(contains: search, mode: 'insensitive'))
+          ? TagWhereInput(
+              name: StringFilter(contains: search, mode: 'insensitive'))
           : null,
     );
 
@@ -36,7 +37,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load tags'}},
+      body: {
+        'error': {'message': 'Failed to load tags'}
+      },
     );
   }
 }

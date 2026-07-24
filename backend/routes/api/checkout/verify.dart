@@ -338,8 +338,8 @@ Future<Response> _buildVerificationResponse(
           : (pendingMessage != null ? 'PENDING' : 'FAILED'),
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (bookingType != null) 'bookingType': bookingType,
-      'message': pendingMessage ??
-          (success ? 'Payment successful' : 'Payment failed'),
+      'message':
+          pendingMessage ?? (success ? 'Payment successful' : 'Payment failed'),
       if (consultantName != null) 'consultantName': consultantName,
       if (planTitle != null) 'planTitle': planTitle,
       if (scheduledAt != null) 'scheduledAt': scheduledAt,

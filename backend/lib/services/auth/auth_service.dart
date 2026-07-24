@@ -499,9 +499,8 @@ class AuthService {
 
     // onboardingCompleted can be bool, DateTime, or null - convert to bool
     final onboardingValue = user['onboardingCompleted'];
-    final isOnboardingCompleted = onboardingValue is bool
-        ? onboardingValue
-        : onboardingValue != null;
+    final isOnboardingCompleted =
+        onboardingValue is bool ? onboardingValue : onboardingValue != null;
 
     return {
       'id': user['id'],

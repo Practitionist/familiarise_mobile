@@ -30,7 +30,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -38,10 +40,8 @@ Future<Response> _handleGet(RequestContext context) async {
     final user = await db.users.findById(userId);
 
     // Return trials based on role
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
-    final consulteeProfileId =
-        user?['consulteeProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
+    final consulteeProfileId = user?['consulteeProfileId'] as String?;
 
     List<Map<String, dynamic>> trials;
     if (consultantProfileId != null) {
@@ -64,7 +64,9 @@ Future<Response> _handleGet(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list trials'}},
+      body: {
+        'error': {'message': 'Failed to list trials'}
+      },
     );
   }
 }
@@ -75,14 +77,15 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consulteeProfileId =
-        user?['consulteeProfileId'] as String?;
+    final consulteeProfileId = user?['consulteeProfileId'] as String?;
 
     if (consulteeProfileId == null) {
       return Response.json(
@@ -94,10 +97,8 @@ Future<Response> _handlePost(RequestContext context) async {
     }
 
     final body = await context.request.json() as Map<String, dynamic>;
-    final consultantProfileId =
-        body['consultantProfileId'] as String?;
-    final subscriptionPlanId =
-        body['subscriptionPlanId'] as String?;
+    final consultantProfileId = body['consultantProfileId'] as String?;
+    final subscriptionPlanId = body['subscriptionPlanId'] as String?;
     final notes = body['notes'] as String?;
 
     if (consultantProfileId == null || subscriptionPlanId == null) {
@@ -122,8 +123,7 @@ Future<Response> _handlePost(RequestContext context) async {
         statusCode: HttpStatus.conflict,
         body: {
           'error': {
-            'message':
-                'You already have a trial with this consultant',
+            'message': 'You already have a trial with this consultant',
           },
         },
       );
@@ -149,7 +149,9 @@ Future<Response> _handlePost(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create trial'}},
+      body: {
+        'error': {'message': 'Failed to create trial'}
+      },
     );
   }
 }

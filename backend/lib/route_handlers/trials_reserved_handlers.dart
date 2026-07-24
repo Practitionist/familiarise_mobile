@@ -16,7 +16,9 @@ Future<Response> handleTrialEligibility(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -63,7 +65,9 @@ Future<Response> handleTrialEligibility(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to check eligibility'}},
+      body: {
+        'error': {'message': 'Failed to check eligibility'}
+      },
     );
   }
 }
@@ -79,7 +83,9 @@ Future<Response> handleTrialStats(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -109,7 +115,9 @@ Future<Response> handleTrialStats(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get trial stats'}},
+      body: {
+        'error': {'message': 'Failed to get trial stats'}
+      },
     );
   }
 }

@@ -28,8 +28,7 @@ Future<Object> _findAndAuthorize(
 
   // Get user's consultant profile ID
   final user = await db.users.findById(userId);
-  final consultantProfileId =
-      user?['consultantProfileId'] as String?;
+  final consultantProfileId = user?['consultantProfileId'] as String?;
   if (consultantProfileId == null) {
     return Response.json(
       statusCode: HttpStatus.forbidden,
@@ -50,7 +49,9 @@ Future<Object> _findAndAuthorize(
   if (collab == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Collaboration not found'}},
+      body: {
+        'error': {'message': 'Collaboration not found'}
+      },
     );
   }
 
@@ -58,7 +59,9 @@ Future<Object> _findAndAuthorize(
   if (collab.consultantProfileId != consultantProfileId) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Collaboration not found'}},
+      body: {
+        'error': {'message': 'Collaboration not found'}
+      },
     );
   }
 
@@ -71,7 +74,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -94,7 +99,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get collaboration'}},
+      body: {
+        'error': {'message': 'Failed to get collaboration'}
+      },
     );
   }
 }
@@ -105,7 +112,9 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -143,7 +152,9 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update collaboration'}},
+      body: {
+        'error': {'message': 'Failed to update collaboration'}
+      },
     );
   }
 }

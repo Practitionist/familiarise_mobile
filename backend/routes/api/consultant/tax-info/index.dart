@@ -117,8 +117,7 @@ Future<Response> _handlePut(RequestContext context) async {
           panEncrypted: (body.containsKey('panNumber') && panNumber != null)
               ? PanCrypto.encrypt(panNumber, keyHex: _panKey())
               : null,
-          panLast4:
-              body.containsKey('panNumber') ? _last4(panNumber) : null,
+          panLast4: body.containsKey('panNumber') ? _last4(panNumber) : null,
           gstin: body.containsKey('gstNumber') ? gstNumber : null,
           country: body.containsKey('taxResidency') ? taxResidency : null,
           isIndianResident: body.containsKey('taxResidency')

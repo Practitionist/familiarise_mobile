@@ -14,7 +14,9 @@ Future<Response> onRequest(RequestContext context) async {
       if (userId == null) {
         return Response.json(
           statusCode: HttpStatus.unauthorized,
-          body: {'error': {'message': 'Unauthorized'}},
+          body: {
+            'error': {'message': 'Unauthorized'}
+          },
         );
       }
       final db = context.read<DatabaseClient>();
@@ -23,7 +25,9 @@ Future<Response> onRequest(RequestContext context) async {
       if (cpId == null) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
-          body: {'error': {'message': 'Not a consultant'}},
+          body: {
+            'error': {'message': 'Not a consultant'}
+          },
         );
       }
       final plans = await db.plans.listWebinarPlans(cpId);
@@ -32,11 +36,12 @@ Future<Response> onRequest(RequestContext context) async {
       );
     } catch (e, stackTrace) {
       await SentryLogger.severe('List failed',
-          context: 'WebinarPlansGet',
-          error: e, stackTrace: stackTrace);
+          context: 'WebinarPlansGet', error: e, stackTrace: stackTrace);
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed'}},
+        body: {
+          'error': {'message': 'Failed'}
+        },
       );
     }
   }
@@ -47,7 +52,9 @@ Future<Response> onRequest(RequestContext context) async {
       if (userId == null) {
         return Response.json(
           statusCode: HttpStatus.unauthorized,
-          body: {'error': {'message': 'Unauthorized'}},
+          body: {
+            'error': {'message': 'Unauthorized'}
+          },
         );
       }
       final db = context.read<DatabaseClient>();
@@ -56,19 +63,24 @@ Future<Response> onRequest(RequestContext context) async {
       if (cpId == null) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
-          body: {'error': {'message': 'Not a consultant'}},
+          body: {
+            'error': {'message': 'Not a consultant'}
+          },
         );
       }
-      final body =
-          await context.request.json() as Map<String, dynamic>;
+      final body = await context.request.json() as Map<String, dynamic>;
       final title = body['title'] as String?;
       final price = (body['price'] as num?)?.toInt();
       final maxP = (body['maxParticipants'] as num?)?.toInt();
       final dur = (body['durationInHours'] as num?)?.toDouble();
 
-      if (title == null || price == null || price <= 0 ||
-          maxP == null || maxP <= 0 ||
-          dur == null || dur <= 0) {
+      if (title == null ||
+          price == null ||
+          price <= 0 ||
+          maxP == null ||
+          maxP <= 0 ||
+          dur == null ||
+          dur <= 0) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
           body: {
@@ -89,8 +101,7 @@ Future<Response> onRequest(RequestContext context) async {
         maxParticipants: maxP,
         language: body['language'] as String?,
         level: body['level'] as String?,
-        recordingEnabled:
-            body['recordingEnabled'] as bool? ?? false,
+        recordingEnabled: body['recordingEnabled'] as bool? ?? false,
       );
 
       return Response.json(
@@ -101,16 +112,20 @@ Future<Response> onRequest(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'}
+          'error': {
+            'message':
+                e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'
+          }
         },
       );
     } catch (e, stackTrace) {
       await SentryLogger.severe('Create failed',
-          context: 'WebinarPlansPost',
-          error: e, stackTrace: stackTrace);
+          context: 'WebinarPlansPost', error: e, stackTrace: stackTrace);
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed to create'}},
+        body: {
+          'error': {'message': 'Failed to create'}
+        },
       );
     }
   }

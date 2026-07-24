@@ -77,8 +77,7 @@ Future<Response> onRequest(RequestContext context) async {
     final discountType = discount['discountType'] as String?;
     final discountValue = (discount['discountValue'] as num?)?.toDouble();
     final discountAmount = (discount['discountAmount'] as num?)?.toDouble();
-    final maximumDiscountAmount =
-        (discount['maxDiscount'] as num?)?.toDouble();
+    final maximumDiscountAmount = (discount['maxDiscount'] as num?)?.toDouble();
     final expiresAt = discount['expiresAt'];
 
     return Response.json(
