@@ -44,11 +44,17 @@ class AccountRepository extends BaseRepository {
     required String accountId,
     required String hashedPassword,
   }) async {
-    final result = await _prisma.account.update(
-      where: AccountWhereUniqueInput(id: accountId),
+    // updateMany so a missing account returns null (declared contract)
+    // rather than throwing out of the typed update.
+    final affected = await _prisma.account.updateMany(
+      where: AccountWhereInput(id: StringFilter(equals: accountId)),
       data: UpdateAccountInput(password: hashedPassword),
     );
-    return result.toJson();
+    if (affected == 0) return null;
+    final result = await _prisma.account.findFirst(
+      where: AccountWhereInput(id: StringFilter(equals: accountId)),
+    );
+    return result?.toJson();
   }
 
   /// Create an OAuth account link

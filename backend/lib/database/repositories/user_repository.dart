@@ -74,9 +74,11 @@ class UserRepository extends BaseRepository {
     String? timezone,
     String? profileDisplayImage,
   }) async {
-    // updatedAt auto-refreshes on typed update.
-    final result = await _prisma.user.update(
-      where: UserWhereUniqueInput(id: id),
+    // updatedAt auto-refreshes on typed update. updateMany (not update) so a
+    // missing row returns null instead of throwing — the route maps null to a
+    // 404 and typed `update` would surface as a 500.
+    final affected = await _prisma.user.updateMany(
+      where: UserWhereInput(id: StringFilter(equals: id)),
       data: UpdateUserInput(
         name: name,
         image: image,
@@ -94,7 +96,11 @@ class UserRepository extends BaseRepository {
         profileDisplayImage: profileDisplayImage,
       ),
     );
-    return result.toJson();
+    if (affected == 0) return null;
+    final result = await _prisma.user.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Update emailVerified status
@@ -102,11 +108,15 @@ class UserRepository extends BaseRepository {
     required String id,
     required bool verified,
   }) async {
-    final result = await _prisma.user.update(
-      where: UserWhereUniqueInput(id: id),
+    final affected = await _prisma.user.updateMany(
+      where: UserWhereInput(id: StringFilter(equals: id)),
       data: UpdateUserInput(emailVerified: verified),
     );
-    return result.toJson();
+    if (affected == 0) return null;
+    final result = await _prisma.user.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Update user for onboarding completion
@@ -133,8 +143,8 @@ class UserRepository extends BaseRepository {
   }) async {
     // updatedAt auto-refreshes on typed update.
     final delegate = txn == null ? _prisma.user : UserDelegate(txn);
-    final result = await delegate.update(
-      where: UserWhereUniqueInput(id: id),
+    final affected = await delegate.updateMany(
+      where: UserWhereInput(id: StringFilter(equals: id)),
       data: UpdateUserInput(
         role: enumFromWire(UserRole.values, role, field: 'role'),
         name: name,
@@ -155,7 +165,11 @@ class UserRepository extends BaseRepository {
         consultantProfileId: consultantProfileId,
       ),
     );
-    return result.toJson();
+    if (affected == 0) return null;
+    final result = await delegate.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Create default CookiePreference and NotificationPreference for a user.

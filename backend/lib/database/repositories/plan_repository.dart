@@ -79,8 +79,8 @@ class PlanRepository extends BaseRepository {
     String? language,
     String? level,
   }) async {
-    final result = await _prisma.consultationPlan.update(
-      where: ConsultationPlanWhereUniqueInput(id: id),
+    final affected = await _prisma.consultationPlan.updateMany(
+      where: ConsultationPlanWhereInput(id: StringFilter(equals: id)),
       data: UpdateConsultationPlanInput(
         title: title,
         description: description,
@@ -90,7 +90,11 @@ class PlanRepository extends BaseRepository {
         level: level,
       ),
     );
-    return result.toJson();
+    if (affected == 0) return null;
+    final result = await _prisma.consultationPlan.findFirst(
+      where: ConsultationPlanWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   Future<void> deleteConsultationPlan(String id) async {

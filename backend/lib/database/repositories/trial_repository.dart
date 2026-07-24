@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 
 /// Repository for trial session operations.
@@ -97,14 +98,18 @@ class TrialRepository extends BaseRepository {
     required String id,
     required String status,
   }) async {
-    final result = await _prisma.trialSession.update(
-      where: TrialSessionWhereUniqueInput(id: id),
+    final affected = await _prisma.trialSession.updateMany(
+      where: TrialSessionWhereInput(id: StringFilter(equals: id)),
       data: UpdateTrialSessionInput(
-        status:
-            TrialSessionStatus.values.firstWhere((e) => e.toJson() == status),
+        status: enumFromWire(TrialSessionStatus.values, status,
+            field: 'status'),
       ),
     );
-    return result.toJson();
+    if (affected == 0) return null;
+    final result = await _prisma.trialSession.findFirst(
+      where: TrialSessionWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Get trial stats for a consultant.

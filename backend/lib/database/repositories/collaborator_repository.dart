@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 
 /// Repository for collaborator operations
@@ -98,8 +99,8 @@ class CollaboratorRepository extends BaseRepository {
     await _prisma.collaborator.update(
       where: CollaboratorWhereUniqueInput(id: id),
       data: UpdateCollaboratorInput(
-        status:
-            CollaboratorStatus.values.firstWhere((e) => e.toJson() == response),
+        status: enumFromWire(CollaboratorStatus.values, response,
+            field: 'response'),
         respondedAt: now,
       ),
     );
