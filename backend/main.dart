@@ -1,4 +1,9 @@
-import 'dart:io';
+import 'dart:io' show File, HttpServer, InternetAddress;
+// Prefixed deliberately: lib/generated/index.dart exports a `Platform` enum
+// from the Prisma schema, and database_client.dart re-exports it, so an
+// unprefixed `Platform` here resolves to that enum instead of dart:io's.
+// Same gotcha documented in lib/database/database_client.dart.
+import 'dart:io' as io show Platform;
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/auth_service.dart';
@@ -14,8 +19,23 @@ import 'package:dotenv/dotenv.dart';
 /// Server entry point
 /// Initializes database, services, and starts the HTTP server
 Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
-  // Load environment variables
-  final env = DotEnv()..load(['.env']);
+  // Environment resolution, lowest precedence first:
+  //   1. .env                 — shared local config (gitignored)
+  //   2. .env.local           — per-developer override layer (gitignored),
+  //                             e.g. pointing DIRECT_URL at local Postgres
+  //   3. Platform.environment — ALWAYS WINS. This is what docker compose,
+  //                             Railway and CI inject.
+  //
+  // Note the deliberate ordering. DotEnv's own `includePlatformEnvironment`
+  // flag injects the environment in the *constructor*, and `load()` then does
+  // `_map.addAll(file)` on top — so the file would override the environment.
+  // That is backwards for containers: a stale DIRECT_URL in a bind-mounted
+  // .env would silently hijack a "local" run and point it at production.
+  // Applying Platform.environment last inverts that.
+  final env = DotEnv();
+  if (File('.env').existsSync()) env.load(['.env']);
+  if (File('.env.local').existsSync()) env.load(['.env.local']);
+  env.addAll(io.Platform.environment);
 
   // Initialize Sentry for error tracking (optional)
   await SentryLogger.init(env['SENTRY_DSN']);
@@ -25,12 +45,15 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   // which the prisma_flutter_connector uses internally
   final databaseUrl = env['DIRECT_URL'] ?? env['DATABASE_URL'];
   if (databaseUrl == null) {
-    throw Exception('DIRECT_URL or DATABASE_URL must be set in .env');
+    throw Exception(
+      'DIRECT_URL or DATABASE_URL must be set in the environment or .env. '
+      'For local development run: source scripts/use-db.sh local',
+    );
   }
 
   final jwtSecret = env['JWT_SECRET'];
   if (jwtSecret == null) {
-    throw Exception('JWT_SECRET must be set in .env');
+    throw Exception('JWT_SECRET must be set in the environment or .env');
   }
 
   // GitHub OAuth credentials (optional - only needed if using GitHub auth)
@@ -49,7 +72,10 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   }
 
   // Initialize database
-  SentryLogger.info('Connecting to database...', context: 'Startup');
+  SentryLogger.info(
+    'Connecting to database... (${_describeTarget(databaseUrl)})',
+    context: 'Startup',
+  );
   final db = await DatabaseClient.initialize(databaseUrl);
   SentryLogger.info('Database connected successfully!', context: 'Startup');
 
@@ -115,4 +141,21 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
     context: 'Startup',
   );
   return serve(handlerWithProviders, ip, port);
+}
+
+/// Renders the connection target of [databaseUrl] as `host:port/database`.
+///
+/// Credentials are never included — this string is logged on every boot (and
+/// forwarded to Sentry), so it must stay safe to read in a shared console.
+///
+/// Its purpose is to make "am I about to run destructive tests against
+/// production?" answerable at a glance: a local run must print `db:5432` (in
+/// Docker) or `localhost:5433` (native), never a `*.supabase.com` host.
+String _describeTarget(String databaseUrl) {
+  final uri = Uri.tryParse(databaseUrl);
+  if (uri == null || uri.host.isEmpty) return 'target=<unparseable url>';
+
+  final database = uri.pathSegments.isEmpty ? '?' : uri.pathSegments.first;
+  final port = uri.hasPort ? uri.port : 5432;
+  return 'host=${uri.host}:$port, db=$database';
 }

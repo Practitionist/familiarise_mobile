@@ -1,0 +1,43 @@
+# Development image for the Dart Frog API — hot reload, used by docker-compose.
+#
+# This is NOT the deployment image. See ./Dockerfile for that; its header
+# comments document the constraints both images share, in particular:
+#
+#   The base MUST be a Flutter image, not dart:stable. prisma_flutter_connector
+#   declares `flutter: sdk: flutter`, so `pub get` fails on a Dart-only SDK with
+#   "flutter from sdk doesn't exist".
+#
+# Deliberately does NO code generation at build time. lib/generated is ~735k
+# lines rebuilt from prisma/schema.prisma; baking it into a layer would mean
+# re-running it on every image rebuild. Instead docker-compose keeps
+# lib/generated and .dart_tool in named volumes and the entrypoint regenerates
+# only when the inputs actually change (see backend/scripts/ensure-generated.sh).
+
+FROM ghcr.io/cirruslabs/flutter:stable
+
+WORKDIR /app
+
+# curl: used by the compose healthcheck.
+# postgresql-client: lets you psql the database from inside the container.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl \
+      ca-certificates \
+      postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN dart pub global activate dart_frog_cli
+ENV PATH="/root/.pub-cache/bin:${PATH}"
+
+# Copied to /usr/local/bin rather than left in /app, because compose
+# bind-mounts ./backend over /app and would shadow anything placed there.
+COPY docker/dev-entrypoint.sh /usr/local/bin/dev-entrypoint
+RUN chmod +x /usr/local/bin/dev-entrypoint
+
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/dev-entrypoint"]
+
+# --hostname 0.0.0.0 is required for the published port to be reachable from
+# the host; dart_frog dev binds localhost otherwise. Verified supported in
+# dart_frog_cli 1.2.14 (it must be a literal IP, not a hostname).
+CMD ["dart_frog", "dev", "--hostname", "0.0.0.0", "--port", "8080"]
