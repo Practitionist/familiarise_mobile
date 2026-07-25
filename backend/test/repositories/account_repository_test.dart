@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/account_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
@@ -37,8 +38,13 @@ void main() {
 
       expect(result?['id'], equals('account-1'));
       expect(result?['providerId'], equals('google'));
-      verify(() => mockAccounts.findFirst(where: any(named: 'where')))
-          .called(1);
+
+      // Assert the filter actually sent, not merely that a call happened.
+      final where = verify(
+        () => mockAccounts.findFirst(where: captureAny(named: 'where')),
+      ).captured.single as AccountWhereInput;
+      expect(where.userId?.equals, equals('user-1'));
+      expect(where.providerId?.equals, equals('google'));
     });
 
     test('returns null when no account found', () async {
@@ -59,8 +65,12 @@ void main() {
       final result = await repository.findCredentialAccount('user-1');
 
       expect(result?['providerId'], equals('credential'));
-      verify(() => mockAccounts.findFirst(where: any(named: 'where')))
-          .called(1);
+
+      final where = verify(
+        () => mockAccounts.findFirst(where: captureAny(named: 'where')),
+      ).captured.single as AccountWhereInput;
+      expect(where.userId?.equals, equals('user-1'));
+      expect(where.providerId?.equals, equals('credential'));
     });
 
     test('returns null when no credential account exists', () async {
@@ -90,12 +100,16 @@ void main() {
       );
 
       expect(result?['id'], equals('account-1'));
-      verify(
+
+      final captured = verify(
         () => mockAccounts.updateMany(
-          where: any(named: 'where'),
-          data: any(named: 'data'),
+          where: captureAny(named: 'where'),
+          data: captureAny(named: 'data'),
         ),
-      ).called(1);
+      ).captured;
+      expect(
+          (captured[0] as AccountWhereInput).id?.equals, equals('account-1'));
+      expect((captured[1] as UpdateAccountInput).password, equals('new-hash'));
     });
 
     test('returns null when account not found', () async {
@@ -131,7 +145,15 @@ void main() {
       );
 
       expect(result['providerId'], equals('google'));
-      verify(() => mockAccounts.create(data: any(named: 'data'))).called(1);
+
+      final data = verify(
+        () => mockAccounts.create(data: captureAny(named: 'data')),
+      ).captured.single as CreateAccountInput;
+      expect(data.userId, equals('user-1'));
+      expect(data.providerId, equals('google'));
+      expect(data.accountId, equals('google-123'));
+      expect(data.accessToken, equals('access-token'));
+      expect(data.idToken, equals('id-token'));
     });
   });
 
@@ -148,7 +170,13 @@ void main() {
 
       expect(result['providerId'], equals('credential'));
       expect(result['userId'], equals('user-1'));
-      verify(() => mockAccounts.create(data: any(named: 'data'))).called(1);
+
+      final data = verify(
+        () => mockAccounts.create(data: captureAny(named: 'data')),
+      ).captured.single as CreateAccountInput;
+      expect(data.userId, equals('user-1'));
+      expect(data.providerId, equals('credential'));
+      expect(data.password, equals('hashed'));
     });
   });
 }

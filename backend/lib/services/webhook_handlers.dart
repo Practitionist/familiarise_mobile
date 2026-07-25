@@ -275,7 +275,8 @@ class WebhookHandlers {
     Appointment appointment,
     String webinarId,
   ) async {
-    if (_streamService == null || !_streamService!.isConfigured) {
+    final stream = _streamService;
+    if (stream == null || !stream.isConfigured) {
       SentryLogger.warning(
         'StreamService not configured, skipping group channel creation',
         context: 'WebhookHandlers',
@@ -347,7 +348,8 @@ class WebhookHandlers {
     Appointment appointment,
     String classId,
   ) async {
-    if (_streamService == null || !_streamService!.isConfigured) {
+    final stream = _streamService;
+    if (stream == null || !stream.isConfigured) {
       SentryLogger.warning(
         'StreamService not configured, skipping group channel creation',
         context: 'WebhookHandlers',

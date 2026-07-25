@@ -104,6 +104,39 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       );
     }
 
+    // Validate the two enum-shaped inputs up front. Both drive control flow
+    // (consultation vs subscription) and are passed through to createPayment,
+    // so an unsupported value must be a 400 here rather than an exception from
+    // some later repository call.
+    const allowedTypes = {'CONSULTATION', 'SUBSCRIPTION'};
+    final normalizedType = appointmentType.trim().toUpperCase();
+    if (!allowedTypes.contains(normalizedType)) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Unsupported appointmentType: $appointmentType',
+            'allowed': allowedTypes.toList(),
+          },
+        },
+      );
+    }
+
+    final normalizedGateway = paymentGateway.trim().toUpperCase();
+    final allowedGateways =
+        PaymentGateway.values.map((g) => g.toJson()).toList();
+    if (!allowedGateways.contains(normalizedGateway)) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Unsupported paymentGateway: $paymentGateway',
+            'allowed': allowedGateways,
+          },
+        },
+      );
+    }
+
     final db = context.read<DatabaseClient>();
 
     // Determine if this is request-then-pay or direct checkout
@@ -118,7 +151,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
     if (bookingId != null) {
       // Request-then-pay flow: Use existing booking
-      booking = await db.checkout.getBookingById(bookingId, appointmentType);
+      booking = await db.checkout.getBookingById(bookingId, normalizedType);
       if (booking == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
@@ -133,7 +166,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       }
 
       // Get plan from booking
-      if (appointmentType.toUpperCase() == 'CONSULTATION') {
+      if (normalizedType == 'CONSULTATION') {
         plan = booking['consultationPlan'] as Map<String, dynamic>?;
       } else {
         plan = booking['subscriptionPlan'] as Map<String, dynamic>?;
@@ -165,7 +198,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       final requestedById = consulteeProfile['id'] as String;
 
       // Get plan details
-      if (appointmentType.toUpperCase() == 'CONSULTATION') {
+      if (normalizedType == 'CONSULTATION') {
         plan = await db.checkout.getConsultationPlan(planId);
 
         if (plan == null) {
@@ -342,7 +375,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
     // Get appointment ID for the booking (if consultation)
     String? appointmentId;
-    if (appointmentType.toUpperCase() == 'CONSULTATION') {
+    if (normalizedType == 'CONSULTATION') {
       // Appointment was created with the booking - fetch it
       final appointmentResult = await db.prisma.appointment.findFirst(
         where: AppointmentWhereInput(
@@ -358,7 +391,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       amount: amountInSmallestUnit,
       originalAmount: originalAmountInSmallestUnit,
       currency: currency,
-      paymentGateway: paymentGateway.toUpperCase(),
+      paymentGateway: normalizedGateway,
       appointmentId: appointmentId,
       discountCodeId: discountCodeId,
       description: 'Booking with ${consultantName ?? 'consultant'}',
@@ -531,7 +564,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         if (discountAmount != null) 'discountAmount': discountAmount / 100,
         if (discountCode != null) 'discountCode': discountCode,
         'bookingId': finalBookingId,
-        'bookingType': appointmentType.toUpperCase(),
+        'bookingType': normalizedType,
       }),
     );
   } on FormatException catch (_) {

@@ -4,51 +4,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
 
+import '../helpers/prisma_mocks.dart';
+
 class MockQueryExecutor extends Mock implements QueryExecutor {}
 
-class MockPrismaClient extends Mock implements PrismaClient {}
-
-class MockUserDelegate extends Mock implements UserDelegate {}
-
 class FakeJsonQuery extends Fake implements JsonQuery {}
-
-class FakeUserWhereInput extends Fake implements UserWhereInput {}
-
-class FakeUserWhereUniqueInput extends Fake implements UserWhereUniqueInput {}
-
-class FakeCreateUserInput extends Fake implements CreateUserInput {}
-
-class FakeUpdateUserInput extends Fake implements UpdateUserInput {}
-
-/// Build a User model with the required scalars filled in.
-User buildUser({
-  String id = 'user-1',
-  String name = 'Test User',
-  String email = 'test@example.com',
-  UserRole role = UserRole.consultee,
-  bool emailVerified = false,
-  bool onboardingCompleted = false,
-  String? phone,
-  String? city,
-  String? country,
-  String? consultantProfileId,
-}) {
-  final now = DateTime.utc(2026, 1, 1);
-  return User(
-    id: id,
-    name: name,
-    email: email,
-    role: role,
-    emailVerified: emailVerified,
-    onboardingCompleted: onboardingCompleted,
-    phone: phone,
-    city: city,
-    country: country,
-    consultantProfileId: consultantProfileId,
-    createdAt: now,
-    updatedAt: now,
-  );
-}
 
 void main() {
   late MockQueryExecutor mockExecutor;
@@ -58,10 +18,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(FakeJsonQuery());
-    registerFallbackValue(FakeUserWhereInput());
-    registerFallbackValue(FakeUserWhereUniqueInput());
-    registerFallbackValue(FakeCreateUserInput());
-    registerFallbackValue(FakeUpdateUserInput());
+    registerPrismaFallbacks();
   });
 
   setUp(() {

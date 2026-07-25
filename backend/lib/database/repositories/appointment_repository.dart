@@ -30,20 +30,6 @@ class SlotConflictException implements Exception {
 /// Uses the typed PrismaClient surface, eliminating SQL injection risks.
 class AppointmentRepository extends BaseRepository {
   /// Month abbreviations for date formatting
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
 
   /// Create an appointment repository with the given executor
   AppointmentRepository(super._executor, this._prisma);

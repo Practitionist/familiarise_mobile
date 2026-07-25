@@ -1,6 +1,5 @@
 import 'package:backend/database/repositories/session_repository.dart';
 import 'package:backend/database/repositories/user_repository.dart';
-import 'package:backend/generated/prisma_client.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';

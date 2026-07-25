@@ -1,3 +1,8 @@
+// Mock stubbing spans several generated delegate classes that share no base
+// type, so the shared stub helpers take `dynamic` — which costs type
+// inference on the mocktail calls. Test-only plumbing, not a correctness gap.
+// ignore_for_file: inference_failure_on_function_invocation, strict_raw_type
+
 import 'package:backend/database/repositories/support_ticket_repository.dart';
 import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';

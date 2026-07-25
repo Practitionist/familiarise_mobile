@@ -12,6 +12,15 @@ on:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
 
+# Read-only by default; no job here needs to write to the repo.
+permissions:
+  contents: read
+
+# Supersede in-flight runs for the same ref instead of queueing them.
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 defaults:
   run:
     working-directory: backend
@@ -20,13 +29,19 @@ jobs:
   backend:
     name: Analyze, Format, Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      # Actions pinned to commit SHAs (tags are mutable).
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Don't leave GITHUB_TOKEN in .git/config for later steps to read.
+          persist-credentials: false
 
       # The backend is server-side Dart, but prisma_flutter_connector depends on
       # the Flutter SDK, so pub resolution needs Flutter (not plain Dart).
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff # v2.18.0
         with:
           flutter-version: '3.44.1'
           cache: true
@@ -37,17 +52,29 @@ jobs:
         run: ./scripts/regenerate-build.sh --prisma
 
       # `dart analyze` exits non-zero on *any* issue, including ~1k pre-existing
-      # style infos, so gate on errors and warnings only. Generated code is
-      # excluded via analysis_options.yaml.
-      - name: Analyze (errors + warnings)
+      # style infos, so gate on severity instead. Parse the JSON report rather
+      # than the human-readable output: the text format labels these findings
+      # inconsistently (it showed 0 warnings where JSON showed 76), so a
+      # grep-based gate silently passed real warnings.
+      - name: Analyze (fail on errors + warnings)
         run: |
-          dart analyze lib routes test 2>&1 | tee analyze.log || true
-          if grep -qE '^\s+(error|warning) -' analyze.log; then
-            echo "::error::dart analyze reported errors or warnings"
-            grep -E '^\s+(error|warning) -' analyze.log
-            exit 1
-          fi
-          echo "No errors or warnings."
+          dart analyze --format=json lib routes test > analyze.json || true
+          python3 - <<'EOF'
+          import json, sys, collections
+          with open('analyze.json') as f:
+              diagnostics = json.load(f)['diagnostics']
+          bad = [d for d in diagnostics if d['severity'] in ('ERROR', 'WARNING')]
+          print('diagnostics by severity:',
+                dict(collections.Counter(d['severity'] for d in diagnostics)))
+          for d in bad:
+              loc = d['location']
+              print(f"::error file={loc['file']},"
+                    f"line={loc['range']['start']['line']}::"
+                    f"{d['severity']} {d['code']}: {d['problemMessage']}")
+          if bad:
+              sys.exit(f"{len(bad)} error(s)/warning(s) found")
+          print('No errors or warnings.')
+          EOF
 
       # git ls-files lists tracked files only, so the gitignored generated
       # client is excluded for free.

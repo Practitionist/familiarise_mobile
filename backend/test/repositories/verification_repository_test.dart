@@ -1,5 +1,4 @@
 import 'package:backend/database/repositories/verification_repository.dart';
-import 'package:backend/generated/prisma_client.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';

@@ -109,7 +109,7 @@ Future<Response> _handleFixChannels(RequestContext context) async {
       if (instructor != null) {
         uniqueUsers[instructor.id] = {
           'id': instructor.id,
-          if (instructor.name != null) 'name': instructor.name,
+          'name': instructor.name,
           if (instructor.image != null) 'image': instructor.image,
         };
       }
@@ -120,7 +120,7 @@ Future<Response> _handleFixChannels(RequestContext context) async {
           final participant = users.first;
           uniqueUsers[participant.id] = {
             'id': participant.id,
-            if (participant.name != null) 'name': participant.name,
+            'name': participant.name,
             if (participant.image != null) 'image': participant.image,
           };
         }

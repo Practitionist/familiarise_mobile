@@ -80,7 +80,7 @@ class ProgramsRepository extends BaseRepository {
       final profileId = w['consultantProfileId'] as String?;
       result['consultant'] =
           profileId != null ? consultantsMap[profileId] : null;
-      result['upcomingSessions'] = []; // TODO: Fetch webinar sessions
+      result['upcomingSessions'] = <Map<String, dynamic>>[]; // TODO: sessions
       return result;
     }).toList();
 
@@ -222,7 +222,7 @@ class ProgramsRepository extends BaseRepository {
       final profileId = c['consultantProfileId'] as String?;
       result['consultant'] =
           profileId != null ? consultantsMap[profileId] : null;
-      result['curriculum'] = []; // TODO: Fetch class contents
+      result['curriculum'] = <Map<String, dynamic>>[]; // TODO: class contents
       return result;
     }).toList();
 

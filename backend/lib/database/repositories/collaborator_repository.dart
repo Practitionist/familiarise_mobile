@@ -99,8 +99,14 @@ class CollaboratorRepository extends BaseRepository {
     await _prisma.collaborator.update(
       where: CollaboratorWhereUniqueInput(id: id),
       data: UpdateCollaboratorInput(
-        status: enumFromWire(CollaboratorStatus.values, response,
-            field: 'response'),
+        // Restrict to the two terminal decisions this endpoint documents.
+        // enumFromWire alone would also accept PENDING/REMOVED, letting a
+        // client push a collaboration back to pending or silently remove it.
+        status: enumFromWire(
+          const [CollaboratorStatus.accepted, CollaboratorStatus.declined],
+          response,
+          field: 'response',
+        ),
         respondedAt: now,
       ),
     );

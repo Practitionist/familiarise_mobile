@@ -133,6 +133,10 @@ User buildUser({
   bool onboardingCompleted = false,
   String? image,
   String? consulteeProfileId,
+  String? consultantProfileId,
+  String? phone,
+  String? city,
+  String? country,
 }) {
   final now = DateTime.utc(2026, 1, 1);
   return User(
@@ -144,6 +148,10 @@ User buildUser({
     onboardingCompleted: onboardingCompleted,
     image: image,
     consulteeProfileId: consulteeProfileId,
+    consultantProfileId: consultantProfileId,
+    phone: phone,
+    city: city,
+    country: country,
     createdAt: now,
     updatedAt: now,
   );

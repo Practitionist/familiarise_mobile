@@ -320,7 +320,7 @@ class AuthService {
           data: CreateNotificationPreferenceInput(userId: newUserId),
         );
 
-        return (linkedUser ?? newUser).toJson();
+        return linkedUser.toJson();
       });
     } else {
       // Update user info from verified token
@@ -425,20 +425,19 @@ class AuthService {
           data: CreateNotificationPreferenceInput(userId: newUserId),
         );
 
-        return (linkedUser ?? newUser).toJson();
+        return linkedUser.toJson();
       });
     } else {
-      // Update user info if changed
-      if (name != null || image != null) {
-        final updatedUser = await _db.updateUser(
-          id: existingUser['id'] as String,
-          name: name,
-          image: image,
-        );
-        user = updatedUser ?? existingUser;
-      } else {
-        user = existingUser;
-      }
+      // Refresh the stored profile from the verified GitHub token. `name`
+      // always resolves (it falls back to the GitHub login), so this branch
+      // was unconditional — made explicit rather than guarded by a condition
+      // the analyzer proves is always true.
+      final updatedUser = await _db.updateUser(
+        id: existingUser['id'] as String,
+        name: name,
+        image: image,
+      );
+      user = updatedUser ?? existingUser;
     }
 
     // Create session with client info for security tracking

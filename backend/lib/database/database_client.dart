@@ -171,25 +171,6 @@ class DatabaseClient {
 
   /// Build the schema registry from the generated registrations.
   ///
-  /// Models with @@map are additionally registered under their TABLE name
-  /// (e.g. both 'User' and 'users') so legacy JsonQueryBuilder calls that
-  /// reference .model('users') keep full field/relation metadata.
-  static SchemaRegistry _buildSchema() {
-    final schema = SchemaRegistry();
-    registerAllModels(schema);
-    for (final modelName in schema.modelNames.toList()) {
-      final model = schema.getModel(modelName);
-      if (model != null && model.tableName != model.name) {
-        schema.registerModel(ModelSchema(
-          name: model.tableName,
-          tableName: model.tableName,
-          fields: model.fields,
-          relations: model.relations,
-        ));
-      }
-    }
-    return schema;
-  }
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -216,7 +197,7 @@ class DatabaseClient {
     // connections borrowed from the pool; each transaction pins one dedicated
     // connection. Replaces the previous single long-lived pg.Connection, whose
     // silent staleness caused recurring 500s until a server restart.
-    final pool = pg.Pool.withEndpoints(
+    final pool = pg.Pool<void>.withEndpoints(
       [
         pg.Endpoint(
           host: uri.host,

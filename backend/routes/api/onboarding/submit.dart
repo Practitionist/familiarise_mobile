@@ -6,7 +6,6 @@ import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/professional_background_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// POST /api/onboarding/submit
 ///
