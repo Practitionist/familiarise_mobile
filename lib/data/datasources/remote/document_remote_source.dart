@@ -53,8 +53,7 @@ class DocumentRemoteSourceImpl implements DocumentRemoteSource {
       );
       final data = response.data['data'] as List<dynamic>;
       return data
-          .map((d) => AppointmentDocument.fromJson(
-              d as Map<String, dynamic>))
+          .map((d) => AppointmentDocument.fromJson(d as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw ServerException(

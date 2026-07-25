@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/consultant/tds-records — List TDS deduction records
 Future<Response> onRequest(RequestContext context) async {
@@ -18,14 +17,15 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
     final user = await db.users.findById(userId);
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
     if (consultantProfileId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -35,15 +35,16 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    final query = JsonQueryBuilder()
-        .model('TDSRecord')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .build();
-    final records = await db.executor.executeQueryAsMaps(query);
+    final records = await db.prisma.tDSRecord.findMany(
+      where: TDSRecordWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     return Response.json(
-      body: {'data': records.map(serializeForJson).toList()},
+      body: {
+        'data': records.map((r) => serializeForJson(r.toJson())).toList(),
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -54,7 +55,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load TDS records'}},
+      body: {
+        'error': {'message': 'Failed to load TDS records'}
+      },
     );
   }
 }

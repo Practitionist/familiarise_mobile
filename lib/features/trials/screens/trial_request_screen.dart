@@ -19,8 +19,7 @@ class TrialRequestScreen extends ConsumerStatefulWidget {
   final String subscriptionPlanId;
 
   @override
-  ConsumerState<TrialRequestScreen> createState() =>
-      _TrialRequestScreenState();
+  ConsumerState<TrialRequestScreen> createState() => _TrialRequestScreenState();
 }
 
 class _TrialRequestScreenState extends ConsumerState<TrialRequestScreen> {
@@ -62,8 +61,9 @@ class _TrialRequestScreenState extends ConsumerState<TrialRequestScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      eligibility.reason ?? 'You are not eligible '
-                          'for a trial with this consultant.',
+                      eligibility.reason ??
+                          'You are not eligible '
+                              'for a trial with this consultant.',
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -130,9 +130,7 @@ class _TrialRequestScreenState extends ConsumerState<TrialRequestScreen> {
       await ref.read(trialListProvider.notifier).requestTrial(
             consultantProfileId: widget.consultantProfileId,
             subscriptionPlanId: widget.subscriptionPlanId,
-            notes: _notesController.text.isEmpty
-                ? null
-                : _notesController.text,
+            notes: _notesController.text.isEmpty ? null : _notesController.text,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

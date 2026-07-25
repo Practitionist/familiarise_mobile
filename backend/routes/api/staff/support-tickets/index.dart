@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/support-tickets — List all support tickets for staff
 Future<Response> onRequest(RequestContext context) async {
@@ -18,7 +17,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -28,24 +29,41 @@ Future<Response> onRequest(RequestContext context) async {
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
     final status = context.request.uri.queryParameters['status'];
-    final where = <String, dynamic>{};
-    if (status != null) where['status'] = status;
+    SupportTicketStatus? statusFilter;
+    if (status != null) {
+      final matches =
+          SupportTicketStatus.values.where((e) => e.toJson() == status);
+      if (matches.isEmpty) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {'message': 'Invalid status: $status'},
+          },
+        );
+      }
+      statusFilter = matches.first;
+    }
 
-    final query = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.findMany)
-        .where(where)
-        .orderBy({'createdAt': 'desc'})
-        .build();
-    final tickets = await db.executor.executeQueryAsMaps(query);
+    final tickets = await db.prisma.supportTicket.findMany(
+      where: statusFilter != null
+          ? SupportTicketWhereInput(
+              status: SupportTicketStatusFilter(equals: statusFilter),
+            )
+          : null,
+      orderBy: const SupportTicketOrderByInput(createdAt: SortOrder.desc),
+    );
 
     return Response.json(
-      body: {'data': tickets.map(serializeForJson).toList()},
+      body: {
+        'data': tickets.map((t) => serializeForJson(t.toJson())).toList(),
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -56,7 +74,9 @@ Future<Response> onRequest(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load tickets'}},
+      body: {
+        'error': {'message': 'Failed to load tickets'}
+      },
     );
   }
 }

@@ -32,8 +32,7 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    final body =
-        await context.request.json() as Map<String, dynamic>;
+    final body = await context.request.json() as Map<String, dynamic>;
     final currentPassword = body['currentPassword'] as String?;
     final newPassword = body['newPassword'] as String?;
 
@@ -42,8 +41,7 @@ Future<Response> onRequest(RequestContext context) async {
         statusCode: HttpStatus.badRequest,
         body: {
           'error': {
-            'message':
-                'currentPassword and newPassword are required',
+            'message': 'currentPassword and newPassword are required',
           },
         },
       );

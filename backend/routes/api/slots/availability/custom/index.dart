@@ -19,8 +19,7 @@ Future<Response> onRequest(RequestContext context) async {
 
 Future<Response> _handleGet(RequestContext context) async {
   try {
-    final cpId =
-        context.request.uri.queryParameters['consultantProfileId'];
+    final cpId = context.request.uri.queryParameters['consultantProfileId'];
     if (cpId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -40,11 +39,12 @@ Future<Response> _handleGet(RequestContext context) async {
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('List custom slots failed',
-        context: 'CustomSlotsGet',
-        error: e, stackTrace: stackTrace);
+        context: 'CustomSlotsGet', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list slots'}},
+      body: {
+        'error': {'message': 'Failed to list slots'}
+      },
     );
   }
 }
@@ -55,7 +55,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -65,7 +67,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (cpId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Not a consultant'}},
+        body: {
+          'error': {'message': 'Not a consultant'}
+        },
       );
     }
 
@@ -107,11 +111,12 @@ Future<Response> _handlePost(RequestContext context) async {
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Create custom slot failed',
-        context: 'CustomSlotsPost',
-        error: e, stackTrace: stackTrace);
+        context: 'CustomSlotsPost', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create slot'}},
+      body: {
+        'error': {'message': 'Failed to create slot'}
+      },
     );
   }
 }

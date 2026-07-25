@@ -150,8 +150,7 @@ class _CancelDialogState extends State<_CancelDialog> {
                 return FilterChip(
                   label: Text(_reasonLabel(reason)),
                   selected: isSelected,
-                  onSelected: (_) =>
-                      setState(() => _selectedReason = reason),
+                  onSelected: (_) => setState(() => _selectedReason = reason),
                   selectedColor: theme.colorScheme.errorContainer,
                   checkmarkColor: theme.colorScheme.onErrorContainer,
                 );

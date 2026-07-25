@@ -1,15 +1,9 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
-/// Repository for collaborator operations.
-///
-/// Uses the unified `Collaborator` model (webinar/class twins were merged
-/// upstream; `collaboratorType` discriminates, `webinarPlanId`/`classPlanId`
-/// are XOR, and `revenueShareBps` replaced `revenueSharePercentage`).
-///
-/// NOTE: collaborations are a deferred (feature-flagged) feature on mobile;
-/// this repository covers the read/respond surface only.
+/// Repository for collaborator operations
+/// (WebinarCollaborator + ClassCollaborator)
 class CollaboratorRepository extends BaseRepository {
   /// Create a collaborator repository with the given executor
   CollaboratorRepository(super._executor, this._prisma);
@@ -19,40 +13,54 @@ class CollaboratorRepository extends BaseRepository {
   Future<Map<String, dynamic>> getMyCollaborations(
     String consultantProfileId,
   ) async {
-    final results = await _prisma.collaborator.findManyRaw(
-      where: {
-        'consultantProfileId': consultantProfileId,
-        'status': FilterOperators.in_(['PENDING', 'ACCEPTED']),
-      },
-      include: {
-        'webinarPlan': {
-          'include': {
-            'consultantProfile': {
-              'include': {'user': true},
-            },
-          },
-        },
-        'classPlan': {
-          'include': {
-            'consultantProfile': {
-              'include': {'user': true},
-            },
-          },
-        },
-        'invitedBy': {
-          'include': {'user': true},
-        },
-      },
+    // Webinar collaborations with nested includes.
+    // TODO(mega-sync): the schema consolidated WebinarCollaborator +
+    // ClassCollaborator into a single Collaborator model (collaboratorType
+    // discriminator, revenueShareBps, invitedById, typed permission booleans).
+    // Filtering by collaboratorType keeps this compiling; the flatten shape
+    // below still needs updating to the new field names for full correctness.
+    final webinarResults = await _prisma.collaborator.findMany(
+      where: CollaboratorWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        collaboratorType:
+            const CollaboratorTypeFilter(equals: CollaboratorType.webinar),
+        status: const CollaboratorStatusFilter(
+          in_: [CollaboratorStatus.pending, CollaboratorStatus.accepted],
+        ),
+      ),
+      include: const CollaboratorInclude(
+        webinarPlan: WebinarPlanInclude(
+          consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+        ),
+        invitedBy: ConsultantProfileInclude(user: UserInclude()),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
+    final webinarCollaborations = webinarResults
+        .map((r) => _flattenWebinarCollaboration(r.toJson()))
+        .toList();
+
+    // Class collaborations with nested includes (see TODO above).
+    final classResults = await _prisma.collaborator.findMany(
+      where: CollaboratorWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        collaboratorType:
+            const CollaboratorTypeFilter(equals: CollaboratorType.classValue),
+        status: const CollaboratorStatusFilter(
+          in_: [CollaboratorStatus.pending, CollaboratorStatus.accepted],
+        ),
+      ),
+      include: const CollaboratorInclude(
+        classPlan: ClassPlanInclude(
+          consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+        ),
+        invitedBy: ConsultantProfileInclude(user: UserInclude()),
+      ),
       orderBy: {'createdAt': 'desc'},
     );
 
-    final webinarCollaborations = results
-        .where((c) => c['collaboratorType'] == 'WEBINAR')
-        .map(_flattenCollaboration)
-        .toList();
-    final classCollaborations = results
-        .where((c) => c['collaboratorType'] == 'CLASS')
-        .map(_flattenCollaboration)
+    final classCollaborations = classResults
+        .map((r) => _flattenClassCollaboration(r.toJson()))
         .toList();
 
     final counts = await getCollaborationCounts(consultantProfileId);
@@ -71,40 +79,42 @@ class CollaboratorRepository extends BaseRepository {
     required String response,
     required String planType,
   }) async {
-    final now = DateTime.now().toUtc().toIso8601String();
+    // WebinarCollaborator + ClassCollaborator were consolidated into a single
+    // Collaborator model; the id is unique across it, so planType no longer
+    // selects a table.
+    final now = DateTime.now().toUtc();
 
     // First check the record exists and is PENDING for this consultant
-    final findQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.findFirst)
-        .where({
-          'id': id,
-          'consultantProfileId': consultantProfileId,
-          'collaboratorType': planType == 'webinar' ? 'WEBINAR' : 'CLASS',
-          'status': 'PENDING',
-        })
-        .build();
-
-    final existing = await executeQueryAsSingleMap(findQuery);
+    final existing = await _prisma.collaborator.findFirst(
+      where: CollaboratorWhereInput(
+        id: StringFilter(equals: id),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        status:
+            const CollaboratorStatusFilter(equals: CollaboratorStatus.pending),
+      ),
+    );
     if (existing == null) return null;
 
     // Update the record
-    final updateQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data({
-          'status': response,
-          'respondedAt': now,
-        })
-        .build();
-
-    await executeMutation(updateQuery);
+    await _prisma.collaborator.update(
+      where: CollaboratorWhereUniqueInput(id: id),
+      data: UpdateCollaboratorInput(
+        // Restrict to the two terminal decisions this endpoint documents.
+        // enumFromWire alone would also accept PENDING/REMOVED, letting a
+        // client push a collaboration back to pending or silently remove it.
+        status: enumFromWire(
+          const [CollaboratorStatus.accepted, CollaboratorStatus.declined],
+          response,
+          field: 'response',
+        ),
+        respondedAt: now,
+      ),
+    );
 
     return {
       'id': id,
       'status': response,
-      'respondedAt': now,
+      'respondedAt': now.toIso8601String(),
     };
   }
 
@@ -112,27 +122,25 @@ class CollaboratorRepository extends BaseRepository {
   Future<Map<String, int>> getCollaborationCounts(
     String consultantProfileId,
   ) async {
-    final pendingQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'PENDING',
-        })
-        .build();
-
-    final acceptedQuery = JsonQueryBuilder()
-        .model('Collaborator')
-        .action(QueryAction.count)
-        .where({
-          'consultantProfileId': consultantProfileId,
-          'status': 'ACCEPTED',
-        })
-        .build();
-
+    // Single Collaborator model now covers both webinar + class; count by
+    // status directly (no per-type split needed since the summary sums them).
     final results = await Future.wait([
-      executeCount(pendingQuery),
-      executeCount(acceptedQuery),
+      _prisma.collaborator.count(
+        where: CollaboratorWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+          status: const CollaboratorStatusFilter(
+            equals: CollaboratorStatus.pending,
+          ),
+        ),
+      ),
+      _prisma.collaborator.count(
+        where: CollaboratorWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+          status: const CollaboratorStatusFilter(
+            equals: CollaboratorStatus.accepted,
+          ),
+        ),
+      ),
     ]);
 
     return {
@@ -141,38 +149,57 @@ class CollaboratorRepository extends BaseRepository {
     };
   }
 
-  /// Flatten a nested Collaborator include result to the flat shape expected
-  /// by the frontend (planTitle, planPrice, hostName, etc.)
-  Map<String, dynamic> _flattenCollaboration(Map<String, dynamic> c) {
-    final isWebinar = c['collaboratorType'] == 'WEBINAR';
-    final plan = (isWebinar ? c['webinarPlan'] : c['classPlan'])
-            as Map<String, dynamic>? ??
-        {};
+  /// Flatten a nested WebinarCollaborator include result to the flat shape
+  /// expected by the frontend (planTitle, planPrice, hostName, etc.)
+  Map<String, dynamic> _flattenWebinarCollaboration(Map<String, dynamic> wc) {
+    final plan = wc['webinarPlan'] as Map<String, dynamic>? ?? {};
     final hostProfile =
         plan['consultantProfile'] as Map<String, dynamic>? ?? {};
     final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
-    final invitedByProfile = c['invitedBy'] as Map<String, dynamic>? ?? {};
-    final inviterUser =
-        invitedByProfile['user'] as Map<String, dynamic>? ?? {};
+    final invitedByProfile = wc['invitedBy'] as Map<String, dynamic>? ?? {};
+    final inviterUser = invitedByProfile['user'] as Map<String, dynamic>? ?? {};
 
     return {
-      'id': c['id'],
-      'role': c['role'],
-      'status': c['status'],
-      // bps → percentage for the existing frontend contract (3000 → 30.0).
-      // Int column today, but tolerate driver/schema drift defensively.
-      'revenueSharePercentage': switch (c['revenueShareBps']) {
-        final num n => n / 100,
-        final BigInt b => b.toInt() / 100,
-        final String s => (int.tryParse(s) ?? 0) / 100,
-        _ => null,
-      },
-      'createdAt': c['createdAt'],
+      'id': wc['id'],
+      'role': wc['role'],
+      'status': wc['status'],
+      'revenueSharePercentage': (wc['revenueShareBps'] as int?) == null
+          ? null
+          : (wc['revenueShareBps'] as int) / 100,
+      'createdAt': wc['createdAt'],
       'planId': plan['id'],
       'planTitle': plan['title'],
       'planPrice': plan['price'],
-      if (isWebinar) 'durationInHours': plan['durationInHours'],
-      if (!isWebinar) 'sessionDurationInHours': plan['sessionDurationInHours'],
+      'durationInHours': plan['durationInHours'],
+      'maxParticipants': plan['maxParticipants'],
+      'hostName': hostUser['name'],
+      'hostImage': hostUser['image'],
+      'inviterName': inviterUser['name'],
+    };
+  }
+
+  /// Flatten a nested ClassCollaborator include result to the flat shape
+  /// expected by the frontend (planTitle, planPrice, hostName, etc.)
+  Map<String, dynamic> _flattenClassCollaboration(Map<String, dynamic> cc) {
+    final plan = cc['classPlan'] as Map<String, dynamic>? ?? {};
+    final hostProfile =
+        plan['consultantProfile'] as Map<String, dynamic>? ?? {};
+    final hostUser = hostProfile['user'] as Map<String, dynamic>? ?? {};
+    final invitedByProfile = cc['invitedBy'] as Map<String, dynamic>? ?? {};
+    final inviterUser = invitedByProfile['user'] as Map<String, dynamic>? ?? {};
+
+    return {
+      'id': cc['id'],
+      'role': cc['role'],
+      'status': cc['status'],
+      'revenueSharePercentage': (cc['revenueShareBps'] as int?) == null
+          ? null
+          : (cc['revenueShareBps'] as int) / 100,
+      'createdAt': cc['createdAt'],
+      'planId': plan['id'],
+      'planTitle': plan['title'],
+      'planPrice': plan['price'],
+      'sessionDurationInHours': plan['sessionDurationInHours'],
       'maxParticipants': plan['maxParticipants'],
       'hostName': hostUser['name'],
       'hostImage': hostUser['image'],

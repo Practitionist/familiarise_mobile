@@ -255,8 +255,7 @@ class _MyBookingDetailsScreenState
               ],
 
               // Message
-              if (booking.message != null &&
-                  booking.message!.isNotEmpty) ...[
+              if (booking.message != null && booking.message!.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 _buildSectionLabel(
                   _isConsultantView ? "Client's Message" : 'Your Message',
@@ -456,6 +455,9 @@ class _MyBookingDetailsScreenState
         booking: _fetchedBooking!,
       );
       if (choice == null) return;
+      // The sheet above awaited, so this State may have been disposed before we
+      // reuse `context` for the next sheet.
+      if (!mounted) return;
 
       if (choice is RescheduleSession) {
         // Show session selector

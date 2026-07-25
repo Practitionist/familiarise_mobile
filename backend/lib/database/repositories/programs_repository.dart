@@ -1,4 +1,4 @@
-import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:backend/generated/index.dart';
 
 import 'base_repository.dart';
 
@@ -6,7 +6,9 @@ import 'base_repository.dart';
 ///
 /// Handles queries for browsing and booking webinars and classes.
 class ProgramsRepository extends BaseRepository {
-  ProgramsRepository(super.executor);
+  ProgramsRepository(super.executor, this._prisma);
+
+  final PrismaClient _prisma;
 
   /// Find webinar plans with optional filters
   ///
@@ -20,39 +22,31 @@ class ProgramsRepository extends BaseRepository {
     String sortBy = 'date',
     bool sortDesc = false,
   }) async {
-    // Build where clause for filtering
-    final where = <String, dynamic>{};
+    // Typed where (0.8.0): to-one consultantProfile relation filter +
+    // case-insensitive search OR.
+    final where = WebinarPlanWhereInput(
+      consultantProfile: domainId == null
+          ? null
+          : ConsultantProfileRelationFilter(
+              is_: ConsultantProfileWhereInput(
+                domainId: StringFilter(equals: domainId),
+              ),
+            ),
+      language: language == null ? null : StringFilter(equals: language),
+      OR: (searchQuery != null && searchQuery.isNotEmpty)
+          ? [
+              WebinarPlanWhereInput(
+                title: StringFilter(contains: searchQuery, mode: 'insensitive'),
+              ),
+              WebinarPlanWhereInput(
+                description:
+                    StringFilter(contains: searchQuery, mode: 'insensitive'),
+              ),
+            ]
+          : null,
+    );
 
-    // Domain filter via consultantProfile relation
-    if (domainId != null) {
-      where['consultantProfile'] = FilterOperators.some({
-        'domainId': domainId,
-      });
-    }
-
-    if (language != null) {
-      where['language'] = language;
-    }
-
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      where['OR'] = [
-        {
-          'title': {'contains': searchQuery, 'mode': 'insensitive'}
-        },
-        {
-          'description': {'contains': searchQuery, 'mode': 'insensitive'}
-        },
-      ];
-    }
-
-    // Count total for pagination
-    final countQuery = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
-
-    final totalCount = await executeCount(countQuery);
+    final totalCount = await _prisma.webinarPlan.count(where: where);
 
     // Determine sort field
     String orderByField;
@@ -64,17 +58,13 @@ class ProgramsRepository extends BaseRepository {
         orderByField = 'createdAt';
     }
 
-    // Fetch webinar plans (without includes for now - fetch relations separately)
-    final listQuery = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.findMany)
-        .where(where)
-        .orderBy({orderByField: sortDesc ? 'desc' : 'asc'})
-        .skip(page * pageSize)
-        .take(pageSize)
-        .build();
-
-    final webinars = await executeQueryAsMaps(listQuery);
+    final webinarModels = await _prisma.webinarPlan.findMany(
+      where: where,
+      orderBy: {orderByField: sortDesc ? 'desc' : 'asc'},
+      skip: page * pageSize,
+      take: pageSize,
+    );
+    final webinars = webinarModels.map((w) => w.toJson()).toList();
 
     // Batch fetch all consultant profiles (fixes N+1 query issue)
     final profileIds = webinars
@@ -90,7 +80,7 @@ class ProgramsRepository extends BaseRepository {
       final profileId = w['consultantProfileId'] as String?;
       result['consultant'] =
           profileId != null ? consultantsMap[profileId] : null;
-      result['upcomingSessions'] = []; // TODO: Fetch webinar sessions
+      result['upcomingSessions'] = <Map<String, dynamic>>[]; // TODO: sessions
       return result;
     }).toList();
 
@@ -108,31 +98,31 @@ class ProgramsRepository extends BaseRepository {
   /// Find a webinar plan by ID
   Future<Map<String, dynamic>?> findWebinarById(String id) async {
     // Fetch webinar plan
-    final query = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    final webinar = await executeQueryAsSingleMap(query);
-    if (webinar == null) return null;
+    final webinarModel = await _prisma.webinarPlan.findUnique(
+      where: WebinarPlanWhereUniqueInput(id: id),
+    );
+    if (webinarModel == null) return null;
+    final webinar = webinarModel.toJson();
 
     // Fetch consultant profile with user
     final consultantProfileId = webinar['consultantProfileId'] as String?;
     Map<String, dynamic>? consultant;
 
     if (consultantProfileId != null) {
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsultantProfile')
-          .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId}).include({
-        'user': {
-          'select': {'name': true, 'image': true},
-        },
-        'domain': {
-          'select': {'id': true, 'name': true},
-        },
-      }).build();
-      final profile = await executeQueryAsSingleMap(profileQuery);
+      // Typed include with per-relation select (0.8.0).
+      final profile = await _prisma.consultantProfile.findFirstProjected(
+        where: ConsultantProfileWhereInput(
+          id: StringFilter(equals: consultantProfileId),
+        ),
+        include: ConsultantProfileInclude(
+          user: UserInclude(
+            select: [UserScalarField.name, UserScalarField.image],
+          ),
+          domain: DomainInclude(
+            select: [DomainScalarField.id, DomainScalarField.name],
+          ),
+        ),
+      );
       if (profile != null) {
         final user = profile['user'] as Map<String, dynamic>?;
         consultant = {
@@ -163,43 +153,40 @@ class ProgramsRepository extends BaseRepository {
     String sortBy = 'startDate',
     bool sortDesc = false,
   }) async {
-    // Build where clause for filtering
-    final where = <String, dynamic>{};
+    // Typed where (0.8.0).
+    final where = ClassPlanWhereInput(
+      consultantProfile: domainId == null
+          ? null
+          : ConsultantProfileRelationFilter(
+              is_: ConsultantProfileWhereInput(
+                domainId: StringFilter(equals: domainId),
+              ),
+            ),
+      language: language == null ? null : StringFilter(equals: language),
+      // The re-synced schema dropped ClassPlan.enrollmentStatus (the old raw
+      // filter was silently broken). Nearest semantic: plans with at least
+      // one class still scheduled (enrollment effectively open).
+      classes: enrollmentOpen
+          ? const ClassModelListRelationFilter(
+              some: ClassModelWhereInput(
+                status: ClassStatusFilter(equals: ClassStatus.scheduled),
+              ),
+            )
+          : null,
+      OR: (searchQuery != null && searchQuery.isNotEmpty)
+          ? [
+              ClassPlanWhereInput(
+                title: StringFilter(contains: searchQuery, mode: 'insensitive'),
+              ),
+              ClassPlanWhereInput(
+                description:
+                    StringFilter(contains: searchQuery, mode: 'insensitive'),
+              ),
+            ]
+          : null,
+    );
 
-    // Domain filter via consultantProfile relation
-    if (domainId != null) {
-      where['consultantProfile'] = FilterOperators.some({
-        'domainId': domainId,
-      });
-    }
-
-    if (language != null) {
-      where['language'] = language;
-    }
-
-    if (enrollmentOpen) {
-      where['enrollmentStatus'] = 'OPEN';
-    }
-
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      where['OR'] = [
-        {
-          'title': {'contains': searchQuery, 'mode': 'insensitive'}
-        },
-        {
-          'description': {'contains': searchQuery, 'mode': 'insensitive'}
-        },
-      ];
-    }
-
-    // Count total for pagination
-    final countQuery = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
-
-    final totalCount = await executeCount(countQuery);
+    final totalCount = await _prisma.classPlan.count(where: where);
 
     // Determine sort field
     String orderByField;
@@ -213,17 +200,13 @@ class ProgramsRepository extends BaseRepository {
         orderByField = 'createdAt';
     }
 
-    // Fetch class plans (without includes for now - fetch relations separately)
-    final listQuery = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.findMany)
-        .where(where)
-        .orderBy({orderByField: sortDesc ? 'desc' : 'asc'})
-        .skip(page * pageSize)
-        .take(pageSize)
-        .build();
-
-    final classes = await executeQueryAsMaps(listQuery);
+    final classModels = await _prisma.classPlan.findMany(
+      where: where,
+      orderBy: {orderByField: sortDesc ? 'desc' : 'asc'},
+      skip: page * pageSize,
+      take: pageSize,
+    );
+    final classes = classModels.map((c) => c.toJson()).toList();
 
     // Batch fetch all consultant profiles (fixes N+1 query issue)
     final profileIds = classes
@@ -239,7 +222,7 @@ class ProgramsRepository extends BaseRepository {
       final profileId = c['consultantProfileId'] as String?;
       result['consultant'] =
           profileId != null ? consultantsMap[profileId] : null;
-      result['curriculum'] = []; // TODO: Fetch class contents
+      result['curriculum'] = <Map<String, dynamic>>[]; // TODO: class contents
       return result;
     }).toList();
 
@@ -257,31 +240,31 @@ class ProgramsRepository extends BaseRepository {
   /// Find a class plan by ID
   Future<Map<String, dynamic>?> findClassById(String id) async {
     // Fetch class plan
-    final query = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.findUnique)
-        .where({'id': id}).build();
-
-    final classPlan = await executeQueryAsSingleMap(query);
-    if (classPlan == null) return null;
+    final classPlanModel = await _prisma.classPlan.findUnique(
+      where: ClassPlanWhereUniqueInput(id: id),
+    );
+    if (classPlanModel == null) return null;
+    final classPlan = classPlanModel.toJson();
 
     // Fetch consultant profile with user
     final consultantProfileId = classPlan['consultantProfileId'] as String?;
     Map<String, dynamic>? consultant;
 
     if (consultantProfileId != null) {
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsultantProfile')
-          .action(QueryAction.findUnique)
-          .where({'id': consultantProfileId}).include({
-        'user': {
-          'select': {'name': true, 'image': true},
-        },
-        'domain': {
-          'select': {'id': true, 'name': true},
-        },
-      }).build();
-      final profile = await executeQueryAsSingleMap(profileQuery);
+      // Typed include with per-relation select (0.8.0).
+      final profile = await _prisma.consultantProfile.findFirstProjected(
+        where: ConsultantProfileWhereInput(
+          id: StringFilter(equals: consultantProfileId),
+        ),
+        include: ConsultantProfileInclude(
+          user: UserInclude(
+            select: [UserScalarField.name, UserScalarField.image],
+          ),
+          domain: DomainInclude(
+            select: [DomainScalarField.id, DomainScalarField.name],
+          ),
+        ),
+      );
       if (profile != null) {
         final user = profile['user'] as Map<String, dynamic>?;
         consultant = {
@@ -308,18 +291,14 @@ class ProgramsRepository extends BaseRepository {
   ) async {
     if (profileIds.isEmpty) return {};
 
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findMany)
-        .where({
-      'id': {'in': profileIds},
-    }).include({
-      'user': {
-        'select': {'name': true, 'image': true},
-      },
-    }).build();
-
-    final profiles = await executeQueryAsMaps(query);
+    final profiles = await _prisma.consultantProfile.findManyProjected(
+      where: ConsultantProfileWhereInput(id: StringFilter(in_: profileIds)),
+      include: ConsultantProfileInclude(
+        user: UserInclude(
+          select: [UserScalarField.name, UserScalarField.image],
+        ),
+      ),
+    );
 
     // Create lookup map
     final result = <String, Map<String, dynamic>>{};
@@ -344,15 +323,15 @@ class ProgramsRepository extends BaseRepository {
     String webinarPlanId,
   ) async {
     // Step 1: Get all Webinar records for this plan
-    final webinarQuery =
-        JsonQueryBuilder().model('Webinar').action(QueryAction.findMany).where({
-      'webinarPlanId': webinarPlanId,
-      'status': {
-        'in': ['SCHEDULED', 'IN_PROGRESS']
-      },
-    }).build();
-
-    final webinars = await executeQueryAsMaps(webinarQuery);
+    final webinarModels = await _prisma.webinar.findMany(
+      where: WebinarWhereInput(
+        webinarPlanId: StringFilter(equals: webinarPlanId),
+        status: const WebinarStatusFilter(
+          in_: [WebinarStatus.scheduled, WebinarStatus.inProgress],
+        ),
+      ),
+    );
+    final webinars = webinarModels.map((w) => w.toJson()).toList();
     if (webinars.isEmpty) return [];
 
     // Create a map of webinarId -> webinar for lookup
@@ -365,19 +344,13 @@ class ProgramsRepository extends BaseRepository {
     }
 
     // Step 2: Get all Appointments for these webinars
-    final appointmentQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-      'webinarId': {'in': webinarIds},
-    }).include({
-      'slots': true,
-      'webinar': {
-        'select': {'id': true}
-      },
-    }).build();
-
-    final appointments = await executeQueryAsMaps(appointmentQuery);
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(webinarId: StringFilter(in_: webinarIds)),
+      include: AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(),
+        webinar: WebinarInclude(select: [WebinarScalarField.id]),
+      ),
+    );
 
     // Transform to session format
     final sessions = <Map<String, dynamic>>[];
@@ -397,7 +370,7 @@ class ProgramsRepository extends BaseRepository {
       final webinar = webinarId != null ? webinarMap[webinarId] : null;
       if (webinar == null) continue;
 
-      final slots = appt['slots'] as List? ?? [];
+      final slots = appt['slotsOfAppointment'] as List? ?? [];
       for (final slot in slots) {
         final slotMap = slot as Map<String, dynamic>;
         sessions.add({
@@ -430,16 +403,16 @@ class ProgramsRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> _fetchClassSessions(
     String classPlanId,
   ) async {
-    // Step 1: Get all Class records for this plan
-    final classQuery =
-        JsonQueryBuilder().model('Class').action(QueryAction.findMany).where({
-      'classPlanId': classPlanId,
-      'status': {
-        'in': ['SCHEDULED', 'IN_PROGRESS']
-      },
-    }).build();
-
-    final classes = await executeQueryAsMaps(classQuery);
+    // Step 1: Get all Class records for this plan (Dart model: ClassModel)
+    final classModels = await _prisma.classModel.findMany(
+      where: ClassModelWhereInput(
+        classPlanId: StringFilter(equals: classPlanId),
+        status: const ClassStatusFilter(
+          in_: [ClassStatus.scheduled, ClassStatus.inProgress],
+        ),
+      ),
+    );
+    final classes = classModels.map((c) => c.toJson()).toList();
     if (classes.isEmpty) return [];
 
     // Create a map of classId -> class for lookup
@@ -451,20 +424,16 @@ class ProgramsRepository extends BaseRepository {
       classMap[id] = c;
     }
 
-    // Step 2: Get all Appointments for these classes
-    final appointmentQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-      'classId': {'in': classIds},
-    }).include({
-      'slots': true,
-      'class': {
-        'select': {'id': true}
-      },
-    }).build();
-
-    final appointments = await executeQueryAsMaps(appointmentQuery);
+    // Step 2: Get all Appointments for these classes (relation renamed to
+    // classRef in the re-synced schema; the old raw 'class' include key was
+    // silently broken).
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(classId: StringFilter(in_: classIds)),
+      include: AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(),
+        classRef: ClassModelInclude(select: [ClassModelScalarField.id]),
+      ),
+    );
 
     // Transform to session format
     final sessions = <Map<String, dynamic>>[];
@@ -472,7 +441,7 @@ class ProgramsRepository extends BaseRepository {
       // Get classId from response or from class relation
       var classId = appt['classId'] as String?;
       if (classId == null) {
-        final classData = appt['class'] as Map<String, dynamic>?;
+        final classData = appt['classRef'] as Map<String, dynamic>?;
         classId = classData?['id'] as String?;
       }
       // Fallback for single class case
@@ -483,7 +452,7 @@ class ProgramsRepository extends BaseRepository {
       final classRecord = classId != null ? classMap[classId] : null;
       if (classRecord == null) continue;
 
-      final slots = appt['slots'] as List? ?? [];
+      final slots = appt['slotsOfAppointment'] as List? ?? [];
       for (final slot in slots) {
         final slotMap = slot as Map<String, dynamic>;
         sessions.add({

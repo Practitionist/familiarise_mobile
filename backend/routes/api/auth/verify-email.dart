@@ -68,8 +68,7 @@ Future<Response> _handlePost(RequestContext context) async {
 /// GET — confirm email verification with token
 Future<Response> _handleGet(RequestContext context) async {
   try {
-    final token =
-        context.request.uri.queryParameters['token'];
+    final token = context.request.uri.queryParameters['token'];
 
     if (token == null || token.isEmpty) {
       return Response.json(

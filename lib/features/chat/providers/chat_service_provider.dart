@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
-
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/booking_repository_impl.dart';

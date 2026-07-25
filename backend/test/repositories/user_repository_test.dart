@@ -1,50 +1,49 @@
 import 'package:backend/database/repositories/user_repository.dart';
-import 'package:backend/generated/prisma_client.dart';
+import 'package:backend/generated/index.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:test/test.dart';
 
-class MockQueryExecutor extends Mock implements QueryExecutor {}
+import '../helpers/prisma_mocks.dart';
 
-class MockPrismaClient extends Mock implements PrismaClient {}
+class MockQueryExecutor extends Mock implements QueryExecutor {}
 
 class FakeJsonQuery extends Fake implements JsonQuery {}
 
 void main() {
   late MockQueryExecutor mockExecutor;
   late MockPrismaClient mockPrisma;
+  late MockUserDelegate mockUsers;
   late UserRepository repository;
 
   setUpAll(() {
     registerFallbackValue(FakeJsonQuery());
+    registerPrismaFallbacks();
   });
 
   setUp(() {
     mockExecutor = MockQueryExecutor();
     mockPrisma = MockPrismaClient();
+    mockUsers = MockUserDelegate();
+    when(() => mockPrisma.user).thenReturn(mockUsers);
     repository = UserRepository(mockExecutor, mockPrisma);
   });
 
   group('findByEmail', () {
     test('returns user when found', () async {
-      final expected = {
-        'id': 'user-1',
-        'email': 'test@example.com',
-        'name': 'Test User',
-        'role': 'CONSULTEE',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildUser());
 
       final result = await repository.findByEmail('test@example.com');
 
-      expect(result, equals(expected));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      expect(result?['id'], equals('user-1'));
+      expect(result?['email'], equals('test@example.com'));
+      expect(result?['role'], equals('CONSULTEE'));
+      verify(() => mockUsers.findFirst(where: any(named: 'where'))).called(1);
     });
 
     test('returns null when user not found', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       final result = await repository.findByEmail('nonexistent@example.com');
@@ -55,24 +54,17 @@ void main() {
 
   group('findById', () {
     test('returns user when found', () async {
-      final expected = {
-        'id': 'user-1',
-        'email': 'test@example.com',
-        'name': 'Test User',
-        'role': 'CONSULTEE',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildUser());
 
       final result = await repository.findById('user-1');
 
-      expect(result, equals(expected));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      expect(result?['id'], equals('user-1'));
+      verify(() => mockUsers.findFirst(where: any(named: 'where'))).called(1);
     });
 
     test('returns null when user not found', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
           .thenAnswer((_) async => null);
 
       final result = await repository.findById('nonexistent-id');
@@ -83,17 +75,9 @@ void main() {
 
   group('create', () {
     test('creates user and returns result', () async {
-      final expected = {
-        'id': 'user-1',
-        'email': 'new@example.com',
-        'name': 'New User',
-        'role': 'CONSULTEE',
-        'emailVerified': false,
-        'onboardingCompleted': false,
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockUsers.create(data: any(named: 'data'))).thenAnswer(
+        (_) async => buildUser(email: 'new@example.com', name: 'New User'),
+      );
 
       final result = await repository.create(
         id: 'user-1',
@@ -101,22 +85,21 @@ void main() {
         name: 'New User',
       );
 
-      expect(result, equals(expected));
+      expect(result['email'], equals('new@example.com'));
       expect(result['emailVerified'], isFalse);
       expect(result['onboardingCompleted'], isFalse);
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      verify(() => mockUsers.create(data: any(named: 'data'))).called(1);
     });
 
     test('creates user with custom role', () async {
-      final expected = {
-        'id': 'user-2',
-        'email': 'consultant@example.com',
-        'name': 'Consultant',
-        'role': 'CONSULTANT',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(() => mockUsers.create(data: any(named: 'data'))).thenAnswer(
+        (_) async => buildUser(
+          id: 'user-2',
+          email: 'consultant@example.com',
+          name: 'Consultant',
+          role: UserRole.consultant,
+        ),
+      );
 
       final result = await repository.create(
         id: 'user-2',
@@ -128,51 +111,58 @@ void main() {
       expect(result['role'], equals('CONSULTANT'));
     });
 
-    test('throws when database fails to create user', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
-
+    test('throws on an unsupported role wire value', () async {
       expect(
         () => repository.create(
           id: 'user-1',
           email: 'fail@example.com',
+          role: 'WIZARD',
         ),
-        throwsA(isA<Exception>()),
+        throwsA(isA<ArgumentError>()),
       );
     });
   });
 
   group('update', () {
     test('updates user name and returns result', () async {
-      final expected = {
-        'id': 'user-1',
-        'name': 'Updated Name',
-        'email': 'test@example.com',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildUser(name: 'Updated Name'));
 
       final result = await repository.update(
         id: 'user-1',
         name: 'Updated Name',
       );
 
-      expect(result, equals(expected));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
+      expect(result?['name'], equals('Updated Name'));
+      verify(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).called(1);
     });
 
     test('updates multiple fields', () async {
-      final expected = {
-        'id': 'user-1',
-        'name': 'Updated',
-        'phone': '+1234567890',
-        'city': 'New York',
-        'country': 'US',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockUsers.findFirst(where: any(named: 'where'))).thenAnswer(
+        (_) async => buildUser(
+          name: 'Updated',
+          phone: '+1234567890',
+          city: 'New York',
+          country: 'US',
+        ),
+      );
 
       final result = await repository.update(
         id: 'user-1',
@@ -187,8 +177,12 @@ void main() {
     });
 
     test('returns null when user not found', () async {
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 0);
 
       final result = await repository.update(
         id: 'nonexistent',
@@ -196,18 +190,21 @@ void main() {
       );
 
       expect(result, isNull);
+      // No re-read when nothing matched.
+      verifyNever(() => mockUsers.findFirst(where: any(named: 'where')));
     });
   });
 
   group('updateEmailVerified', () {
     test('marks email as verified', () async {
-      final expected = {
-        'id': 'user-1',
-        'emailVerified': true,
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildUser(emailVerified: true));
 
       final result = await repository.updateEmailVerified(
         id: 'user-1',
@@ -215,17 +212,17 @@ void main() {
       );
 
       expect(result?['emailVerified'], isTrue);
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
     });
 
     test('marks email as unverified', () async {
-      final expected = {
-        'id': 'user-1',
-        'emailVerified': false,
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockUsers.findFirst(where: any(named: 'where')))
+          .thenAnswer((_) async => buildUser());
 
       final result = await repository.updateEmailVerified(
         id: 'user-1',
@@ -238,17 +235,19 @@ void main() {
 
   group('updateForOnboarding', () {
     test('updates user with onboarding data', () async {
-      final expected = {
-        'id': 'user-1',
-        'role': 'CONSULTEE',
-        'name': 'Onboarded User',
-        'onboardingCompleted': true,
-        'phone': '+1234567890',
-        'gender': 'MALE',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockUsers.findFirst(where: any(named: 'where'))).thenAnswer(
+        (_) async => buildUser(
+          name: 'Onboarded User',
+          onboardingCompleted: true,
+          phone: '+1234567890',
+        ),
+      );
 
       final result = await repository.updateForOnboarding(
         id: 'user-1',
@@ -261,20 +260,23 @@ void main() {
 
       expect(result?['onboardingCompleted'], isTrue);
       expect(result?['name'], equals('Onboarded User'));
-      verify(() => mockExecutor.executeQueryAsSingleMap(any())).called(1);
     });
 
     test('includes optional profile IDs when provided', () async {
-      final expected = {
-        'id': 'user-1',
-        'role': 'CONSULTANT',
-        'name': 'Consultant',
-        'onboardingCompleted': true,
-        'consultantProfileId': 'cp-1',
-      };
-
-      when(() => mockExecutor.executeQueryAsSingleMap(any()))
-          .thenAnswer((_) async => expected);
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 1);
+      when(() => mockUsers.findFirst(where: any(named: 'where'))).thenAnswer(
+        (_) async => buildUser(
+          name: 'Consultant',
+          role: UserRole.consultant,
+          onboardingCompleted: true,
+          consultantProfileId: 'cp-1',
+        ),
+      );
 
       final result = await repository.updateForOnboarding(
         id: 'user-1',
@@ -286,29 +288,34 @@ void main() {
 
       expect(result?['consultantProfileId'], equals('cp-1'));
     });
+
+    test('returns null when user not found', () async {
+      when(
+        () => mockUsers.updateMany(
+          where: any(named: 'where'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer((_) async => 0);
+
+      final result = await repository.updateForOnboarding(
+        id: 'nonexistent',
+        role: 'CONSULTEE',
+        name: 'Ghost',
+        onboardingCompleted: true,
+      );
+
+      expect(result, isNull);
+    });
   });
 
   group('delete', () {
     test('deletes user successfully', () async {
-      when(() => mockExecutor.executeMutation(any()))
-          .thenAnswer((_) async => 1);
+      when(() => mockUsers.delete(where: any(named: 'where')))
+          .thenAnswer((_) async => buildUser());
 
-      await expectLater(
-        repository.delete('user-1'),
-        completes,
-      );
+      await expectLater(repository.delete('user-1'), completes);
 
-      verify(() => mockExecutor.executeMutation(any())).called(1);
-    });
-
-    test('completes even when user does not exist', () async {
-      when(() => mockExecutor.executeMutation(any()))
-          .thenAnswer((_) async => 0);
-
-      await expectLater(
-        repository.delete('nonexistent'),
-        completes,
-      );
+      verify(() => mockUsers.delete(where: any(named: 'where'))).called(1);
     });
   });
 }

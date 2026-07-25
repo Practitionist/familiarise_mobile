@@ -19,8 +19,7 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   try {
-    final body =
-        await context.request.json() as Map<String, dynamic>;
+    final body = await context.request.json() as Map<String, dynamic>;
     final email = body['email'] as String?;
 
     if (email == null) {
@@ -38,8 +37,7 @@ Future<Response> onRequest(RequestContext context) async {
     // Always return 200 to prevent email enumeration
     return Response.json(
       body: {
-        'message':
-            'If an account exists, a reset link has been sent',
+        'message': 'If an account exists, a reset link has been sent',
       },
     );
   } catch (e, stackTrace) {
@@ -52,8 +50,7 @@ Future<Response> onRequest(RequestContext context) async {
     // Still return 200 to prevent email enumeration
     return Response.json(
       body: {
-        'message':
-            'If an account exists, a reset link has been sent',
+        'message': 'If an account exists, a reset link has been sent',
       },
     );
   }

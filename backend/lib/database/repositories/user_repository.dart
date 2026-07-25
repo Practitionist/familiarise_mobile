@@ -1,7 +1,7 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Repository for user-related database operations
 ///
@@ -15,12 +15,18 @@ class UserRepository extends BaseRepository {
 
   /// Find user by email
   Future<Map<String, dynamic>?> findByEmail(String email) async {
-    return _prisma.user.findFirstRaw(where: {'email': email});
+    final result = await _prisma.user.findFirst(
+      where: UserWhereInput(email: StringFilter(equals: email)),
+    );
+    return result?.toJson();
   }
 
   /// Find user by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    return _prisma.user.findFirstRaw(where: {'id': id});
+    final result = await _prisma.user.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Create a new user
@@ -38,29 +44,18 @@ class UserRepository extends BaseRepository {
     String role = 'CONSULTEE',
     TransactionExecutor? txn,
   }) async {
-    final data = <String, dynamic>{
-      'id': id,
-      'email': email,
-      'name': name,
-      'image': image,
-      'emailVerified': false,
-      'role': role,
-      'onboardingCompleted': false,
-      'createdAt': nowIso8601,
-      'updatedAt': nowIso8601,
-    };
-
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.create)
-        .data(data)
-        .build();
-
-    final result = await executeQueryAsSingleMap(query, txn: txn);
-    if (result == null) {
-      throw Exception('Failed to create user in database');
-    }
-    return result;
+    // id/createdAt/updatedAt are autofilled by the schema defaults; callers
+    // should use the returned row's id (CreateUserInput has no id param).
+    final delegate = txn == null ? _prisma.user : UserDelegate(txn);
+    final result = await delegate.create(
+      data: CreateUserInput(
+        email: email,
+        name: name ?? '',
+        image: image,
+        role: enumFromWire(UserRole.values, role, field: 'role'),
+      ),
+    );
+    return result.toJson();
   }
 
   /// Update user profile data
@@ -79,32 +74,33 @@ class UserRepository extends BaseRepository {
     String? timezone,
     String? profileDisplayImage,
   }) async {
-    final data = <String, dynamic>{
-      'updatedAt': nowIso8601,
-    };
-    if (name != null) data['name'] = name;
-    if (image != null) data['image'] = image;
-    if (phone != null) data['phone'] = phone;
-    if (bio != null) data['bio'] = bio;
-    if (dateOfBirth != null) data['dateOfBirth'] = dateOfBirth;
-    if (gender != null) data['gender'] = gender;
-    if (city != null) data['city'] = city;
-    if (country != null) data['country'] = country;
-    if (address != null) data['address'] = address;
-    if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
-    if (timezone != null) data['timezone'] = timezone;
-    if (profileDisplayImage != null) {
-      data['profileDisplayImage'] = profileDisplayImage;
-    }
-
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data(data)
-        .build();
-
-    return executeQueryAsSingleMap(query);
+    // updatedAt auto-refreshes on typed update. updateMany (not update) so a
+    // missing row returns null instead of throwing — the route maps null to a
+    // 404 and typed `update` would surface as a 500.
+    final affected = await _prisma.user.updateMany(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+      data: UpdateUserInput(
+        name: name,
+        image: image,
+        phone: phone,
+        bio: bio,
+        dateOfBirth: dateOfBirth != null ? DateTime.parse(dateOfBirth) : null,
+        gender: gender != null
+            ? enumFromWire(Gender.values, gender, field: 'gender')
+            : null,
+        city: city,
+        country: country,
+        address: address,
+        linkedinUrl: linkedinUrl,
+        timezone: timezone,
+        profileDisplayImage: profileDisplayImage,
+      ),
+    );
+    if (affected == 0) return null;
+    final result = await _prisma.user.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Update emailVerified status
@@ -112,16 +108,15 @@ class UserRepository extends BaseRepository {
     required String id,
     required bool verified,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data({
-      'emailVerified': verified,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    final affected = await _prisma.user.updateMany(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+      data: UpdateUserInput(emailVerified: verified),
+    );
+    if (affected == 0) return null;
+    final result = await _prisma.user.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Update user for onboarding completion
@@ -146,41 +141,35 @@ class UserRepository extends BaseRepository {
     String? consultantProfileId,
     TransactionExecutor? txn,
   }) async {
-    final data = <String, dynamic>{
-      'role': role,
-      'name': name,
-      'onboardingCompleted': onboardingCompleted,
-      'updatedAt': nowIso8601,
-    };
-
-    // Add optional fields only if provided
-    if (phone != null) data['phone'] = phone;
-    if (dateOfBirth != null) {
-      data['dateOfBirth'] = dateOfBirth.toIso8601String();
-    }
-    if (gender != null) data['gender'] = gender;
-    if (timezone != null) data['timezone'] = timezone;
-    if (image != null) data['image'] = image;
-    if (city != null) data['city'] = city;
-    if (country != null) data['country'] = country;
-    if (address != null) data['address'] = address;
-    if (linkedinUrl != null) data['linkedinUrl'] = linkedinUrl;
-    if (bio != null) data['bio'] = bio;
-    if (consulteeProfileId != null) {
-      data['consulteeProfileId'] = consulteeProfileId;
-    }
-    if (consultantProfileId != null) {
-      data['consultantProfileId'] = consultantProfileId;
-    }
-
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data(data)
-        .build();
-
-    return executeQueryAsSingleMap(query, txn: txn);
+    // updatedAt auto-refreshes on typed update.
+    final delegate = txn == null ? _prisma.user : UserDelegate(txn);
+    final affected = await delegate.updateMany(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+      data: UpdateUserInput(
+        role: enumFromWire(UserRole.values, role, field: 'role'),
+        name: name,
+        onboardingCompleted: onboardingCompleted,
+        phone: phone,
+        dateOfBirth: dateOfBirth,
+        gender: gender != null
+            ? enumFromWire(Gender.values, gender, field: 'gender')
+            : null,
+        timezone: timezone,
+        image: image,
+        city: city,
+        country: country,
+        address: address,
+        linkedinUrl: linkedinUrl,
+        bio: bio,
+        consulteeProfileId: consulteeProfileId,
+        consultantProfileId: consultantProfileId,
+      ),
+    );
+    if (affected == 0) return null;
+    final result = await delegate.findFirst(
+      where: UserWhereInput(id: StringFilter(equals: id)),
+    );
+    return result?.toJson();
   }
 
   /// Create default CookiePreference and NotificationPreference for a user.
@@ -191,52 +180,20 @@ class UserRepository extends BaseRepository {
     String userId, {
     TransactionExecutor? txn,
   }) async {
-    final now = nowIso8601;
+    // id/consent timestamps are autofilled by schema defaults; the boolean
+    // defaults on the Create inputs match the old explicit values exactly.
+    final cookieDelegate =
+        txn == null ? _prisma.cookiePreference : CookiePreferenceDelegate(txn);
+    await cookieDelegate.create(
+      data: CreateCookiePreferenceInput(userId: userId),
+    );
 
-    const uuid = Uuid();
-
-    // Create CookiePreference with defaults (essential: true, rest: false)
-    final cookieQuery = JsonQueryBuilder()
-        .model('cookie_preferences')
-        .action(QueryAction.create)
-        .data({
-      'id': uuid.v4(),
-      'userId': userId,
-      'essential': true,
-      'analytics': false,
-      'marketing': false,
-      'functional': false,
-      'consentGivenAt': now,
-      'consentUpdatedAt': now,
-    }).build();
-
-    await executeMutation(cookieQuery, txn: txn);
-
-    // Create NotificationPreference with defaults
-    final notifQuery = JsonQueryBuilder()
-        .model('notification_preferences')
-        .action(QueryAction.create)
-        .data({
-      'id': uuid.v4(),
-      'userId': userId,
-      'allNotifications': true,
-      'inAppEnabled': true,
-      'emailEnabled': true,
-      'pushEnabled': false,
-      'mentions': false,
-      'directMessages': false,
-      'updates': false,
-      'appointmentReminders': true,
-      'paymentNotifications': true,
-      'supportUpdates': true,
-      'feedbackAlerts': true,
-      'trialNotifications': true,
-      'subscriptionAlerts': true,
-      'marketingEmails': false,
-      'quietHoursEnabled': false,
-    }).build();
-
-    await executeMutation(notifQuery, txn: txn);
+    final notifDelegate = txn == null
+        ? _prisma.notificationPreference
+        : NotificationPreferenceDelegate(txn);
+    await notifDelegate.create(
+      data: CreateNotificationPreferenceInput(userId: userId),
+    );
   }
 
   /// Delete a user by ID (for cleanup on failed registration)

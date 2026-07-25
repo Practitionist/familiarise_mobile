@@ -1,8 +1,7 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:backend/utils/sentry_logger.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Repository for dispute operations (MVP - read-only visibility)
 ///
@@ -12,50 +11,51 @@ class DisputeRepository extends BaseRepository {
   DisputeRepository(super._executor, this._prisma);
   final PrismaClient _prisma;
 
-  final _uuid = const Uuid();
-
   /// Get dispute by gateway-specific dispute ID
   Future<Map<String, dynamic>?> getDisputeByDisputeId(String disputeId) async {
-    return _prisma.dispute.findFirstRaw(
-      where: {'disputeId': disputeId},
+    final result = await _prisma.dispute.findFirst(
+      where: DisputeWhereInput(disputeId: StringFilter(equals: disputeId)),
     );
+    return result?.toJson();
   }
 
   /// Get all disputes for a payment
   Future<List<Map<String, dynamic>>> getDisputesByPaymentId(
     String paymentId,
   ) async {
-    return _prisma.dispute.findManyRaw(
-      where: {'paymentId': paymentId},
+    final results = await _prisma.dispute.findMany(
+      where: DisputeWhereInput(paymentId: StringFilter(equals: paymentId)),
       orderBy: {'createdAt': 'desc'},
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Get dispute by internal ID
   Future<Map<String, dynamic>?> getDisputeById(String id) async {
-    return _prisma.dispute.findFirstRaw(
-      where: {'id': id},
+    final result = await _prisma.dispute.findFirst(
+      where: DisputeWhereInput(id: StringFilter(equals: id)),
     );
+    return result?.toJson();
   }
 
   /// Get all disputes for a user (via their payments)
   /// Useful for "My Disputes" screen
   Future<List<Map<String, dynamic>>> getDisputesByUserId(String userId) async {
-    return _prisma.dispute.findManyRaw(
-      where: {
-        'payment': {
-          'userId': userId,
-        },
-      },
-      include: {
-        'payment': {
-          'select': {
-            'id': true,
-            'amount': true,
-            'currency': true,
-          },
-        },
-      },
+    return _prisma.dispute.findManyProjected(
+      where: DisputeWhereInput(
+        payment: PaymentRelationFilter(
+          is_: PaymentWhereInput(userId: StringFilter(equals: userId)),
+        ),
+      ),
+      include: const DisputeInclude(
+        payment: PaymentInclude(
+          select: [
+            PaymentScalarField.id,
+            PaymentScalarField.amount,
+            PaymentScalarField.currency,
+          ],
+        ),
+      ),
       orderBy: {'createdAt': 'desc'},
     );
   }
@@ -86,32 +86,26 @@ class DisputeRepository extends BaseRepository {
       return existing;
     }
 
-    final id = _uuid.v4();
-    final now = nowIso8601;
-
-    final createQuery =
-        JsonQueryBuilder().model('Dispute').action(QueryAction.create).data({
-      'id': id,
-      'disputeId': disputeId,
-      'paymentId': paymentId,
-      'amountPaise': amount,
-      'currency': currency,
-      'reason': reason,
-      'status': status,
-      'paymentGateway': paymentGateway,
-      if (dueBy != null) 'dueBy': dueBy.toIso8601String(),
-      'isChargeRefundable': isChargeRefundable,
-      if (evidence != null)
-        'evidence': evidence, // Json type - pass object directly
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-
     try {
-      await executeMutation(createQuery);
+      // id/timestamps autofilled; wire strings mapped to generated enums.
+      final created = await _prisma.dispute.create(
+        data: CreateDisputeInput(
+          disputeId: disputeId,
+          paymentId: paymentId,
+          amountPaise: BigInt.from(amount),
+          currency: enumFromWire(Currency.values, currency, field: 'currency'),
+          reason: reason,
+          status: enumFromWire(DisputeStatus.values, status, field: 'status'),
+          paymentGateway: enumFromWire(PaymentGateway.values, paymentGateway,
+              field: 'paymentGateway'),
+          dueBy: dueBy,
+          isChargeRefundable: isChargeRefundable,
+          evidence: evidence,
+        ),
+      );
 
       return {
-        'id': id,
+        'id': created.id,
         'disputeId': disputeId,
         'paymentId': paymentId,
         'amount': amount,
@@ -137,14 +131,13 @@ class DisputeRepository extends BaseRepository {
     required String disputeId,
     required String status,
   }) async {
-    final updateQuery = JsonQueryBuilder()
-        .model('Dispute')
-        .action(QueryAction.update)
-        .where({'disputeId': disputeId}).data({
-      'status': status,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    await executeMutation(updateQuery);
+    // updateMany keeps the old silent-if-missing semantics (typed update
+    // throws when no row matches); updatedAt auto-refreshes.
+    await _prisma.dispute.updateMany(
+      where: DisputeWhereInput(disputeId: StringFilter(equals: disputeId)),
+      data: UpdateDisputeInput(
+        status: DisputeStatus.values.firstWhere((e) => e.toJson() == status),
+      ),
+    );
   }
 }

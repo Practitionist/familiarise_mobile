@@ -129,8 +129,7 @@ class FakeData {
       List.generate(count, (_) => classPlan());
 
   // --- AppointmentConsultant ---
-  static AppointmentConsultant appointmentConsultant() =>
-      AppointmentConsultant(
+  static AppointmentConsultant appointmentConsultant() => AppointmentConsultant(
         consultantUserId: BoneMock.name,
         consultantName: BoneMock.name,
         lastAppointmentType: BookingType.consultation,

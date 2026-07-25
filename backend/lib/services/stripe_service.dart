@@ -108,7 +108,7 @@ class StripeService {
 
     // Compute expected signature
     final signedPayload = '$timestamp.$payload';
-    final hmac = Hmac(sha256, utf8.encode(_webhookSecret!));
+    final hmac = Hmac(sha256, utf8.encode(_webhookSecret));
     final digest = hmac.convert(utf8.encode(signedPayload));
     final computedSignature = digest.toString();
 

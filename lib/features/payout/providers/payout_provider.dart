@@ -58,9 +58,7 @@ class PayoutAccounts extends _$PayoutAccounts {
       await source.setDefault(id);
       final current = state.valueOrNull ?? [];
       state = AsyncData(
-        current
-            .map((a) => a.copyWith(isDefault: a.id == id))
-            .toList(),
+        current.map((a) => a.copyWith(isDefault: a.id == id)).toList(),
       );
     } catch (e, stack) {
       AppSentryLogger.captureException(e,

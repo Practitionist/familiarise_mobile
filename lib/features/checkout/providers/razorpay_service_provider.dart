@@ -23,7 +23,8 @@ String _getRazorpayUserMessage(int code, String rawMessage) {
     default:
       // Parse common error patterns from message
       final lowerMessage = rawMessage.toLowerCase();
-      if (lowerMessage.contains('network') || lowerMessage.contains('connection')) {
+      if (lowerMessage.contains('network') ||
+          lowerMessage.contains('connection')) {
         return 'Network error. Please check your connection and try again.';
       }
       if (lowerMessage.contains('declined')) {
@@ -177,7 +178,8 @@ class RazorpayService extends _$RazorpayService {
       );
       return const RazorpayFailure(
         code: -1,
-        message: 'Unable to open payment. Please try again or use a different payment method.',
+        message:
+            'Unable to open payment. Please try again or use a different payment method.',
       );
     }
   }

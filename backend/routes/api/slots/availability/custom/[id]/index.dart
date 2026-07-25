@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// PUT /api/slots/availability/custom/:id — Update
 /// DELETE /api/slots/availability/custom/:id — Delete
@@ -30,7 +29,9 @@ Future<Response> _handle(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -42,28 +43,27 @@ Future<Response> _handle(
     if (userCpId == null) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Not a consultant'}},
+        body: {
+          'error': {'message': 'Not a consultant'}
+        },
       );
     }
 
-    final slotQuery = JsonQueryBuilder()
-        .model('SlotOfAvailabilityCustom')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    final slot =
-        await db.executor.executeQueryAsSingleMap(slotQuery);
+    final slot = await db.prisma.slotOfAvailabilityCustom.findUnique(
+      where: SlotOfAvailabilityCustomWhereUniqueInput(id: id),
+    );
 
-    if (slot == null || slot['consultantProfileId'] != userCpId) {
+    if (slot == null || slot.consultantProfileId != userCpId) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Slot not found'}},
+        body: {
+          'error': {'message': 'Slot not found'}
+        },
       );
     }
 
     if (method == HttpMethod.put) {
-      final body =
-          await context.request.json() as Map<String, dynamic>;
+      final body = await context.request.json() as Map<String, dynamic>;
       final updated = await db.slots.updateCustomSlot(
         id: id,
         startsAt: body['startsAt'] as String?,
@@ -71,8 +71,7 @@ Future<Response> _handle(
       );
       return Response.json(
         body: {
-          'data':
-              updated != null ? serializeForJson(updated) : null,
+          'data': updated != null ? serializeForJson(updated) : null,
         },
       );
     }
@@ -89,7 +88,9 @@ Future<Response> _handle(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }

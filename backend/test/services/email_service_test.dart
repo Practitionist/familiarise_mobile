@@ -1,8 +1,5 @@
-import 'dart:convert';
-
 import 'package:backend/services/email/email_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart' as http_testing;
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
@@ -30,14 +27,8 @@ void main() {
     });
 
     group('sendPasswordResetEmail', () {
-      late MockHttpClient mockClient;
-
       setUpAll(() {
         registerFallbackValue(Uri.parse('https://api.resend.com/emails'));
-      });
-
-      setUp(() {
-        mockClient = MockHttpClient();
       });
 
       test('sends email with correct subject and contains reset URL', () async {
@@ -69,8 +60,7 @@ void main() {
       // service configuration and verify the email sending path throws
       // properly for non-200 responses.
 
-      test(
-          'sendPasswordResetEmail throws Exception on non-200 HTTP response',
+      test('sendPasswordResetEmail throws Exception on non-200 HTTP response',
           () async {
         // Note: EmailService uses the global http.post function, which cannot
         // easily be mocked without dependency injection. We test that the
@@ -90,8 +80,7 @@ void main() {
         );
       });
 
-      test(
-          'sendVerificationEmail throws Exception on non-200 HTTP response',
+      test('sendVerificationEmail throws Exception on non-200 HTTP response',
           () async {
         final service = EmailService(apiKey: 'invalid-key');
 

@@ -28,10 +28,8 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     // Extract current session ID from the JWT payload
-    final authHeader =
-        context.request.headers['authorization'];
-    if (authHeader == null ||
-        !authHeader.startsWith('Bearer ')) {
+    final authHeader = context.request.headers['authorization'];
+    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
         body: {
@@ -41,8 +39,7 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final token = authHeader.substring(7);
-    final payload =
-        context.read<JwtService>().tryVerify(token);
+    final payload = context.read<JwtService>().tryVerify(token);
     final sessionId = payload?['sessionId'] as String?;
 
     if (sessionId == null) {

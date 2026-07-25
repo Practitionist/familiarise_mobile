@@ -414,14 +414,12 @@ class _WorkExperienceDialogState extends State<_WorkExperienceDialog> {
               WorkExperienceEntry(
                 company: _companyCtrl.text,
                 title: _titleCtrl.text,
-                location: _locationCtrl.text.isNotEmpty
-                    ? _locationCtrl.text
-                    : null,
+                location:
+                    _locationCtrl.text.isNotEmpty ? _locationCtrl.text : null,
                 startDate: _startDate,
                 endDate: _endDate,
                 isCurrent: _isCurrent,
-                description:
-                    _descCtrl.text.isNotEmpty ? _descCtrl.text : null,
+                description: _descCtrl.text.isNotEmpty ? _descCtrl.text : null,
               ),
             );
           },
@@ -466,8 +464,7 @@ class _EducationDialogState extends State<_EducationDialog> {
           children: [
             TextField(
               controller: _institutionCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Institution *'),
+              decoration: const InputDecoration(labelText: 'Institution *'),
             ),
             TextField(
               controller: _degreeCtrl,
@@ -475,8 +472,7 @@ class _EducationDialogState extends State<_EducationDialog> {
             ),
             TextField(
               controller: _fieldCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Field of Study'),
+              decoration: const InputDecoration(labelText: 'Field of Study'),
             ),
             TextField(
               controller: _startYearCtrl,
@@ -498,8 +494,7 @@ class _EducationDialogState extends State<_EducationDialog> {
         ),
         FilledButton(
           onPressed: () {
-            if (_institutionCtrl.text.isEmpty ||
-                _degreeCtrl.text.isEmpty) {
+            if (_institutionCtrl.text.isEmpty || _degreeCtrl.text.isEmpty) {
               return;
             }
             Navigator.pop(
@@ -507,9 +502,8 @@ class _EducationDialogState extends State<_EducationDialog> {
               EducationEntry(
                 institution: _institutionCtrl.text,
                 degree: _degreeCtrl.text,
-                fieldOfStudy: _fieldCtrl.text.isNotEmpty
-                    ? _fieldCtrl.text
-                    : null,
+                fieldOfStudy:
+                    _fieldCtrl.text.isNotEmpty ? _fieldCtrl.text : null,
                 startYear: int.tryParse(_startYearCtrl.text),
                 endYear: int.tryParse(_endYearCtrl.text),
               ),
@@ -582,13 +576,11 @@ class _CertificationDialogState extends State<_CertificationDialog> {
             ),
             TextField(
               controller: _credIdCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Credential ID'),
+              decoration: const InputDecoration(labelText: 'Credential ID'),
             ),
             TextField(
               controller: _credUrlCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Credential URL'),
+              decoration: const InputDecoration(labelText: 'Credential URL'),
             ),
           ],
         ),
@@ -607,12 +599,10 @@ class _CertificationDialogState extends State<_CertificationDialog> {
                 name: _nameCtrl.text,
                 issuingOrganization: _orgCtrl.text,
                 issueDate: _issueDate,
-                credentialId: _credIdCtrl.text.isNotEmpty
-                    ? _credIdCtrl.text
-                    : null,
-                credentialUrl: _credUrlCtrl.text.isNotEmpty
-                    ? _credUrlCtrl.text
-                    : null,
+                credentialId:
+                    _credIdCtrl.text.isNotEmpty ? _credIdCtrl.text : null,
+                credentialUrl:
+                    _credUrlCtrl.text.isNotEmpty ? _credUrlCtrl.text : null,
               ),
             );
           },

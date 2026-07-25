@@ -1,3 +1,8 @@
+// Mock stubbing spans several generated delegate classes that share no base
+// type, so the shared stub helpers take `dynamic` — which costs type
+// inference on the mocktail calls. Test-only plumbing, not a correctness gap.
+// ignore_for_file: inference_failure_on_function_invocation, strict_raw_type
+
 import 'dart:io';
 
 import 'package:backend/database/database_client.dart' hide Platform;
@@ -295,8 +300,8 @@ void main() {
           'planId': 'plan-123',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final response = await route.onRequest(context);
 
@@ -321,8 +326,8 @@ void main() {
           'message': 'Looking forward to it',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final bookingResult = {
         'id': 'booking-789',
@@ -360,8 +365,8 @@ void main() {
           'planId': 'plan-123',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final response = await route.onRequest(context);
 
@@ -385,8 +390,8 @@ void main() {
           'planId': 'plan-123',
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       final response = await route.onRequest(context);
 
@@ -413,8 +418,8 @@ void main() {
           'slotStartTimes': ['2025-06-15T09:00:00Z'],
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       when(
         () => appointmentRepo.createConsultationBooking(
@@ -453,8 +458,8 @@ void main() {
           'slotStartTimes': ['2025-06-15T09:00:00Z'],
         },
       );
-      when(() => consulteeProfileRepo.findByUserId('user-123'))
-          .thenAnswer((_) async => {'id': 'consultee-456', 'userId': 'user-123'});
+      when(() => consulteeProfileRepo.findByUserId('user-123')).thenAnswer(
+          (_) async => {'id': 'consultee-456', 'userId': 'user-123'});
 
       when(
         () => appointmentRepo.createConsultationBooking(

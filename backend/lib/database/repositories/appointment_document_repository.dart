@@ -1,12 +1,9 @@
 import 'package:backend/database/repositories/base_repository.dart';
 import 'package:backend/generated/index.dart';
 
-import 'package:prisma_flutter_connector/runtime_server.dart';
-
 /// Repository for appointment document operations.
 ///
-/// Uses JsonQueryBuilder for creates (foreign keys) and PrismaClient
-/// typed delegates for reads/updates.
+/// Uses PrismaClient typed delegates.
 class AppointmentDocumentRepository extends BaseRepository {
   AppointmentDocumentRepository(super._executor, this._prisma);
 
@@ -25,38 +22,36 @@ class AppointmentDocumentRepository extends BaseRepository {
     String uploadedByRole = 'CONSULTEE',
     String? responseToDocumentId,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('AppointmentDocument')
-        .action(QueryAction.create)
-        .data({
-      'appointmentId': appointmentId,
-      'fileName': fileName,
-      'originalName': originalName,
-      'fileSize': fileSize,
-      'mimeType': mimeType,
-      'fileUrl': fileUrl,
-      'storagePath': storagePath,
-      'description': description,
-      'reviewStatus': DocumentReviewStatus.pending.name,
-      'uploadedByRole': uploadedByRole,
-      'responseToDocumentId': responseToDocumentId,
-      'uploadedAt': now,
-      'updatedAt': now,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create document');
-    return result;
+    // id/uploadedAt/updatedAt autofilled; reviewStatus defaults to PENDING
+    // on the typed create input.
+    final result = await _prisma.appointmentDocument.create(
+      data: CreateAppointmentDocumentInput(
+        appointmentId: appointmentId,
+        fileName: fileName,
+        originalName: originalName,
+        fileSize: fileSize,
+        mimeType: mimeType,
+        fileUrl: fileUrl,
+        storagePath: storagePath,
+        description: description,
+        uploadedByRole: DocumentUploadRole.values
+            .firstWhere((e) => e.toJson() == uploadedByRole),
+        responseToDocumentId: responseToDocumentId,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Get all documents for an appointment.
   Future<List<Map<String, dynamic>>> findByAppointment(
     String appointmentId,
   ) async {
-    return _prisma.appointmentDocument.findManyRaw(
-      where: {'appointmentId': appointmentId},
+    final results = await _prisma.appointmentDocument.findMany(
+      where: AppointmentDocumentWhereInput(
+        appointmentId: StringFilter(equals: appointmentId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Get a document by ID.
@@ -79,7 +74,9 @@ class AppointmentDocumentRepository extends BaseRepository {
         reviewStatus: status,
         reviewNotes: reviewNotes,
         reviewedAt: DateTime.now().toUtc(),
-        reviewedBy: reviewedBy,
+        // reviewedBy was FK-ified (#676): raw String -> reviewedById scalar
+        // + reviewedBy User? relation. Set the scalar FK directly.
+        reviewedById: reviewedBy,
       ),
     );
   }

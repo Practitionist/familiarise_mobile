@@ -126,9 +126,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final consultantsAsync = ref.watch(appointmentConsultantsProvider);
     final user = ref.watch(currentUserProvider);
     final isConsultant = user?.role == UserRole.consultant;
-    final subtitle = isConsultant
-        ? 'Chat with your clients'
-        : 'Chat with your consultants';
+    final subtitle =
+        isConsultant ? 'Chat with your clients' : 'Chat with your consultants';
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -296,8 +295,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         // Apply search filter
         if (_searchQuery.isNotEmpty) {
           dmConsultants = dmConsultants
-              .where((c) =>
-                  c.consultantName.toLowerCase().contains(_searchQuery))
+              .where(
+                  (c) => c.consultantName.toLowerCase().contains(_searchQuery))
               .toList();
         }
 
@@ -358,8 +357,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               else
                 ...dmConsultants.map((consultant) => _ConsultantTile(
                       consultant: consultant,
-                      isLoading:
-                          _navigatingKey == _consultantKey(consultant),
+                      isLoading: _navigatingKey == _consultantKey(consultant),
                       onTap: () => _onConsultantTap(consultant),
                     )),
             ],
@@ -455,8 +453,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               ),
               ...eventConsultants.map((consultant) => _EventChannelTile(
                     consultant: consultant,
-                    isLoading:
-                        _navigatingKey == _consultantKey(consultant),
+                    isLoading: _navigatingKey == _consultantKey(consultant),
                     onTap: () => _onConsultantTap(consultant),
                     chatService: ref.read(chatServiceProvider.notifier),
                   )),
@@ -468,7 +465,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       error: (error, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
     );
   }
-
 }
 
 /// Tile widget for displaying a consultant in the linked consultants list
@@ -744,8 +740,7 @@ class _EventChannelTileState extends State<_EventChannelTile> {
                 child: CircleAvatar(
                   radius: 10,
                   backgroundColor: colorScheme.primaryContainer,
-                  backgroundImage:
-                      hasImage ? NetworkImage(imageUrl) : null,
+                  backgroundImage: hasImage ? NetworkImage(imageUrl) : null,
                   child: hasImage
                       ? null
                       : Text(

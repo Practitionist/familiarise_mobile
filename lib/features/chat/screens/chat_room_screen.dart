@@ -133,7 +133,8 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update notification settings')),
+          const SnackBar(
+              content: Text('Failed to update notification settings')),
         );
       }
     }
@@ -281,154 +282,154 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     return StreamChannel(
       channel: _channel!,
       child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: _showChatActionsSheet,
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: _showChatActionsSheet,
-              ),
-            ],
-            title: GestureDetector(
-              onTap: isGroupChannel
-                  ? () => showChannelMembersSheet(
-                        context: context,
-                        channel: _channel!,
-                      )
-                  : null,
-              child: Row(
-                children: [
-                  _buildAppBarAvatar(
-                    theme,
-                    colorScheme,
-                    isGroupChannel,
-                    otherMember,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (isArchived)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: Icon(
-                                  Icons.archive_outlined,
-                                  size: 14,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            Expanded(
-                              child: Text(
-                                displayName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+          ],
+          title: GestureDetector(
+            onTap: isGroupChannel
+                ? () => showChannelMembersSheet(
+                      context: context,
+                      channel: _channel!,
+                    )
+                : null,
+            child: Row(
+              children: [
+                _buildAppBarAvatar(
+                  theme,
+                  colorScheme,
+                  isGroupChannel,
+                  otherMember,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (isArchived)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(
+                                Icons.archive_outlined,
+                                size: 14,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (subtitle != null)
+                        Row(
+                          children: [
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: subtitle == 'Online'
+                                    ? Colors.green
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            // Show dropdown arrow for group channels
+                            if (isGroupChannel) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ],
                           ],
                         ),
-                        if (subtitle != null)
-                          Row(
-                            children: [
-                              Text(
-                                subtitle,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: subtitle == 'Online'
-                                      ? Colors.green
-                                      : colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              // Show dropdown arrow for group channels
-                              if (isGroupChannel) ...[
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.keyboard_arrow_down,
-                                  size: 16,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ],
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          body: Column(
-            children: [
-              // Archived banner
-              if (isArchived)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  color: colorScheme.surfaceContainerHighest,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.archive_outlined,
-                        size: 16,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'This chat is archived',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                     ],
                   ),
                 ),
-
-              // Message list
-              Expanded(
-                child: StreamMessageListView(
-                  messageBuilder: (context, details, messages, defaultWidget) {
-                    // Show avatars in group chats, hide in DMs
-                    return defaultWidget.copyWith(
-                      showUserAvatar: isGroupChannel
-                          ? DisplayWidget.show
-                          : DisplayWidget.gone,
-                    );
-                  },
+              ],
+            ),
+          ),
+        ),
+        body: Column(
+          children: [
+            // Archived banner
+            if (isArchived)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: colorScheme.surfaceContainerHighest,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.archive_outlined,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'This chat is archived',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              // Message input (hidden if archived)
-              if (!isArchived)
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    border: Border(
-                      top: BorderSide(
-                        color: colorScheme.outlineVariant,
-                      ),
-                    ),
-                  ),
-                  child: SafeArea(
-                    child: StreamMessageInput(
-                      disableAttachments: false,
-                      sendButtonLocation: SendButtonLocation.inside,
+            // Message list
+            Expanded(
+              child: StreamMessageListView(
+                messageBuilder: (context, details, messages, defaultWidget) {
+                  // Show avatars in group chats, hide in DMs
+                  return defaultWidget.copyWith(
+                    showUserAvatar: isGroupChannel
+                        ? DisplayWidget.show
+                        : DisplayWidget.gone,
+                  );
+                },
+              ),
+            ),
+
+            // Message input (hidden if archived)
+            if (!isArchived)
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.outlineVariant,
                     ),
                   ),
                 ),
-            ],
-          ),
+                child: SafeArea(
+                  child: StreamMessageInput(
+                    disableAttachments: false,
+                    sendButtonLocation: SendButtonLocation.inside,
+                  ),
+                ),
+              ),
+          ],
         ),
+      ),
     );
   }
 

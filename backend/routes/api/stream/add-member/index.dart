@@ -52,9 +52,8 @@ Future<Response> _handleAddMember(RequestContext context) async {
     final body = await context.request.json() as Map<String, dynamic>;
     final channelType = body['channelType'] as String? ?? 'team';
     final channelId = body['channelId'] as String?;
-    final memberIds = (body['memberIds'] as List<dynamic>?)
-        ?.map((e) => e as String)
-        .toList();
+    final memberIds =
+        (body['memberIds'] as List<dynamic>?)?.map((e) => e as String).toList();
 
     // Validate required fields
     if (channelId == null || channelId.isEmpty) {

@@ -6,7 +6,6 @@ import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/professional_background_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// POST /api/onboarding/submit
 ///
@@ -189,6 +188,13 @@ Future<Response> onRequest(RequestContext context) async {
         'error': {'message': 'Invalid request body format'},
       },
     );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
       'Onboarding submission failed',
@@ -333,11 +339,9 @@ Future<String> _processConsultantOnboarding(
     await ProfessionalBackgroundUtils.createRecords(
       userId: userId,
       txn: txn,
-      workExperiences:
-          consultantProfile['workExperiences'] as List<dynamic>?,
+      workExperiences: consultantProfile['workExperiences'] as List<dynamic>?,
       education: consultantProfile['education'] as List<dynamic>?,
-      certifications:
-          consultantProfile['certifications'] as List<dynamic>?,
+      certifications: consultantProfile['certifications'] as List<dynamic>?,
     );
 
     return profileId;

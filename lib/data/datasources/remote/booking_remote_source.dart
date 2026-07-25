@@ -316,8 +316,7 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     if (e.response?.statusCode == 400 &&
         errorCode == 'MISSING_CONSULTEE_PROFILE') {
       throw ServerException(
-        message:
-            errorMessage ?? 'Please complete your profile before booking',
+        message: errorMessage ?? 'Please complete your profile before booking',
         statusCode: 400,
         errorCode: 'MISSING_CONSULTEE_PROFILE',
       );
@@ -495,8 +494,7 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
 
   /// Parse a booking from API response.
   /// Delegates to the shared [parseBookingJson] parser.
-  Booking _parseBooking(Map<String, dynamic> json) =>
-      parseBookingJson(json);
+  Booking _parseBooking(Map<String, dynamic> json) => parseBookingJson(json);
 
   /// Parse bookings response with pagination
   BookingsResponse _parseBookingsResponse(Map<String, dynamic> json) {
@@ -542,5 +540,4 @@ class BookingRemoteSourceImpl implements BookingRemoteSource {
     }
     return null;
   }
-
 }

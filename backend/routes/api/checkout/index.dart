@@ -9,7 +9,6 @@ import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:dotenv/dotenv.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Checkout endpoints
 ///
@@ -105,6 +104,39 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       );
     }
 
+    // Validate the two enum-shaped inputs up front. Both drive control flow
+    // (consultation vs subscription) and are passed through to createPayment,
+    // so an unsupported value must be a 400 here rather than an exception from
+    // some later repository call.
+    const allowedTypes = {'CONSULTATION', 'SUBSCRIPTION'};
+    final normalizedType = appointmentType.trim().toUpperCase();
+    if (!allowedTypes.contains(normalizedType)) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Unsupported appointmentType: $appointmentType',
+            'allowed': allowedTypes.toList(),
+          },
+        },
+      );
+    }
+
+    final normalizedGateway = paymentGateway.trim().toUpperCase();
+    final allowedGateways =
+        PaymentGateway.values.map((g) => g.toJson()).toList();
+    if (!allowedGateways.contains(normalizedGateway)) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {
+            'message': 'Unsupported paymentGateway: $paymentGateway',
+            'allowed': allowedGateways,
+          },
+        },
+      );
+    }
+
     final db = context.read<DatabaseClient>();
 
     // Determine if this is request-then-pay or direct checkout
@@ -119,7 +151,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
     if (bookingId != null) {
       // Request-then-pay flow: Use existing booking
-      booking = await db.checkout.getBookingById(bookingId, appointmentType);
+      booking = await db.checkout.getBookingById(bookingId, normalizedType);
       if (booking == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
@@ -134,7 +166,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       }
 
       // Get plan from booking
-      if (appointmentType.toUpperCase() == 'CONSULTATION') {
+      if (normalizedType == 'CONSULTATION') {
         plan = booking['consultationPlan'] as Map<String, dynamic>?;
       } else {
         plan = booking['subscriptionPlan'] as Map<String, dynamic>?;
@@ -166,7 +198,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       final requestedById = consulteeProfile['id'] as String;
 
       // Get plan details
-      if (appointmentType.toUpperCase() == 'CONSULTATION') {
+      if (normalizedType == 'CONSULTATION') {
         plan = await db.checkout.getConsultationPlan(planId);
 
         if (plan == null) {
@@ -343,17 +375,14 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
     // Get appointment ID for the booking (if consultation)
     String? appointmentId;
-    if (appointmentType.toUpperCase() == 'CONSULTATION') {
+    if (normalizedType == 'CONSULTATION') {
       // Appointment was created with the booking - fetch it
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'consultationId': finalBookingId}).build();
-      final appointmentResult =
-          await db.executor.executeQueryAsSingleMap(appointmentQuery);
-      if (appointmentResult != null) {
-        appointmentId = appointmentResult['id'] as String?;
-      }
+      final appointmentResult = await db.prisma.appointment.findFirst(
+        where: AppointmentWhereInput(
+          consultationId: StringFilter(equals: finalBookingId),
+        ),
+      );
+      appointmentId = appointmentResult?.id;
     }
 
     // Create payment record
@@ -362,7 +391,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       amount: amountInSmallestUnit,
       originalAmount: originalAmountInSmallestUnit,
       currency: currency,
-      paymentGateway: paymentGateway.toUpperCase(),
+      paymentGateway: normalizedGateway,
       appointmentId: appointmentId,
       discountCodeId: discountCodeId,
       description: 'Booking with ${consultantName ?? 'consultant'}',
@@ -488,14 +517,11 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
 
         // Update payment record with Stripe payment intent ID
         // We need to update the paymentIntent field to store the Stripe pi_ ID
-        final updateQuery = JsonQueryBuilder()
-            .model('Payment')
-            .action(QueryAction.update)
-            .where({'id': paymentIdStr}).data({
-          'paymentIntent': paymentIntent.id,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        }).build();
-        await db.executor.executeMutation(updateQuery);
+        // (typed update auto-refreshes updatedAt)
+        await db.prisma.payment.update(
+          where: PaymentWhereUniqueInput(id: paymentIdStr),
+          data: UpdatePaymentInput(paymentIntent: paymentIntent.id),
+        );
 
         SentryLogger.info(
           'Created Stripe PaymentIntent: ${paymentIntent.id} '
@@ -538,7 +564,7 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
         if (discountAmount != null) 'discountAmount': discountAmount / 100,
         if (discountCode != null) 'discountCode': discountCode,
         'bookingId': finalBookingId,
-        'bookingType': appointmentType.toUpperCase(),
+        'bookingType': normalizedType,
       }),
     );
   } on FormatException catch (_) {
@@ -546,6 +572,13 @@ Future<Response> _handleCreateCheckout(RequestContext context) async {
       statusCode: HttpStatus.badRequest,
       body: {
         'error': {'message': 'Invalid request body format'},
+      },
+    );
+  } on ArgumentError catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
       },
     );
   } catch (e, stackTrace) {

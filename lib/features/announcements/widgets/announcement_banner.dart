@@ -9,12 +9,10 @@ class AnnouncementBanner extends ConsumerStatefulWidget {
   const AnnouncementBanner({super.key});
 
   @override
-  ConsumerState<AnnouncementBanner> createState() =>
-      _AnnouncementBannerState();
+  ConsumerState<AnnouncementBanner> createState() => _AnnouncementBannerState();
 }
 
-class _AnnouncementBannerState
-    extends ConsumerState<AnnouncementBanner> {
+class _AnnouncementBannerState extends ConsumerState<AnnouncementBanner> {
   final _dismissed = <String>{};
 
   @override
@@ -23,9 +21,8 @@ class _AnnouncementBannerState
 
     return announcementsAsync.when(
       data: (announcements) {
-        final visible = announcements
-            .where((a) => !_dismissed.contains(a.id))
-            .toList();
+        final visible =
+            announcements.where((a) => !_dismissed.contains(a.id)).toList();
         if (visible.isEmpty) return const SizedBox.shrink();
 
         final announcement = visible.first;
@@ -64,14 +61,12 @@ class _AnnouncementBannerState
           actions: [
             if (announcement.linkUrl != null)
               TextButton(
-                onPressed: () =>
-                    launchUrl(Uri.parse(announcement.linkUrl!)),
+                onPressed: () => launchUrl(Uri.parse(announcement.linkUrl!)),
                 child: Text(announcement.linkText ?? 'Learn more'),
               ),
             IconButton(
               icon: const Icon(Icons.close, size: 18),
-              onPressed: () =>
-                  setState(() => _dismissed.add(announcement.id)),
+              onPressed: () => setState(() => _dismissed.add(announcement.id)),
             ),
           ],
         );

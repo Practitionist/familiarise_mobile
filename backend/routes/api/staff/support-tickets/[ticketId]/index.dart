@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/support-tickets/:ticketId — Ticket details
 /// PUT /api/staff/support-tickets/:ticketId — Update ticket status
@@ -20,7 +19,9 @@ Future<Response> onRequest(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -30,58 +31,72 @@ Future<Response> onRequest(
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
     if (method == HttpMethod.get) {
-      final query = JsonQueryBuilder()
-          .model('SupportTicket')
-          .action(QueryAction.findFirst)
-          .where({'id': ticketId})
-          .build();
-      final ticket =
-          await db.executor.executeQueryAsSingleMap(query);
+      final ticket = await db.prisma.supportTicket.findFirst(
+        where: SupportTicketWhereInput(id: StringFilter(equals: ticketId)),
+      );
       if (ticket == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
-          body: {'error': {'message': 'Ticket not found'}},
+          body: {
+            'error': {'message': 'Ticket not found'}
+          },
         );
       }
       return Response.json(
-        body: {'data': serializeForJson(ticket)},
+        body: {'data': serializeForJson(ticket.toJson())},
       );
     }
 
     if (method == HttpMethod.put) {
-      final body =
-          await context.request.json() as Map<String, dynamic>;
-      final data = <String, dynamic>{
-        'updatedAt':
-            DateTime.now().toUtc().toIso8601String(),
-      };
+      final body = await context.request.json() as Map<String, dynamic>;
+      // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+      SupportTicketStatus? status;
       if (body.containsKey('status')) {
-        data['status'] = body['status'];
+        final matches = SupportTicketStatus.values
+            .where((e) => e.toJson() == body['status']);
+        if (matches.isEmpty) {
+          return Response.json(
+            statusCode: HttpStatus.badRequest,
+            body: {
+              'error': {'message': 'Invalid status: ${body['status']}'},
+            },
+          );
+        }
+        status = matches.first;
       }
+      SupportPriority? priority;
       if (body.containsKey('priority')) {
-        data['priority'] = body['priority'];
-      }
-      if (body.containsKey('assignedToId')) {
-        data['assignedToId'] = body['assignedToId'];
+        final matches =
+            SupportPriority.values.where((e) => e.toJson() == body['priority']);
+        if (matches.isEmpty) {
+          return Response.json(
+            statusCode: HttpStatus.badRequest,
+            body: {
+              'error': {'message': 'Invalid priority: ${body['priority']}'},
+            },
+          );
+        }
+        priority = matches.first;
       }
 
-      final query = JsonQueryBuilder()
-          .model('SupportTicket')
-          .action(QueryAction.update)
-          .where({'id': ticketId})
-          .data(data)
-          .build();
-      final updated =
-          await db.executor.executeQueryAsSingleMap(query);
+      final updated = await db.prisma.supportTicket.update(
+        where: SupportTicketWhereUniqueInput(id: ticketId),
+        data: UpdateSupportTicketInput(
+          status: status,
+          priority: priority,
+          assignedToId: body['assignedToId'] as String?,
+        ),
+      );
       return Response.json(
         body: {
-          'data':
-              updated != null ? serializeForJson(updated) : null,
+          'data': serializeForJson(updated.toJson()),
         },
       );
     }
@@ -89,11 +104,12 @@ Future<Response> onRequest(
     return Response(statusCode: HttpStatus.methodNotAllowed);
   } catch (e, stackTrace) {
     await SentryLogger.severe('Staff ticket operation failed',
-        context: 'StaffTicket',
-        error: e, stackTrace: stackTrace);
+        context: 'StaffTicket', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }

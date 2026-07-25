@@ -27,6 +27,9 @@ Future<void> main() async {
 
       // Disable heavy features to keep it lightweight
       options.attachScreenshot = false;
+      // Experimental in the Sentry SDK, but we only ever set it to false to
+      // keep payloads light — no behaviour depends on the API shape.
+      // ignore: experimental_member_use
       options.attachViewHierarchy = false;
 
       // Breadcrumb limit to avoid memory overhead

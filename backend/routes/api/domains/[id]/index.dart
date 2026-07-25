@@ -4,7 +4,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/domains/:id — Single domain with its subdomains
 Future<Response> onRequest(RequestContext context, String id) async {
@@ -15,33 +14,26 @@ Future<Response> onRequest(RequestContext context, String id) async {
   try {
     final db = context.read<DatabaseClient>();
 
-    final domainQuery = JsonQueryBuilder()
-        .model('Domain')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    final domain = await db.executor.executeQueryAsSingleMap(domainQuery);
+    final domain = await db.prisma.domain.findUnique(
+      where: DomainWhereUniqueInput(id: id),
+    );
 
     if (domain == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Domain not found'}},
+        body: {
+          'error': {'message': 'Domain not found'}
+        },
       );
     }
 
-    final subdomainQuery = JsonQueryBuilder()
-        .model('SubDomain')
-        .action(QueryAction.findMany)
-        .where({'domainId': id})
-        .build();
-    final subdomains = await db.executor.executeQueryAsMaps(
-      subdomainQuery,
+    final subdomains = await db.prisma.subDomain.findMany(
+      where: SubDomainWhereInput(domainId: StringFilter(equals: id)),
     );
 
-    final result =
-        Map<String, dynamic>.from(serializeForJson(domain) as Map);
+    final result = Map<String, dynamic>.from(serializeForJson(domain.toJson()));
     result['subdomains'] =
-        subdomains.map(serializeForJson).toList();
+        subdomains.map((s) => serializeForJson(s.toJson())).toList();
 
     return Response.json(body: {'data': result});
   } catch (e, stackTrace) {
@@ -53,7 +45,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get domain'}},
+      body: {
+        'error': {'message': 'Failed to get domain'}
+      },
     );
   }
 }

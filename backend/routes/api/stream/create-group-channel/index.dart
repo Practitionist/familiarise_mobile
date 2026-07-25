@@ -62,9 +62,8 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
     final body = await context.request.json() as Map<String, dynamic>;
     final channelId = body['channelId'] as String?;
     final channelName = body['channelName'] as String?;
-    final memberIds = (body['memberIds'] as List<dynamic>?)
-        ?.map((e) => e as String)
-        .toList();
+    final memberIds =
+        (body['memberIds'] as List<dynamic>?)?.map((e) => e as String).toList();
     final extraData = body['extraData'] as Map<String, dynamic>?;
 
     // Validate required fields

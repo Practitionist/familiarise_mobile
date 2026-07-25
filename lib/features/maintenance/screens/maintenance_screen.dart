@@ -10,9 +10,8 @@ class MaintenanceScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Maintenance'),
         leading: BackButton(
-          onPressed: () => context.canPop()
-              ? context.pop()
-              : context.go('/dashboard'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/dashboard'),
         ),
       ),
       body: Center(

@@ -1,7 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/slot_lock.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Exception thrown when user already has an active booking with a consultant
 class DuplicateBookingException implements Exception {
@@ -28,36 +27,34 @@ class SlotConflictException implements Exception {
 /// Handles creation, retrieval, and management of appointments
 /// for both consultation and subscription bookings.
 ///
-/// Uses JsonQueryBuilder for type-safe queries, eliminating SQL injection risks.
+/// Uses the typed PrismaClient surface, eliminating SQL injection risks.
 class AppointmentRepository extends BaseRepository {
   /// Month abbreviations for date formatting
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
 
   /// Create an appointment repository with the given executor
-  AppointmentRepository(super._executor);
+  AppointmentRepository(super._executor, this._prisma);
 
-  final _uuid = const Uuid();
+  final PrismaClient _prisma;
 
   /// Active statuses that block new bookings
   static const _activeStatuses = [
-    'PENDING',
-    'APPROVED',
-    'APPROVED_PENDING_PAYMENT',
-    'SCHEDULED',
+    AppointmentStatus.pending,
+    AppointmentStatus.approved,
+    AppointmentStatus.approvedPendingPayment,
+    AppointmentStatus.scheduled,
   ];
+
+  /// Convert a raw status string to the [AppointmentStatus] enum
+  AppointmentStatus _appointmentStatusFromString(String value) =>
+      AppointmentStatus.values.firstWhere((e) => e.toJson() == value);
+
+  /// Convert a raw status string to the [TrialSessionStatus] enum
+  TrialSessionStatus _trialSessionStatusFromString(String value) =>
+      TrialSessionStatus.values.firstWhere((e) => e.toJson() == value);
+
+  /// Convert a raw type string to the [AppointmentsType] enum
+  AppointmentsType _appointmentsTypeFromString(String value) =>
+      AppointmentsType.values.firstWhere((e) => e.toJson() == value);
 
   /// Check if user has an active consultation booking with a consultant
   ///
@@ -69,28 +66,24 @@ class AppointmentRepository extends BaseRepository {
   }) async {
     // We need to check consultations that have a plan belonging to this consultant
     // First get all consultation plan IDs for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true}).build();
-
-    final plans = await executeQueryAsMaps(plansQuery);
+    final plans = await _prisma.consultationPlan.findManyProjected(
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [ConsultationPlanScalarField.id],
+    );
     if (plans.isEmpty) return false;
 
     final planIds = plans.map((p) => p['id'] as String).toList();
 
     // Check if there's an active consultation with any of these plans
-    final countQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.count)
-        .where({
-      'requestedById': consulteeProfileId,
-      'consultationPlanId': {'in': planIds},
-      'requestStatus': {'in': _activeStatuses},
-    }).build();
-
-    final count = await executeCount(countQuery);
+    final count = await _prisma.consultation.count(
+      where: ConsultationWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+        consultationPlanId: StringFilter(in_: planIds),
+        status: const AppointmentStatusFilter(in_: _activeStatuses),
+      ),
+    );
     return count > 0;
   }
 
@@ -103,28 +96,24 @@ class AppointmentRepository extends BaseRepository {
     required String consultantProfileId,
   }) async {
     // Get all subscription plan IDs for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true}).build();
-
-    final plans = await executeQueryAsMaps(plansQuery);
+    final plans = await _prisma.subscriptionPlan.findManyProjected(
+      where: SubscriptionPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [SubscriptionPlanScalarField.id],
+    );
     if (plans.isEmpty) return false;
 
     final planIds = plans.map((p) => p['id'] as String).toList();
 
     // Check if there's an active subscription with any of these plans
-    final countQuery = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.count)
-        .where({
-      'requestedById': consulteeProfileId,
-      'subscriptionPlanId': {'in': planIds},
-      'requestStatus': {'in': _activeStatuses},
-    }).build();
-
-    final count = await executeCount(countQuery);
+    final count = await _prisma.subscription.count(
+      where: SubscriptionWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+        subscriptionPlanId: StringFilter(in_: planIds),
+        status: const AppointmentStatusFilter(in_: _activeStatuses),
+      ),
+    );
     return count > 0;
   }
 
@@ -148,38 +137,37 @@ class AppointmentRepository extends BaseRepository {
     }
 
     final conflicts = <DateTime>[];
-    final tentativeCutoff = DateTime.now()
-        .subtract(const Duration(seconds: 60))
-        .toUtc()
-        .toIso8601String();
+    final tentativeCutoff =
+        DateTime.now().subtract(const Duration(seconds: 60)).toUtc();
 
     for (final slotStart in slotStartTimes) {
       final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
 
       // Step 2: Check for overlapping slots in those appointments
       // A slot overlaps if: existing.start < new.end AND existing.end > new.start
-      final query = JsonQueryBuilder()
-          .model('SlotOfAppointment')
-          .action(QueryAction.count)
-          .where({
-        'appointmentId': FilterOperators.in_(appointmentIds),
-        // Check either confirmed slots OR recent tentative slots
-        'OR': [
-          {'isTentative': false},
-          {
-            'AND': [
-              {'isTentative': true},
-              {
-                'createdAt': {'gte': tentativeCutoff}
-              },
-            ],
-          },
-        ],
-        'startsAt': {'lt': slotEnd.toUtc().toIso8601String()},
-        'endsAt': {'gt': slotStart.toUtc().toIso8601String()},
-      }).build();
-
-      final count = await executeCount(query);
+      final count = await _prisma.slotOfAppointment.count(
+        where: SlotOfAppointmentWhereInput(
+          appointmentId: StringFilter(in_: appointmentIds),
+          // Check either confirmed slots OR recent tentative slots
+          OR: [
+            const SlotOfAppointmentWhereInput(
+              isTentative: BooleanFilter(equals: false),
+            ),
+            SlotOfAppointmentWhereInput(
+              AND: [
+                const SlotOfAppointmentWhereInput(
+                  isTentative: BooleanFilter(equals: true),
+                ),
+                SlotOfAppointmentWhereInput(
+                  createdAt: DateTimeFilter(gte: tentativeCutoff),
+                ),
+              ],
+            ),
+          ],
+          startsAt: DateTimeFilter(lt: slotEnd.toUtc()),
+          endsAt: DateTimeFilter(gt: slotStart.toUtc()),
+        ),
+      );
       if (count > 0) {
         conflicts.add(slotStart);
       }
@@ -194,71 +182,67 @@ class AppointmentRepository extends BaseRepository {
     final appointmentIds = <String>[];
 
     // Get consultation plan IDs for this consultant
-    final consultationPlansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true}).build();
-    final consultationPlans = await executeQueryAsMaps(consultationPlansQuery);
+    final consultationPlans = await _prisma.consultationPlan.findManyProjected(
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [ConsultationPlanScalarField.id],
+    );
     final consultationPlanIds =
         consultationPlans.map((p) => p['id'] as String).toList();
 
     // Get subscription plan IDs for this consultant
-    final subscriptionPlansQuery = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId}).select(
-            {'id': true}).build();
-    final subscriptionPlans = await executeQueryAsMaps(subscriptionPlansQuery);
+    final subscriptionPlans = await _prisma.subscriptionPlan.findManyProjected(
+      where: SubscriptionPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [SubscriptionPlanScalarField.id],
+    );
     final subscriptionPlanIds =
         subscriptionPlans.map((p) => p['id'] as String).toList();
 
     // Get consultation IDs for those plans
     if (consultationPlanIds.isNotEmpty) {
-      final consultationsQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findMany)
-          .where({
-        'consultationPlanId': FilterOperators.in_(consultationPlanIds)
-      }).select({'id': true}).build();
-      final consultations = await executeQueryAsMaps(consultationsQuery);
+      final consultations = await _prisma.consultation.findManyProjected(
+        where: ConsultationWhereInput(
+          consultationPlanId: StringFilter(in_: consultationPlanIds),
+        ),
+        select: const [ConsultationScalarField.id],
+      );
       final consultationIds =
           consultations.map((c) => c['id'] as String).toList();
 
       // Get appointment IDs for those consultations
       if (consultationIds.isNotEmpty) {
-        final appointmentsQuery = JsonQueryBuilder()
-            .model('Appointment')
-            .action(QueryAction.findMany)
-            .where({
-          'consultationId': FilterOperators.in_(consultationIds)
-        }).select({'id': true}).build();
-        final appointments = await executeQueryAsMaps(appointmentsQuery);
+        final appointments = await _prisma.appointment.findManyProjected(
+          where: AppointmentWhereInput(
+            consultationId: StringFilter(in_: consultationIds),
+          ),
+          select: const [AppointmentScalarField.id],
+        );
         appointmentIds.addAll(appointments.map((a) => a['id'] as String));
       }
     }
 
     // Get subscription IDs for those plans
     if (subscriptionPlanIds.isNotEmpty) {
-      final subscriptionsQuery = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findMany)
-          .where({
-        'subscriptionPlanId': FilterOperators.in_(subscriptionPlanIds)
-      }).select({'id': true}).build();
-      final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
+      final subscriptions = await _prisma.subscription.findManyProjected(
+        where: SubscriptionWhereInput(
+          subscriptionPlanId: StringFilter(in_: subscriptionPlanIds),
+        ),
+        select: const [SubscriptionScalarField.id],
+      );
       final subscriptionIds =
           subscriptions.map((s) => s['id'] as String).toList();
 
       // Get appointment IDs for those subscriptions
       if (subscriptionIds.isNotEmpty) {
-        final appointmentsQuery = JsonQueryBuilder()
-            .model('Appointment')
-            .action(QueryAction.findMany)
-            .where({
-          'subscriptionId': FilterOperators.in_(subscriptionIds)
-        }).select({'id': true}).build();
-        final appointments = await executeQueryAsMaps(appointmentsQuery);
+        final appointments = await _prisma.appointment.findManyProjected(
+          where: AppointmentWhereInput(
+            subscriptionId: StringFilter(in_: subscriptionIds),
+          ),
+          select: const [AppointmentScalarField.id],
+        );
         appointmentIds.addAll(appointments.map((a) => a['id'] as String));
       }
     }
@@ -297,15 +281,12 @@ class AppointmentRepository extends BaseRepository {
     }
 
     // Get the plan to verify it exists and get duration
-    final planQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findFirst)
-        .where({
-      'id': planId,
-      'consultantProfileId': consultantProfileId,
-    }).build();
-
-    final plan = await executeQueryAsSingleMap(planQuery);
+    final plan = await _prisma.consultationPlan.findFirstProjected(
+      where: ConsultationPlanWhereInput(
+        id: StringFilter(equals: planId),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     if (plan == null) {
       throw Exception('Consultation plan not found');
@@ -349,82 +330,66 @@ class AppointmentRepository extends BaseRepository {
         );
       }
 
-      final now = nowIso8601;
-
-      // Create the booking within a transaction
+      // Create the booking within a transaction.
+      //
+      // This block stays on executeInTransaction (instead of
+      // _prisma.$transaction) because the m2m junction insert below requires
+      // raw SQL on the transaction executor, which the typed transaction
+      // client does not expose. Typed delegates are bound to the transaction
+      // executor so every other statement uses the typed surface.
       return await executeInTransaction((txn) async {
-        // Create Consultation record
-        final consultationId = _uuid.v4();
-        final consultationQuery = JsonQueryBuilder()
-            .model('Consultation')
-            .action(QueryAction.create)
-            .data({
-          'id': consultationId,
-          'consultationPlanId': planId,
-          'requestedById': requestedById,
-          'requestStatus': 'PENDING',
-          'requestNotes': message,
-          'bookingSource': 'REQUEST_SUBMITTED',
-          'requestedAt': now,
-          'createdAt': now,
-          'updatedAt': now,
-        }).build();
-        await txn.executeMutation(consultationQuery);
+        final consultationDelegate = ConsultationDelegate(txn);
+        final appointmentDelegate = AppointmentDelegate(txn);
+        final slotDelegate = SlotOfAppointmentDelegate(txn);
+
+        // Create Consultation record (id/requestedAt/timestamps autofilled;
+        // status defaults to PENDING, bookingSource to REQUEST_SUBMITTED)
+        final consultation = await consultationDelegate.create(
+          data: CreateConsultationInput(
+            consultationPlanId: planId,
+            requestedById: requestedById,
+            requestNotes: message,
+          ),
+        );
 
         // Create Appointment record
-        final appointmentId = _uuid.v4();
-        final appointmentQuery = JsonQueryBuilder()
-            .model('Appointment')
-            .action(QueryAction.create)
-            .data({
-          'id': appointmentId,
-          'appointmentType': 'CONSULTATION',
-          'consultationId': consultationId,
-          'createdAt': now,
-          'updatedAt': now,
-        }).build();
-        await txn.executeMutation(appointmentQuery);
+        final appointment = await appointmentDelegate.create(
+          data: CreateAppointmentInput(
+            appointmentType: AppointmentsType.consultation,
+            consultationId: consultation.id,
+          ),
+        );
 
-        // Create SlotOfAppointment records using createMany
-        final slotsData = slotStartTimes.map((slotStart) {
-          final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
-          return {
-            'id': _uuid.v4(),
-            'appointmentId': appointmentId,
-            'startsAt': slotStart.toUtc().toIso8601String(),
-            'endsAt': slotEnd.toUtc().toIso8601String(),
-            'isTentative': true,
-            'createdAt': now,
-            'updatedAt': now,
-          };
-        }).toList();
-
-        final slotsQuery = JsonQueryBuilder()
-            .model('SlotOfAppointment')
-            .action(QueryAction.createMany)
-            .data({'data': slotsData}).build();
-        await txn.executeMutation(slotsQuery);
+        // Create SlotOfAppointment records and keep the generated ids
+        final slots = await slotDelegate.createManyAndReturn(
+          data: [
+            for (final slotStart in slotStartTimes)
+              CreateSlotOfAppointmentInput(
+                appointmentId: appointment.id,
+                startsAt: slotStart.toUtc(),
+                endsAt:
+                    slotStart.add(Duration(minutes: durationMinutes)).toUtc(),
+                isTentative: true,
+              ),
+          ],
+        );
 
         // Link users to slots via junction table
-        // Note: For bulk operations with createMany, raw SQL is more efficient.
-        // For single-record operations, use the v0.3.0 connect API:
-        //   JsonQueryBuilder().model('SlotOfAppointment').action(QueryAction.create)
-        //     .data({'id': slotId, 'users': {'connect': [{'id': userId}]}}).build()
         // Column B references users.id, so we use userId (not consulteeProfileId)
-        for (final slotData in slotsData) {
+        // EXEMPT(jqb-gate): implicit m2m junction insert — no typed surface for join tables.
+        for (final slot in slots) {
           await txn.executeMutationRaw(
             r'INSERT INTO "_SlotOfAppointmentToUser" ("A", "B") VALUES ($1, $2)',
-            [slotData['id'], userId],
+            [slot.id, userId],
           );
         }
 
         // Fetch and return the created booking
-        final resultQuery = JsonQueryBuilder()
-            .model('Consultation')
-            .action(QueryAction.findUnique)
-            .where({'id': consultationId}).build();
-
-        final result = await txn.executeQueryAsSingleMap(resultQuery);
+        final result = await consultationDelegate.findFirstProjected(
+          where: ConsultationWhereInput(
+            id: StringFilter(equals: consultation.id),
+          ),
+        );
         if (result == null) {
           throw Exception('Failed to create consultation');
         }
@@ -473,15 +438,12 @@ class AppointmentRepository extends BaseRepository {
     }
 
     // Verify plan exists and get duration
-    final planQuery = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findFirst)
-        .where({
-      'id': planId,
-      'consultantProfileId': consultantProfileId,
-    }).build();
-
-    final plan = await executeQueryAsSingleMap(planQuery);
+    final plan = await _prisma.subscriptionPlan.findFirstProjected(
+      where: SubscriptionPlanWhereInput(
+        id: StringFilter(equals: planId),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+    );
 
     if (plan == null) {
       throw Exception('Subscription plan not found');
@@ -508,32 +470,20 @@ class AppointmentRepository extends BaseRepository {
       targetDay,
     );
 
-    final now = nowIso8601;
-    final subscriptionId = _uuid.v4();
+    // Create the subscription booking (id/requestedAt/timestamps autofilled;
+    // status defaults to PENDING, bookingSource to REQUEST_SUBMITTED)
+    final subscription = await _prisma.subscription.create(
+      data: CreateSubscriptionInput(
+        subscriptionPlanId: planId,
+        requestedById: requestedById,
+        schedulingPeriodStartsAt: schedulingPeriodStart.toUtc(),
+        schedulingPeriodEndsAt: schedulingPeriodEnd.toUtc(),
+        schedulingTimezone: timezone ?? 'UTC',
+        requestNotes: message,
+      ),
+    );
 
-    // Create the subscription booking
-    final createQuery = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.create)
-        .data({
-      'id': subscriptionId,
-      'subscriptionPlanId': planId,
-      'requestedById': requestedById,
-      'requestStatus': 'PENDING',
-      'schedulingPeriodStartsAt':
-          schedulingPeriodStart.toUtc().toIso8601String(),
-      'schedulingPeriodEndsAt': schedulingPeriodEnd.toUtc().toIso8601String(),
-      'schedulingTimezone': timezone ?? 'UTC',
-      'requestNotes': message,
-      'bookingSource': 'REQUEST_SUBMITTED',
-      'requestedAt': now,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-
-    await executeMutation(createQuery);
-
-    return getBookingById(subscriptionId, type: 'SUBSCRIPTION');
+    return getBookingById(subscription.id, type: 'SUBSCRIPTION');
   }
 
   /// Get user's bookings with pagination and optional status filter
@@ -551,13 +501,12 @@ class AppointmentRepository extends BaseRepository {
 
     if (asConsultant) {
       // Consultant view: fetch bookings for plans owned by this consultant
-      final consultantProfileQuery = JsonQueryBuilder()
-          .model('ConsultantProfile')
-          .action(QueryAction.findFirst)
-          .where({'userId': userId}).build();
-
       final consultantProfile =
-          await executeQueryAsSingleMap(consultantProfileQuery);
+          await _prisma.consultantProfile.findFirstProjected(
+        where: ConsultantProfileWhereInput(
+          userId: StringFilter(equals: userId),
+        ),
+      );
       final consultantProfileId = consultantProfile?['id'] as String?;
 
       if (consultantProfileId != null) {
@@ -569,32 +518,28 @@ class AppointmentRepository extends BaseRepository {
         allBookings.addAll(consultantBookings);
 
         // 2. Fetch SUBSCRIPTIONS
-        final subscriptionBookings =
-            await _fetchConsultantSubscriptionBookings(
+        final subscriptionBookings = await _fetchConsultantSubscriptionBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(subscriptionBookings);
 
         // 3. Fetch WEBINARS
-        final webinarBookings =
-            await _fetchConsultantWebinarBookings(
+        final webinarBookings = await _fetchConsultantWebinarBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(webinarBookings);
 
         // 4. Fetch CLASSES
-        final classBookings =
-            await _fetchConsultantClassBookings(
+        final classBookings = await _fetchConsultantClassBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
         allBookings.addAll(classBookings);
 
         // 5. Fetch TRIAL SESSIONS
-        final trialBookings =
-            await _fetchConsultantTrialBookings(
+        final trialBookings = await _fetchConsultantTrialBookings(
           consultantProfileId: consultantProfileId,
           status: status,
         );
@@ -603,12 +548,11 @@ class AppointmentRepository extends BaseRepository {
     } else {
       // Consultee view: existing behavior
       // Get consultee profile ID for the user
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsulteeProfile')
-          .action(QueryAction.findFirst)
-          .where({'userId': userId}).build();
-
-      final profile = await executeQueryAsSingleMap(profileQuery);
+      final profile = await _prisma.consulteeProfile.findFirstProjected(
+        where: ConsulteeProfileWhereInput(
+          userId: StringFilter(equals: userId),
+        ),
+      );
       final consulteeProfileId = profile?['id'] as String?;
 
       // 1. Fetch CONSULTATIONS (uses ConsulteeProfile)
@@ -680,15 +624,19 @@ class AppointmentRepository extends BaseRepository {
     String? status,
   }) async {
     // Get all consultation plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({'id': true, 'title': true, 'price': true,
-                 'priceCurrency': true, 'durationInHours': true})
-        .build();
+    final plans = await _prisma.consultationPlan.findManyProjected(
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        ConsultationPlanScalarField.id,
+        ConsultationPlanScalarField.title,
+        ConsultationPlanScalarField.price,
+        ConsultationPlanScalarField.priceCurrency,
+        ConsultationPlanScalarField.durationInHours,
+      ],
+    );
 
-    final plans = await executeQueryAsMaps(plansQuery);
     if (plans.isEmpty) return [];
 
     final planIds = plans.map((p) => p['id'] as String).toList();
@@ -697,42 +645,36 @@ class AppointmentRepository extends BaseRepository {
       planLookup[p['id'] as String] = p;
     }
 
-    final where = <String, dynamic>{
-      'consultationPlanId': {'in': planIds},
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
-    }
+    final consultations = await _prisma.consultation.findManyProjected(
+      where: ConsultationWhereInput(
+        consultationPlanId: StringFilter(in_: planIds),
+        status: status != null
+            ? AppointmentStatusFilter(
+                equals: _appointmentStatusFromString(status),
+              )
+            : null,
+      ),
+      include: const ConsultationInclude(
+        requestedBy: ConsulteeProfileInclude(user: UserInclude()),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final consultationsQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include({
-          'requestedBy': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
-
-    final consultations = await executeQueryAsMaps(consultationsQuery);
     if (consultations.isEmpty) return [];
 
     // Fetch appointments with slots
     final consultationIds =
         consultations.map((c) => c['id'] as String).toList();
 
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-          'consultationId': {'in': consultationIds},
-        })
-        .include({'slotsOfAppointment': true})
-        .build();
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(
+        consultationId: StringFilter(in_: consultationIds),
+      ),
+      include: const AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(),
+      ),
+    );
 
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
     final appointmentLookup = <String, Map<String, dynamic>>{};
     for (final a in appointments) {
       final cId = a['consultationId'] as String?;
@@ -748,10 +690,8 @@ class AppointmentRepository extends BaseRepository {
       final slots = appointment?['slotsOfAppointment'] as List<dynamic>?;
 
       // Get consultee info
-      final requestedBy =
-          c['requestedBy'] as Map<String, dynamic>?;
-      final consulteeUser =
-          requestedBy?['user'] as Map<String, dynamic>?;
+      final requestedBy = c['requestedBy'] as Map<String, dynamic>?;
+      final consulteeUser = requestedBy?['user'] as Map<String, dynamic>?;
 
       bookings.add({
         'id': c['id'],
@@ -769,8 +709,7 @@ class AppointmentRepository extends BaseRepository {
         'consulteeUserId': consulteeUser?['id'],
         'consulteeName': consulteeUser?['name'],
         'consulteeImage': consulteeUser?['image'],
-        if (slots != null && slots.isNotEmpty)
-          'slots': _formatSlots(slots),
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
       });
     }
 
@@ -783,22 +722,21 @@ class AppointmentRepository extends BaseRepository {
     String? status,
   }) async {
     // Get all subscription plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({
-          'id': true,
-          'title': true,
-          'price': true,
-          'priceCurrency': true,
-          'totalSessions': true,
-          'sessionDurationInHours': true,
-          'durationInMonths': true,
-        })
-        .build();
+    final plans = await _prisma.subscriptionPlan.findManyProjected(
+      where: SubscriptionPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        SubscriptionPlanScalarField.id,
+        SubscriptionPlanScalarField.title,
+        SubscriptionPlanScalarField.price,
+        SubscriptionPlanScalarField.priceCurrency,
+        SubscriptionPlanScalarField.totalSessions,
+        SubscriptionPlanScalarField.sessionDurationInHours,
+        SubscriptionPlanScalarField.durationInMonths,
+      ],
+    );
 
-    final plans = await executeQueryAsMaps(plansQuery);
     if (plans.isEmpty) return [];
 
     final planIds = plans.map((p) => p['id'] as String).toList();
@@ -808,26 +746,21 @@ class AppointmentRepository extends BaseRepository {
     }
 
     // Fetch subscriptions for those plans with consultee info
-    final where = <String, dynamic>{
-      'subscriptionPlanId': {'in': planIds},
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
-    }
+    final subscriptions = await _prisma.subscription.findManyProjected(
+      where: SubscriptionWhereInput(
+        subscriptionPlanId: StringFilter(in_: planIds),
+        status: status != null
+            ? AppointmentStatusFilter(
+                equals: _appointmentStatusFromString(status),
+              )
+            : null,
+      ),
+      include: const SubscriptionInclude(
+        requestedBy: ConsulteeProfileInclude(user: UserInclude()),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final subscriptionsQuery = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include({
-          'requestedBy': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
-
-    final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
     if (subscriptions.isEmpty) return [];
 
     final bookings = <Map<String, dynamic>>[];
@@ -835,10 +768,8 @@ class AppointmentRepository extends BaseRepository {
       final planId = s['subscriptionPlanId'] as String?;
       final plan = planId != null ? planLookup[planId] : null;
 
-      final requestedBy =
-          s['requestedBy'] as Map<String, dynamic>?;
-      final consulteeUser =
-          requestedBy?['user'] as Map<String, dynamic>?;
+      final requestedBy = s['requestedBy'] as Map<String, dynamic>?;
+      final consulteeUser = requestedBy?['user'] as Map<String, dynamic>?;
 
       bookings.add({
         'id': s['id'],
@@ -872,21 +803,20 @@ class AppointmentRepository extends BaseRepository {
     String? status,
   }) async {
     // Get all webinar plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('WebinarPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({
-          'id': true,
-          'title': true,
-          'price': true,
-          'priceCurrency': true,
-          'durationInHours': true,
-          'maxParticipants': true,
-        })
-        .build();
+    final plans = await _prisma.webinarPlan.findManyProjected(
+      where: WebinarPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        WebinarPlanScalarField.id,
+        WebinarPlanScalarField.title,
+        WebinarPlanScalarField.price,
+        WebinarPlanScalarField.priceCurrency,
+        WebinarPlanScalarField.durationInHours,
+        WebinarPlanScalarField.maxParticipants,
+      ],
+    );
 
-    final plans = await executeQueryAsMaps(plansQuery);
     if (plans.isEmpty) return [];
 
     final planIds = plans.map((p) => p['id'] as String).toList();
@@ -896,15 +826,12 @@ class AppointmentRepository extends BaseRepository {
     }
 
     // Get webinar records for those plans
-    final webinarsQuery = JsonQueryBuilder()
-        .model('Webinar')
-        .action(QueryAction.findMany)
-        .where({
-          'webinarPlanId': {'in': planIds},
-        })
-        .build();
+    final webinars = await _prisma.webinar.findManyProjected(
+      where: WebinarWhereInput(
+        webinarPlanId: StringFilter(in_: planIds),
+      ),
+    );
 
-    final webinars = await executeQueryAsMaps(webinarsQuery);
     if (webinars.isEmpty) return [];
 
     // Apply status filter if provided
@@ -918,23 +845,16 @@ class AppointmentRepository extends BaseRepository {
     if (filteredWebinars.isEmpty) return [];
 
     // Batch fetch appointments with slots + enrolled users for all webinars
-    final webinarIds =
-        filteredWebinars.map((w) => w['id'] as String).toList();
+    final webinarIds = filteredWebinars.map((w) => w['id'] as String).toList();
 
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-          'webinarId': {'in': webinarIds},
-        })
-        .include({
-          'slotsOfAppointment': {
-            'include': {'user': true},
-          },
-        })
-        .build();
-
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(
+        webinarId: StringFilter(in_: webinarIds),
+      ),
+      include: const AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(user: UserInclude()),
+      ),
+    );
 
     final appointmentLookup = <String, Map<String, dynamic>>{};
     for (final a in appointments) {
@@ -966,8 +886,7 @@ class AppointmentRepository extends BaseRepository {
         'planCurrency': plan?['priceCurrency'],
         'planDuration': plan?['durationInHours'],
         'maxParticipants': plan?['maxParticipants'],
-        if (slots != null && slots.isNotEmpty)
-          'slots': _formatSlots(slots),
+        if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
         'participants': participantData['participants'],
         'participantCount': participantData['participantCount'],
       });
@@ -982,23 +901,22 @@ class AppointmentRepository extends BaseRepository {
     String? status,
   }) async {
     // Get all class plans for this consultant
-    final plansQuery = JsonQueryBuilder()
-        .model('ClassPlan')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantProfileId})
-        .select({
-          'id': true,
-          'title': true,
-          'price': true,
-          'priceCurrency': true,
-          'totalSessions': true,
-          'sessionDurationInHours': true,
-          'durationInMonths': true,
-          'maxParticipants': true,
-        })
-        .build();
+    final plans = await _prisma.classPlan.findManyProjected(
+      where: ClassPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
+      select: const [
+        ClassPlanScalarField.id,
+        ClassPlanScalarField.title,
+        ClassPlanScalarField.price,
+        ClassPlanScalarField.priceCurrency,
+        ClassPlanScalarField.totalSessions,
+        ClassPlanScalarField.sessionDurationInHours,
+        ClassPlanScalarField.durationInMonths,
+        ClassPlanScalarField.maxParticipants,
+      ],
+    );
 
-    final plans = await executeQueryAsMaps(plansQuery);
     if (plans.isEmpty) return [];
 
     final planIds = plans.map((p) => p['id'] as String).toList();
@@ -1008,15 +926,12 @@ class AppointmentRepository extends BaseRepository {
     }
 
     // Get class records for those plans
-    final classesQuery = JsonQueryBuilder()
-        .model('Class')
-        .action(QueryAction.findMany)
-        .where({
-          'classPlanId': {'in': planIds},
-        })
-        .build();
+    final classes = await _prisma.classModel.findManyProjected(
+      where: ClassModelWhereInput(
+        classPlanId: StringFilter(in_: planIds),
+      ),
+    );
 
-    final classes = await executeQueryAsMaps(classesQuery);
     if (classes.isEmpty) return [];
 
     // Apply status filter if provided
@@ -1030,32 +945,23 @@ class AppointmentRepository extends BaseRepository {
     if (filteredClasses.isEmpty) return [];
 
     // Batch fetch appointments with slots + enrolled users for all classes
-    final classIds =
-        filteredClasses.map((c) => c['id'] as String).toList();
+    final classIds = filteredClasses.map((c) => c['id'] as String).toList();
 
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-          'classId': {'in': classIds},
-        })
-        .include({
-          'slotsOfAppointment': {
-            'include': {'user': true},
-          },
-        })
-        .build();
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(
+        classId: StringFilter(in_: classIds),
+      ),
+      include: const AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(user: UserInclude()),
+      ),
+    );
 
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
     // Classes can have multiple appointments; group by classId
-    final appointmentsByClass =
-        <String, List<Map<String, dynamic>>>{};
+    final appointmentsByClass = <String, List<Map<String, dynamic>>>{};
     for (final a in appointments) {
       final cId = a['classId'] as String?;
       if (cId != null) {
-        appointmentsByClass
-            .putIfAbsent(cId, () => [])
-            .add(a);
+        appointmentsByClass.putIfAbsent(cId, () => []).add(a);
       }
     }
 
@@ -1065,8 +971,7 @@ class AppointmentRepository extends BaseRepository {
       final classId = c['id'] as String;
       final planId = c['classPlanId'] as String?;
       final plan = planId != null ? planLookup[planId] : null;
-      final classAppointments =
-          appointmentsByClass[classId] ?? [];
+      final classAppointments = appointmentsByClass[classId] ?? [];
 
       // Collect all slots from all appointments
       final allSlots = <dynamic>[];
@@ -1085,29 +990,23 @@ class AppointmentRepository extends BaseRepository {
         'status': _mapClassStatusToRequestStatus(
           c['status'] as String?,
         ),
-        'appointmentId': classAppointments.isNotEmpty
-            ? classAppointments.first['id']
-            : null,
+        'appointmentId':
+            classAppointments.isNotEmpty ? classAppointments.first['id'] : null,
         'createdAt': classAppointments.isNotEmpty
-            ? (classAppointments.first['createdAt'] ??
-                c['createdAt'])
+            ? (classAppointments.first['createdAt'] ?? c['createdAt'])
             : c['createdAt'],
-        'schedulingPeriodStartsAt':
-            c['schedulingPeriodStartsAt'],
-        'schedulingPeriodEndsAt':
-            c['schedulingPeriodEndsAt'],
+        'schedulingPeriodStartsAt': c['schedulingPeriodStartsAt'],
+        'schedulingPeriodEndsAt': c['schedulingPeriodEndsAt'],
         'schedulingTimezone': c['schedulingTimezone'],
         'planId': plan?['id'],
         'planTitle': plan?['title'],
         'planPrice': plan?['price'],
         'planCurrency': plan?['priceCurrency'],
         'totalSessions': plan?['totalSessions'],
-        'sessionDurationInHours':
-            plan?['sessionDurationInHours'],
+        'sessionDurationInHours': plan?['sessionDurationInHours'],
         'durationInMonths': plan?['durationInMonths'],
         'maxParticipants': plan?['maxParticipants'],
-        if (allSlots.isNotEmpty)
-          'slots': _formatSlots(allSlots),
+        if (allSlots.isNotEmpty) 'slots': _formatSlots(allSlots),
         'participants': participantData['participants'],
         'participantCount': participantData['participantCount'],
       });
@@ -1121,29 +1020,27 @@ class AppointmentRepository extends BaseRepository {
     required String consultantProfileId,
     String? status,
   }) async {
-    final where = <String, dynamic>{
-      'consultantProfileId': consultantProfileId,
-    };
+    TrialSessionStatusFilter? statusFilter;
     if (status != null) {
       final trialStatus = _mapRequestStatusToTrialStatus(status);
       if (trialStatus == null) return [];
-      where['status'] = trialStatus;
+      statusFilter = TrialSessionStatusFilter(
+        equals: _trialSessionStatusFromString(trialStatus),
+      );
     }
 
-    final trialsQuery = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include({
-          'subscriptionPlan': true,
-          'consulteeProfile': {
-            'include': {'user': true},
-          },
-        })
-        .orderBy({'createdAt': 'desc'})
-        .build();
+    final trials = await _prisma.trialSession.findManyProjected(
+      where: TrialSessionWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+        status: statusFilter,
+      ),
+      include: const TrialSessionInclude(
+        subscriptionPlan: SubscriptionPlanInclude(),
+        consulteeProfile: ConsulteeProfileInclude(user: UserInclude()),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final trials = await executeQueryAsMaps(trialsQuery);
     if (trials.isEmpty) return [];
 
     // Batch fetch appointments with slots
@@ -1155,15 +1052,14 @@ class AppointmentRepository extends BaseRepository {
 
     final appointmentLookup = <String, Map<String, dynamic>>{};
     if (appointmentIds.isNotEmpty) {
-      final appointmentsQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findMany)
-          .where({
-            'id': {'in': appointmentIds},
-          })
-          .include({'slotsOfAppointment': true})
-          .build();
-      final appointments = await executeQueryAsMaps(appointmentsQuery);
+      final appointments = await _prisma.appointment.findManyProjected(
+        where: AppointmentWhereInput(
+          id: StringFilter(in_: appointmentIds),
+        ),
+        include: const AppointmentInclude(
+          slotsOfAppointment: SlotOfAppointmentInclude(),
+        ),
+      );
       for (final a in appointments) {
         appointmentLookup[a['id'] as String] = a;
       }
@@ -1172,10 +1068,8 @@ class AppointmentRepository extends BaseRepository {
     final bookings = <Map<String, dynamic>>[];
     for (final t in trials) {
       final plan = t['subscriptionPlan'] as Map<String, dynamic>?;
-      final consulteeProfile =
-          t['consulteeProfile'] as Map<String, dynamic>?;
-      final consulteeUser =
-          consulteeProfile?['user'] as Map<String, dynamic>?;
+      final consulteeProfile = t['consulteeProfile'] as Map<String, dynamic>?;
+      final consulteeUser = consulteeProfile?['user'] as Map<String, dynamic>?;
       final appointmentId = t['appointmentId'] as String?;
       final appointment =
           appointmentId != null ? appointmentLookup[appointmentId] : null;
@@ -1191,9 +1085,8 @@ class AppointmentRepository extends BaseRepository {
         'planTitle': plan?['title'],
         'planPrice': 0,
         'planCurrency': plan?['priceCurrency'] ?? 'INR',
-        'planDuration':
-            (plan?['freeTrialDurationMinutes'] as num?)?.toDouble(),
-        'freeTrialDurationMinutes': plan?['freeTrialDurationMinutes'],
+        'planDuration': (plan?['trialDurationMinutes'] as num?)?.toDouble(),
+        'freeTrialDurationMinutes': plan?['trialDurationMinutes'],
         'consulteeProfileId': consulteeProfile?['id'],
         'consulteeUserId': consulteeUser?['id'],
         'consulteeName': consulteeUser?['name'],
@@ -1211,21 +1104,21 @@ class AppointmentRepository extends BaseRepository {
     required String consulteeProfileId,
     String? status,
   }) async {
-    final where = <String, dynamic>{
-      'requestedById': consulteeProfileId,
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
-    }
+    final consultations = await _prisma.consultation.findManyProjected(
+      where: ConsultationWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+        status: status != null
+            ? AppointmentStatusFilter(
+                equals: _appointmentStatusFromString(status),
+              )
+            : null,
+      ),
+      include: const ConsultationInclude(
+        consultationPlan: ConsultationPlanInclude(),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final consultationsQuery = JsonQueryBuilder()
-        .model('Consultation')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include({'consultationPlan': true}).orderBy(
-            {'createdAt': 'desc'}).build();
-
-    final consultations = await executeQueryAsMaps(consultationsQuery);
     if (consultations.isEmpty) return [];
 
     // Collect all consultant profile IDs for batch fetch
@@ -1245,13 +1138,14 @@ class AppointmentRepository extends BaseRepository {
         await _batchFetchConsultantInfo(consultantProfileIds);
 
     // Batch fetch appointments with slots
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-      'consultationId': {'in': consultationIds}
-    }).include({'slotsOfAppointment': true}).build();
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(
+        consultationId: StringFilter(in_: consultationIds),
+      ),
+      include: const AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(),
+      ),
+    );
     final appointmentLookup = <String, Map<String, dynamic>>{};
     for (final a in appointments) {
       final consultationId = a['consultationId'] as String?;
@@ -1296,21 +1190,21 @@ class AppointmentRepository extends BaseRepository {
     required String consulteeProfileId,
     String? status,
   }) async {
-    final where = <String, dynamic>{
-      'requestedById': consulteeProfileId,
-    };
-    if (status != null) {
-      where['requestStatus'] = status;
-    }
+    final subscriptions = await _prisma.subscription.findManyProjected(
+      where: SubscriptionWhereInput(
+        requestedById: StringFilter(equals: consulteeProfileId),
+        status: status != null
+            ? AppointmentStatusFilter(
+                equals: _appointmentStatusFromString(status),
+              )
+            : null,
+      ),
+      include: const SubscriptionInclude(
+        subscriptionPlan: SubscriptionPlanInclude(),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final subscriptionsQuery = JsonQueryBuilder()
-        .model('Subscription')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include({'subscriptionPlan': true}).orderBy(
-            {'createdAt': 'desc'}).build();
-
-    final subscriptions = await executeQueryAsMaps(subscriptionsQuery);
     if (subscriptions.isEmpty) return [];
 
     // Collect all consultant profile IDs for batch fetch
@@ -1368,23 +1262,25 @@ class AppointmentRepository extends BaseRepository {
     String? status,
   }) async {
     // Query appointments where user is enrolled via SlotOfAppointment M2M relation
-    // Using nested includes (v0.3.8 fix) - webinarPlan is properly nested in webinar
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-      'appointmentType': 'WEBINAR',
-      'slotsOfAppointment': FilterOperators.some({
-        'user': FilterOperators.some({'id': userId}),
-      }),
-    }).include({
-      'webinar': {
-        'include': {'webinarPlan': true},
-      },
-      'slotsOfAppointment': true,
-    }).build();
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(
+        appointmentType: const AppointmentsTypeFilter(
+          equals: AppointmentsType.webinar,
+        ),
+        slotsOfAppointment: SlotOfAppointmentListRelationFilter(
+          some: SlotOfAppointmentWhereInput(
+            user: UserListRelationFilter(
+              some: UserWhereInput(id: StringFilter(equals: userId)),
+            ),
+          ),
+        ),
+      ),
+      include: const AppointmentInclude(
+        webinar: WebinarInclude(webinarPlan: WebinarPlanInclude()),
+        slotsOfAppointment: SlotOfAppointmentInclude(),
+      ),
+    );
 
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
     if (appointments.isEmpty) return [];
 
     // Apply status filter if provided
@@ -1402,7 +1298,6 @@ class AppointmentRepository extends BaseRepository {
     final consultantProfileIds = <String>[];
     for (final apt in filteredAppointments) {
       final webinar = apt['webinar'] as Map<String, dynamic>?;
-      // Access webinarPlan directly from nested include (v0.3.8 fix)
       final plan = webinar?['webinarPlan'] as Map<String, dynamic>?;
       final id = plan?['consultantProfileId'] as String?;
       if (id != null && !consultantProfileIds.contains(id)) {
@@ -1419,7 +1314,6 @@ class AppointmentRepository extends BaseRepository {
       if (webinar == null) continue;
 
       final webinarStatus = webinar['status'] as String?;
-      // Access webinarPlan directly from nested include (v0.3.8 fix)
       final plan = webinar['webinarPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
       final consultantInfo =
@@ -1456,29 +1350,31 @@ class AppointmentRepository extends BaseRepository {
     String? status,
   }) async {
     // Query appointments where user is enrolled via SlotOfAppointment M2M
-    // Using nested includes (v0.3.8 fix) - classPlan is properly nested in class
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({
-      'appointmentType': 'CLASS',
-      'slotsOfAppointment': FilterOperators.some({
-        'user': FilterOperators.some({'id': userId}),
-      }),
-    }).include({
-      'class': {
-        'include': {'classPlan': true},
-      },
-      'slotsOfAppointment': true,
-    }).build();
+    final appointments = await _prisma.appointment.findManyProjected(
+      where: AppointmentWhereInput(
+        appointmentType: const AppointmentsTypeFilter(
+          equals: AppointmentsType.classValue,
+        ),
+        slotsOfAppointment: SlotOfAppointmentListRelationFilter(
+          some: SlotOfAppointmentWhereInput(
+            user: UserListRelationFilter(
+              some: UserWhereInput(id: StringFilter(equals: userId)),
+            ),
+          ),
+        ),
+      ),
+      include: const AppointmentInclude(
+        classRef: ClassModelInclude(classPlan: ClassPlanInclude()),
+        slotsOfAppointment: SlotOfAppointmentInclude(),
+      ),
+    );
 
-    final appointments = await executeQueryAsMaps(appointmentsQuery);
     if (appointments.isEmpty) return [];
 
     // Apply status filter if provided
     final filteredAppointments = status != null
         ? appointments.where((apt) {
-            final classRecord = apt['class'] as Map<String, dynamic>?;
+            final classRecord = apt['classRef'] as Map<String, dynamic>?;
             final classStatus = classRecord?['status'] as String?;
             return _matchesClassStatus(classStatus, status);
           }).toList()
@@ -1489,8 +1385,7 @@ class AppointmentRepository extends BaseRepository {
     // Collect consultant profile IDs for batch fetch
     final consultantProfileIds = <String>[];
     for (final apt in filteredAppointments) {
-      final classRecord = apt['class'] as Map<String, dynamic>?;
-      // Access classPlan directly from nested include (v0.3.8 fix)
+      final classRecord = apt['classRef'] as Map<String, dynamic>?;
       final plan = classRecord?['classPlan'] as Map<String, dynamic>?;
       final id = plan?['consultantProfileId'] as String?;
       if (id != null && !consultantProfileIds.contains(id)) {
@@ -1503,11 +1398,10 @@ class AppointmentRepository extends BaseRepository {
     // Build bookings
     final bookings = <Map<String, dynamic>>[];
     for (final apt in filteredAppointments) {
-      final classRecord = apt['class'] as Map<String, dynamic>?;
+      final classRecord = apt['classRef'] as Map<String, dynamic>?;
       if (classRecord == null) continue;
 
       final classStatus = classRecord['status'] as String?;
-      // Access classPlan directly from nested include (v0.3.8 fix)
       final plan = classRecord['classPlan'] as Map<String, dynamic>?;
       final consultantProfileId = plan?['consultantProfileId'] as String?;
       final consultantInfo =
@@ -1545,25 +1439,27 @@ class AppointmentRepository extends BaseRepository {
     required String consulteeProfileId,
     String? status,
   }) async {
-    final where = <String, dynamic>{
-      'consulteeProfileId': consulteeProfileId,
-    };
+    TrialSessionStatusFilter? statusFilter;
     if (status != null) {
       // Map RequestStatus to TrialSessionStatus for filtering
       final trialStatus = _mapRequestStatusToTrialStatus(status);
       if (trialStatus == null) return []; // No matching trial status
-      where['status'] = trialStatus;
+      statusFilter = TrialSessionStatusFilter(
+        equals: _trialSessionStatusFromString(trialStatus),
+      );
     }
 
-    final trialsQuery = JsonQueryBuilder()
-        .model('TrialSession')
-        .action(QueryAction.findMany)
-        .where(where)
-        .include({'subscriptionPlan': true})
-        .orderBy({'createdAt': 'desc'})
-        .build();
+    final trials = await _prisma.trialSession.findManyProjected(
+      where: TrialSessionWhereInput(
+        consulteeProfileId: StringFilter(equals: consulteeProfileId),
+        status: statusFilter,
+      ),
+      include: const TrialSessionInclude(
+        subscriptionPlan: SubscriptionPlanInclude(),
+      ),
+      orderBy: {'createdAt': 'desc'},
+    );
 
-    final trials = await executeQueryAsMaps(trialsQuery);
     if (trials.isEmpty) return [];
 
     // Collect consultant profile IDs for batch fetch
@@ -1588,15 +1484,14 @@ class AppointmentRepository extends BaseRepository {
 
     final appointmentLookup = <String, Map<String, dynamic>>{};
     if (appointmentIds.isNotEmpty) {
-      final appointmentsQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findMany)
-          .where({
-            'id': {'in': appointmentIds},
-          })
-          .include({'slotsOfAppointment': true})
-          .build();
-      final appointments = await executeQueryAsMaps(appointmentsQuery);
+      final appointments = await _prisma.appointment.findManyProjected(
+        where: AppointmentWhereInput(
+          id: StringFilter(in_: appointmentIds),
+        ),
+        include: const AppointmentInclude(
+          slotsOfAppointment: SlotOfAppointmentInclude(),
+        ),
+      );
       for (final a in appointments) {
         final appointmentId = a['id'] as String;
         appointmentLookup[appointmentId] = a;
@@ -1627,9 +1522,8 @@ class AppointmentRepository extends BaseRepository {
         'planTitle': plan?['title'],
         'planPrice': 0, // Trials are free
         'planCurrency': plan?['priceCurrency'] ?? 'INR',
-        'planDuration': (plan?['freeTrialDurationMinutes'] as num?)
-            ?.toDouble(),
-        'freeTrialDurationMinutes': plan?['freeTrialDurationMinutes'],
+        'planDuration': (plan?['trialDurationMinutes'] as num?)?.toDouble(),
+        'freeTrialDurationMinutes': plan?['trialDurationMinutes'],
         ...consultantInfo,
         if (appointmentId != null) 'appointmentId': appointmentId,
         if (slots != null && slots.isNotEmpty) 'slots': _formatSlots(slots),
@@ -1691,16 +1585,12 @@ class AppointmentRepository extends BaseRepository {
     // Remove duplicates and nulls
     final uniqueIds = consultantProfileIds.toSet().toList();
 
-    final profilesQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findMany)
-        .where({
-          'id': {'in': uniqueIds},
-        })
-        .include({'user': true})
-        .build();
-
-    final profiles = await executeQueryAsMaps(profilesQuery);
+    final profiles = await _prisma.consultantProfile.findManyProjected(
+      where: ConsultantProfileWhereInput(
+        id: StringFilter(in_: uniqueIds),
+      ),
+      include: const ConsultantProfileInclude(user: UserInclude()),
+    );
 
     // Build lookup map
     final result = <String, Map<String, dynamic>>{};
@@ -1862,43 +1752,34 @@ class AppointmentRepository extends BaseRepository {
 
   Future<Map<String, dynamic>> _getConsultationById(String id) async {
     // Wrap in transaction for consistent reads
-    return executeInTransaction((txn) async {
-      // Single query with nested includes (nested includes fixed in v0.3.8+)
-      final query = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findUnique)
-          .where({'id': id})
-          .include({
-            'consultationPlan': {
-              'include': {
-                'consultantProfile': {
-                  'include': {'user': true},
-                },
-              },
-            },
-          })
-          .build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
+    return _prisma.$transaction((tx) async {
+      // Single query with nested includes
+      final result = await tx.consultation.findFirstProjected(
+        where: ConsultationWhereInput(id: StringFilter(equals: id)),
+        include: const ConsultationInclude(
+          consultationPlan: ConsultationPlanInclude(
+            consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+          ),
+        ),
+      );
 
       if (result == null) {
         throw Exception('Consultation not found');
       }
 
       final plan = result['consultationPlan'] as Map<String, dynamic>?;
-      final profile =
-          plan?['consultantProfile'] as Map<String, dynamic>?;
+      final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
       final user = profile?['user'] as Map<String, dynamic>?;
 
       // Fetch consultee (requestedBy) profile and user
       final consulteeInfo = await _fetchConsulteeInfo(
         result['requestedById'] as String?,
-        txn: txn,
+        client: tx,
       );
       final consulteeProfile = consulteeInfo.profile;
       final consulteeUser = consulteeInfo.user;
 
-      final booking = {
+      final booking = <String, dynamic>{
         'id': result['id'],
         'bookingType': 'CONSULTATION',
         'status': result['requestStatus'],
@@ -1930,37 +1811,33 @@ class AppointmentRepository extends BaseRepository {
         'cancelledBy': result['cancelledBy'],
       };
 
-      // Get appointment with slots via nested include
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'consultationId': id})
-          .include({
-            'slotsOfAppointment': {
-              'orderBy': {'startsAt': 'asc'},
-            },
-          })
-          .build();
-
-      final appointment =
-          await executeQueryAsSingleMap(appointmentQuery, txn: txn);
+      // Get appointment, then its slots ordered by start time
+      final appointment = await tx.appointment.findFirstProjected(
+        where: AppointmentWhereInput(
+          consultationId: StringFilter(equals: id),
+        ),
+      );
 
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
 
-        final slots = appointment['slotsOfAppointment'] as List<dynamic>? ?? [];
+        final slots = await tx.slotOfAppointment.findManyProjected(
+          where: SlotOfAppointmentWhereInput(
+            appointmentId: StringFilter(
+              equals: appointment['id'] as String,
+            ),
+          ),
+          orderBy: {'startsAt': 'asc'},
+        );
         if (slots.isNotEmpty) {
-          booking['slots'] = slots
-              .map((s) {
-                final slot = s as Map<String, dynamic>;
-                return {
-                  'id': slot['id'],
-                  'startsAt': slot['startsAt'],
-                  'endsAt': slot['endsAt'],
-                  'isTentative': slot['isTentative'],
-                };
-              })
-              .toList();
+          booking['slots'] = slots.map((slot) {
+            return {
+              'id': slot['id'],
+              'startsAt': slot['startsAt'],
+              'endsAt': slot['endsAt'],
+              'isTentative': slot['isTentative'],
+            };
+          }).toList();
         }
       }
 
@@ -1970,43 +1847,34 @@ class AppointmentRepository extends BaseRepository {
 
   Future<Map<String, dynamic>> _getSubscriptionById(String id) async {
     // Wrap in transaction for consistent reads
-    return executeInTransaction((txn) async {
-      // Single query with nested includes (nested includes fixed in v0.3.8+)
-      final query = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findUnique)
-          .where({'id': id})
-          .include({
-            'subscriptionPlan': {
-              'include': {
-                'consultantProfile': {
-                  'include': {'user': true},
-                },
-              },
-            },
-          })
-          .build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
+    return _prisma.$transaction((tx) async {
+      // Single query with nested includes
+      final result = await tx.subscription.findFirstProjected(
+        where: SubscriptionWhereInput(id: StringFilter(equals: id)),
+        include: const SubscriptionInclude(
+          subscriptionPlan: SubscriptionPlanInclude(
+            consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+          ),
+        ),
+      );
 
       if (result == null) {
         throw Exception('Subscription not found');
       }
 
       final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-      final profile =
-          plan?['consultantProfile'] as Map<String, dynamic>?;
+      final profile = plan?['consultantProfile'] as Map<String, dynamic>?;
       final user = profile?['user'] as Map<String, dynamic>?;
 
       // Fetch consultee (requestedBy) profile and user
       final consulteeInfo = await _fetchConsulteeInfo(
         result['requestedById'] as String?,
-        txn: txn,
+        client: tx,
       );
       final consulteeProfile = consulteeInfo.profile;
       final consulteeUser = consulteeInfo.user;
 
-      final booking = {
+      final booking = <String, dynamic>{
         'id': result['id'],
         'bookingType': 'SUBSCRIPTION',
         'status': result['requestStatus'],
@@ -2051,14 +1919,12 @@ class AppointmentRepository extends BaseRepository {
 
   Future<Map<String, dynamic>> _getWebinarById(String id) async {
     // Wrap in transaction for consistent reads
-    return executeInTransaction((txn) async {
+    return _prisma.$transaction((tx) async {
       // Get webinar with plan
-      final query = JsonQueryBuilder()
-          .model('Webinar')
-          .action(QueryAction.findUnique)
-          .where({'id': id}).include({'webinarPlan': true}).build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
+      final result = await tx.webinar.findFirstProjected(
+        where: WebinarWhereInput(id: StringFilter(equals: id)),
+        include: const WebinarInclude(webinarPlan: WebinarPlanInclude()),
+      );
 
       if (result == null) {
         throw Exception('Webinar not found');
@@ -2073,11 +1939,12 @@ class AppointmentRepository extends BaseRepository {
       Map<String, dynamic>? profile;
       Map<String, dynamic>? user;
       if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId}).include({'user': true}).build();
-        profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
+        profile = await tx.consultantProfile.findFirstProjected(
+          where: ConsultantProfileWhereInput(
+            id: StringFilter(equals: consultantProfileId),
+          ),
+          include: const ConsultantProfileInclude(user: UserInclude()),
+        );
 
         user = profile?['user'] as Map<String, dynamic>?;
         if (user == null && profile != null) {
@@ -2124,27 +1991,23 @@ class AppointmentRepository extends BaseRepository {
       };
 
       // Get appointment for this webinar
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'webinarId': id}).build();
-
-      final appointment =
-          await executeQueryAsSingleMap(appointmentQuery, txn: txn);
+      final appointment = await tx.appointment.findFirstProjected(
+        where: AppointmentWhereInput(webinarId: StringFilter(equals: id)),
+      );
 
       if (appointment != null) {
         booking['appointmentId'] = appointment['id'];
 
         // Fetch slots with users for participant extraction
-        final slotsQuery = JsonQueryBuilder()
-            .model('SlotOfAppointment')
-            .action(QueryAction.findMany)
-            .where({'appointmentId': appointment['id']})
-            .include({'user': true})
-            .orderBy({'startsAt': 'asc'})
-            .build();
-
-        final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
+        final slots = await tx.slotOfAppointment.findManyProjected(
+          where: SlotOfAppointmentWhereInput(
+            appointmentId: StringFilter(
+              equals: appointment['id'] as String,
+            ),
+          ),
+          include: const SlotOfAppointmentInclude(user: UserInclude()),
+          orderBy: {'startsAt': 'asc'},
+        );
         if (slots.isNotEmpty) {
           booking['slots'] = slots
               .map((s) => {
@@ -2158,8 +2021,7 @@ class AppointmentRepository extends BaseRepository {
           // Extract participants from slots
           final participantData = _extractParticipants(slots);
           booking['participants'] = participantData['participants'];
-          booking['participantCount'] =
-              participantData['participantCount'];
+          booking['participantCount'] = participantData['participantCount'];
         }
       }
 
@@ -2169,14 +2031,12 @@ class AppointmentRepository extends BaseRepository {
 
   Future<Map<String, dynamic>> _getClassById(String id) async {
     // Wrap in transaction for consistent reads
-    return executeInTransaction((txn) async {
+    return _prisma.$transaction((tx) async {
       // Get class with plan
-      final query = JsonQueryBuilder()
-          .model('Class')
-          .action(QueryAction.findUnique)
-          .where({'id': id}).include({'classPlan': true}).build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
+      final result = await tx.classModel.findFirstProjected(
+        where: ClassModelWhereInput(id: StringFilter(equals: id)),
+        include: const ClassModelInclude(classPlan: ClassPlanInclude()),
+      );
 
       if (result == null) {
         throw Exception('Class not found');
@@ -2191,11 +2051,12 @@ class AppointmentRepository extends BaseRepository {
       Map<String, dynamic>? profile;
       Map<String, dynamic>? user;
       if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId}).include({'user': true}).build();
-        profile = await executeQueryAsSingleMap(profileQuery, txn: txn);
+        profile = await tx.consultantProfile.findFirstProjected(
+          where: ConsultantProfileWhereInput(
+            id: StringFilter(equals: consultantProfileId),
+          ),
+          include: const ConsultantProfileInclude(user: UserInclude()),
+        );
 
         user = profile?['user'] as Map<String, dynamic>?;
         if (user == null && profile != null) {
@@ -2251,12 +2112,9 @@ class AppointmentRepository extends BaseRepository {
       };
 
       // Get appointments for this class (can have multiple)
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findMany)
-          .where({'classId': id}).build();
-
-      final appointments = await executeQueryAsMaps(appointmentQuery, txn: txn);
+      final appointments = await tx.appointment.findManyProjected(
+        where: AppointmentWhereInput(classId: StringFilter(equals: id)),
+      );
 
       if (appointments.isNotEmpty) {
         // Use first appointment for now (most common case)
@@ -2265,15 +2123,13 @@ class AppointmentRepository extends BaseRepository {
         // Fetch all slots from all appointments (with users)
         final allSlots = <Map<String, dynamic>>[];
         for (final apt in appointments) {
-          final slotsQuery = JsonQueryBuilder()
-              .model('SlotOfAppointment')
-              .action(QueryAction.findMany)
-              .where({'appointmentId': apt['id']})
-              .include({'user': true})
-              .orderBy({'startsAt': 'asc'})
-              .build();
-
-          final slots = await executeQueryAsMaps(slotsQuery, txn: txn);
+          final slots = await tx.slotOfAppointment.findManyProjected(
+            where: SlotOfAppointmentWhereInput(
+              appointmentId: StringFilter(equals: apt['id'] as String),
+            ),
+            include: const SlotOfAppointmentInclude(user: UserInclude()),
+            orderBy: {'startsAt': 'asc'},
+          );
           allSlots.addAll(slots);
         }
 
@@ -2303,8 +2159,7 @@ class AppointmentRepository extends BaseRepository {
           // Extract participants from slots
           final participantData = _extractParticipants(allSlots);
           booking['participants'] = participantData['participants'];
-          booking['participantCount'] =
-              participantData['participantCount'];
+          booking['participantCount'] = participantData['participantCount'];
         }
       }
 
@@ -2314,16 +2169,14 @@ class AppointmentRepository extends BaseRepository {
 
   Future<Map<String, dynamic>> _getTrialById(String id) async {
     // Wrap in transaction for consistent reads
-    return executeInTransaction((txn) async {
+    return _prisma.$transaction((tx) async {
       // Get trial session with subscription plan
-      final query = JsonQueryBuilder()
-          .model('TrialSession')
-          .action(QueryAction.findUnique)
-          .where({'id': id})
-          .include({'subscriptionPlan': true})
-          .build();
-
-      final result = await executeQueryAsSingleMap(query, txn: txn);
+      final result = await tx.trialSession.findFirstProjected(
+        where: TrialSessionWhereInput(id: StringFilter(equals: id)),
+        include: const TrialSessionInclude(
+          subscriptionPlan: SubscriptionPlanInclude(),
+        ),
+      );
 
       if (result == null) {
         throw Exception('Trial session not found');
@@ -2336,15 +2189,11 @@ class AppointmentRepository extends BaseRepository {
       Map<String, dynamic>? profile;
       Map<String, dynamic>? user;
       if (consultantProfileId != null) {
-        final profileQuery = JsonQueryBuilder()
-            .model('ConsultantProfile')
-            .action(QueryAction.findUnique)
-            .where({'id': consultantProfileId})
-            .include({'user': true})
-            .build();
-        profile = await executeQueryAsSingleMap(
-          profileQuery,
-          txn: txn,
+        profile = await tx.consultantProfile.findFirstProjected(
+          where: ConsultantProfileWhereInput(
+            id: StringFilter(equals: consultantProfileId),
+          ),
+          include: const ConsultantProfileInclude(user: UserInclude()),
         );
 
         user = profile?['user'] as Map<String, dynamic>?;
@@ -2364,7 +2213,7 @@ class AppointmentRepository extends BaseRepository {
       // Fetch consultee profile and user
       final consulteeInfo = await _fetchConsulteeInfo(
         result['consulteeProfileId'] as String?,
-        txn: txn,
+        client: tx,
       );
       final consulteeProfile = consulteeInfo.profile;
       final consulteeUser = consulteeInfo.user;
@@ -2382,9 +2231,8 @@ class AppointmentRepository extends BaseRepository {
         'planTitle': plan?['title'],
         'planPrice': 0, // Trials are free
         'planCurrency': plan?['priceCurrency'] ?? 'INR',
-        'planDuration': plan?['freeTrialDurationMinutes'],
-        'freeTrialDurationMinutes':
-            plan?['freeTrialDurationMinutes'],
+        'planDuration': plan?['trialDurationMinutes'],
+        'freeTrialDurationMinutes': plan?['trialDurationMinutes'],
         'consultantProfileId': profile?['id'],
         'consultantUserId': user?['id'],
         'consultantName': user?['name'],
@@ -2396,22 +2244,16 @@ class AppointmentRepository extends BaseRepository {
       };
 
       // Get linked appointment if exists
-      final appointmentId =
-          result['appointmentId'] as String?;
+      final appointmentId = result['appointmentId'] as String?;
       if (appointmentId != null) {
         booking['appointmentId'] = appointmentId;
 
         // Fetch slots
-        final slotsQuery = JsonQueryBuilder()
-            .model('SlotOfAppointment')
-            .action(QueryAction.findMany)
-            .where({'appointmentId': appointmentId})
-            .orderBy({'startsAt': 'asc'})
-            .build();
-
-        final slots = await executeQueryAsMaps(
-          slotsQuery,
-          txn: txn,
+        final slots = await tx.slotOfAppointment.findManyProjected(
+          where: SlotOfAppointmentWhereInput(
+            appointmentId: StringFilter(equals: appointmentId),
+          ),
+          orderBy: {'startsAt': 'asc'},
         );
         if (slots.isNotEmpty) {
           booking['slots'] = slots
@@ -2441,186 +2283,106 @@ class AppointmentRepository extends BaseRepository {
     String? reason,
   }) async {
     // Get consultee profile ID
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
+    final profile = await _prisma.consulteeProfile.findFirstProjected(
+      where: ConsulteeProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
 
     if (profile == null) {
       throw Exception('User profile not found');
     }
 
     final consulteeProfileId = profile['id'] as String;
-    final now = nowIso8601;
+    final now = DateTime.now().toUtc();
+    // Guard external enum wire value: an unknown reason must surface as a
+    // validation error (ArgumentError -> 400), not a StateError -> 500.
+    CancellationReason? cancellationReason;
+    if (reason != null) {
+      final matches =
+          CancellationReason.values.where((e) => e.toJson() == reason);
+      if (matches.isEmpty) {
+        throw ArgumentError.value(
+          reason,
+          'reason',
+          'Unsupported cancellation reason. Allowed: '
+              '${CancellationReason.values.map((e) => e.toJson()).join(', ')}',
+        );
+      }
+      cancellationReason = matches.first;
+    }
 
     // Use explicit model queries instead of dynamic table names
     if (type == 'CONSULTATION') {
       // Verify ownership
-      final verifyQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findFirst)
-          .where({
-        'id': id,
-        'requestedById': consulteeProfileId,
-      }).build();
-
-      final booking = await executeQueryAsSingleMap(verifyQuery);
+      final booking = await _prisma.consultation.findFirstProjected(
+        where: ConsultationWhereInput(
+          id: StringFilter(equals: id),
+          requestedById: StringFilter(equals: consulteeProfileId),
+        ),
+      );
 
       if (booking == null) {
         throw Exception('Booking not found or you do not have permission');
       }
 
-      // Update status to cancelled with metadata
-      final updateQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.update)
-          .where({'id': id}).data({
-        'requestStatus': 'CANCELLED',
-        // cancellationReason is an enum column post schema-sync; free-text
-        // from the client is stored in cancellationNotes instead
-        'cancellationReason': 'OTHER',
-        if (reason != null && reason.isNotEmpty) 'cancellationNotes': reason,
-        'cancelledAt': now,
-        'cancelledBy': userId,
-        'updatedAt': now,
-      }).build();
-
-      await executeMutation(updateQuery);
+      // Update status to cancelled with metadata (updateMany keeps the old
+      // silent-if-missing semantics; updatedAt is autofilled)
+      await _prisma.consultation.updateMany(
+        where: ConsultationWhereInput(id: StringFilter(equals: id)),
+        data: UpdateConsultationInput(
+          status: AppointmentStatus.cancelled,
+          cancellationReason: cancellationReason,
+          cancelledAt: now,
+          cancelledBy: consulteeProfileId,
+        ),
+      );
     } else if (type == 'SUBSCRIPTION') {
       // Verify ownership
-      final verifyQuery = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findFirst)
-          .where({
-        'id': id,
-        'requestedById': consulteeProfileId,
-      }).build();
-
-      final booking = await executeQueryAsSingleMap(verifyQuery);
+      final booking = await _prisma.subscription.findFirstProjected(
+        where: SubscriptionWhereInput(
+          id: StringFilter(equals: id),
+          requestedById: StringFilter(equals: consulteeProfileId),
+        ),
+      );
 
       if (booking == null) {
         throw Exception('Booking not found or you do not have permission');
       }
 
       // Update status to cancelled with metadata
-      final updateQuery = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.update)
-          .where({'id': id}).data({
-        'requestStatus': 'CANCELLED',
-        // cancellationReason is an enum column post schema-sync; free-text
-        // from the client is stored in cancellationNotes instead
-        'cancellationReason': 'OTHER',
-        if (reason != null && reason.isNotEmpty) 'cancellationNotes': reason,
-        'cancelledAt': now,
-        'cancelledBy': userId,
-        'updatedAt': now,
-      }).build();
-
-      await executeMutation(updateQuery);
+      await _prisma.subscription.updateMany(
+        where: SubscriptionWhereInput(id: StringFilter(equals: id)),
+        data: UpdateSubscriptionInput(
+          status: AppointmentStatus.cancelled,
+          cancellationReason: cancellationReason,
+          cancelledAt: now,
+          cancelledBy: consulteeProfileId,
+        ),
+      );
     } else if (type == 'TRIAL') {
       // Verify ownership via consultee profile
-      final verifyQuery = JsonQueryBuilder()
-          .model('TrialSession')
-          .action(QueryAction.findFirst)
-          .where({
-        'id': id,
-        'consulteeProfileId': consulteeProfileId,
-      }).build();
-
-      final booking = await executeQueryAsSingleMap(verifyQuery);
+      final booking = await _prisma.trialSession.findFirstProjected(
+        where: TrialSessionWhereInput(
+          id: StringFilter(equals: id),
+          consulteeProfileId: StringFilter(equals: consulteeProfileId),
+        ),
+      );
 
       if (booking == null) {
         throw Exception('Booking not found or you do not have permission');
       }
 
       // Update status to CANCELLED
-      final updateQuery = JsonQueryBuilder()
-          .model('TrialSession')
-          .action(QueryAction.update)
-          .where({'id': id}).data({
-        'status': 'CANCELLED',
-        'updatedAt': now,
-      }).build();
-
-      await executeMutation(updateQuery);
+      await _prisma.trialSession.updateMany(
+        where: TrialSessionWhereInput(id: StringFilter(equals: id)),
+        data: const UpdateTrialSessionInput(
+          status: TrialSessionStatus.cancelled,
+        ),
+      );
     } else {
       throw Exception('Invalid booking type');
     }
-  }
-
-  /// Respond to a pending booking request (consultant approve/reject).
-  ///
-  /// Approval moves the request to APPROVED_PENDING_PAYMENT — the consultee
-  /// completes payment on the web, which schedules the appointment there.
-  Future<Map<String, dynamic>> respondToBookingRequest({
-    required String id,
-    required String type,
-    required String userId,
-    required bool approve,
-  }) async {
-    // Resolve the consultant profile for authorization
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).select({'id': true}).build();
-    final profile = await executeQueryAsSingleMap(profileQuery);
-    if (profile == null) {
-      throw Exception('Booking not found or you do not have permission');
-    }
-    final consultantProfileId = profile['id'] as String;
-
-    if (type != 'CONSULTATION' && type != 'SUBSCRIPTION') {
-      throw Exception('Invalid booking type');
-    }
-    final isConsultation = type == 'CONSULTATION';
-    final model = isConsultation ? 'Consultation' : 'Subscription';
-    final planModel = isConsultation ? 'ConsultationPlan' : 'SubscriptionPlan';
-    final planIdField =
-        isConsultation ? 'consultationPlanId' : 'subscriptionPlanId';
-
-    // The request must exist and still be pending
-    final bookingQuery = JsonQueryBuilder()
-        .model(model)
-        .action(QueryAction.findFirst)
-        .where({'id': id, 'requestStatus': 'PENDING'}).build();
-    final booking = await executeQueryAsSingleMap(bookingQuery);
-    if (booking == null) {
-      throw Exception('Booking request not found or no longer pending');
-    }
-
-    // The plan must belong to the responding consultant
-    final planQuery = JsonQueryBuilder()
-        .model(planModel)
-        .action(QueryAction.findFirst)
-        .where({
-      'id': booking[planIdField],
-      'consultantProfileId': consultantProfileId,
-    }).select({'id': true}).build();
-    final plan = await executeQueryAsSingleMap(planQuery);
-    if (plan == null) {
-      throw Exception('Booking not found or you do not have permission');
-    }
-
-    final now = nowIso8601;
-    final newStatus = approve ? 'APPROVED_PENDING_PAYMENT' : 'REJECTED';
-    // Compare-and-set on the PENDING status so two concurrent responses
-    // can't both win — the second writer matches zero rows.
-    final updateQuery = JsonQueryBuilder()
-        .model(model)
-        .action(QueryAction.update)
-        .where({'id': id, 'requestStatus': 'PENDING'}).data({
-      'requestStatus': newStatus,
-      'updatedAt': now,
-    }).build();
-    final affected = await executeMutationCounted(updateQuery);
-    if (affected == 0) {
-      throw Exception('Booking request not found or no longer pending');
-    }
-
-    return {'id': id, 'status': newStatus, 'respondedAt': now};
   }
 
   /// Reschedule a booking
@@ -2639,12 +2401,11 @@ class AppointmentRepository extends BaseRepository {
     String? slotId, // For individual session reschedule
   }) async {
     // Get consultee profile ID
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
-    final profile = await executeQueryAsSingleMap(profileQuery);
+    final profile = await _prisma.consulteeProfile.findFirstProjected(
+      where: ConsulteeProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
 
     if (profile == null) {
       throw Exception('User profile not found');
@@ -2657,15 +2418,12 @@ class AppointmentRepository extends BaseRepository {
 
     if (type == 'CONSULTATION') {
       // Verify ownership and get booking
-      final verifyQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findFirst)
-          .where({
-        'id': id,
-        'requestedById': consulteeProfileId,
-      }).build();
-
-      final booking = await executeQueryAsSingleMap(verifyQuery);
+      final booking = await _prisma.consultation.findFirstProjected(
+        where: ConsultationWhereInput(
+          id: StringFilter(equals: id),
+          requestedById: StringFilter(equals: consulteeProfileId),
+        ),
+      );
 
       if (booking == null) {
         throw Exception('Booking not found or you do not have permission');
@@ -2677,12 +2435,14 @@ class AppointmentRepository extends BaseRepository {
       }
 
       // Get appointment with slots
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'consultationId': id}).include({'slotsOfAppointment': true}).build();
-
-      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+      final appointment = await _prisma.appointment.findFirstProjected(
+        where: AppointmentWhereInput(
+          consultationId: StringFilter(equals: id),
+        ),
+        include: const AppointmentInclude(
+          slotsOfAppointment: SlotOfAppointmentInclude(),
+        ),
+      );
 
       if (appointment != null) {
         final slots = appointment['slotsOfAppointment'] as List<dynamic>?;
@@ -2697,29 +2457,22 @@ class AppointmentRepository extends BaseRepository {
       }
 
       // Revert status to PENDING
-      final now = nowIso8601;
-      final updateQuery = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.update)
-          .where({'id': id}).data({
-        'requestStatus': 'PENDING',
-        'updatedAt': now,
-      }).build();
-
-      await executeMutation(updateQuery);
+      await _prisma.consultation.updateMany(
+        where: ConsultationWhereInput(id: StringFilter(equals: id)),
+        data: const UpdateConsultationInput(
+          status: AppointmentStatus.pending,
+        ),
+      );
 
       return getBookingById(id, type: 'CONSULTATION');
     } else if (type == 'SUBSCRIPTION') {
       // Verify ownership and get booking
-      final verifyQuery = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findFirst)
-          .where({
-        'id': id,
-        'requestedById': consulteeProfileId,
-      }).build();
-
-      final booking = await executeQueryAsSingleMap(verifyQuery);
+      final booking = await _prisma.subscription.findFirstProjected(
+        where: SubscriptionWhereInput(
+          id: StringFilter(equals: id),
+          requestedById: StringFilter(equals: consulteeProfileId),
+        ),
+      );
 
       if (booking == null) {
         throw Exception('Booking not found or you do not have permission');
@@ -2731,12 +2484,14 @@ class AppointmentRepository extends BaseRepository {
       }
 
       // Get appointment with slots
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({'subscriptionId': id}).include({'slotsOfAppointment': true}).build();
-
-      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+      final appointment = await _prisma.appointment.findFirstProjected(
+        where: AppointmentWhereInput(
+          subscriptionId: StringFilter(equals: id),
+        ),
+        include: const AppointmentInclude(
+          slotsOfAppointment: SlotOfAppointmentInclude(),
+        ),
+      );
 
       if (appointment != null) {
         final slots = appointment['slotsOfAppointment'] as List<dynamic>?;
@@ -2744,9 +2499,7 @@ class AppointmentRepository extends BaseRepository {
           if (slotId != null) {
             // Individual session reschedule
             final targetSlot = slots.firstWhere(
-              (s) =>
-                  (s as Map<String, dynamic>)['id'] ==
-                  slotId,
+              (s) => (s as Map<String, dynamic>)['id'] == slotId,
               orElse: () => null,
             );
 
@@ -2768,16 +2521,12 @@ class AppointmentRepository extends BaseRepository {
             await _markSlotsAsTentative(appointmentId, null);
 
             // Revert status to PENDING for full reschedule
-            final now = nowIso8601;
-            final updateQuery = JsonQueryBuilder()
-                .model('Subscription')
-                .action(QueryAction.update)
-                .where({'id': id}).data({
-              'requestStatus': 'PENDING',
-              'updatedAt': now,
-            }).build();
-
-            await executeMutation(updateQuery);
+            await _prisma.subscription.updateMany(
+              where: SubscriptionWhereInput(id: StringFilter(equals: id)),
+              data: const UpdateSubscriptionInput(
+                status: AppointmentStatus.pending,
+              ),
+            );
           }
         }
       }
@@ -2819,30 +2568,24 @@ class AppointmentRepository extends BaseRepository {
     String appointmentId,
     String? slotId,
   ) async {
-    final now = nowIso8601;
-
+    // updateMany keeps the old silent-if-missing semantics; updatedAt is
+    // autofilled by the typed layer.
     if (slotId != null) {
       // Update specific slot
-      final updateQuery = JsonQueryBuilder()
-          .model('SlotOfAppointment')
-          .action(QueryAction.update)
-          .where({'id': slotId}).data({
-        'isTentative': true,
-        'updatedAt': now,
-      }).build();
-
-      await executeMutation(updateQuery);
+      await _prisma.slotOfAppointment.updateMany(
+        where: SlotOfAppointmentWhereInput(
+          id: StringFilter(equals: slotId),
+        ),
+        data: const UpdateSlotOfAppointmentInput(isTentative: true),
+      );
     } else {
       // Update all slots for this appointment
-      final updateQuery = JsonQueryBuilder()
-          .model('SlotOfAppointment')
-          .action(QueryAction.updateMany)
-          .where({'appointmentId': appointmentId}).data({
-        'isTentative': true,
-        'updatedAt': now,
-      }).build();
-
-      await executeMutation(updateQuery);
+      await _prisma.slotOfAppointment.updateMany(
+        where: SlotOfAppointmentWhereInput(
+          appointmentId: StringFilter(equals: appointmentId),
+        ),
+        data: const UpdateSlotOfAppointmentInput(isTentative: true),
+      );
     }
   }
 
@@ -2853,91 +2596,86 @@ class AppointmentRepository extends BaseRepository {
     required String userId,
   }) async {
     // First, check consultant access (consultant who owns the plan)
-    final consultantProfileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .where({'userId': userId}).build();
-
     final consultantProfile =
-        await executeQueryAsSingleMap(consultantProfileQuery);
+        await _prisma.consultantProfile.findFirstProjected(
+      where: ConsultantProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
 
     if (consultantProfile != null) {
       final consultantProfileId = consultantProfile['id'] as String;
       var isConsultant = false;
 
       if (type == 'CONSULTATION') {
-        final query = JsonQueryBuilder()
-            .model('Consultation')
-            .action(QueryAction.findFirst)
-            .where({'id': bookingId})
-            .include({'consultationPlan': true})
-            .build();
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.consultation.findFirstProjected(
+          where: ConsultationWhereInput(
+            id: StringFilter(equals: bookingId),
+          ),
+          include: const ConsultationInclude(
+            consultationPlan: ConsultationPlanInclude(),
+          ),
+        );
         if (result != null) {
           final plan = result['consultationPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['consultationPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['consultationPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'SUBSCRIPTION') {
-        final query = JsonQueryBuilder()
-            .model('Subscription')
-            .action(QueryAction.findFirst)
-            .where({'id': bookingId})
-            .include({'subscriptionPlan': true})
-            .build();
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.subscription.findFirstProjected(
+          where: SubscriptionWhereInput(
+            id: StringFilter(equals: bookingId),
+          ),
+          include: const SubscriptionInclude(
+            subscriptionPlan: SubscriptionPlanInclude(),
+          ),
+        );
         if (result != null) {
           final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['subscriptionPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['subscriptionPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'WEBINAR') {
-        final query = JsonQueryBuilder()
-            .model('Webinar')
-            .action(QueryAction.findFirst)
-            .where({'id': bookingId})
-            .include({'webinarPlan': true})
-            .build();
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.webinar.findFirstProjected(
+          where: WebinarWhereInput(
+            id: StringFilter(equals: bookingId),
+          ),
+          include: const WebinarInclude(webinarPlan: WebinarPlanInclude()),
+        );
         if (result != null) {
           final plan = result['webinarPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['webinarPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['webinarPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'CLASS') {
-        final query = JsonQueryBuilder()
-            .model('Class')
-            .action(QueryAction.findFirst)
-            .where({'id': bookingId})
-            .include({'classPlan': true})
-            .build();
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.classModel.findFirstProjected(
+          where: ClassModelWhereInput(
+            id: StringFilter(equals: bookingId),
+          ),
+          include: const ClassModelInclude(classPlan: ClassPlanInclude()),
+        );
         if (result != null) {
           final plan = result['classPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['classPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['classPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       } else if (type == 'TRIAL') {
-        final query = JsonQueryBuilder()
-            .model('TrialSession')
-            .action(QueryAction.findFirst)
-            .where({'id': bookingId})
-            .include({'subscriptionPlan': true})
-            .build();
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.trialSession.findFirstProjected(
+          where: TrialSessionWhereInput(
+            id: StringFilter(equals: bookingId),
+          ),
+          include: const TrialSessionInclude(
+            subscriptionPlan: SubscriptionPlanInclude(),
+          ),
+        );
         if (result != null) {
           final plan = result['subscriptionPlan'] as Map<String, dynamic>?;
-          final planConsultantId =
-              plan?['consultantProfileId'] as String? ??
-                  result['subscriptionPlanConsultantProfileId'] as String?;
+          final planConsultantId = plan?['consultantProfileId'] as String? ??
+              result['subscriptionPlanConsultantProfileId'] as String?;
           isConsultant = planConsultantId == consultantProfileId;
         }
       }
@@ -2948,49 +2686,39 @@ class AppointmentRepository extends BaseRepository {
     // For CONSULTATION, SUBSCRIPTION, and TRIAL, check via consultee profile
     if (type == 'CONSULTATION' || type == 'SUBSCRIPTION' || type == 'TRIAL') {
       // Get consultee profile ID
-      final profileQuery = JsonQueryBuilder()
-          .model('ConsulteeProfile')
-          .action(QueryAction.findFirst)
-          .where({'userId': userId}).build();
-
-      final profile = await executeQueryAsSingleMap(profileQuery);
+      final profile = await _prisma.consulteeProfile.findFirstProjected(
+        where: ConsulteeProfileWhereInput(
+          userId: StringFilter(equals: userId),
+        ),
+      );
 
       if (profile == null) return false;
 
       final consulteeProfileId = profile['id'] as String;
 
       if (type == 'CONSULTATION') {
-        final query = JsonQueryBuilder()
-            .model('Consultation')
-            .action(QueryAction.findFirst)
-            .where({
-          'id': bookingId,
-          'requestedById': consulteeProfileId,
-        }).build();
-
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.consultation.findFirstProjected(
+          where: ConsultationWhereInput(
+            id: StringFilter(equals: bookingId),
+            requestedById: StringFilter(equals: consulteeProfileId),
+          ),
+        );
         return result != null;
       } else if (type == 'TRIAL') {
-        final query = JsonQueryBuilder()
-            .model('TrialSession')
-            .action(QueryAction.findFirst)
-            .where({
-          'id': bookingId,
-          'consulteeProfileId': consulteeProfileId,
-        }).build();
-
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.trialSession.findFirstProjected(
+          where: TrialSessionWhereInput(
+            id: StringFilter(equals: bookingId),
+            consulteeProfileId: StringFilter(equals: consulteeProfileId),
+          ),
+        );
         return result != null;
       } else {
-        final query = JsonQueryBuilder()
-            .model('Subscription')
-            .action(QueryAction.findFirst)
-            .where({
-          'id': bookingId,
-          'requestedById': consulteeProfileId,
-        }).build();
-
-        final result = await executeQueryAsSingleMap(query);
+        final result = await _prisma.subscription.findFirstProjected(
+          where: SubscriptionWhereInput(
+            id: StringFilter(equals: bookingId),
+            requestedById: StringFilter(equals: consulteeProfileId),
+          ),
+        );
         return result != null;
       }
     }
@@ -2998,31 +2726,31 @@ class AppointmentRepository extends BaseRepository {
     // For WEBINAR and CLASS, check enrollment via SlotOfAppointment M2M
     if (type == 'WEBINAR' || type == 'CLASS') {
       // Get the appointment for this webinar/class
-      final appointmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({
-        'appointmentType': type,
-        if (type == 'WEBINAR') 'webinarId': bookingId,
-        if (type == 'CLASS') 'classId': bookingId,
-      }).build();
-
-      final appointment = await executeQueryAsSingleMap(appointmentQuery);
+      final appointment = await _prisma.appointment.findFirstProjected(
+        where: AppointmentWhereInput(
+          appointmentType: AppointmentsTypeFilter(
+            equals: _appointmentsTypeFromString(type),
+          ),
+          webinarId: type == 'WEBINAR' ? StringFilter(equals: bookingId) : null,
+          classId: type == 'CLASS' ? StringFilter(equals: bookingId) : null,
+        ),
+      );
       if (appointment == null) return false;
 
       // Check if user is enrolled via SlotOfAppointment
       // Use nested filter: slots.some(user.some(id == userId))
-      final enrollmentQuery = JsonQueryBuilder()
-          .model('Appointment')
-          .action(QueryAction.findFirst)
-          .where({
-        'id': appointment['id'],
-        'slotsOfAppointment': FilterOperators.some({
-          'user': FilterOperators.some({'id': userId}),
-        }),
-      }).build();
-
-      final result = await executeQueryAsSingleMap(enrollmentQuery);
+      final result = await _prisma.appointment.findFirstProjected(
+        where: AppointmentWhereInput(
+          id: StringFilter(equals: appointment['id'] as String),
+          slotsOfAppointment: SlotOfAppointmentListRelationFilter(
+            some: SlotOfAppointmentWhereInput(
+              user: UserListRelationFilter(
+                some: UserWhereInput(id: StringFilter(equals: userId)),
+              ),
+            ),
+          ),
+        ),
+      );
       return result != null;
     }
 
@@ -3035,23 +2763,126 @@ class AppointmentRepository extends BaseRepository {
   Future<({Map<String, dynamic>? profile, Map<String, dynamic>? user})>
       _fetchConsulteeInfo(
     String? consulteeProfileId, {
-    TransactionExecutor? txn,
+    PrismaClient? client,
   }) async {
     if (consulteeProfileId == null) {
       return (profile: null, user: null);
     }
 
-    final consulteeQuery = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findUnique)
-        .where({'id': consulteeProfileId})
-        .include({'user': true})
-        .build();
     final profile =
-        await executeQueryAsSingleMap(consulteeQuery, txn: txn);
+        await (client ?? _prisma).consulteeProfile.findFirstProjected(
+              where: ConsulteeProfileWhereInput(
+                id: StringFilter(equals: consulteeProfileId),
+              ),
+              include: const ConsulteeProfileInclude(user: UserInclude()),
+            );
 
     final user = profile?['user'] as Map<String, dynamic>?;
 
     return (profile: profile, user: user);
+  }
+
+  /// Respond to a pending booking request (consultant approve/reject).
+  ///
+  /// Ported from dev's payment-free booking flow into the typed surface.
+  /// Uses a compare-and-set on the PENDING status (updateMany with the status
+  /// in the where) so two concurrent responses can't both win.
+  Future<Map<String, dynamic>> respondToBookingRequest({
+    required String id,
+    required String type,
+    required String userId,
+    required bool approve,
+  }) async {
+    // Resolve the consultant profile for authorization
+    final profile = await _prisma.consultantProfile.findFirstProjected(
+      where: ConsultantProfileWhereInput(userId: StringFilter(equals: userId)),
+      select: [ConsultantProfileScalarField.id],
+    );
+    if (profile == null) {
+      throw Exception('Booking not found or you do not have permission');
+    }
+    final consultantProfileId = profile['id'] as String;
+
+    if (type != 'CONSULTATION' && type != 'SUBSCRIPTION') {
+      throw Exception('Invalid booking type');
+    }
+    final isConsultation = type == 'CONSULTATION';
+
+    final newStatus = approve
+        ? AppointmentStatus.approvedPendingPayment
+        : AppointmentStatus.rejected;
+    final now = DateTime.now().toUtc();
+
+    int affected;
+    if (isConsultation) {
+      final booking = await _prisma.consultation.findFirstProjected(
+        where: ConsultationWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        select: [ConsultationScalarField.consultationPlanId],
+      );
+      if (booking == null) {
+        throw Exception('Booking request not found or no longer pending');
+      }
+      final plan = await _prisma.consultationPlan.findFirstProjected(
+        where: ConsultationPlanWhereInput(
+          id: StringFilter(equals: booking['consultationPlanId'] as String?),
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+        ),
+        select: [ConsultationPlanScalarField.id],
+      );
+      if (plan == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+      affected = await _prisma.consultation.updateMany(
+        where: ConsultationWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        data: UpdateConsultationInput(status: newStatus),
+      );
+    } else {
+      final booking = await _prisma.subscription.findFirstProjected(
+        where: SubscriptionWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        select: [SubscriptionScalarField.subscriptionPlanId],
+      );
+      if (booking == null) {
+        throw Exception('Booking request not found or no longer pending');
+      }
+      final plan = await _prisma.subscriptionPlan.findFirstProjected(
+        where: SubscriptionPlanWhereInput(
+          id: StringFilter(equals: booking['subscriptionPlanId'] as String?),
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+        ),
+        select: [SubscriptionPlanScalarField.id],
+      );
+      if (plan == null) {
+        throw Exception('Booking not found or you do not have permission');
+      }
+      affected = await _prisma.subscription.updateMany(
+        where: SubscriptionWhereInput(
+          id: StringFilter(equals: id),
+          status:
+              const AppointmentStatusFilter(equals: AppointmentStatus.pending),
+        ),
+        data: UpdateSubscriptionInput(status: newStatus),
+      );
+    }
+    if (affected == 0) {
+      throw Exception('Booking request not found or no longer pending');
+    }
+
+    return {
+      'id': id,
+      'status': newStatus.toJson(),
+      'respondedAt': now.toIso8601String(),
+    };
   }
 }

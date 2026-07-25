@@ -365,9 +365,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
     final subscriptions = allBookings
         .where((b) => b.bookingType == BookingType.subscription)
         .toList();
-    final freeTrials = allBookings
-        .where((b) => b.bookingType == BookingType.trial)
-        .toList();
+    final freeTrials =
+        allBookings.where((b) => b.bookingType == BookingType.trial).toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -439,13 +438,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
                 },
                 onPayNow: FeatureFlags.payments &&
                         booking.status == RequestStatus.approvedPendingPayment
-                        ? () {
-                            context.pushNamed(
-                              'checkout',
-                              extra: booking,
-                            );
-                          }
-                        : null,
+                    ? () {
+                        context.pushNamed(
+                          'checkout',
+                          extra: booking,
+                        );
+                      }
+                    : null,
               ),
             ),
         ],
@@ -476,7 +475,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen>
               );
             },
             onPayNow: FeatureFlags.payments &&
-                      booking.status == RequestStatus.approvedPendingPayment
+                    booking.status == RequestStatus.approvedPendingPayment
                 ? () {
                     context.pushNamed(
                       'checkout',

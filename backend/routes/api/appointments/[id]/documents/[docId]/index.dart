@@ -4,7 +4,6 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/appointments/:id/documents/:docId — Details
 /// PUT /api/appointments/:id/documents/:docId — Review
@@ -37,41 +36,37 @@ Future<Response> _handle(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     // Verify user is a participant in the appointment
     final db = context.read<DatabaseClient>();
-    final apptQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findFirst)
-        .where({'id': appointmentId})
-        .build();
-    final appointment = await db.executor.executeQueryAsSingleMap(
-      apptQuery,
+    final appointmentRecord = await db.prisma.appointment.findUnique(
+      where: AppointmentWhereUniqueInput(id: appointmentId),
     );
-    if (appointment == null) {
+    if (appointmentRecord == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Appointment not found'}},
+        body: {
+          'error': {'message': 'Appointment not found'}
+        },
       );
     }
+    final appointment = appointmentRecord.toJson();
 
     final user = await db.users.findById(userId);
-    final consulteeProfileId =
-        user?['consulteeProfileId'] as String?;
-    final consultantProfileId =
-        user?['consultantProfileId'] as String?;
-    final apptConsulteeId =
-        appointment['consulteeProfileId'] as String?;
-    final apptConsultantId =
-        appointment['consultantProfileId'] as String?;
+    final consulteeProfileId = user?['consulteeProfileId'] as String?;
+    final consultantProfileId = user?['consultantProfileId'] as String?;
+    final apptConsulteeId = appointment['consulteeProfileId'] as String?;
+    final apptConsultantId = appointment['consultantProfileId'] as String?;
 
-    final isConsultee = consulteeProfileId != null &&
-        consulteeProfileId == apptConsulteeId;
-    final isConsultant = consultantProfileId != null &&
-        consultantProfileId == apptConsultantId;
+    final isConsultee =
+        consulteeProfileId != null && consulteeProfileId == apptConsulteeId;
+    final isConsultant =
+        consultantProfileId != null && consultantProfileId == apptConsultantId;
 
     if (!isConsultee && !isConsultant) {
       return Response.json(
@@ -99,7 +94,9 @@ Future<Response> _handle(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Operation failed'}},
+      body: {
+        'error': {'message': 'Operation failed'}
+      },
     );
   }
 }
@@ -109,7 +106,9 @@ Future<Response> _handleGet(DatabaseClient db, String docId) async {
   if (doc == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Document not found'}},
+      body: {
+        'error': {'message': 'Document not found'}
+      },
     );
   }
   return Response.json(body: {'data': doc.toJson()});
@@ -128,17 +127,18 @@ Future<Response> _handlePut(
   if (reviewStatusStr == null) {
     return Response.json(
       statusCode: HttpStatus.badRequest,
-      body: {'error': {'message': 'reviewStatus is required'}},
+      body: {
+        'error': {'message': 'reviewStatus is required'}
+      },
     );
   }
 
   // Validate reviewStatus — return 400 for invalid values
-  final reviewStatus = DocumentReviewStatus.values
-      .cast<DocumentReviewStatus?>()
-      .firstWhere(
-        (s) => s!.name.toUpperCase() == reviewStatusStr.toUpperCase(),
-        orElse: () => null,
-      );
+  final reviewStatus =
+      DocumentReviewStatus.values.cast<DocumentReviewStatus?>().firstWhere(
+            (s) => s!.name.toUpperCase() == reviewStatusStr.toUpperCase(),
+            orElse: () => null,
+          );
 
   if (reviewStatus == null) {
     return Response.json(

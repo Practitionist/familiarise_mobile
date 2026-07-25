@@ -32,11 +32,15 @@
 //               final user = await db.users.findByEmail(email);
 //               // OR type-safe: await db.prisma.feedback.create(data: ...);
 //
-// WHEN TO UPDATE THE SCHEMA REGISTRY
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Never by hand. Edit backend/prisma/schema.prisma (copied from the web
-// repo, which owns migrations) and run:
-//   ./scripts/regenerate-build.sh --prisma
+// WHEN THE SCHEMA CHANGES
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// Never by hand. Copy the source-of-truth schema from familiarise_web (which
+// owns migrations) and regenerate — registry, models, and delegates are all
+// derived automatically:
+//   1. cp ../familiarise_web/prisma/schema.prisma prisma/schema.prisma
+//   2. ./scripts/regenerate-build.sh --prisma
+// (The old hand-maintained buildSchemaRegistry() in schema_registry_builder.dart
+// is deprecated and no longer wired in.)
 //
 // If you add a model and need a repository:
 //   1. Create a repository in backend/lib/database/repositories/
@@ -80,7 +84,7 @@ export '../generated/index.dart';
 /// - QueryExecutor for query execution
 /// - JsonQueryBuilder for type-safe query building
 class DatabaseClient {
-  DatabaseClient._(this._executor, this._adapter, this._schema) {
+  DatabaseClient._(this._executor, this._adapter) {
     // Initialize type-safe PrismaClient
     _prisma = PrismaClient(adapter: _adapter);
 
@@ -88,14 +92,17 @@ class DatabaseClient {
     _userRepository = UserRepository(_executor, _prisma);
     _accountRepository = AccountRepository(_executor, _prisma);
     _sessionRepository = SessionRepository(_executor, _userRepository, _prisma);
-    _consulteeProfileRepository = ConsulteeProfileRepository(_executor, _prisma);
-    _consultantProfileRepository = ConsultantProfileRepository(_executor, _prisma);
+    _consulteeProfileRepository =
+        ConsulteeProfileRepository(_executor, _prisma);
+    _consultantProfileRepository =
+        ConsultantProfileRepository(_executor, _prisma);
     _domainRepository = DomainRepository(_executor, _prisma);
-    _consultantExploreRepository = ConsultantExploreRepository(_executor);
-    _slotRepository = SlotRepository(_executor);
-    _appointmentRepository = AppointmentRepository(_executor);
-    _programsRepository = ProgramsRepository(_executor);
-    _checkoutRepository = CheckoutRepository(_executor);
+    _consultantExploreRepository =
+        ConsultantExploreRepository(_executor, _prisma);
+    _slotRepository = SlotRepository(_executor, _prisma);
+    _appointmentRepository = AppointmentRepository(_executor, _prisma);
+    _programsRepository = ProgramsRepository(_executor, _prisma);
+    _checkoutRepository = CheckoutRepository(_executor, _prisma);
     _webhookEventRepository = WebhookEventRepository(_executor, _prisma);
     _refundRepository = RefundRepository(_executor, _prisma);
     _disputeRepository = DisputeRepository(_executor, _prisma);
@@ -103,7 +110,7 @@ class DatabaseClient {
     _reviewRepository = ReviewRepository(_executor, _prisma);
     _feedbackRepository = FeedbackRepository(_executor, _prisma);
     _meetingSessionRepository = MeetingSessionRepository(_executor, _prisma);
-    _dashboardRepository = DashboardRepository(_executor);
+    _dashboardRepository = DashboardRepository(_executor, _prisma);
     _verificationRepository = VerificationRepository(_executor, _prisma);
     _collaboratorRepository = CollaboratorRepository(_executor, _prisma);
     _referralRepository = ReferralRepository(_executor, _prisma);
@@ -111,8 +118,7 @@ class DatabaseClient {
         ConsultantVerificationRepository(_executor, _prisma);
     _trialRepository = TrialRepository(_executor, _prisma);
     _waitlistRepository = WaitlistRepository(_executor, _prisma);
-    _payoutAccountRepository =
-        PayoutAccountRepository(_executor, _prisma);
+    _payoutAccountRepository = PayoutAccountRepository(_executor, _prisma);
     _appointmentDocumentRepository =
         AppointmentDocumentRepository(_executor, _prisma);
     _announcementRepository = AnnouncementRepository(_executor, _prisma);
@@ -125,7 +131,6 @@ class DatabaseClient {
   static DatabaseClient? _instance;
   final QueryExecutor _executor;
   final PostgresAdapter _adapter;
-  final SchemaRegistry _schema;
 
   // Type-safe PrismaClient (use this for new code)
   late final PrismaClient _prisma;
@@ -153,13 +158,11 @@ class DatabaseClient {
   late final VerificationRepository _verificationRepository;
   late final CollaboratorRepository _collaboratorRepository;
   late final ReferralRepository _referralRepository;
-  late final ConsultantVerificationRepository
-      _consultantVerificationRepository;
+  late final ConsultantVerificationRepository _consultantVerificationRepository;
   late final TrialRepository _trialRepository;
   late final WaitlistRepository _waitlistRepository;
   late final PayoutAccountRepository _payoutAccountRepository;
-  late final AppointmentDocumentRepository
-      _appointmentDocumentRepository;
+  late final AppointmentDocumentRepository _appointmentDocumentRepository;
   late final AnnouncementRepository _announcementRepository;
   late final MaintenanceRepository _maintenanceRepository;
   late final RecordingRepository _recordingRepository;
@@ -168,25 +171,6 @@ class DatabaseClient {
 
   /// Build the schema registry from the generated registrations.
   ///
-  /// Models with @@map are additionally registered under their TABLE name
-  /// (e.g. both 'User' and 'users') so legacy JsonQueryBuilder calls that
-  /// reference .model('users') keep full field/relation metadata.
-  static SchemaRegistry _buildSchema() {
-    final schema = SchemaRegistry();
-    registerAllModels(schema);
-    for (final modelName in schema.modelNames.toList()) {
-      final model = schema.getModel(modelName);
-      if (model != null && model.tableName != model.name) {
-        schema.registerModel(ModelSchema(
-          name: model.tableName,
-          tableName: model.tableName,
-          fields: model.fields,
-          relations: model.relations,
-        ));
-      }
-    }
-    return schema;
-  }
 
   /// Initialize the database client with a connection URL
   static Future<DatabaseClient> initialize(String connectionUrl) async {
@@ -202,37 +186,47 @@ class DatabaseClient {
         colonIndex == -1 ? userInfo : userInfo.substring(0, colonIndex);
     final password = colonIndex == -1 ? '' : userInfo.substring(colonIndex + 1);
 
-    // Honour ?sslmode=disable for local development databases; hosted
-    // Postgres (Supabase et al.) keeps the SSL requirement.
-    final sslMode = uri.queryParameters['sslmode'] == 'disable'
+    // Honour ?sslmode=disable, and auto-disable for localhost (no TLS on
+    // local Postgres); hosted Postgres (Supabase et al.) keeps SSL required.
+    final isLocal = uri.host == 'localhost' || uri.host == '127.0.0.1';
+    final sslMode = (uri.queryParameters['sslmode'] == 'disable' || isLocal)
         ? pg.SslMode.disable
         : pg.SslMode.require;
 
-    final connection = await pg.Connection.open(
-      pg.Endpoint(
-        host: uri.host,
-        port: uri.port,
-        database:
-            uri.pathSegments.isNotEmpty ? uri.pathSegments.first : 'postgres',
-        username: username,
-        password: password,
+    // Pooled adapter (connector 0.7+): non-transactional statements run on
+    // connections borrowed from the pool; each transaction pins one dedicated
+    // connection. Replaces the previous single long-lived pg.Connection, whose
+    // silent staleness caused recurring 500s until a server restart.
+    final pool = pg.Pool<void>.withEndpoints(
+      [
+        pg.Endpoint(
+          host: uri.host,
+          port: uri.port,
+          database:
+              uri.pathSegments.isNotEmpty ? uri.pathSegments.first : 'postgres',
+          username: username,
+          password: password,
+        ),
+      ],
+      settings: pg.PoolSettings(
+        sslMode: sslMode,
+        maxConnectionCount: 8,
+        // Recycle pooled connections before hosted poolers kill them silently.
+        maxConnectionAge: const Duration(minutes: 30),
       ),
-      settings: pg.ConnectionSettings(sslMode: sslMode),
     );
 
-    final adapter = PostgresAdapter(connection);
-    final schema = _buildSchema();
+    final adapter = PostgresAdapter.pooled(pool);
 
-    // Populate global registry so PrismaClient delegates can resolve
-    // @@map table names (e.g., 'User' → 'users' table).
-    for (final modelName in schema.modelNames) {
-      final model = schema.getModel(modelName);
-      if (model != null) schemaRegistry.registerModel(model);
-    }
+    // Populate the global registry from the GENERATED schema (all models,
+    // @@map/@map-aware, regenerated from prisma/schema.prisma). This replaces
+    // the hand-maintained buildSchemaRegistry() so JQB and typed PrismaClient
+    // delegates always match the current schema without manual upkeep.
+    registerAllModels(schemaRegistry);
 
-    final executor = QueryExecutor(adapter: adapter, schema: schema);
+    final executor = QueryExecutor(adapter: adapter, schema: schemaRegistry);
 
-    _instance = DatabaseClient._(executor, adapter, schema);
+    _instance = DatabaseClient._(executor, adapter);
     return _instance!;
   }
 
@@ -333,8 +327,7 @@ class DatabaseClient {
   WaitlistRepository get waitlists => _waitlistRepository;
 
   /// Payout account repository (for consultant bank/UPI accounts)
-  PayoutAccountRepository get payoutAccounts =>
-      _payoutAccountRepository;
+  PayoutAccountRepository get payoutAccounts => _payoutAccountRepository;
 
   /// Appointment document repository (for document review workflow)
   AppointmentDocumentRepository get appointmentDocuments =>

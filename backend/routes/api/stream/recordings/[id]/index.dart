@@ -27,7 +27,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -37,7 +39,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     if (recording == null) {
       return Response.json(
         statusCode: HttpStatus.notFound,
-        body: {'error': {'message': 'Recording not found'}},
+        body: {
+          'error': {'message': 'Recording not found'}
+        },
       );
     }
 
@@ -51,7 +55,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get recording'}},
+      body: {
+        'error': {'message': 'Failed to get recording'}
+      },
     );
   }
 }

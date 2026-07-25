@@ -14,9 +14,8 @@ class MessagesPlaceholderScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final user = ref.watch(currentUserProvider);
     final isConsultant = user?.role == UserRole.consultant;
-    final subtitle = isConsultant
-        ? 'Chat with your clients'
-        : 'Chat with your consultants';
+    final subtitle =
+        isConsultant ? 'Chat with your clients' : 'Chat with your consultants';
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,

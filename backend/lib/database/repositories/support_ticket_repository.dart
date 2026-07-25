@@ -1,7 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Exception thrown when a record is not found or access is denied
 class RecordNotFoundException implements Exception {
@@ -22,7 +21,6 @@ class SupportTicketRepository extends BaseRepository {
   SupportTicketRepository(super._executor, this._prisma);
 
   final PrismaClient _prisma;
-  final _uuid = const Uuid();
 
   /// Get tickets for a user with optional status filter and pagination
   ///
@@ -38,23 +36,20 @@ class SupportTicketRepository extends BaseRepository {
     final offset = page * effectivePageSize;
 
     // Build where clause
-    final where = <String, dynamic>{
-      'userId': userId,
-    };
-    if (status != null && status.isNotEmpty) {
-      where['status'] = status;
-    }
+    final where = SupportTicketWhereInput(
+      userId: StringFilter(equals: userId),
+      status: status != null && status.isNotEmpty
+          ? SupportTicketStatusFilter(
+              equals: SupportTicketStatus.values
+                  .firstWhere((e) => e.toJson() == status),
+            )
+          : null,
+    );
 
     // Count total tickets
-    final countQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.count)
-        .where(where)
-        .build();
+    final totalCount = await _prisma.supportTicket.count(where: where);
 
-    final totalCount = await executeCount(countQuery);
-
-    final tickets = await _prisma.supportTicket.findManyRaw(
+    final tickets = await _prisma.supportTicket.findMany(
       where: where,
       orderBy: {'createdAt': 'desc'},
       skip: offset,
@@ -62,7 +57,7 @@ class SupportTicketRepository extends BaseRepository {
     );
 
     return {
-      'tickets': tickets,
+      'tickets': tickets.map((t) => t.toJson()).toList(),
       'pagination': {
         'page': page,
         'pageSize': effectivePageSize,
@@ -81,8 +76,11 @@ class SupportTicketRepository extends BaseRepository {
     required String userId,
   }) async {
     // Fetch ticket
-    final ticket = await _prisma.supportTicket.findFirstRaw(
-      where: {'id': ticketId, 'userId': userId},
+    final ticket = await _prisma.supportTicket.findFirst(
+      where: SupportTicketWhereInput(
+        id: StringFilter(equals: ticketId),
+        userId: StringFilter(equals: userId),
+      ),
     );
 
     if (ticket == null) {
@@ -90,20 +88,25 @@ class SupportTicketRepository extends BaseRepository {
     }
 
     // Fetch responses separately
-    final responses = await _prisma.supportResponse.findManyRaw(
-      where: {'supportTicketId': ticketId, 'isInternal': false},
+    final responses = await _prisma.supportResponse.findMany(
+      where: SupportResponseWhereInput(
+        supportTicketId: StringFilter(equals: ticketId),
+        isInternal: BooleanFilter(equals: false),
+      ),
       orderBy: {'createdAt': 'asc'},
     );
 
     // Fetch attachments separately
-    final attachments = await _prisma.supportTicketAttachment.findManyRaw(
-      where: {'ticketId': ticketId},
+    final attachments = await _prisma.supportTicketAttachment.findMany(
+      where: SupportTicketAttachmentWhereInput(
+        ticketId: StringFilter(equals: ticketId),
+      ),
     );
 
     return {
-      ...ticket,
-      'responses': responses,
-      'attachments': attachments,
+      ...ticket.toJson(),
+      'responses': responses.map((r) => r.toJson()).toList(),
+      'attachments': attachments.map((a) => a.toJson()).toList(),
     };
   }
 
@@ -122,45 +125,35 @@ class SupportTicketRepository extends BaseRepository {
     String? subscriptionId,
     String? paymentId,
   }) async {
-    final now = nowIso8601;
-    final ticketId = _uuid.v4();
-
-    final data = <String, dynamic>{
-      'id': ticketId,
-      'userId': userId,
-      'title': title,
-      'description': description,
-      'status': 'OPEN',
-      'priority': priority ?? 'MEDIUM',
-      'createdAt': now,
-      'updatedAt': now,
-    };
-
-    // Add optional fields
-    if (issueType != null) data['issueType'] = issueType;
-    if (category != null) data['category'] = category;
-    if (consultationId != null) data['consultationId'] = consultationId;
-    if (subscriptionId != null) data['subscriptionId'] = subscriptionId;
-    if (paymentId != null) data['paymentId'] = paymentId;
-
-    final createQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.create)
-        .data(data)
-        .build();
-
-    await executeMutation(createQuery);
+    // id/timestamps autofilled; status defaults to OPEN on the typed input.
+    final created = await _prisma.supportTicket.create(
+      data: CreateSupportTicketInput(
+        userId: userId,
+        title: title,
+        description: description,
+        priority: enumFromWire(SupportPriority.values, priority ?? 'MEDIUM',
+            field: 'priority'),
+        issueType: issueType != null
+            ? enumFromWire(SupportIssueType.values, issueType,
+                field: 'issueType')
+            : null,
+        category: category,
+        consultationId: consultationId,
+        subscriptionId: subscriptionId,
+        paymentId: paymentId,
+      ),
+    );
 
     // Return the created ticket
-    final result = await _prisma.supportTicket.findFirstRaw(
-      where: {'id': ticketId},
+    final result = await _prisma.supportTicket.findFirst(
+      where: SupportTicketWhereInput(id: StringFilter(equals: created.id)),
     );
 
     if (result == null) {
       throw Exception('Failed to create ticket');
     }
 
-    return result;
+    return result.toJson();
   }
 
   /// Add a user response to a ticket
@@ -173,78 +166,64 @@ class SupportTicketRepository extends BaseRepository {
     required String message,
   }) async {
     // First verify the user owns the ticket
-    final ticket = await _prisma.supportTicket.findFirstRaw(
-      where: {'id': ticketId, 'userId': userId},
+    final ticket = await _prisma.supportTicket.findFirst(
+      where: SupportTicketWhereInput(
+        id: StringFilter(equals: ticketId),
+        userId: StringFilter(equals: userId),
+      ),
     );
 
     if (ticket == null) {
       throw const RecordNotFoundException('Ticket not found or access denied');
     }
 
-    final now = nowIso8601;
-    final responseId = _uuid.v4();
+    // Create response (id/timestamps autofilled; isInternal defaults false —
+    // user responses are never internal).
+    final created = await _prisma.supportResponse.create(
+      data: CreateSupportResponseInput(
+        supportTicketId: ticketId,
+        userId: userId,
+        message: message,
+      ),
+    );
 
-    // Create response
-    final createQuery = JsonQueryBuilder()
-        .model('SupportResponse')
-        .action(QueryAction.create)
-        .data({
-      'id': responseId,
-      'supportTicketId': ticketId,
-      'userId': userId,
-      'message': message,
-      'isInternal': false, // User responses are never internal
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
+    // Touch the ticket so updatedAt reflects the new response (auto-refreshed
+    // by the typed update even with an empty data payload).
+    await _prisma.supportTicket.update(
+      where: SupportTicketWhereUniqueInput(id: ticketId),
+      data: const UpdateSupportTicketInput(),
+    );
 
-    await executeMutation(createQuery);
-
-    // Update ticket updatedAt
-    final updateQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.update)
-        .where({'id': ticketId}).data({'updatedAt': now}).build();
-
-    await executeMutation(updateQuery);
-
-    final result = await _prisma.supportResponse.findFirstRaw(
-      where: {'id': responseId},
+    final result = await _prisma.supportResponse.findFirst(
+      where: SupportResponseWhereInput(id: StringFilter(equals: created.id)),
     );
 
     if (result == null) {
       throw Exception('Failed to create response');
     }
 
-    return result;
+    return result.toJson();
   }
 
   /// Get ticket count by status for a user
   ///
   /// Useful for showing badge counts (e.g., "3 open tickets")
   Future<Map<String, int>> getTicketCountsByStatus(String userId) async {
-    final statuses = ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'RESOLVED', 'CLOSED'];
     final counts = <String, int>{};
 
-    for (final status in statuses) {
-      final query = JsonQueryBuilder()
-          .model('SupportTicket')
-          .action(QueryAction.count)
-          .where({
-        'userId': userId,
-        'status': status,
-      }).build();
-
-      counts[status.toLowerCase()] = await executeCount(query);
+    for (final status in SupportTicketStatus.values) {
+      counts[status.toJson().toLowerCase()] = await _prisma.supportTicket.count(
+        where: SupportTicketWhereInput(
+          userId: StringFilter(equals: userId),
+          status: SupportTicketStatusFilter(equals: status),
+        ),
+      );
     }
 
     // Also get total
-    final totalQuery = JsonQueryBuilder()
-        .model('SupportTicket')
-        .action(QueryAction.count)
-        .where({'userId': userId}).build();
-
-    counts['total'] = await executeCount(totalQuery);
+    counts['total'] = await _prisma.supportTicket.count(
+      where: SupportTicketWhereInput(userId: StringFilter(equals: userId)),
+    );
 
     return counts;
   }

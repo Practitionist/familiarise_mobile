@@ -1,7 +1,6 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
-
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Repository for payout account operations.
 class PayoutAccountRepository extends BaseRepository {
@@ -21,28 +20,25 @@ class PayoutAccountRepository extends BaseRepository {
     String? upiId,
     bool isDefault = false,
   }) async {
-    final now = nowIso8601;
-    final query = JsonQueryBuilder()
-        .model('PayoutAccount')
-        .action(QueryAction.create)
-        .data({
-      'consultantProfileId': consultantProfileId,
-      'provider': provider,
-      'accountType': accountType,
-      'accountHolderName': accountHolderName,
-      'bankName': bankName,
-      'accountNumberLast4': accountNumberLast4,
-      'ifscCode': ifscCode,
-      'upiId': upiId,
-      'isVerified': false,
-      'isDefault': isDefault,
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query);
-    if (result == null) throw Exception('Failed to create payout account');
-    return result;
+    // provider/accountType are enums in the schema; map the wire string to the
+    // enum via its @JsonValue (handles multi-word values like LEMON_SQUEEZY).
+    final result = await _prisma.payoutAccount.create(
+      data: CreatePayoutAccountInput(
+        consultantProfileId: consultantProfileId,
+        provider:
+            enumFromWire(PaymentGateway.values, provider, field: 'provider'),
+        accountType: enumFromWire(PayoutAccountType.values, accountType,
+            field: 'accountType'),
+        accountHolderName: accountHolderName,
+        bankName: bankName,
+        accountNumberLast4: accountNumberLast4,
+        ifscCode: ifscCode,
+        upiId: upiId,
+        isVerified: false,
+        isDefault: isDefault,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Get all payout accounts for a consultant.
@@ -51,8 +47,7 @@ class PayoutAccountRepository extends BaseRepository {
   ) async {
     final results = await _prisma.payoutAccount.findMany(
       where: PayoutAccountWhereInput(
-        consultantProfileId:
-            StringFilter(equals: consultantProfileId),
+        consultantProfileId: StringFilter(equals: consultantProfileId),
       ),
     );
     return results.map((r) => r.toJson()).toList();
@@ -99,22 +94,19 @@ class PayoutAccountRepository extends BaseRepository {
     required String id,
     required String consultantProfileId,
   }) async {
-    await executeInTransaction((txn) async {
-      // Unset all defaults for this consultant
-      final unsetQuery = JsonQueryBuilder()
-          .model('PayoutAccount')
-          .action(QueryAction.updateMany)
-          .where({'consultantProfileId': consultantProfileId}).data(
-              {'isDefault': false, 'updatedAt': nowIso8601}).build();
-      await txn.executeMutation(unsetQuery);
-
-      // Set the new default
-      final setQuery = JsonQueryBuilder()
-          .model('PayoutAccount')
-          .action(QueryAction.update)
-          .where({'id': id}).data(
-              {'isDefault': true, 'updatedAt': nowIso8601}).build();
-      await txn.executeMutation(setQuery);
+    await _prisma.$transaction((tx) async {
+      // Unset all defaults for this consultant, then set the new default.
+      // (updatedAt is auto-refreshed by the typed update.)
+      await tx.payoutAccount.updateMany(
+        where: PayoutAccountWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+        ),
+        data: UpdatePayoutAccountInput(isDefault: false),
+      );
+      await tx.payoutAccount.update(
+        where: PayoutAccountWhereUniqueInput(id: id),
+        data: UpdatePayoutAccountInput(isDefault: true),
+      );
     });
   }
 

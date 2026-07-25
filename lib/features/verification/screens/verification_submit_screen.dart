@@ -94,8 +94,7 @@ class _VerificationSubmitScreenState
                   subtitle: Text(f.description ?? 'Document'),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: () =>
-                        setState(() => _uploadedFiles.remove(f)),
+                    onPressed: () => setState(() => _uploadedFiles.remove(f)),
                   ),
                 ),
               ),
@@ -230,8 +229,7 @@ class _VerificationSubmitScreenState
       }
 
       // Add documents to the verification
-      final docsNotifier =
-          ref.read(verificationDocumentsProvider.notifier);
+      final docsNotifier = ref.read(verificationDocumentsProvider.notifier);
       for (final file in _uploadedFiles) {
         await docsNotifier.addDocument(
           fileName: file.fileName,

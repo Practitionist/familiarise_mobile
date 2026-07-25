@@ -21,8 +21,7 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   try {
-    final body =
-        await context.request.json() as Map<String, dynamic>;
+    final body = await context.request.json() as Map<String, dynamic>;
     final token = body['token'] as String?;
     final newPassword = body['newPassword'] as String?;
 

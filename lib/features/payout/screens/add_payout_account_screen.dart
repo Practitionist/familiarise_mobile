@@ -56,8 +56,7 @@ class _AddPayoutAccountScreenState
                 ),
               ],
               selected: {_accountType},
-              onSelectionChanged: (v) =>
-                  setState(() => _accountType = v.first),
+              onSelectionChanged: (v) => setState(() => _accountType = v.first),
             ),
             const SizedBox(height: 24),
             TextField(
@@ -133,18 +132,13 @@ class _AddPayoutAccountScreenState
       await ref.read(payoutAccountsProvider.notifier).create({
         'provider': 'RAZORPAY',
         'accountType': _accountType,
-        'accountHolderName': _holderNameCtrl.text.isEmpty
-            ? null
-            : _holderNameCtrl.text,
+        'accountHolderName':
+            _holderNameCtrl.text.isEmpty ? null : _holderNameCtrl.text,
         if (_accountType == 'BANK_ACCOUNT') ...{
-          'bankName': _bankNameCtrl.text.isEmpty
-              ? null
-              : _bankNameCtrl.text,
-          'accountNumberLast4': _last4Ctrl.text.isEmpty
-              ? null
-              : _last4Ctrl.text,
-          'ifscCode':
-              _ifscCtrl.text.isEmpty ? null : _ifscCtrl.text,
+          'bankName': _bankNameCtrl.text.isEmpty ? null : _bankNameCtrl.text,
+          'accountNumberLast4':
+              _last4Ctrl.text.isEmpty ? null : _last4Ctrl.text,
+          'ifscCode': _ifscCtrl.text.isEmpty ? null : _ifscCtrl.text,
         } else ...{
           'upiId': _upiCtrl.text.isEmpty ? null : _upiCtrl.text,
         },

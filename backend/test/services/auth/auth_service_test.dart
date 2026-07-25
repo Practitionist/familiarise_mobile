@@ -9,6 +9,8 @@ import 'package:backend/services/auth/jwt_service.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
+
+import '../../helpers/prisma_mocks.dart';
 import 'package:test/test.dart';
 
 // Mocks
@@ -37,11 +39,18 @@ void main() {
   late MockAccountRepository mockAccounts;
   late MockSessionRepository mockSessions;
   late MockConsulteeProfileRepository mockConsulteeProfiles;
+  late MockPrismaClient mockPrisma;
+  late MockUserDelegate mockUserDelegate;
+  late MockAccountDelegate mockAccountDelegate;
+  late MockConsulteeProfileDelegate mockConsulteeProfileDelegate;
+  late MockCookiePreferenceDelegate mockCookiePreferenceDelegate;
+  late MockNotificationPreferenceDelegate mockNotificationPreferenceDelegate;
   late AuthService service;
 
   setUpAll(() {
     registerFallbackValue(FakeTransactionExecutor());
     registerFallbackValue(DateTime.now());
+    registerPrismaFallbacks();
   });
 
   setUp(() {
@@ -57,6 +66,45 @@ void main() {
     when(() => mockDb.accounts).thenReturn(mockAccounts);
     when(() => mockDb.sessions).thenReturn(mockSessions);
     when(() => mockDb.consulteeProfiles).thenReturn(mockConsulteeProfiles);
+
+    // Typed Prisma surface: signup/OAuth flows now run inside
+    // db.prisma.$transaction with typed delegate creates.
+    mockPrisma = MockPrismaClient();
+    mockUserDelegate = MockUserDelegate();
+    mockAccountDelegate = MockAccountDelegate();
+    mockConsulteeProfileDelegate = MockConsulteeProfileDelegate();
+    mockCookiePreferenceDelegate = MockCookiePreferenceDelegate();
+    mockNotificationPreferenceDelegate = MockNotificationPreferenceDelegate();
+    when(() => mockDb.prisma).thenReturn(mockPrisma);
+    when(() => mockPrisma.user).thenReturn(mockUserDelegate);
+    when(() => mockPrisma.account).thenReturn(mockAccountDelegate);
+    when(() => mockPrisma.consulteeProfile)
+        .thenReturn(mockConsulteeProfileDelegate);
+    when(() => mockPrisma.cookiePreference)
+        .thenReturn(mockCookiePreferenceDelegate);
+    when(() => mockPrisma.notificationPreference)
+        .thenReturn(mockNotificationPreferenceDelegate);
+    stubTransaction<Map<String, dynamic>>(mockPrisma);
+
+    when(() => mockUserDelegate.create(data: any(named: 'data')))
+        .thenAnswer((_) async => buildUser());
+    when(
+      () => mockUserDelegate.update(
+        where: any(named: 'where'),
+        data: any(named: 'data'),
+      ),
+    ).thenAnswer(
+      (_) async => buildUser(consulteeProfileId: 'consultee-profile-1'),
+    );
+    when(() => mockAccountDelegate.create(data: any(named: 'data')))
+        .thenAnswer((_) async => buildAccount());
+    when(() => mockConsulteeProfileDelegate.create(data: any(named: 'data')))
+        .thenAnswer((_) async => buildConsulteeProfile());
+    when(() => mockCookiePreferenceDelegate.create(data: any(named: 'data')))
+        .thenAnswer((_) async => buildCookiePreference());
+    when(
+      () => mockNotificationPreferenceDelegate.create(data: any(named: 'data')),
+    ).thenAnswer((_) async => buildNotificationPreference());
 
     // Default stub for createDefaultPreferences (called during signup)
     when(() => mockUsers.createDefaultPreferences(
@@ -470,9 +518,7 @@ void main() {
       );
     });
 
-    test(
-        'throws AuthException when both tokens are empty strings',
-        () async {
+    test('throws AuthException when both tokens are empty strings', () async {
       expect(
         () => service.signInWithGoogle(
           idToken: '',

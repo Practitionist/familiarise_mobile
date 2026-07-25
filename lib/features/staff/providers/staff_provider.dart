@@ -17,8 +17,7 @@ Future<Map<String, int>> staffStats(Ref ref) async {
 Future<List<Map<String, dynamic>>> staffTickets(Ref ref) async {
   final dio = ref.watch(dioProvider);
   final response = await dio.get('/api/staff/support-tickets');
-  return (response.data['data'] as List<dynamic>)
-      .cast<Map<String, dynamic>>();
+  return (response.data['data'] as List<dynamic>).cast<Map<String, dynamic>>();
 }
 
 @riverpod
@@ -26,8 +25,6 @@ Future<List<Map<String, dynamic>>> pendingVerifications(
   Ref ref,
 ) async {
   final dio = ref.watch(dioProvider);
-  final response =
-      await dio.get('/api/staff/moderation/profiles');
-  return (response.data['data'] as List<dynamic>)
-      .cast<Map<String, dynamic>>();
+  final response = await dio.get('/api/staff/moderation/profiles');
+  return (response.data['data'] as List<dynamic>).cast<Map<String, dynamic>>();
 }

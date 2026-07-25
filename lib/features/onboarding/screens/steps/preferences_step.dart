@@ -72,66 +72,71 @@ class _PreferencesStepState extends ConsumerState<PreferencesStep> {
           // Budget Preference
           const SubSectionHeader(title: 'Budget Preference'),
           const SizedBox(height: 8),
-          ...BudgetPreference.values.map((budget) {
-            final isSelected = _selectedBudget == budget;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: InkWell(
-                onTap: () {
-                  setState(() => _selectedBudget = budget);
-                  _updatePreferences();
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.outline,
-                      width: isSelected ? 2 : 1,
-                    ),
+          // RadioGroup owns the selection (Radio.groupValue/onChanged were
+          // deprecated in Flutter 3.35 — radio-api-redesign).
+          RadioGroup<BudgetPreference>(
+            groupValue: _selectedBudget,
+            onChanged: (value) {
+              setState(() => _selectedBudget = value);
+              _updatePreferences();
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: BudgetPreference.values.map((budget) {
+                final isSelected = _selectedBudget == budget;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _selectedBudget = budget);
+                      _updatePreferences();
+                    },
                     borderRadius: BorderRadius.circular(12),
-                    color: isSelected
-                        ? colorScheme.primaryContainer.withAlpha(30)
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Radio<BudgetPreference>(
-                        value: budget,
-                        groupValue: _selectedBudget,
-                        onChanged: (value) {
-                          setState(() => _selectedBudget = value);
-                          _updatePreferences();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _budgetLabel(budget),
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              _budgetDescription(budget),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.outline,
+                          width: isSelected ? 2 : 1,
                         ),
+                        borderRadius: BorderRadius.circular(12),
+                        color: isSelected
+                            ? colorScheme.primaryContainer.withAlpha(30)
+                            : null,
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          Radio<BudgetPreference>(value: budget),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _budgetLabel(budget),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  _budgetDescription(budget),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          }),
+                );
+              }).toList(),
+            ),
+          ),
           const SizedBox(height: 24),
           // Communication Preference
           const SubSectionHeader(title: 'Preferred Communication Method'),

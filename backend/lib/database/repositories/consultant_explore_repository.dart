@@ -1,4 +1,5 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/generated/index.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
 
@@ -7,63 +8,67 @@ import 'package:prisma_flutter_connector/runtime_server.dart';
 /// Provides methods for browsing, filtering, and searching consultants
 /// with support for pagination and sorting.
 ///
-/// Uses the Prisma Flutter Connector for type-safe queries where possible,
-/// with raw SQL fallback for complex queries requiring advanced PostgreSQL
-/// features like subqueries in SELECT clauses.
+/// Uses the typed PrismaClient delegates (findManyProjected /
+/// findFirstProjected / count / aggregate) for all reads.
 class ConsultantExploreRepository extends BaseRepository {
   /// Create a consultant explore repository with the given executor
-  ConsultantExploreRepository(super._executor);
+  ConsultantExploreRepository(super._executor, this._prisma);
 
-  /// Build ORM WHERE conditions from filter parameters.
+  final PrismaClient _prisma;
+
+  /// Build typed WHERE conditions from filter parameters.
   ///
-  /// This builds a type-safe WHERE map that can be used with JsonQueryBuilder.
-  /// Supports: scalar filters, relation filters (subDomains, consultationPlans),
-  /// and OR conditions for search across multiple fields.
-  Map<String, dynamic> _buildWhereConditions({
+  /// Supports: scalar filters, relation filters (subDomains,
+  /// consultationPlans), and OR conditions for search across multiple fields.
+  ConsultantProfileWhereInput _buildWhereConditions({
     String? domainId,
     String? subDomainId,
     double? minRating,
     int? maxPrice,
     String? searchQuery,
   }) {
-    final where = <String, dynamic>{
-      'isVerified': true,
-    };
-
-    if (domainId != null) {
-      where['domainId'] = domainId;
-    }
-
-    if (minRating != null) {
-      where['rating'] = FilterOperators.gte(minRating);
-    }
-
-    // Search across headline, description, and user.name using OR
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      where['OR'] = [
-        {'headline': FilterOperators.containsInsensitive(searchQuery)},
-        {'description': FilterOperators.containsInsensitive(searchQuery)},
-        {
-          'user': FilterOperators.some({
-            'name': FilterOperators.containsInsensitive(searchQuery),
-          }),
-        },
-      ];
-    }
-
-    // SubDomain filter using many-to-many relation
-    if (subDomainId != null) {
-      where['subDomains'] = FilterOperators.some({'id': subDomainId});
-    }
-
-    // Price filter using one-to-many relation
-    if (maxPrice != null) {
-      where['consultationPlans'] = FilterOperators.some({
-        'price': FilterOperators.lte(maxPrice),
-      });
-    }
-
-    return where;
+    return ConsultantProfileWhereInput(
+      isVerified: const BooleanFilter(equals: true),
+      domainId: domainId != null ? StringFilter(equals: domainId) : null,
+      rating: minRating != null ? FloatFilter(gte: minRating) : null,
+      // Search across headline, description, and user.name using OR
+      OR: (searchQuery != null && searchQuery.isNotEmpty)
+          ? [
+              ConsultantProfileWhereInput(
+                headline:
+                    StringFilter(contains: searchQuery, mode: 'insensitive'),
+              ),
+              ConsultantProfileWhereInput(
+                description:
+                    StringFilter(contains: searchQuery, mode: 'insensitive'),
+              ),
+              ConsultantProfileWhereInput(
+                user: UserRelationFilter(
+                  is_: UserWhereInput(
+                    name: StringFilter(
+                      contains: searchQuery,
+                      mode: 'insensitive',
+                    ),
+                  ),
+                ),
+              ),
+            ]
+          : null,
+      // SubDomain filter using many-to-many relation
+      subDomains: subDomainId != null
+          ? SubDomainListRelationFilter(
+              some: SubDomainWhereInput(id: StringFilter(equals: subDomainId)),
+            )
+          : null,
+      // Price filter using one-to-many relation
+      consultationPlans: maxPrice != null
+          ? ConsultationPlanListRelationFilter(
+              some: ConsultationPlanWhereInput(
+                price: BigIntFilter(lte: BigInt.from(maxPrice)),
+              ),
+            )
+          : null,
+    );
   }
 
   /// Find verified consultants with filtering and pagination
@@ -99,13 +104,8 @@ class ConsultantExploreRepository extends BaseRepository {
       searchQuery: searchQuery,
     );
 
-    // Count total using ORM with relation filters
-    final countQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.count)
-        .where(ormWhere)
-        .build();
-    final totalCount = await executeCount(countQuery);
+    // Count total using the typed delegate with relation filters
+    final totalCount = await _prisma.consultantProfile.count(where: ormWhere);
 
     // Determine sort field and direction
     final sortField = switch (sortBy) {
@@ -116,60 +116,60 @@ class ConsultantExploreRepository extends BaseRepository {
     final sortDirection = sortDesc ? 'desc' : 'asc';
     final nullsPosition = sortDesc ? 'last' : 'first';
 
-    // Build main query using ORM with ComputedField + include() (v0.2.6)
-    // The alias conflict fix allows computed() and include() to work together.
+    // Build main query using the typed projected finder with computed
+    // subqueries + include-with-select.
     // This single query replaces 3 separate batch fetches.
-    final mainQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findMany)
-        .selectFields([
-          'id',
-          'userId',
-          'headline',
-          'description',
-          'rating',
-          'experience',
-          'languages',
-          'toolsAndTechnologies',
-          'totalMenteesHelped',
-          'isVerified',
-          'domainId',
-          'createdAt',
-        ])
-        .computed({
-          'minPrice': ComputedField.min(
-            'price',
-            from: 'ConsultationPlan',
-            where: {'consultantProfileId': FieldRef('id')},
-          ),
-          'priceCurrency': ComputedField.first(
-            'priceCurrency',
-            from: 'ConsultationPlan',
-            where: {'consultantProfileId': FieldRef('id')},
-            orderBy: {'price': 'asc'},
-          ),
-        })
-        .include({
-          'user': {
-            'select': {'name': true, 'image': true},
-          },
-          'domain': {
-            'select': {'id': true, 'name': true},
-          },
-          'subDomains': {
-            'select': {'id': true, 'name': true, 'domainId': true},
-          },
-        })
-        .where(ormWhere)
-        .orderBy({
-          sortField: {'sort': sortDirection, 'nulls': nullsPosition},
-          'createdAt': 'desc',
-        })
-        .take(effectivePageSize)
-        .skip(offset)
-        .build();
-
-    final consultantsResult = await executeQueryAsMaps(mainQuery);
+    final consultantsResult = await _prisma.consultantProfile.findManyProjected(
+      where: ormWhere,
+      select: [
+        ConsultantProfileScalarField.id,
+        ConsultantProfileScalarField.userId,
+        ConsultantProfileScalarField.headline,
+        ConsultantProfileScalarField.description,
+        ConsultantProfileScalarField.rating,
+        ConsultantProfileScalarField.experience,
+        ConsultantProfileScalarField.languages,
+        ConsultantProfileScalarField.toolsAndTechnologies,
+        ConsultantProfileScalarField.totalMenteesHelped,
+        ConsultantProfileScalarField.isVerified,
+        ConsultantProfileScalarField.domainId,
+        ConsultantProfileScalarField.createdAt,
+      ],
+      computed: {
+        'minPrice': ComputedField.min(
+          'price',
+          from: 'ConsultationPlan',
+          where: {'consultantProfileId': const FieldRef('id')},
+        ),
+        'priceCurrency': ComputedField.first(
+          'priceCurrency',
+          from: 'ConsultationPlan',
+          where: {'consultantProfileId': const FieldRef('id')},
+          orderBy: {'price': 'asc'},
+        ),
+      },
+      include: const ConsultantProfileInclude(
+        user: UserInclude(
+          select: [UserScalarField.name, UserScalarField.image],
+        ),
+        domain: DomainInclude(
+          select: [DomainScalarField.id, DomainScalarField.name],
+        ),
+        subDomains: SubDomainInclude(
+          select: [
+            SubDomainScalarField.id,
+            SubDomainScalarField.name,
+            SubDomainScalarField.domainId,
+          ],
+        ),
+      ),
+      orderBy: {
+        sortField: {'sort': sortDirection, 'nulls': nullsPosition},
+        'createdAt': 'desc',
+      },
+      take: effectivePageSize,
+      skip: offset,
+    );
 
     // Build consultant list - computed fields (minPrice, priceCurrency)
     // are included in the result via ComputedField subqueries
@@ -216,63 +216,63 @@ class ConsultantExploreRepository extends BaseRepository {
   /// Returns consultant profile with user info, domain, subdomains,
   /// consultation plans, subscription plans, and review summary.
   ///
-  /// Uses Prisma Flutter Connector v0.2.6 ORM queries with include().
-  ///
+  /// Uses the typed findFirstProjected with include-with-select.
   /// [userOrgIds] unlocks ORG_ONLY plans owned by the viewer's orgs;
   /// anonymous viewers see only PUBLIC / ORG_AND_PUBLIC plans.
   Future<Map<String, dynamic>?> findByIdWithDetails(
     String id, {
     List<String> userOrgIds = const [],
   }) async {
-    // Get consultant profile with included relations using ORM
-    final profileQuery = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.findFirst)
-        .selectFields([
-      'id',
-      'userId',
-      'headline',
-      'description',
-      'rating',
-      'experience',
-      'languages',
-      'toolsAndTechnologies',
-      'totalMenteesHelped',
-      'isVerified',
-      'domainId',
-      'mentoringStyle',
-      'sessionTypes',
-      'websiteUrl',
-      'twitterUrl',
-      'githubUrl',
-      'videoIntroUrl',
-      'createdAt',
-      'updatedAt',
-    ]).include({
-      'user': {
-        'select': {
-          'name': true,
-          'image': true,
-          'email': true,
-          'timezone': true,
-        },
-      },
-      'domain': {
-        'select': {'id': true, 'name': true},
-      },
-      'subDomains': {
-        'select': {'id': true, 'name': true, 'domainId': true},
-      },
-      'tags': {
-        'select': {'name': true},
-      },
-    }).where({'id': id}).build();
+    // Get consultant profile with included relations using the typed delegate
+    final row = await _prisma.consultantProfile.findFirstProjected(
+      where: ConsultantProfileWhereInput(id: StringFilter(equals: id)),
+      select: const [
+        ConsultantProfileScalarField.id,
+        ConsultantProfileScalarField.userId,
+        ConsultantProfileScalarField.headline,
+        ConsultantProfileScalarField.description,
+        ConsultantProfileScalarField.rating,
+        ConsultantProfileScalarField.experience,
+        ConsultantProfileScalarField.languages,
+        ConsultantProfileScalarField.toolsAndTechnologies,
+        ConsultantProfileScalarField.totalMenteesHelped,
+        ConsultantProfileScalarField.isVerified,
+        ConsultantProfileScalarField.domainId,
+        ConsultantProfileScalarField.mentoringStyle,
+        ConsultantProfileScalarField.sessionTypes,
+        ConsultantProfileScalarField.websiteUrl,
+        ConsultantProfileScalarField.twitterUrl,
+        ConsultantProfileScalarField.githubUrl,
+        ConsultantProfileScalarField.videoIntroUrl,
+        ConsultantProfileScalarField.createdAt,
+        ConsultantProfileScalarField.updatedAt,
+      ],
+      include: const ConsultantProfileInclude(
+        user: UserInclude(
+          select: [
+            UserScalarField.name,
+            UserScalarField.image,
+            UserScalarField.email,
+            UserScalarField.timezone,
+          ],
+        ),
+        domain: DomainInclude(
+          select: [DomainScalarField.id, DomainScalarField.name],
+        ),
+        subDomains: SubDomainInclude(
+          select: [
+            SubDomainScalarField.id,
+            SubDomainScalarField.name,
+            SubDomainScalarField.domainId,
+          ],
+        ),
+        tags: TagInclude(
+          select: [TagScalarField.name],
+        ),
+      ),
+    );
 
-    final profileResult = await executeQueryAsMaps(profileQuery);
-
-    if (profileResult.isEmpty) return null;
-
-    final row = profileResult.first;
+    if (row == null) return null;
 
     // Fetch additional data in parallel:
     // consultation plans, subscription plans, review summary
@@ -306,8 +306,8 @@ class ConsultantExploreRepository extends BaseRepository {
       'domain': row['domain'],
       'subDomains': row['subDomains'] ?? <Map<String, dynamic>>[],
       'tags': (row['tags'] as List?)
-          ?.map((t) => (t as Map<String, dynamic>)['name'] as String)
-          .toList() ??
+              ?.map((t) => (t as Map<String, dynamic>)['name'] as String)
+              .toList() ??
           <String>[],
       'consultationPlans': results[0],
       'subscriptionPlans': results[1],
@@ -317,7 +317,7 @@ class ConsultantExploreRepository extends BaseRepository {
 
   /// Get paginated reviews for a consultant
   ///
-  /// Uses Prisma Flutter Connector v0.2.6 ORM queries.
+  /// Uses the typed ConsultantReview delegate.
   Future<Map<String, dynamic>> getReviews({
     required String consultantId,
     int page = 0,
@@ -326,31 +326,29 @@ class ConsultantExploreRepository extends BaseRepository {
     final effectivePageSize = pageSize.clamp(1, 50);
     final offset = page * effectivePageSize;
 
-    // Count total reviews using ORM
-    final countQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.count)
-        .where({'consultantProfileId': consultantId}).build();
-    final totalCount = await executeCount(countQuery);
+    // Count total reviews using the typed delegate
+    final totalCount = await _prisma.consultantReview.count(
+      where: ConsultantReviewWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+      ),
+    );
 
-    // Get paginated reviews using ORM
-    final reviewsQuery = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.findMany)
-        .selectFields([
-          'id',
-          'rating',
-          'reviewDescription',
-          'consulteeProfileId',
-          'createdAt',
-        ])
-        .where({'consultantProfileId': consultantId})
-        .orderBy({'createdAt': 'desc'})
-        .take(effectivePageSize)
-        .skip(offset)
-        .build();
-
-    final reviewsResult = await executeQueryAsMaps(reviewsQuery);
+    // Get paginated reviews using the typed projected finder
+    final reviewsResult = await _prisma.consultantReview.findManyProjected(
+      select: const [
+        ConsultantReviewScalarField.id,
+        ConsultantReviewScalarField.rating,
+        ConsultantReviewScalarField.reviewDescription,
+        ConsultantReviewScalarField.consulteeProfileId,
+        ConsultantReviewScalarField.createdAt,
+      ],
+      where: ConsultantReviewWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+      ),
+      orderBy: {'createdAt': 'desc'},
+      take: effectivePageSize,
+      skip: offset,
+    );
 
     // Get consultee profile IDs to fetch reviewer info
     final consulteeProfileIds = reviewsResult
@@ -411,13 +409,15 @@ class ConsultantExploreRepository extends BaseRepository {
     if (consulteeProfileIds.isEmpty) return {};
 
     // First fetch consultee profiles to get user IDs
-    final profilesQuery = JsonQueryBuilder()
-        .model('ConsulteeProfile')
-        .action(QueryAction.findMany)
-        .selectFields(['id', 'userId']).where(
-            {'id': FilterOperators.in_(consulteeProfileIds)}).build();
-
-    final profiles = await executeQueryAsMaps(profilesQuery);
+    final profiles = await _prisma.consulteeProfile.findManyProjected(
+      select: const [
+        ConsulteeProfileScalarField.id,
+        ConsulteeProfileScalarField.userId,
+      ],
+      where: ConsulteeProfileWhereInput(
+        id: StringFilter(in_: consulteeProfileIds),
+      ),
+    );
 
     // Map consulteeProfileId -> userId
     final profileToUserMap = <String, String>{};
@@ -433,13 +433,16 @@ class ConsultantExploreRepository extends BaseRepository {
 
     if (userIds.isEmpty) return {};
 
-    // Fetch users using ORM - use actual table name 'users' (not model name 'User')
-    final usersQuery = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.findMany)
-        .selectFields(['id', 'name', 'image']).where(
-            {'id': FilterOperators.in_(userIds)}).build();
-    final users = await executeQueryAsMaps(usersQuery);
+    // Fetch users using the typed delegate (registry resolves the @map'd
+    // 'users' table name)
+    final users = await _prisma.user.findManyProjected(
+      select: const [
+        UserScalarField.id,
+        UserScalarField.name,
+        UserScalarField.image,
+      ],
+      where: UserWhereInput(id: StringFilter(in_: userIds)),
+    );
 
     // Map userId -> user data
     final userMap = <String, Map<String, dynamic>>{};
@@ -464,34 +467,72 @@ class ConsultantExploreRepository extends BaseRepository {
 
   /// Fetch consultation plans for a consultant
   ///
-  /// Uses the ORM with selectFields() for type-safe field selection (v0.2.5+)
+  /// Uses the typed projected finder for type-safe field selection
+
+  /// Typed plan-visibility filter: PUBLIC/ORG_AND_PUBLIC for everyone, plus
+  /// ORG_ONLY plans owned by one of the viewer's orgs.
+  static List<ConsultationPlanWhereInput> _consultationVisibilityOr(
+    List<String> userOrgIds,
+  ) =>
+      [
+        const ConsultationPlanWhereInput(
+          visibility: OrgPlanVisibilityFilter(
+            in_: [OrgPlanVisibility.public, OrgPlanVisibility.orgAndPublic],
+          ),
+        ),
+        if (userOrgIds.isNotEmpty)
+          ConsultationPlanWhereInput(
+            visibility: const OrgPlanVisibilityFilter(
+              equals: OrgPlanVisibility.orgOnly,
+            ),
+            organizationId: StringFilter(in_: userOrgIds),
+          ),
+      ];
+
+  /// Subscription-plan twin of [_consultationVisibilityOr].
+  static List<SubscriptionPlanWhereInput> _subscriptionVisibilityOr(
+    List<String> userOrgIds,
+  ) =>
+      [
+        const SubscriptionPlanWhereInput(
+          visibility: OrgPlanVisibilityFilter(
+            in_: [OrgPlanVisibility.public, OrgPlanVisibility.orgAndPublic],
+          ),
+        ),
+        if (userOrgIds.isNotEmpty)
+          SubscriptionPlanWhereInput(
+            visibility: const OrgPlanVisibilityFilter(
+              equals: OrgPlanVisibility.orgOnly,
+            ),
+            organizationId: StringFilter(in_: userOrgIds),
+          ),
+      ];
+
   Future<List<Map<String, dynamic>>> _fetchConsultationPlans(
     String consultantId,
     List<String> userOrgIds,
   ) async {
-    // Build ORM query with specific fields
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findMany)
-        .selectFields([
-      'id',
-      'title',
-      'description',
-      'durationInHours',
-      'price',
-      'priceCurrency',
-      'language',
-      'level',
-      'prerequisites',
-      'materialProvided',
-      'learningOutcomes',
-      'createdAt',
-    ]).where({
-      'consultantProfileId': consultantId,
-      ..._planVisibilityWhere(userOrgIds),
-    }).orderBy({'durationInHours': 'asc'}).build();
-
-    final result = await executeQueryAsMaps(query);
+    final result = await _prisma.consultationPlan.findManyProjected(
+      select: const [
+        ConsultationPlanScalarField.id,
+        ConsultationPlanScalarField.title,
+        ConsultationPlanScalarField.description,
+        ConsultationPlanScalarField.durationInHours,
+        ConsultationPlanScalarField.price,
+        ConsultationPlanScalarField.priceCurrency,
+        ConsultationPlanScalarField.language,
+        ConsultationPlanScalarField.level,
+        ConsultationPlanScalarField.prerequisites,
+        ConsultationPlanScalarField.materialProvided,
+        ConsultationPlanScalarField.learningOutcomes,
+        ConsultationPlanScalarField.createdAt,
+      ],
+      where: ConsultationPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+        OR: _consultationVisibilityOr(userOrgIds),
+      ),
+      orderBy: {'durationInHours': 'asc'},
+    );
 
     return result.map((row) {
       return {
@@ -511,60 +552,40 @@ class ConsultantExploreRepository extends BaseRepository {
     }).toList();
   }
 
-  /// OrgPlanVisibility filter: everyone sees PUBLIC and ORG_AND_PUBLIC;
-  /// org members additionally see ORG_ONLY plans owned by their orgs.
-  static Map<String, dynamic> _planVisibilityWhere(List<String> userOrgIds) {
-    return {
-      'OR': [
-        {
-          'visibility': {
-            'in': ['PUBLIC', 'ORG_AND_PUBLIC'],
-          },
-        },
-        if (userOrgIds.isNotEmpty)
-          {
-            'visibility': 'ORG_ONLY',
-            'organizationId': {'in': userOrgIds},
-          },
-      ],
-    };
-  }
-
   /// Fetch subscription plans for a consultant
   ///
-  /// Uses the ORM with selectFields() for type-safe field selection (v0.2.5+)
+  /// Uses the typed projected finder for type-safe field selection
   Future<List<Map<String, dynamic>>> _fetchSubscriptionPlans(
     String consultantId,
     List<String> userOrgIds,
   ) async {
-    // Build ORM query with specific fields
-    final query = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findMany)
-        .selectFields([
-      'id',
-      'title',
-      'description',
-      'durationInMonths',
-      'price',
-      'priceCurrency',
-      'callsPerWeek',
-      'sessionDurationInHours',
-      'totalSessions',
-      'totalHours',
-      'emailSupport', // Note: PostgreSQL enum will return as string
-      'language',
-      'level',
-      'prerequisites',
-      'materialProvided',
-      'learningOutcomes',
-      'createdAt',
-    ]).where({
-      'consultantProfileId': consultantId,
-      ..._planVisibilityWhere(userOrgIds),
-    }).orderBy({'sessionDurationInHours': 'asc'}).build();
-
-    final result = await executeQueryAsMaps(query);
+    final result = await _prisma.subscriptionPlan.findManyProjected(
+      select: const [
+        SubscriptionPlanScalarField.id,
+        SubscriptionPlanScalarField.title,
+        SubscriptionPlanScalarField.description,
+        SubscriptionPlanScalarField.durationInMonths,
+        SubscriptionPlanScalarField.price,
+        SubscriptionPlanScalarField.priceCurrency,
+        SubscriptionPlanScalarField.callsPerWeek,
+        SubscriptionPlanScalarField.sessionDurationInHours,
+        SubscriptionPlanScalarField.totalSessions,
+        SubscriptionPlanScalarField.totalHours,
+        // Note: PostgreSQL enum will return as string
+        SubscriptionPlanScalarField.emailSupport,
+        SubscriptionPlanScalarField.language,
+        SubscriptionPlanScalarField.level,
+        SubscriptionPlanScalarField.prerequisites,
+        SubscriptionPlanScalarField.materialProvided,
+        SubscriptionPlanScalarField.learningOutcomes,
+        SubscriptionPlanScalarField.createdAt,
+      ],
+      where: SubscriptionPlanWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+        OR: _subscriptionVisibilityOr(userOrgIds),
+      ),
+      orderBy: {'sessionDurationInHours': 'asc'},
+    );
 
     return result.map((row) {
       return {
@@ -591,40 +612,39 @@ class ConsultantExploreRepository extends BaseRepository {
 
   /// Fetch review summary for a consultant
   ///
-  /// Uses the ORM with FILTER clause for conditional aggregations (v0.2.5+)
+  /// Uses the typed aggregate delegate with FILTER clause for conditional
+  /// aggregations
   Future<Map<String, dynamic>> _fetchReviewSummary(String consultantId) async {
-    // Use ORM aggregate query with FILTER clause for rating distribution
-    final query = JsonQueryBuilder()
-        .model('ConsultantReview')
-        .action(QueryAction.aggregate)
-        .aggregation({
-      '_count': true,
-      '_avg': {'rating': true},
-      '_countFiltered': [
+    // Use typed aggregate query with FILTER clause for rating distribution
+    final result = await _prisma.consultantReview.aggregate(
+      where: ConsultantReviewWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+      ),
+      count: true,
+      avg: {'rating': true},
+      countFiltered: [
         {
           'alias': 'fiveStar',
-          'filter': {'rating': 5}
+          'filter': {'rating': 5},
         },
         {
           'alias': 'fourStar',
-          'filter': {'rating': 4}
+          'filter': {'rating': 4},
         },
         {
           'alias': 'threeStar',
-          'filter': {'rating': 3}
+          'filter': {'rating': 3},
         },
         {
           'alias': 'twoStar',
-          'filter': {'rating': 2}
+          'filter': {'rating': 2},
         },
         {
           'alias': 'oneStar',
-          'filter': {'rating': 1}
+          'filter': {'rating': 1},
         },
       ],
-    }).where({'consultantProfileId': consultantId}).build();
-
-    final result = await executeQueryAsMaps(query);
+    );
 
     if (result.isEmpty) {
       return {
@@ -634,7 +654,7 @@ class ConsultantExploreRepository extends BaseRepository {
       };
     }
 
-    final row = result.first;
+    final row = result;
 
     // Helper to safely parse numeric values (handles both num and String)
     double parseDouble(Object? value) {

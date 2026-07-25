@@ -346,7 +346,9 @@ class AuthRepositoryImpl implements AuthRepository {
       if (timezone != null) data['timezone'] = timezone;
       if (image != null) data['image'] = image;
       if (bio != null) data['bio'] = bio;
-      if (dateOfBirth != null) data['dateOfBirth'] = dateOfBirth.toIso8601String();
+      if (dateOfBirth != null) {
+        data['dateOfBirth'] = dateOfBirth.toIso8601String();
+      }
       if (gender != null) data['gender'] = gender;
       if (city != null) data['city'] = city;
       if (country != null) data['country'] = country;

@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/collaborations/:id — Collaboration details with revenue split
 /// PUT /api/collaborations/:id — Update collaboration (revenue split)
@@ -29,8 +28,7 @@ Future<Object> _findAndAuthorize(
 
   // Get user's consultant profile ID
   final user = await db.users.findById(userId);
-  final consultantProfileId =
-      user?['consultantProfileId'] as String?;
+  final consultantProfileId = user?['consultantProfileId'] as String?;
   if (consultantProfileId == null) {
     return Response.json(
       statusCode: HttpStatus.forbidden,
@@ -42,42 +40,32 @@ Future<Object> _findAndAuthorize(
     );
   }
 
-  // Try webinar collaborator
-  final webQuery = JsonQueryBuilder()
-      .model('WebinarCollaborator')
-      .action(QueryAction.findFirst)
-      .where({'id': id})
-      .build();
-  var collab = await db.executor.executeQueryAsSingleMap(webQuery);
-
-  // Try class collaborator if not found
-  if (collab == null) {
-    final classQuery = JsonQueryBuilder()
-        .model('ClassCollaborator')
-        .action(QueryAction.findFirst)
-        .where({'id': id})
-        .build();
-    collab = await db.executor.executeQueryAsSingleMap(classQuery);
-  }
+  // WebinarCollaborator + ClassCollaborator were consolidated into a single
+  // Collaborator model (collaboratorType discriminates webinar vs class).
+  final collab = await db.prisma.collaborator.findFirst(
+    where: CollaboratorWhereInput(id: StringFilter(equals: id)),
+  );
 
   if (collab == null) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Collaboration not found'}},
+      body: {
+        'error': {'message': 'Collaboration not found'}
+      },
     );
   }
 
   // Verify the user is a participant in this collaboration
-  final collabProfileId =
-      collab['consultantProfileId'] as String?;
-  if (collabProfileId != consultantProfileId) {
+  if (collab.consultantProfileId != consultantProfileId) {
     return Response.json(
       statusCode: HttpStatus.notFound,
-      body: {'error': {'message': 'Collaboration not found'}},
+      body: {
+        'error': {'message': 'Collaboration not found'}
+      },
     );
   }
 
-  return collab;
+  return collab.toJson();
 }
 
 Future<Response> _handleGet(RequestContext context, String id) async {
@@ -86,7 +74,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -109,7 +99,9 @@ Future<Response> _handleGet(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to get collaboration'}},
+      body: {
+        'error': {'message': 'Failed to get collaboration'}
+      },
     );
   }
 }
@@ -120,42 +112,35 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     // Authorize first
     final authResult = await _findAndAuthorize(context, id, userId);
     if (authResult is Response) return authResult;
-    final collab = authResult as Map<String, dynamic>;
 
     final body = await context.request.json() as Map<String, dynamic>;
     final revenueSplit = body['revenueSharePercentage'] as num?;
     final db = context.read<DatabaseClient>();
-    final now = DateTime.now().toUtc().toIso8601String();
 
-    // Determine which model to update based on what we found
-    final modelName = collab.containsKey('webinarPlanId')
-        ? 'WebinarCollaborator'
-        : 'ClassCollaborator';
-
-    final updateQuery = JsonQueryBuilder()
-        .model(modelName)
-        .action(QueryAction.update)
-        .where({'id': id})
-        .data({
-      if (revenueSplit != null)
-        'revenueSharePercentage': revenueSplit.toDouble(),
-      'updatedAt': now,
-    }).build();
-
-    final updated =
-        await db.executor.executeQueryAsSingleMap(updateQuery);
+    // Single Collaborator model; revenueSharePercentage is now stored as
+    // basis points (revenueShareBps, e.g. 30% -> 3000) for integer money math.
+    // Typed update auto-refreshes updatedAt — no manual timestamp needed.
+    final updated = await db.prisma.collaborator.update(
+      where: CollaboratorWhereUniqueInput(id: id),
+      data: UpdateCollaboratorInput(
+        revenueShareBps: revenueSplit != null
+            ? (revenueSplit.toDouble() * 100).round()
+            : null,
+      ),
+    );
 
     return Response.json(
       body: {
-        'data':
-            updated != null ? serializeForJson(updated) : null,
+        'data': serializeForJson(updated.toJson()),
       },
     );
   } catch (e, stackTrace) {
@@ -167,7 +152,9 @@ Future<Response> _handlePut(RequestContext context, String id) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to update collaboration'}},
+      body: {
+        'error': {'message': 'Failed to update collaboration'}
+      },
     );
   }
 }

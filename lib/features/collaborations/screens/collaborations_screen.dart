@@ -57,7 +57,8 @@ class CollaborationsScreen extends ConsumerWidget {
               Icon(
                 Icons.group_outlined,
                 size: 64,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                color:
+                    theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 16),
               Text(
@@ -94,8 +95,7 @@ class CollaborationsScreen extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.error,
                   borderRadius: BorderRadius.circular(10),

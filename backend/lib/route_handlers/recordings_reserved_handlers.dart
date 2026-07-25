@@ -6,7 +6,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Handles POST /api/stream/recordings/start.
 Future<Response> handleRecordingStart(RequestContext context) async {
@@ -19,7 +18,9 @@ Future<Response> handleRecordingStart(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -29,7 +30,9 @@ Future<Response> handleRecordingStart(RequestContext context) async {
     if (callId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'callId is required'}},
+        body: {
+          'error': {'message': 'callId is required'}
+        },
       );
     }
 
@@ -48,7 +51,9 @@ Future<Response> handleRecordingStart(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to start recording'}},
+      body: {
+        'error': {'message': 'Failed to start recording'}
+      },
     );
   }
 }
@@ -64,7 +69,9 @@ Future<Response> handleRecordingStop(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -74,7 +81,9 @@ Future<Response> handleRecordingStop(RequestContext context) async {
     if (callId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'callId is required'}},
+        body: {
+          'error': {'message': 'callId is required'}
+        },
       );
     }
 
@@ -93,7 +102,9 @@ Future<Response> handleRecordingStop(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to stop recording'}},
+      body: {
+        'error': {'message': 'Failed to stop recording'}
+      },
     );
   }
 }
@@ -109,7 +120,9 @@ Future<Response> handleRecordingSync(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -131,48 +144,57 @@ Future<Response> handleRecordingSync(RequestContext context) async {
     final streamService = context.read<StreamService>();
     final db = context.read<DatabaseClient>();
     final streamRecordings = await streamService.listRecordings(callId);
-    final now = DateTime.now().toUtc().toIso8601String();
+    final now = DateTime.now().toUtc();
 
-    final syncCount = await db.executeInTransaction((txn) async {
+    // Typed create autofills id/createdAt/updatedAt. The re-synced Recording
+    // model renamed fields: fileName→title, streamUrl→recordingUrl,
+    // duration→durationInMinutes; recordedAt is required.
+    final syncCount = await db.prisma.$transaction((tx) async {
       var count = 0;
       for (final rec in streamRecordings) {
         final recId = rec['id'] as String?;
         if (recId == null) continue;
         final streamUrl = rec['url'] as String?;
         final filename = rec['filename'] as String?;
+        final fileSize = rec['file_size'] as int?;
 
-        final query = JsonQueryBuilder()
-            .model('Recording')
-            .action(QueryAction.create)
-            .data({
-          'meetingSessionId': meetingSessionId,
-          'streamRecordingId': recId,
-          'streamUrl': streamUrl,
-          'fileName': filename ?? 'recording-$recId',
-          'status': 'AVAILABLE',
-          'duration': rec['duration'] as int?,
-          'fileSize': rec['file_size'] as int?,
-          'createdAt': now,
-          'updatedAt': now,
-        }).build();
-
-        await txn.executeMutation(query);
+        // Idempotent: streamRecordingId is unique, so replaying the sync for
+        // the same callId must not blow up the whole $transaction on a
+        // duplicate-key violation.
+        await tx.recording.upsert(
+          where: RecordingWhereUniqueInput(streamRecordingId: recId),
+          create: CreateRecordingInput(
+            meetingSessionId: meetingSessionId,
+            streamRecordingId: recId,
+            streamCallId: callId,
+            recordingUrl: streamUrl ?? '',
+            title: filename ?? 'recording-$recId',
+            status: RecordingStatus.available,
+            durationInMinutes: (rec['duration'] as int?) ?? 0,
+            fileSize: fileSize != null ? BigInt.from(fileSize) : null,
+            recordedAt: now,
+          ),
+          update: UpdateRecordingInput(
+            recordingUrl: streamUrl ?? '',
+            durationInMinutes: (rec['duration'] as int?) ?? 0,
+            fileSize: fileSize != null ? BigInt.from(fileSize) : null,
+          ),
+        );
         count++;
       }
       return count;
     });
 
-    final recordsQuery = JsonQueryBuilder()
-        .model('Recording')
-        .action(QueryAction.findMany)
-        .where({'meetingSessionId': meetingSessionId})
-        .build();
-    final records = await db.executor.executeQueryAsMaps(recordsQuery);
+    final records = await db.prisma.recording.findMany(
+      where: RecordingWhereInput(
+        meetingSessionId: StringFilter(equals: meetingSessionId),
+      ),
+    );
 
     return Response.json(
       body: {
         'synced': syncCount,
-        'data': records.map(serializeForJson).toList(),
+        'data': records.map((r) => serializeForJson(r.toJson())).toList(),
       },
     );
   } catch (e, stackTrace) {
@@ -184,7 +206,9 @@ Future<Response> handleRecordingSync(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to sync recordings'}},
+      body: {
+        'error': {'message': 'Failed to sync recordings'}
+      },
     );
   }
 }

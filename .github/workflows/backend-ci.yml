@@ -1,0 +1,95 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [dev, main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [dev, main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+# Read-only by default; no job here needs to write to the repo.
+permissions:
+  contents: read
+
+# Supersede in-flight runs for the same ref instead of queueing them.
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Kept in step with flutter-ci.yml's FLUTTER_VERSION. Must ship Dart >=3.7
+  # (bcrypt requires it) — the old 3.24.3 pin shipped Dart 3.5.3 and failed
+  # dependency resolution.
+  FLUTTER_VERSION: '3.44.1'
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  backend:
+    name: Analyze, Format, Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Don't leave GITHUB_TOKEN in .git/config for later steps to read.
+          persist-credentials: false
+
+      # The backend is server-side Dart, but prisma_flutter_connector depends on
+      # the Flutter SDK, so pub resolution needs Flutter (not plain Dart).
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # lib/generated/** is gitignored — it is derived from prisma/schema.prisma
+      # (copied verbatim from familiarise_web) and must be regenerated here.
+      - name: Regenerate Prisma client + freezed
+        run: ./scripts/regenerate-build.sh --prisma
+
+      # `dart analyze` exits non-zero on *any* issue, including ~1k pre-existing
+      # style infos, so gate on severity instead. Parse the JSON report rather
+      # than the human-readable output: the text format labels these findings
+      # inconsistently (it showed 0 warnings where JSON showed 76), so a
+      # grep-based gate silently passed real warnings.
+      - name: Analyze (fail on errors + warnings)
+        run: |
+          dart analyze --format=json lib routes test > analyze.json || true
+          python3 - <<'EOF'
+          import json, sys, collections
+          with open('analyze.json') as f:
+              diagnostics = json.load(f)['diagnostics']
+          bad = [d for d in diagnostics if d['severity'] in ('ERROR', 'WARNING')]
+          print('diagnostics by severity:',
+                dict(collections.Counter(d['severity'] for d in diagnostics)))
+          for d in bad:
+              loc = d['location']
+              print(f"::error file={loc['file']},"
+                    f"line={loc['range']['start']['line']}::"
+                    f"{d['severity']} {d['code']}: {d['problemMessage']}")
+          if bad:
+              sys.exit(f"{len(bad)} error(s)/warning(s) found")
+          print('No errors or warnings.')
+          EOF
+
+      # git ls-files lists tracked files only, so the gitignored generated
+      # client is excluded for free.
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed $(git ls-files '*.dart')
+
+      - name: Test
+        run: dart test test/
+
+      # Ratchet: the JQB → typed-delegate migration finished at 0/0. This fails
+      # the build if raw JsonQueryBuilder or the removed raw finders creep back.
+      - name: JQB gate (no raw query builders)
+        run: ./scripts/jqb-gate.sh

@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/support/:ticketId/attachments — List attachments
 /// POST /api/support/:ticketId/attachments — Add attachment
@@ -38,23 +37,23 @@ Future<Response> _handleGet(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
     final db = context.read<DatabaseClient>();
-    // Fetch attachments via raw query (SupportTicket has no
-    // typed attachment relation in generated code)
-    final query = JsonQueryBuilder()
-        .model('SupportTicketAttachment')
-        .action(QueryAction.findMany)
-        .where({'supportTicketId': ticketId})
-        .build();
-    final attachments = await db.executor.executeQueryAsMaps(query);
+    // FK column is `ticketId` (schema re-sync renamed it from supportTicketId).
+    final attachments = await db.prisma.supportTicketAttachment.findMany(
+      where: SupportTicketAttachmentWhereInput(
+        ticketId: StringFilter(equals: ticketId),
+      ),
+    );
 
     return Response.json(
       body: {
-        'data': attachments.map(serializeForJson).toList(),
+        'data': attachments.map((a) => serializeForJson(a.toJson())).toList(),
       },
     );
   } catch (e, stackTrace) {
@@ -66,7 +65,9 @@ Future<Response> _handleGet(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list attachments'}},
+      body: {
+        'error': {'message': 'Failed to list attachments'}
+      },
     );
   }
 }
@@ -80,7 +81,9 @@ Future<Response> _handlePost(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -107,27 +110,25 @@ Future<Response> _handlePost(
       );
     }
 
-    final now = DateTime.now().toUtc().toIso8601String();
     final db = context.read<DatabaseClient>();
-    final query = JsonQueryBuilder()
-        .model('SupportTicketAttachment')
-        .action(QueryAction.create)
-        .data({
-      'supportTicketId': ticketId,
-      'fileName': fileName,
-      'fileUrl': fileUrl,
-      'mimeType': mimeType,
-      'fileSize': fileSize,
-      'storagePath': storagePath,
-      'uploadedBy': userId,
-      'uploadedAt': now,
-    }).build();
-
-    final result = await db.executor.executeQueryAsSingleMap(query);
+    // Typed create autofills id/uploadedAt defaults. The schema has no
+    // `uploadedBy` column (dropped during the re-sync) and requires
+    // `originalName` — use the client-provided fileName for it.
+    final result = await db.prisma.supportTicketAttachment.create(
+      data: CreateSupportTicketAttachmentInput(
+        ticketId: ticketId,
+        fileName: fileName,
+        originalName: fileName,
+        fileUrl: fileUrl,
+        mimeType: mimeType,
+        fileSize: fileSize,
+        storagePath: storagePath,
+      ),
+    );
 
     return Response.json(
       statusCode: HttpStatus.created,
-      body: {'data': result != null ? serializeForJson(result) : null},
+      body: {'data': serializeForJson(result.toJson())},
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe(
@@ -138,7 +139,9 @@ Future<Response> _handlePost(
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to add attachment'}},
+      body: {
+        'error': {'message': 'Failed to add attachment'}
+      },
     );
   }
 }

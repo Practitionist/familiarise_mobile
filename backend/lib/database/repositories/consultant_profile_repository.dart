@@ -1,7 +1,7 @@
 import 'package:backend/database/repositories/base_repository.dart';
+import 'package:backend/utils/enum_utils.dart';
 import 'package:backend/generated/index.dart';
 import 'package:prisma_flutter_connector/runtime_server.dart';
-import 'package:uuid/uuid.dart';
 
 /// Repository for consultant profile database operations
 class ConsultantProfileRepository extends BaseRepository {
@@ -10,20 +10,20 @@ class ConsultantProfileRepository extends BaseRepository {
 
   final PrismaClient _prisma;
 
-  static const _uuid = Uuid();
-
   /// Find consultant profile by user ID
   Future<Map<String, dynamic>?> findByUserId(String userId) async {
-    return _prisma.consultantProfile.findFirstRaw(
-      where: {'userId': userId},
+    final result = await _prisma.consultantProfile.findFirst(
+      where: ConsultantProfileWhereInput(userId: StringFilter(equals: userId)),
     );
+    return result?.toJson();
   }
 
   /// Find consultant profile by ID
   Future<Map<String, dynamic>?> findById(String id) async {
-    return _prisma.consultantProfile.findFirstRaw(
-      where: {'id': id},
+    final result = await _prisma.consultantProfile.findFirst(
+      where: ConsultantProfileWhereInput(id: StringFilter(equals: id)),
     );
+    return result?.toJson();
   }
 
   /// Upsert a consultant profile (create or update)
@@ -49,53 +49,55 @@ class ConsultantProfileRepository extends BaseRepository {
     String? videoIntroUrl,
     TransactionExecutor? txn,
   }) async {
-    // Check if profile exists to get its ID
-    final existing = await findByUserId(userId);
-    final profileId = existing?['id'] as String? ?? _uuid.v4();
+    // Map wire strings to generated enums for the typed inputs.
+    final scheduleTypeEnum = enumFromWire(
+        ScheduleType.values, scheduleType ?? 'WEEKLY',
+        field: 'scheduleType');
+    final sessionTypeEnums = sessionTypes
+        ?.map((s) => enumFromWire(SessionType.values, s, field: 'sessionTypes'))
+        .toList();
 
-    // Build update data with optional fields using collection-if
-    final updateData = <String, dynamic>{
-      'domainId': domainId,
-      'updatedAt': nowIso8601,
-      if (experience != null) 'experience': experience,
-      if (description != null) 'description': description,
-      if (headline != null) 'headline': headline,
-      if (languages != null) 'languages': languages,
-      if (toolsAndTechnologies != null)
-        'toolsAndTechnologies': toolsAndTechnologies,
-      if (mentoringStyle != null) 'mentoringStyle': mentoringStyle,
-      if (sessionTypes != null) 'sessionTypes': sessionTypes,
-      'scheduleType': scheduleType ?? 'WEEKLY',
-      if (websiteUrl != null) 'websiteUrl': websiteUrl,
-      if (twitterUrl != null) 'twitterUrl': twitterUrl,
-      if (githubUrl != null) 'githubUrl': githubUrl,
-      if (videoIntroUrl != null) 'videoIntroUrl': videoIntroUrl,
-    };
-
-    // Build create data (includes all update fields plus required create
-    // fields)
-    final createData = <String, dynamic>{
-      'id': profileId,
-      'userId': userId,
-      'createdAt': nowIso8601,
-      'isVerified': false,
-      ...updateData,
-    };
-
-    // Use the connector's native upsert (ON CONFLICT DO UPDATE)
-    final query = JsonQueryBuilder()
-        .model('ConsultantProfile')
-        .action(QueryAction.upsert)
-        .where({'id': profileId}).data({
-      'create': createData,
-      'update': updateData,
-    }).build();
-
-    final result = await executeQueryAsSingleMap(query, txn: txn);
-    if (result == null) {
-      throw Exception('Failed to upsert consultant profile');
-    }
-    return result;
+    // Use the connector's native upsert (ON CONFLICT DO UPDATE) keyed on the
+    // unique userId column; id/timestamps are autofilled on create and
+    // updatedAt auto-refreshes on update.
+    final delegate = txn == null
+        ? _prisma.consultantProfile
+        : ConsultantProfileDelegate(txn);
+    final result = await delegate.upsert(
+      where: ConsultantProfileWhereUniqueInput(userId: userId),
+      create: CreateConsultantProfileInput(
+        userId: userId,
+        domainId: domainId,
+        scheduleType: scheduleTypeEnum,
+        experience: experience,
+        description: description,
+        headline: headline,
+        languages: languages,
+        toolsAndTechnologies: toolsAndTechnologies,
+        mentoringStyle: mentoringStyle,
+        sessionTypes: sessionTypeEnums,
+        websiteUrl: websiteUrl,
+        twitterUrl: twitterUrl,
+        githubUrl: githubUrl,
+        videoIntroUrl: videoIntroUrl,
+      ),
+      update: UpdateConsultantProfileInput(
+        domainId: domainId,
+        scheduleType: scheduleTypeEnum,
+        experience: experience,
+        description: description,
+        headline: headline,
+        languages: languages,
+        toolsAndTechnologies: toolsAndTechnologies,
+        mentoringStyle: mentoringStyle,
+        sessionTypes: sessionTypeEnums,
+        websiteUrl: websiteUrl,
+        twitterUrl: twitterUrl,
+        githubUrl: githubUrl,
+        videoIntroUrl: videoIntroUrl,
+      ),
+    );
+    return result.toJson();
   }
 
   /// Update consultant-subdomain relations
@@ -110,32 +112,21 @@ class ConsultantProfileRepository extends BaseRepository {
     required List<String> subDomainIds,
     TransactionExecutor? txn,
   }) async {
-    // First, delete existing relations
-    final deleteQuery = JsonQueryBuilder()
-        .model('_ConsultantProfileToSubDomain')
-        .action(QueryAction.deleteMany)
-        .where({'A': profileId}).build();
-
-    await executeMutation(deleteQuery, txn: txn);
-
-    // Batch insert new relations using createMany
-    if (subDomainIds.isNotEmpty) {
-      final insertQuery = JsonQueryBuilder()
-          .model('_ConsultantProfileToSubDomain')
-          .action(QueryAction.createMany)
-          .data({
-        'data': subDomainIds
-            .map(
-              (subDomainId) => {
-                'A': profileId,
-                'B': subDomainId,
-              },
-            )
-            .toList(),
-      }).build();
-
-      await executeMutation(insertQuery, txn: txn);
-    }
+    // 0.9.0 nested `set`: replace-semantics on the implicit M2M join table
+    // (junction clear + connects), through the typed surface. Honors an
+    // ambient transaction when the caller passes one.
+    final delegate = ConsultantProfileDelegate(txn ?? executor);
+    await delegate.update(
+      where: ConsultantProfileWhereUniqueInput(id: profileId),
+      data: UpdateConsultantProfileInput(
+        subDomains: ConsultantProfileSubDomainsWriteInput(
+          set: [
+            for (final subDomainId in subDomainIds)
+              SubDomainWhereUniqueInput(id: subDomainId),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Delete a consultant profile by user ID

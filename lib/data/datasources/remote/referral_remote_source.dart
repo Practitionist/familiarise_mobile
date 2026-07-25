@@ -152,8 +152,7 @@ class ReferralRemoteSourceImpl implements ReferralRemoteSource {
       code: json['code'] as String,
       customCode: json['customCode'] as String?,
       totalReferrals: (json['totalReferrals'] as num?)?.toInt() ?? 0,
-      successfulReferrals:
-          (json['successfulReferrals'] as num?)?.toInt() ?? 0,
+      successfulReferrals: (json['successfulReferrals'] as num?)?.toInt() ?? 0,
       totalEarned: (json['totalEarned'] as num?)?.toInt() ?? 0,
       maxReferrals: (json['maxReferrals'] as num?)?.toInt(),
       isActive: json['isActive'] as bool? ?? true,

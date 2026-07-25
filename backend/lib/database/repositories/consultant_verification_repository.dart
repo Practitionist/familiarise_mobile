@@ -1,7 +1,5 @@
 import 'package:backend/database/database_client.dart';
 import 'package:backend/database/repositories/base_repository.dart';
-import 'package:backend/utils/json_utils.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Thrown when a verification submission conflicts with an existing pending one.
 class VerificationConflictException implements Exception {
@@ -43,42 +41,28 @@ class ConsultantVerificationRepository extends BaseRepository {
     required String consultantProfileId,
     String? notes,
   }) async {
-    return executeInTransaction((txn) async {
+    return _prisma.$transaction((tx) async {
       // Check for existing pending verification within transaction
-      final checkQuery = JsonQueryBuilder()
-          .model('ConsultantProfileVerification')
-          .action(QueryAction.findFirst)
-          .where({
-        'consultantProfileId': consultantProfileId,
-        'status': 'PENDING',
-      }).build();
-
-      final existing = await txn.executeQueryAsSingleMap(checkQuery);
+      final existing = await tx.consultantProfileVerification.findFirst(
+        where: ConsultantProfileVerificationWhereInput(
+          consultantProfileId: StringFilter(equals: consultantProfileId),
+          status: const ProfileVerificationStatusFilter(
+            equals: ProfileVerificationStatus.pending,
+          ),
+        ),
+      );
       if (existing != null) {
         throw const VerificationConflictException();
       }
 
-      // Create new verification within same transaction
-      final now = nowIso8601;
-      final createQuery = JsonQueryBuilder()
-          .model('ConsultantProfileVerification')
-          .action(QueryAction.create)
-          .data({
-        'consultantProfileId': consultantProfileId,
-        'status': 'PENDING',
-        'notes': notes,
-        'submittedAt': now,
-        'createdAt': now,
-        'updatedAt': now,
-      }).build();
-
-      final result = await txn.executeQueryAsSingleMap(createQuery);
-      if (result == null) {
-        throw Exception('Failed to create verification');
-      }
-      final serialized = serializeForJson(result);
-      serialized.putIfAbsent('documents', () => <dynamic>[]);
-      return ConsultantProfileVerification.fromJson(serialized);
+      // Create new verification within same transaction (id/submittedAt/
+      // timestamps autofilled; status defaults to PENDING).
+      return tx.consultantProfileVerification.create(
+        data: CreateConsultantProfileVerificationInput(
+          consultantProfileId: consultantProfileId,
+          notes: notes,
+        ),
+      );
     });
   }
 
@@ -86,14 +70,11 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<ConsultantProfileVerification?> findLatest(
     String consultantProfileId,
   ) async {
-    final result =
-        await _prisma.consultantProfileVerification.findFirstRaw(
-      where: {'consultantProfileId': consultantProfileId},
+    return _prisma.consultantProfileVerification.findFirst(
+      where: ConsultantProfileVerificationWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
     );
-    if (result == null) return null;
-    final serialized = serializeForJson(result);
-    serialized.putIfAbsent('documents', () => <dynamic>[]);
-    return ConsultantProfileVerification.fromJson(serialized);
   }
 
   /// Get a verification by ID.
@@ -107,9 +88,12 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> findAll(
     String consultantProfileId,
   ) async {
-    return _prisma.consultantProfileVerification.findManyRaw(
-      where: {'consultantProfileId': consultantProfileId},
+    final results = await _prisma.consultantProfileVerification.findMany(
+      where: ConsultantProfileVerificationWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfileId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Add a document to an existing verification.
@@ -141,9 +125,12 @@ class ConsultantVerificationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getDocuments(
     String verificationId,
   ) async {
-    return _prisma.profileVerificationDocument.findManyRaw(
-      where: {'verificationId': verificationId},
+    final results = await _prisma.profileVerificationDocument.findMany(
+      where: ProfileVerificationDocumentWhereInput(
+        verificationId: StringFilter(equals: verificationId),
+      ),
     );
+    return results.map((r) => r.toJson()).toList();
   }
 
   /// Resubmit a verification (creates a new one, supersedes the old).

@@ -23,7 +23,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -33,7 +35,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (cpId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Not a consultant'}},
+        body: {
+          'error': {'message': 'Not a consultant'}
+        },
       );
     }
 
@@ -43,11 +47,12 @@ Future<Response> _handleGet(RequestContext context) async {
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('List subscription plans failed',
-        context: 'SubscriptionPlansGet',
-        error: e, stackTrace: stackTrace);
+        context: 'SubscriptionPlansGet', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list plans'}},
+      body: {
+        'error': {'message': 'Failed to list plans'}
+      },
     );
   }
 }
@@ -58,7 +63,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -68,7 +75,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (cpId == null) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
-        body: {'error': {'message': 'Not a consultant'}},
+        body: {
+          'error': {'message': 'Not a consultant'}
+        },
       );
     }
 
@@ -77,9 +86,12 @@ Future<Response> _handlePost(RequestContext context) async {
     final durationInMonths = (body['durationInMonths'] as num?)?.toInt();
     final price = (body['price'] as num?)?.toInt();
 
-    if (title == null || title.isEmpty ||
-        durationInMonths == null || durationInMonths < 1 ||
-        price == null || price <= 0) {
+    if (title == null ||
+        title.isEmpty ||
+        durationInMonths == null ||
+        durationInMonths < 1 ||
+        price == null ||
+        price <= 0) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
@@ -113,16 +125,19 @@ Future<Response> _handlePost(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.badRequest,
       body: {
-        'error': {'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'}
+        'error': {
+          'message': e.message?.toString() ?? 'Invalid value: ${e.invalidValue}'
+        }
       },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Create subscription plan failed',
-        context: 'SubscriptionPlansPost',
-        error: e, stackTrace: stackTrace);
+        context: 'SubscriptionPlansPost', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to create plan'}},
+      body: {
+        'error': {'message': 'Failed to create plan'}
+      },
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:backend/utils/storage_utils.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// Handles /api/user/profile-image.
 Future<Response> handleProfileImage(RequestContext context) async {
@@ -89,16 +88,13 @@ Future<Response> _handleProfileImageDelete(RequestContext context) async {
     }
 
     final db = context.read<DatabaseClient>();
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': userId})
-        .data({
-          'image': null,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        })
-        .build();
-    await db.executor.executeMutation(query);
+    // 0.9.0 setNull: explicit null-clear through the typed surface
+    // (updatedAt auto-refreshes).
+    await db.prisma.user.update(
+      where: UserWhereUniqueInput(id: userId),
+      data: const UpdateUserInput(),
+      setNull: [UserScalarField.image],
+    );
 
     return Response.json(body: {'message': 'Profile image removed'});
   } catch (e, stackTrace) {
@@ -205,16 +201,12 @@ Future<Response> _handleProfileDisplayImageDelete(
     }
 
     final db = context.read<DatabaseClient>();
-    final query = JsonQueryBuilder()
-        .model('users')
-        .action(QueryAction.update)
-        .where({'id': userId})
-        .data({
-          'profileDisplayImage': null,
-          'updatedAt': DateTime.now().toUtc().toIso8601String(),
-        })
-        .build();
-    await db.executor.executeMutation(query);
+    // 0.9.0 setNull: explicit null-clear through the typed surface.
+    await db.prisma.user.update(
+      where: UserWhereUniqueInput(id: userId),
+      data: const UpdateUserInput(),
+      setNull: [UserScalarField.profileDisplayImage],
+    );
 
     return Response.json(
       body: {'message': 'Profile display image removed'},

@@ -56,8 +56,8 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
       }).toList();
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to load trials',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to load trials',
       );
     }
   }
@@ -82,8 +82,8 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to request trial',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to request trial',
       );
     }
   }
@@ -97,8 +97,8 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to load trial',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to load trial',
       );
     }
   }
@@ -118,8 +118,8 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to update trial',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to update trial',
       );
     }
   }
@@ -153,8 +153,8 @@ class TrialRemoteSourceImpl implements TrialRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to load stats',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to load stats',
       );
     }
   }

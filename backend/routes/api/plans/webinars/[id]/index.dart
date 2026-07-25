@@ -15,17 +15,20 @@ Future<Response> onRequest(RequestContext context, String id) async {
       if (plan == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
-          body: {'error': {'message': 'Not found'}},
+          body: {
+            'error': {'message': 'Not found'}
+          },
         );
       }
       return Response.json(body: {'data': serializeForJson(plan)});
     } catch (e, stackTrace) {
       await SentryLogger.severe('Get failed',
-          context: 'WebinarPlanGet',
-          error: e, stackTrace: stackTrace);
+          context: 'WebinarPlanGet', error: e, stackTrace: stackTrace);
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed'}},
+        body: {
+          'error': {'message': 'Failed'}
+        },
       );
     }
   }
@@ -36,7 +39,9 @@ Future<Response> onRequest(RequestContext context, String id) async {
       if (userId == null) {
         return Response.json(
           statusCode: HttpStatus.unauthorized,
-          body: {'error': {'message': 'Unauthorized'}},
+          body: {
+            'error': {'message': 'Unauthorized'}
+          },
         );
       }
       final db = context.read<DatabaseClient>();
@@ -44,26 +49,30 @@ Future<Response> onRequest(RequestContext context, String id) async {
       if (plan == null) {
         return Response.json(
           statusCode: HttpStatus.notFound,
-          body: {'error': {'message': 'Not found'}},
+          body: {
+            'error': {'message': 'Not found'}
+          },
         );
       }
       final user = await db.users.findById(userId);
-      if (user?['consultantProfileId'] !=
-          plan['consultantProfileId']) {
+      if (user?['consultantProfileId'] != plan['consultantProfileId']) {
         return Response.json(
           statusCode: HttpStatus.forbidden,
-          body: {'error': {'message': 'Not your plan'}},
+          body: {
+            'error': {'message': 'Not your plan'}
+          },
         );
       }
       await db.plans.deleteWebinarPlan(id);
       return Response.json(body: {'message': 'Deleted'});
     } catch (e, stackTrace) {
       await SentryLogger.severe('Delete failed',
-          context: 'WebinarPlanDel',
-          error: e, stackTrace: stackTrace);
+          context: 'WebinarPlanDel', error: e, stackTrace: stackTrace);
       return Response.json(
         statusCode: HttpStatus.internalServerError,
-        body: {'error': {'message': 'Failed'}},
+        body: {
+          'error': {'message': 'Failed'}
+        },
       );
     }
   }

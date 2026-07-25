@@ -220,7 +220,8 @@ class _EntitlementMeter extends StatelessWidget {
         theme,
         label: '${entitlement.engagementsRemaining ?? 0} of $covered '
             'sessions left this cycle',
-        fraction: covered == 0 ? 0 : (covered - used).clamp(0, covered) / covered,
+        fraction:
+            covered == 0 ? 0 : (covered - used).clamp(0, covered) / covered,
       );
     }
 

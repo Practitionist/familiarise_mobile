@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/dashboard/consultant/:consultantId — Full consultant dashboard
 Future<Response> onRequest(
@@ -21,7 +20,9 @@ Future<Response> onRequest(
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -30,50 +31,52 @@ Future<Response> onRequest(
     final user = await db.users.findById(userId);
     final role = user?['role'] as String?;
     final userCpId = user?['consultantProfileId'] as String?;
-    if (userCpId != consultantId &&
-        role != 'STAFF' &&
-        role != 'ADMIN') {
+    if (userCpId != consultantId && role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Access denied'}},
+        body: {
+          'error': {'message': 'Access denied'}
+        },
       );
     }
 
-    // Fetch dashboard data in parallel
-    final appointmentsQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantId})
-        .build();
+    // Fetch dashboard data.
+    // Appointment has no consultantProfileId column — the consultant is
+    // linked through its allocated slots, so filter via that relation.
+    final appointments = await db.prisma.appointment.findMany(
+      where: AppointmentWhereInput(
+        slotsOfAppointment: SlotOfAppointmentListRelationFilter(
+          some: SlotOfAppointmentWhereInput(
+            consultantProfileId: StringFilter(equals: consultantId),
+          ),
+        ),
+      ),
+    );
 
-    final activitiesQuery = JsonQueryBuilder()
-        .model('ActivityLog')
-        .action(QueryAction.findMany)
-        .where({'consultantProfileId': consultantId})
-        .build();
-
-    final appointments =
-        await db.executor.executeQueryAsMaps(appointmentsQuery);
-    final activities =
-        await db.executor.executeQueryAsMaps(activitiesQuery);
+    final activities = await db.prisma.activityLog.findMany(
+      where: ActivityLogWhereInput(
+        consultantProfileId: StringFilter(equals: consultantId),
+      ),
+    );
 
     return Response.json(
       body: {
         'data': {
           'appointments':
-              appointments.map(serializeForJson).toList(),
+              appointments.map((a) => serializeForJson(a.toJson())).toList(),
           'activities':
-              activities.map(serializeForJson).toList(),
+              activities.map((a) => serializeForJson(a.toJson())).toList(),
         },
       },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Consultant dashboard failed',
-        context: 'ConsultantDashboard',
-        error: e, stackTrace: stackTrace);
+        context: 'ConsultantDashboard', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load dashboard'}},
+      body: {
+        'error': {'message': 'Failed to load dashboard'}
+      },
     );
   }
 }

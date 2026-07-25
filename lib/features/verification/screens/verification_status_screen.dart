@@ -89,8 +89,7 @@ class VerificationStatusScreen extends ConsumerWidget {
     final documentsAsync = ref.watch(verificationDocumentsProvider);
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(verificationStateProvider.notifier).refresh(),
+      onRefresh: () => ref.read(verificationStateProvider.notifier).refresh(),
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -176,8 +175,7 @@ class VerificationStatusScreen extends ConsumerWidget {
                     .toList(),
               );
             },
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Text('Failed to load documents: $e'),
           ),
 

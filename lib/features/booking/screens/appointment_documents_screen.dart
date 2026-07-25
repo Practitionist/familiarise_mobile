@@ -43,8 +43,7 @@ class AppointmentDocumentsScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
@@ -106,8 +105,7 @@ class _DocumentCard extends StatelessWidget {
             ),
             if (document.description != null) ...[
               const SizedBox(height: 8),
-              Text(document.description!,
-                  style: theme.textTheme.bodyMedium),
+              Text(document.description!, style: theme.textTheme.bodyMedium),
             ],
             if (document.reviewNotes != null) ...[
               const SizedBox(height: 8),
@@ -154,15 +152,10 @@ class _DocumentCard extends StatelessWidget {
     DocumentReviewStatus status,
   ) =>
       switch (status) {
-        DocumentReviewStatus.pending =>
-          (Colors.orange, Icons.hourglass_top),
-        DocumentReviewStatus.inReview =>
-          (Colors.blue, Icons.rate_review),
-        DocumentReviewStatus.approved =>
-          (Colors.green, Icons.check_circle),
-        DocumentReviewStatus.rejected =>
-          (Colors.red, Icons.cancel),
-        DocumentReviewStatus.needsRevision =>
-          (Colors.amber, Icons.edit_note),
+        DocumentReviewStatus.pending => (Colors.orange, Icons.hourglass_top),
+        DocumentReviewStatus.inReview => (Colors.blue, Icons.rate_review),
+        DocumentReviewStatus.approved => (Colors.green, Icons.check_circle),
+        DocumentReviewStatus.rejected => (Colors.red, Icons.cancel),
+        DocumentReviewStatus.needsRevision => (Colors.amber, Icons.edit_note),
       };
 }

@@ -92,6 +92,14 @@ Future<Response> onRequest(RequestContext context, String id) async {
         'error': {'message': 'Invalid request body format'},
       },
     );
+  } on ArgumentError catch (e) {
+    // Unsupported cancellation reason -> validation error, not a 500.
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': e.message?.toString() ?? 'Invalid input'},
+      },
+    );
   } catch (e, stackTrace) {
     await SentryLogger.error(
       'Error in POST /api/appointments/$id/cancel',

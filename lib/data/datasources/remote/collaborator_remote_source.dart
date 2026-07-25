@@ -86,7 +86,8 @@ class CollaboratorRemoteSourceImpl implements CollaboratorRemoteSource {
         throw e.error as AppException;
       }
       throw ServerException(
-        message: _extractErrorMessage(e) ?? 'Failed to respond to collaboration',
+        message:
+            _extractErrorMessage(e) ?? 'Failed to respond to collaboration',
         statusCode: e.response?.statusCode,
         originalError: e,
       );

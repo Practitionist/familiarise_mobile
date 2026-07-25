@@ -25,7 +25,9 @@ Future<Response> _handleGet(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -44,7 +46,9 @@ Future<Response> _handleGet(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to load waitlist'}},
+      body: {
+        'error': {'message': 'Failed to load waitlist'}
+      },
     );
   }
 }
@@ -55,7 +59,9 @@ Future<Response> _handlePost(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -94,7 +100,9 @@ Future<Response> _handlePost(RequestContext context) async {
     );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to join waitlist'}},
+      body: {
+        'error': {'message': 'Failed to join waitlist'}
+      },
     );
   }
 }

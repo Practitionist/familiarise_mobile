@@ -61,7 +61,8 @@ Future<bool> showDestructiveActionDialog({
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: TextButton.styleFrom(
-            foregroundColor: confirmColor ?? Theme.of(context).colorScheme.error,
+            foregroundColor:
+                confirmColor ?? Theme.of(context).colorScheme.error,
           ),
           child: Text(confirmText),
         ),
@@ -116,7 +117,9 @@ class _ChatActionsSheet extends StatelessWidget {
 
             // Option 1: Mute/Unmute notifications
             _ActionCard(
-              icon: isMuted ? Icons.notifications_active : Icons.notifications_off,
+              icon: isMuted
+                  ? Icons.notifications_active
+                  : Icons.notifications_off,
               iconColor: theme.colorScheme.primary,
               title: isMuted ? 'Unmute notifications' : 'Mute notifications',
               description: isMuted

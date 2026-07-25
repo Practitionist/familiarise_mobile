@@ -94,8 +94,7 @@ class _TaxInfoScreenState extends ConsumerState<TaxInfoScreen> {
             ),
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
@@ -105,10 +104,8 @@ class _TaxInfoScreenState extends ConsumerState<TaxInfoScreen> {
     setState(() => _isSubmitting = true);
     try {
       await ref.read(taxInfoStateProvider.notifier).save({
-        'panNumber':
-            _panCtrl.text.isEmpty ? null : _panCtrl.text,
-        'gstNumber':
-            _gstCtrl.text.isEmpty ? null : _gstCtrl.text,
+        'panNumber': _panCtrl.text.isEmpty ? null : _panCtrl.text,
+        'gstNumber': _gstCtrl.text.isEmpty ? null : _gstCtrl.text,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

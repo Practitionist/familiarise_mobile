@@ -5,7 +5,6 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/json_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 
 /// GET /api/staff/feedbacks — List feedbacks for staff review
 Future<Response> onRequest(RequestContext context) async {
@@ -18,7 +17,9 @@ Future<Response> onRequest(RequestContext context) async {
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
-        body: {'error': {'message': 'Unauthorized'}},
+        body: {
+          'error': {'message': 'Unauthorized'}
+        },
       );
     }
 
@@ -28,28 +29,29 @@ Future<Response> onRequest(RequestContext context) async {
     if (role != 'STAFF' && role != 'ADMIN') {
       return Response.json(
         statusCode: HttpStatus.forbidden,
-        body: {'error': {'message': 'Staff access required'}},
+        body: {
+          'error': {'message': 'Staff access required'}
+        },
       );
     }
 
-    final query = JsonQueryBuilder()
-        .model('Feedback')
-        .action(QueryAction.findMany)
-        .where({})
-        .orderBy({'createdAt': 'desc'})
-        .build();
-    final feedbacks = await db.executor.executeQueryAsMaps(query);
+    final feedbacks = await db.prisma.feedback.findMany(
+      orderBy: const FeedbackOrderByInput(createdAt: SortOrder.desc),
+    );
 
     return Response.json(
-      body: {'data': feedbacks.map(serializeForJson).toList()},
+      body: {
+        'data': feedbacks.map((f) => serializeForJson(f.toJson())).toList(),
+      },
     );
   } catch (e, stackTrace) {
     await SentryLogger.severe('Staff feedbacks failed',
-        context: 'StaffFeedbacks',
-        error: e, stackTrace: stackTrace);
+        context: 'StaffFeedbacks', error: e, stackTrace: stackTrace);
     return Response.json(
       statusCode: HttpStatus.internalServerError,
-      body: {'error': {'message': 'Failed to list feedbacks'}},
+      body: {
+        'error': {'message': 'Failed to list feedbacks'}
+      },
     );
   }
 }

@@ -1,11 +1,13 @@
 import 'package:backend/database/repositories/base_repository.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
+import 'package:backend/utils/enum_utils.dart';
+import 'package:backend/generated/index.dart';
 import 'package:uuid/uuid.dart';
 
 /// Repository for checkout and payment operations
 class CheckoutRepository extends BaseRepository {
-  CheckoutRepository(super._executor);
+  CheckoutRepository(super._executor, this._prisma);
 
+  final PrismaClient _prisma;
   final _uuid = const Uuid();
 
   /// Create a payment record for checkout
@@ -23,38 +25,29 @@ class CheckoutRepository extends BaseRepository {
     String? discountCodeId,
     String? description,
   }) async {
-    final paymentId = _uuid.v4();
     final paymentIntent = 'pi_${_uuid.v4().replaceAll('-', '')}';
-    final now = nowIso8601;
 
-    // Create payment record
-    final createQuery =
-        JsonQueryBuilder().model('Payment').action(QueryAction.create).data({
-      'id': paymentId,
-      'amount': amount,
-      'originalAmount': originalAmount ?? amount,
-      'currency': currency,
-      'paymentMethod': 'CARD',
-      'paymentIntent': paymentIntent,
-      'paymentGateway': paymentGateway,
-      'paymentStatus': 'PENDING',
-      'isMockPayment': false,
-      'userId': userId,
-      if (appointmentId != null) 'appointmentId': appointmentId,
-      if (discountCodeId != null) 'discountCodeId': discountCodeId,
-      if (description != null) 'description': description,
-      'expiresAt': DateTime.now()
-          .add(const Duration(hours: 1))
-          .toUtc()
-          .toIso8601String(),
-      'createdAt': now,
-      'updatedAt': now,
-    }).build();
-
-    await executeMutation(createQuery);
+    final payment = await _prisma.payment.create(
+      data: CreatePaymentInput(
+        amount: BigInt.from(amount),
+        originalAmount: BigInt.from(originalAmount ?? amount),
+        currency: enumFromWire(Currency.values, currency, field: 'currency'),
+        paymentMethod: 'CARD',
+        paymentIntent: paymentIntent,
+        paymentGateway: enumFromWire(PaymentGateway.values, paymentGateway,
+            field: 'paymentGateway'),
+        paymentStatus: PaymentStatus.pending,
+        isMockPayment: false,
+        userId: userId,
+        appointmentId: appointmentId,
+        discountCodeId: discountCodeId,
+        description: description,
+        expiresAt: DateTime.now().add(const Duration(hours: 1)).toUtc(),
+      ),
+    );
 
     return {
-      'paymentId': paymentId,
+      'paymentId': payment.id,
       'paymentIntent': paymentIntent,
       'amount': amount,
       'currency': currency,
@@ -64,12 +57,10 @@ class CheckoutRepository extends BaseRepository {
 
   /// Get payment by ID
   Future<Map<String, dynamic>?> getPaymentById(String paymentId) async {
-    final query = JsonQueryBuilder()
-        .model('Payment')
-        .action(QueryAction.findUnique)
-        .where({'id': paymentId}).build();
-
-    return executeQueryAsSingleMap(query);
+    final payment = await _prisma.payment.findUnique(
+      where: PaymentWhereUniqueInput(id: paymentId),
+    );
+    return payment?.toJson();
   }
 
   /// Update payment status
@@ -78,16 +69,14 @@ class CheckoutRepository extends BaseRepository {
     required String status,
     String? receiptUrl,
   }) async {
-    final updateQuery = JsonQueryBuilder()
-        .model('Payment')
-        .action(QueryAction.update)
-        .where({'id': paymentId}).data({
-      'paymentStatus': status,
-      if (receiptUrl != null) 'receiptUrl': receiptUrl,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    await executeMutation(updateQuery);
+    await _prisma.payment.update(
+      where: PaymentWhereUniqueInput(id: paymentId),
+      data: UpdatePaymentInput(
+        paymentStatus:
+            enumFromWire(PaymentStatus.values, status, field: 'status'),
+        receiptUrl: receiptUrl,
+      ),
+    );
   }
 
   /// Update payment intent (e.g., with Razorpay order ID)
@@ -95,42 +84,32 @@ class CheckoutRepository extends BaseRepository {
     required String paymentId,
     required String paymentIntent,
   }) async {
-    final updateQuery = JsonQueryBuilder()
-        .model('Payment')
-        .action(QueryAction.update)
-        .where({'id': paymentId}).data({
-      'paymentIntent': paymentIntent,
-      'updatedAt': nowIso8601,
-    }).build();
-    await executeMutation(updateQuery);
+    await _prisma.payment.update(
+      where: PaymentWhereUniqueInput(id: paymentId),
+      data: UpdatePaymentInput(paymentIntent: paymentIntent),
+    );
   }
 
   /// Get plan price and details
   Future<Map<String, dynamic>?> getConsultationPlan(String planId) async {
-    final query = JsonQueryBuilder()
-        .model('ConsultationPlan')
-        .action(QueryAction.findUnique)
-        .where({'id': planId}).include({
-      'consultantProfile': {
-        'include': {'user': true}
-      }
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    final plan = await _prisma.consultationPlan.findUnique(
+      where: ConsultationPlanWhereUniqueInput(id: planId),
+      include: ConsultationPlanInclude(
+        consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+      ),
+    );
+    return plan?.toJson();
   }
 
   /// Get subscription plan price and details
   Future<Map<String, dynamic>?> getSubscriptionPlan(String planId) async {
-    final query = JsonQueryBuilder()
-        .model('SubscriptionPlan')
-        .action(QueryAction.findUnique)
-        .where({'id': planId}).include({
-      'consultantProfile': {
-        'include': {'user': true}
-      }
-    }).build();
-
-    return executeQueryAsSingleMap(query);
+    final plan = await _prisma.subscriptionPlan.findUnique(
+      where: SubscriptionPlanWhereUniqueInput(id: planId),
+      include: SubscriptionPlanInclude(
+        consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+      ),
+    );
+    return plan?.toJson();
   }
 
   /// Get booking details by ID (consultation or subscription)
@@ -139,35 +118,25 @@ class CheckoutRepository extends BaseRepository {
     String bookingType,
   ) async {
     if (bookingType.toUpperCase() == 'CONSULTATION') {
-      final query = JsonQueryBuilder()
-          .model('Consultation')
-          .action(QueryAction.findUnique)
-          .where({'id': bookingId}).include({
-        'consultationPlan': {
-          'include': {
-            'consultantProfile': {
-              'include': {'user': true}
-            }
-          }
-        }
-      }).build();
-
-      return executeQueryAsSingleMap(query);
+      final booking = await _prisma.consultation.findUnique(
+        where: ConsultationWhereUniqueInput(id: bookingId),
+        include: ConsultationInclude(
+          consultationPlan: ConsultationPlanInclude(
+            consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+          ),
+        ),
+      );
+      return booking?.toJson();
     } else {
-      final query = JsonQueryBuilder()
-          .model('Subscription')
-          .action(QueryAction.findUnique)
-          .where({'id': bookingId}).include({
-        'subscriptionPlan': {
-          'include': {
-            'consultantProfile': {
-              'include': {'user': true}
-            }
-          }
-        }
-      }).build();
-
-      return executeQueryAsSingleMap(query);
+      final booking = await _prisma.subscription.findUnique(
+        where: SubscriptionWhereUniqueInput(id: bookingId),
+        include: SubscriptionInclude(
+          subscriptionPlan: SubscriptionPlanInclude(
+            consultantProfile: ConsultantProfileInclude(user: UserInclude()),
+          ),
+        ),
+      );
+      return booking?.toJson();
     }
   }
 
@@ -176,22 +145,21 @@ class CheckoutRepository extends BaseRepository {
     required String code,
     double? amount,
   }) async {
-    final query = JsonQueryBuilder()
-        .model('DiscountCode')
-        .action(QueryAction.findFirst)
-        .where({
-      'code': code.toUpperCase(),
-      'isActive': true,
-    }).build();
+    final discountModel = await _prisma.discountCode.findFirst(
+      where: DiscountCodeWhereInput(
+        code: StringFilter(equals: code.toUpperCase()),
+        isActive: BooleanFilter(equals: true),
+      ),
+    );
 
-    final discount = await executeQueryAsSingleMap(query);
-
-    if (discount == null) {
+    if (discountModel == null) {
       return {
         'valid': false,
         'reason': 'not_found',
       };
     }
+
+    final discount = discountModel.toJson();
 
     final expiresAt = _parseDateTime(discount['expiresAt']);
     final now = DateTime.now().toUtc();
@@ -223,8 +191,14 @@ class CheckoutRepository extends BaseRepository {
     if (amount != null) {
       if (discountType == 'PERCENTAGE') {
         discountAmount = (amount * discountValue / 100);
-        // Apply max discount if set
-        final maxDiscount = (discount['maxDiscount'] as num?)?.toDouble();
+        // Apply max discount if set. maxDiscount is a BigInt column, which
+        // toJson() serializes as a String — parse rather than cast.
+        final maxDiscount = switch (discount['maxDiscount']) {
+          final num n => n.toDouble(),
+          final BigInt b => b.toDouble(),
+          final String str => double.tryParse(str),
+          _ => null,
+        };
         if (maxDiscount != null && discountAmount > maxDiscount) {
           discountAmount = maxDiscount;
         }
@@ -264,44 +238,39 @@ class CheckoutRepository extends BaseRepository {
     required String bookingType,
     required String status,
   }) async {
-    final model = bookingType.toUpperCase() == 'CONSULTATION'
-        ? 'Consultation'
-        : 'Subscription';
-
-    final updateQuery = JsonQueryBuilder()
-        .model(model)
-        .action(QueryAction.update)
-        .where({'id': bookingId}).data({
-      'requestStatus': status,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    await executeMutation(updateQuery);
+    // The Dart field is `status` (@map'd to the requestStatus column).
+    final typedStatus =
+        enumFromWire(AppointmentStatus.values, status, field: 'status');
+    if (bookingType.toUpperCase() == 'CONSULTATION') {
+      await _prisma.consultation.update(
+        where: ConsultationWhereUniqueInput(id: bookingId),
+        data: UpdateConsultationInput(status: typedStatus),
+      );
+    } else {
+      await _prisma.subscription.update(
+        where: SubscriptionWhereUniqueInput(id: bookingId),
+        data: UpdateSubscriptionInput(status: typedStatus),
+      );
+    }
   }
 
   /// Confirm slot bookings (mark as non-tentative) after payment
   Future<void> confirmSlots(String consultationId) async {
     // Get appointment for this consultation
-    final appointmentQuery = JsonQueryBuilder()
-        .model('Appointment')
-        .action(QueryAction.findFirst)
-        .where({'consultationId': consultationId}).build();
-
-    final appointment = await executeQueryAsSingleMap(appointmentQuery);
+    final appointment = await _prisma.appointment.findFirst(
+      where: AppointmentWhereInput(
+        consultationId: StringFilter(equals: consultationId),
+      ),
+    );
 
     if (appointment == null) return;
 
-    final appointmentId = appointment['id'] as String;
-
     // Update all slots to confirmed (non-tentative)
-    final updateQuery = JsonQueryBuilder()
-        .model('SlotOfAppointment')
-        .action(QueryAction.updateMany)
-        .where({'appointmentId': appointmentId}).data({
-      'isTentative': false,
-      'updatedAt': nowIso8601,
-    }).build();
-
-    await executeMutation(updateQuery);
+    await _prisma.slotOfAppointment.updateMany(
+      where: SlotOfAppointmentWhereInput(
+        appointmentId: StringFilter(equals: appointment.id),
+      ),
+      data: UpdateSlotOfAppointmentInput(isTentative: false),
+    );
   }
 }

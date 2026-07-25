@@ -1,5 +1,4 @@
 import 'package:backend/database/database_client.dart';
-import 'package:prisma_flutter_connector/runtime_server.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/google_token_verifier.dart';
 import 'package:backend/services/auth/jwt_service.dart';
@@ -128,48 +127,52 @@ class AuthService {
     // Hash password with cost 12 to match BetterAuth
     final hashedPassword =
         BCrypt.hashpw(password, BCrypt.gensalt(logRounds: _bcryptCost));
-    final userId = _uuid.v4();
 
-    // Create user, account, and profile atomically in a transaction
-    final user = await _db.executeInTransaction((txn) async {
+    // Create user, account, and profile atomically in a transaction.
+    // Ids/timestamps are autofilled by the schema defaults, so the created
+    // row's id is used for all follow-up inserts.
+    final user = await _db.prisma.$transaction((tx) async {
       // Create user without password (BetterAuth schema)
-      final newUser = await _db.createUser(
-        id: userId,
-        email: email,
-        name: name,
-        executor: txn,
+      final newUser = await tx.user.create(
+        data: CreateUserInput(
+          email: email,
+          name: name ?? '',
+        ),
       );
+      final newUserId = newUser.id;
 
       // Create credentials account with password
-      await _db.accounts.createCredentials(
-        id: _uuid.v4(),
-        userId: userId,
-        hashedPassword: hashedPassword,
-        txn: txn,
+      await tx.account.create(
+        data: CreateAccountInput(
+          userId: newUserId,
+          providerId: 'credential',
+          accountId: newUserId,
+          password: hashedPassword,
+        ),
       );
 
       // Create consultee profile and link to user
-      final consulteeProfileId = _uuid.v4();
-      await _db.createConsulteeProfile(
-        id: consulteeProfileId,
-        userId: userId,
-        executor: txn,
+      final profile = await tx.consulteeProfile.create(
+        data: CreateConsulteeProfileInput(userId: newUserId),
       );
 
-      // Update user with consulteeProfileId FK
-      final updateQuery = JsonQueryBuilder()
-          .model('users')
-          .action(QueryAction.update)
-          .where({'id': userId})
-          .data({'consulteeProfileId': consulteeProfileId, 'updatedAt': DateTime.now().toUtc().toIso8601String()})
-          .build();
-      await txn.executeMutation(updateQuery);
+      // Update user with consulteeProfileId FK (updatedAt auto-refreshes)
+      final linkedUser = await tx.user.update(
+        where: UserWhereUniqueInput(id: newUserId),
+        data: UpdateUserInput(consulteeProfileId: profile.id),
+      );
 
       // Create default preferences (matches web BetterAuth databaseHooks)
-      await _db.users.createDefaultPreferences(userId, txn: txn);
+      await tx.cookiePreference.create(
+        data: CreateCookiePreferenceInput(userId: newUserId),
+      );
+      await tx.notificationPreference.create(
+        data: CreateNotificationPreferenceInput(userId: newUserId),
+      );
 
-      return newUser;
+      return linkedUser.toJson();
     });
+    final userId = user['id'] as String;
 
     // Create session (outside transaction - not critical for user creation)
     final session = await _createSession(
@@ -276,39 +279,48 @@ class AuthService {
 
     final Map<String, dynamic> user;
     if (existingUser == null) {
-      // Create new user atomically in a transaction
-      final userId = _uuid.v4();
-      user = await _db.executeInTransaction((txn) async {
-        final newUser = await _db.createUser(
-          id: userId,
-          email: email,
-          name: name,
-          image: image,
-          executor: txn,
+      // Create new user atomically in a transaction; the created row's
+      // autofilled id is used for all follow-up inserts.
+      user = await _db.prisma.$transaction((tx) async {
+        final newUser = await tx.user.create(
+          data: CreateUserInput(
+            email: email,
+            name: name ?? '',
+            image: image,
+          ),
         );
+        final newUserId = newUser.id;
 
         // Create Google OAuth account link using BetterAuth column names
-        await _db.accounts.createOAuth(
-          id: _uuid.v4(),
-          userId: userId,
-          providerId: 'google',
-          accountId: providerAccountId,
-          accessToken: accessToken,
-          idToken: idToken,
-          txn: txn,
+        await tx.account.create(
+          data: CreateAccountInput(
+            userId: newUserId,
+            providerId: 'google',
+            accountId: providerAccountId,
+            accessToken: accessToken,
+            idToken: idToken,
+          ),
         );
 
-        // Create consultee profile
-        await _db.createConsulteeProfile(
-          id: _uuid.v4(),
-          userId: userId,
-          executor: txn,
+        // Create consultee profile and link it back on the user (mirrors the
+        // email-signup path; consulteeProfileId is a User FK the app reads).
+        final profile = await tx.consulteeProfile.create(
+          data: CreateConsulteeProfileInput(userId: newUserId),
+        );
+        final linkedUser = await tx.user.update(
+          where: UserWhereUniqueInput(id: newUserId),
+          data: UpdateUserInput(consulteeProfileId: profile.id),
         );
 
         // Create default preferences (matches web BetterAuth databaseHooks)
-        await _db.users.createDefaultPreferences(userId, txn: txn);
+        await tx.cookiePreference.create(
+          data: CreateCookiePreferenceInput(userId: newUserId),
+        );
+        await tx.notificationPreference.create(
+          data: CreateNotificationPreferenceInput(userId: newUserId),
+        );
 
-        return newUser;
+        return linkedUser.toJson();
       });
     } else {
       // Update user info from verified token
@@ -374,50 +386,58 @@ class AuthService {
 
     final Map<String, dynamic> user;
     if (existingUser == null) {
-      // Create new user atomically in a transaction
-      final userId = _uuid.v4();
-      user = await _db.executeInTransaction((txn) async {
-        final newUser = await _db.createUser(
-          id: userId,
-          email: email,
-          name: name,
-          image: image,
-          executor: txn,
+      // Create new user atomically in a transaction; the created row's
+      // autofilled id is used for all follow-up inserts.
+      user = await _db.prisma.$transaction((tx) async {
+        final newUser = await tx.user.create(
+          data: CreateUserInput(
+            email: email,
+            name: name,
+            image: image,
+          ),
         );
+        final newUserId = newUser.id;
 
         // Create GitHub OAuth account link using BetterAuth column names
-        await _db.accounts.createOAuth(
-          id: _uuid.v4(),
-          userId: userId,
-          providerId: 'github',
-          accountId: providerAccountId,
-          txn: txn,
+        await tx.account.create(
+          data: CreateAccountInput(
+            userId: newUserId,
+            providerId: 'github',
+            accountId: providerAccountId,
+          ),
         );
 
-        // Create consultee profile
-        await _db.createConsulteeProfile(
-          id: _uuid.v4(),
-          userId: userId,
-          executor: txn,
+        // Create consultee profile and link it back on the user (mirrors the
+        // email-signup path; consulteeProfileId is a User FK the app reads).
+        final profile = await tx.consulteeProfile.create(
+          data: CreateConsulteeProfileInput(userId: newUserId),
+        );
+        final linkedUser = await tx.user.update(
+          where: UserWhereUniqueInput(id: newUserId),
+          data: UpdateUserInput(consulteeProfileId: profile.id),
         );
 
         // Create default preferences (matches web BetterAuth databaseHooks)
-        await _db.users.createDefaultPreferences(userId, txn: txn);
+        await tx.cookiePreference.create(
+          data: CreateCookiePreferenceInput(userId: newUserId),
+        );
+        await tx.notificationPreference.create(
+          data: CreateNotificationPreferenceInput(userId: newUserId),
+        );
 
-        return newUser;
+        return linkedUser.toJson();
       });
     } else {
-      // Update user info if changed
-      if (name != null || image != null) {
-        final updatedUser = await _db.updateUser(
-          id: existingUser['id'] as String,
-          name: name,
-          image: image,
-        );
-        user = updatedUser ?? existingUser;
-      } else {
-        user = existingUser;
-      }
+      // Refresh the stored profile from the verified GitHub token. `name`
+      // always resolves (it falls back to the GitHub login), so this branch
+      // was unconditional — made explicit rather than guarded by a condition
+      // the analyzer proves is always true.
+      final updatedUser = await _db.updateUser(
+        id: existingUser['id'] as String,
+        name: name,
+        image: image,
+      );
+      user = updatedUser ?? existingUser;
     }
 
     // Create session with client info for security tracking
@@ -478,9 +498,8 @@ class AuthService {
 
     // onboardingCompleted can be bool, DateTime, or null - convert to bool
     final onboardingValue = user['onboardingCompleted'];
-    final isOnboardingCompleted = onboardingValue is bool
-        ? onboardingValue
-        : onboardingValue != null;
+    final isOnboardingCompleted =
+        onboardingValue is bool ? onboardingValue : onboardingValue != null;
 
     return {
       'id': user['id'],

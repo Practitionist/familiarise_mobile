@@ -46,7 +46,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   // For subscription bookings
   DateTime? _periodStartDate;
   // Note: End date is calculated based on plan duration
-  int _planDurationMonths = 1; // Default, will be updated from plan data
+  final int _planDurationMonths = 1; // Default, will be updated from plan data
 
   @override
   void initState() {
@@ -218,8 +218,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               selectedDate: _selectedDate,
               days: days,
               selectedSlot: _selectedSlot,
-              onSlotSelected: (slot) =>
-                  setState(() => _selectedSlot = slot),
+              onSlotSelected: (slot) => setState(() => _selectedSlot = slot),
             ),
             loading: () => const Center(
               child: Padding(
@@ -331,8 +330,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           BookingDatePickerCard(
             date: _periodStartDate,
             placeholder: 'Select start date',
-            onDateSelected: (date) =>
-                setState(() => _periodStartDate = date),
+            onDateSelected: (date) => setState(() => _periodStartDate = date),
           ),
           const SizedBox(height: 16),
 
@@ -497,8 +495,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             consultantProfileId: widget.consultantId,
             planId: widget.planId,
             slotStartTimes: [_selectedSlot!.startsAt],
-            message:
-                _messageController.text.isEmpty ? null : _messageController.text,
+            message: _messageController.text.isEmpty
+                ? null
+                : _messageController.text,
           );
       return;
     }
@@ -544,8 +543,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             consultantProfileId: widget.consultantId,
             planId: widget.planId,
             schedulingPeriodStart: _periodStartDate!,
-            message:
-                _messageController.text.isEmpty ? null : _messageController.text,
+            message: _messageController.text.isEmpty
+                ? null
+                : _messageController.text,
           );
       return;
     }

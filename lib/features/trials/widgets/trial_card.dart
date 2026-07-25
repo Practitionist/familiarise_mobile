@@ -31,9 +31,8 @@ class TrialCard extends StatelessWidget {
     final displayName = isConsultantView
         ? (trial.consulteeName ?? 'Consultee')
         : (trial.consultantName ?? 'Consultant');
-    final displayImage = isConsultantView
-        ? trial.consulteeImage
-        : trial.consultantImage;
+    final displayImage =
+        isConsultantView ? trial.consulteeImage : trial.consultantImage;
 
     return Material(
       color: colorScheme.surface,
@@ -173,7 +172,8 @@ class TrialCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           visualDensity: VisualDensity.compact,
                         ),
-                        child: const Text('Reject', style: TextStyle(fontSize: 12)),
+                        child: const Text('Reject',
+                            style: TextStyle(fontSize: 12)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -186,7 +186,8 @@ class TrialCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           visualDensity: VisualDensity.compact,
                         ),
-                        child: const Text('Accept', style: TextStyle(fontSize: 12)),
+                        child: const Text('Accept',
+                            style: TextStyle(fontSize: 12)),
                       ),
                     ),
                   ],

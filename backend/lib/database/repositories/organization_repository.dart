@@ -13,10 +13,14 @@ class OrganizationRepository extends BaseRepository {
 
   /// Active org memberships for a user, with the org summary attached.
   Future<List<Map<String, dynamic>>> getMyMemberships(String userId) async {
-    final rows = await _prisma.membership.findManyRaw(
-      where: {'userId': userId, 'status': 'ACTIVE'},
-      include: {'organization': true},
+    final models = await _prisma.membership.findMany(
+      where: MembershipWhereInput(
+        userId: StringFilter(equals: userId),
+        status: const MemberStatusFilter(equals: MemberStatus.active),
+      ),
+      include: MembershipInclude(organization: OrganizationInclude()),
     );
+    final rows = models.map((m) => m.toJson()).toList();
 
     return rows.where((row) {
       final org = row['organization'] as Map<String, dynamic>?;
@@ -47,31 +51,34 @@ class OrganizationRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getMyProgramAssignments(
     String userId,
   ) async {
-    final memberships = await _prisma.membership.findManyRaw(
-      where: {'userId': userId, 'status': 'ACTIVE'},
-      include: {'organization': true},
+    final membershipModels = await _prisma.membership.findMany(
+      where: MembershipWhereInput(
+        userId: StringFilter(equals: userId),
+        status: const MemberStatusFilter(equals: MemberStatus.active),
+      ),
+      include: MembershipInclude(organization: OrganizationInclude()),
     );
+    final memberships = membershipModels.map((m) => m.toJson()).toList();
     if (memberships.isEmpty) return [];
 
     final membershipById = {
       for (final m in memberships) m['id'] as String: m,
     };
 
-    final assignments = await _prisma.programAssignment.findManyRaw(
-      where: {
-        'membershipId': {'in': membershipById.keys.toList()},
-        'status': 'ACTIVE',
-      },
-      include: {
-        'program': {
-          'include': {
-            'licensedSeatConfig': true,
-            'creditPoolConfig': true,
-          },
-        },
-      },
+    final assignmentModels = await _prisma.programAssignment.findMany(
+      where: ProgramAssignmentWhereInput(
+        membershipId: StringFilter(in_: membershipById.keys.toList()),
+        status: const AssignmentStatusFilter(equals: AssignmentStatus.active),
+      ),
+      include: ProgramAssignmentInclude(
+        program: ProgramInclude(
+          licensedSeatConfig: LicensedSeatConfigInclude(),
+          creditPoolConfig: CreditPoolConfigInclude(),
+        ),
+      ),
       orderBy: {'periodEnd': 'asc'},
     );
+    final assignments = assignmentModels.map((a) => a.toJson()).toList();
 
     final results = <Map<String, dynamic>>[];
     for (final a in assignments) {
