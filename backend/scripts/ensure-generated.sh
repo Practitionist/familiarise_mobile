@@ -62,7 +62,12 @@ echo "[codegen] stale or forced — regenerating"
 dart pub get
 
 # Full wipe ONLY on a real input change.
-rm -rf lib/generated
+#
+# Clear the CONTENTS rather than the directory itself: under docker-compose
+# lib/generated is a named-volume mount point, and unlinking a mount point
+# fails with "Device or resource busy". Emptying it works in both places.
+mkdir -p lib/generated
+find lib/generated -mindepth 1 -delete
 
 dart run prisma_flutter_connector:generate \
   --schema prisma/schema.prisma \

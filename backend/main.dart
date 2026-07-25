@@ -1,4 +1,9 @@
-import 'dart:io' show File, HttpServer, InternetAddress, Platform;
+import 'dart:io' show File, HttpServer, InternetAddress;
+// Prefixed deliberately: lib/generated/index.dart exports a `Platform` enum
+// from the Prisma schema, and database_client.dart re-exports it, so an
+// unprefixed `Platform` here resolves to that enum instead of dart:io's.
+// Same gotcha documented in lib/database/database_client.dart.
+import 'dart:io' as io show Platform;
 
 import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/auth_service.dart';
@@ -30,7 +35,7 @@ Future<HttpServer> run(Handler handler, InternetAddress ip, int port) async {
   final env = DotEnv();
   if (File('.env').existsSync()) env.load(['.env']);
   if (File('.env.local').existsSync()) env.load(['.env.local']);
-  env.addAll(Platform.environment);
+  env.addAll(io.Platform.environment);
 
   // Initialize Sentry for error tracking (optional)
   await SentryLogger.init(env['SENTRY_DSN']);
