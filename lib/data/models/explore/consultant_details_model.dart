@@ -105,7 +105,8 @@ class ConsultantDetailsModel with _$ConsultantDetailsModel {
   ConsultantVerificationStatus? _parseVerificationStatus(String? value) {
     if (value == null) return null;
     return switch (value.toUpperCase()) {
-      'PENDING_VERIFICATION' => ConsultantVerificationStatus.pendingVerification,
+      'PENDING_VERIFICATION' =>
+        ConsultantVerificationStatus.pendingVerification,
       'UNDER_REVIEW' => ConsultantVerificationStatus.underReview,
       'VERIFIED' => ConsultantVerificationStatus.verified,
       'REJECTED' => ConsultantVerificationStatus.rejected,

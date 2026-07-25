@@ -314,8 +314,7 @@ class ConsultantProfileScreen extends ConsumerWidget {
                             AppSentryLogger.captureException(
                               e,
                               stackTrace: stackTrace,
-                              context:
-                                  'ConsultantProfileScreen.submitReview',
+                              context: 'ConsultantProfileScreen.submitReview',
                               extras: {'consultantId': consultantId},
                             );
                           }

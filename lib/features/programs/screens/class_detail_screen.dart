@@ -154,8 +154,7 @@ class _ClassDetailContent extends StatelessWidget {
                   _buildSessionsSection(),
 
                   // Spots remaining indicator
-                  if (classPlan.spotsRemaining <
-                      classPlan.maxParticipants) ...[
+                  if (classPlan.spotsRemaining < classPlan.maxParticipants) ...[
                     const SizedBox(height: 24),
                     ClassSpotsRemainingBanner(
                       spotsRemaining: classPlan.spotsRemaining,

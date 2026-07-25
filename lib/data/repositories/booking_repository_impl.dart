@@ -131,10 +131,9 @@ class BookingRepositoryImpl implements BookingRepository {
         final userId = booking.consultantUserId!;
 
         if (!consultantsMap.containsKey(userId)) {
-          consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
-              .copyWith(
-            allBookingTypes:
-                [booking.bookingType],
+          consultantsMap[userId] =
+              AppointmentConsultant.fromBooking(booking).copyWith(
+            allBookingTypes: [booking.bookingType],
           );
         } else {
           final existing = consultantsMap[userId]!;
@@ -144,9 +143,8 @@ class BookingRepositoryImpl implements BookingRepository {
           if (booking.createdAt != null &&
               (existing.lastAppointmentDate == null ||
                   booking.createdAt!.isAfter(existing.lastAppointmentDate!))) {
-            consultantsMap[userId] =
-                AppointmentConsultant.fromBooking(booking)
-                    .copyWith(allBookingTypes: types.toList());
+            consultantsMap[userId] = AppointmentConsultant.fromBooking(booking)
+                .copyWith(allBookingTypes: types.toList());
           } else {
             consultantsMap[userId] =
                 existing.copyWith(allBookingTypes: types.toList());
@@ -204,7 +202,8 @@ class BookingRepositoryImpl implements BookingRepository {
       } else {
         // 1:1 bookings keyed by client user ID.
         // For consultant-view bookings, the client info is in consultee fields.
-        final clientUserId = booking.consulteeUserId ?? booking.consultantUserId;
+        final clientUserId =
+            booking.consulteeUserId ?? booking.consultantUserId;
         if (clientUserId == null) continue;
 
         if (!clientsMap.containsKey(clientUserId)) {

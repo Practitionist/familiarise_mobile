@@ -20,8 +20,7 @@ class MyBookings extends _$MyBookings {
   Future<List<Booking>> _fetchBookings() async {
     final repository = ref.read(bookingRepositoryProvider);
     final user = ref.read(currentUserProvider);
-    final role =
-        user?.role == UserRole.consultant ? 'consultant' : null;
+    final role = user?.role == UserRole.consultant ? 'consultant' : null;
     final response = await repository.getMyBookings(
       role: role,
     );

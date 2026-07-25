@@ -107,11 +107,9 @@ class BookingGroupHero extends StatelessWidget {
               if (booking.planLanguage != null)
                 _chip(context, Icons.language, booking.planLanguage!),
               if (booking.planLevel != null)
-                _chip(
-                    context, Icons.signal_cellular_alt, booking.planLevel!),
+                _chip(context, Icons.signal_cellular_alt, booking.planLevel!),
               if (booking.planCertificateProvided)
-                _chip(
-                    context, Icons.workspace_premium_rounded, 'Certificate'),
+                _chip(context, Icons.workspace_premium_rounded, 'Certificate'),
               if (booking.planRecordingEnabled)
                 _chip(context, Icons.fiber_manual_record_rounded, 'Recorded'),
               if (!isWebinar && booking.meetingsPerWeek != null)

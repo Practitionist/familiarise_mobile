@@ -127,8 +127,8 @@ class BookingCard extends StatelessWidget {
                         Text(
                           'Requested ${_formatRelativeDate(booking.createdAt!)}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color:
-                                colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            color: colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.7),
                           ),
                         ),
                       _buildPriceTag(theme),
@@ -215,8 +215,8 @@ class BookingCard extends StatelessWidget {
     final avatarSize = 32.0;
     final overlap = 10.0;
     final count = participants.length;
-    final totalWidth =
-        avatarSize + (count - 1) * (avatarSize - overlap) +
+    final totalWidth = avatarSize +
+        (count - 1) * (avatarSize - overlap) +
         (remaining > 0 ? avatarSize - overlap : 0);
 
     return SizedBox(

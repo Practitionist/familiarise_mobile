@@ -22,27 +22,35 @@ class PaymentMethodSelector extends StatelessWidget {
     // Show Razorpay only for INR
     final showRazorpay = currency.toUpperCase() == 'INR';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (showRazorpay)
+    // RadioGroup owns the selection (Radio.groupValue/onChanged were
+    // deprecated in Flutter 3.35 — see breaking-changes/radio-api-redesign).
+    return RadioGroup<PaymentGatewayType>(
+      groupValue: selectedGateway,
+      onChanged: (value) {
+        if (value != null) onGatewaySelected(value);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showRazorpay)
+            _buildGatewayOption(
+              context: context,
+              theme: theme,
+              gateway: PaymentGatewayType.razorpay,
+              title: 'Razorpay',
+              subtitle: 'UPI, Cards, Netbanking, Wallets',
+              icon: Icons.account_balance,
+            ),
           _buildGatewayOption(
             context: context,
             theme: theme,
-            gateway: PaymentGatewayType.razorpay,
-            title: 'Razorpay',
-            subtitle: 'UPI, Cards, Netbanking, Wallets',
-            icon: Icons.account_balance,
+            gateway: PaymentGatewayType.stripe,
+            title: 'Stripe',
+            subtitle: 'Credit/Debit Cards',
+            icon: Icons.credit_card,
           ),
-        _buildGatewayOption(
-          context: context,
-          theme: theme,
-          gateway: PaymentGatewayType.stripe,
-          title: 'Stripe',
-          subtitle: 'Credit/Debit Cards',
-          icon: Icons.credit_card,
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -121,10 +129,6 @@ class PaymentMethodSelector extends StatelessWidget {
               ),
               Radio<PaymentGatewayType>(
                 value: gateway,
-                groupValue: selectedGateway,
-                onChanged: (value) {
-                  if (value != null) onGatewaySelected(value);
-                },
                 activeColor: theme.colorScheme.primary,
               ),
             ],

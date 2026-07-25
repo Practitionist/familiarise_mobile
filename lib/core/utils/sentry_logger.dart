@@ -45,9 +45,9 @@ class AppSentryLogger {
           scope.setTag('context', context);
         }
         if (extras != null) {
-          for (final entry in extras.entries) {
-            scope.setExtra(entry.key, entry.value);
-          }
+          // `setExtra` is deprecated in favour of structured Contexts, so the
+          // whole map goes in under one context key rather than as N extras.
+          scope.setContexts('extras', extras);
         }
         scope.level = _levelFor(exception);
       },
@@ -95,9 +95,9 @@ class AppSentryLogger {
           scope.setTag('context', context);
         }
         if (extras != null) {
-          for (final entry in extras.entries) {
-            scope.setExtra(entry.key, entry.value);
-          }
+          // `setExtra` is deprecated in favour of structured Contexts, so the
+          // whole map goes in under one context key rather than as N extras.
+          scope.setContexts('extras', extras);
         }
       },
     );

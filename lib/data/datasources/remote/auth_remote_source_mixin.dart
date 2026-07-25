@@ -308,8 +308,8 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
       if (response.statusCode != 200) {
         final error = jsonDecode(response.body);
         throw AuthException(
-          message: error['error']?['message'] ??
-              'Failed to send verification email',
+          message:
+              error['error']?['message'] ?? 'Failed to send verification email',
         );
       }
     } catch (e, stackTrace) {

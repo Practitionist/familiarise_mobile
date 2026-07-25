@@ -40,10 +40,8 @@ Booking parseBookingJson(Map<String, dynamic> json) {
     consulteeName: json['consulteeName'] as String?,
     consulteeImage: json['consulteeImage'] as String?,
     slots: parseBookingSlots(json['slots']),
-    schedulingPeriodStartsAt:
-        parseDateTime(json['schedulingPeriodStartsAt']),
-    schedulingPeriodEndsAt:
-        parseDateTime(json['schedulingPeriodEndsAt']),
+    schedulingPeriodStartsAt: parseDateTime(json['schedulingPeriodStartsAt']),
+    schedulingPeriodEndsAt: parseDateTime(json['schedulingPeriodEndsAt']),
     schedulingTimezone: json['schedulingTimezone'] as String?,
     totalSessions: json['totalSessions'] as int?,
     sessionDurationInHours:
@@ -53,9 +51,10 @@ Booking parseBookingJson(Map<String, dynamic> json) {
         ? CancellationReason.values.firstWhere(
             (e) =>
                 e.name == json['cancellationReason'] ||
-                e.name == _camelCase(
-                  json['cancellationReason'] as String,
-                ),
+                e.name ==
+                    _camelCase(
+                      json['cancellationReason'] as String,
+                    ),
             orElse: () => CancellationReason.other,
           )
         : null,
@@ -67,17 +66,16 @@ Booking parseBookingJson(Map<String, dynamic> json) {
         ? BookingSource.values.firstWhere(
             (e) =>
                 e.name == json['bookingSource'] ||
-                e.name == _camelCase(
-                  json['bookingSource'] as String,
-                ),
+                e.name ==
+                    _camelCase(
+                      json['bookingSource'] as String,
+                    ),
             orElse: () => BookingSource.requestSubmitted,
           )
         : null,
     // Feedback fields
-    feedbackFromConsultee:
-        json['feedbackFromConsultee'] as String?,
-    feedbackFromConsultant:
-        json['feedbackFromConsultant'] as String?,
+    feedbackFromConsultee: json['feedbackFromConsultee'] as String?,
+    feedbackFromConsultant: json['feedbackFromConsultant'] as String?,
     rating: (json['rating'] as num?)?.toDouble(),
     // Participant info (for group programs)
     participants: parseBookingParticipants(json['participants']),
@@ -88,15 +86,12 @@ Booking parseBookingJson(Map<String, dynamic> json) {
     planLevel: json['planLevel'] as String?,
     planPrerequisites: json['planPrerequisites'] as String?,
     planMaterialProvided: json['planMaterialProvided'] as String?,
-    planLearningOutcomes:
-        (json['planLearningOutcomes'] as List<dynamic>?)
-                ?.map((e) => e as String)
-                .toList() ??
-            [],
-    planCertificateProvided:
-        json['planCertificateProvided'] as bool? ?? false,
-    planRecordingEnabled:
-        json['planRecordingEnabled'] as bool? ?? false,
+    planLearningOutcomes: (json['planLearningOutcomes'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        [],
+    planCertificateProvided: json['planCertificateProvided'] as bool? ?? false,
+    planRecordingEnabled: json['planRecordingEnabled'] as bool? ?? false,
     meetingsPerWeek: json['meetingsPerWeek'] as int?,
     totalHours: (json['totalHours'] as num?)?.toDouble(),
   );
@@ -150,8 +145,5 @@ List<BookingParticipant> parseBookingParticipants(
 String _camelCase(String input) {
   final parts = input.toLowerCase().split('_');
   return parts.first +
-      parts
-          .skip(1)
-          .map((p) => p[0].toUpperCase() + p.substring(1))
-          .join();
+      parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
 }

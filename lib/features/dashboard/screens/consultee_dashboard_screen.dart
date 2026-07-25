@@ -133,9 +133,8 @@ class ConsulteeDashboardScreen extends ConsumerWidget {
         // Upcoming sessions
         DashboardSectionHeader(
           title: 'Upcoming Sessions',
-          onViewAll: sessions.isNotEmpty
-              ? () => context.push('/my-bookings')
-              : null,
+          onViewAll:
+              sessions.isNotEmpty ? () => context.push('/my-bookings') : null,
         ),
         if (sessions.isEmpty)
           _buildEmptyState(context)

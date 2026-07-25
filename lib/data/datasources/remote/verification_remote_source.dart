@@ -102,8 +102,7 @@ class VerificationRemoteSourceImpl implements VerificationRemoteSource {
       final response = await _dio.get('/api/verification/documents');
       final data = response.data['data'] as List<dynamic>;
       return data
-          .map((d) =>
-              VerificationDocument.fromJson(d as Map<String, dynamic>))
+          .map((d) => VerificationDocument.fromJson(d as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw ServerException(

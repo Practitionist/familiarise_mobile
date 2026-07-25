@@ -61,20 +61,17 @@ Future<ConsultantDashboardData> consultantDashboard(Ref ref) async {
       ? referralRepo.getAvailableCredits()
       : Future.value(const ReferralCreditsAvailable());
 
-  final stats = await statsFuture
-      .catchError((_) => const ConsultantDashboardStats());
-  final sessions =
-      await sessionsFuture.catchError((_) => <Booking>[]);
-  final requests =
-      await requestsFuture.catchError((_) => <Booking>[]);
-  final reviews =
-      await reviewsFuture.catchError((_) => <Review>[]);
-  final earnings = await earningsFuture
-      .catchError((_) => const EarningsSummary());
-  final collabData = await collabFuture
-      .catchError((_) => const CollaborationsResponse());
-  final ReferralCodeInfo? referralCode = await referralCodeFuture
-      .catchError((_) => null);
+  final stats =
+      await statsFuture.catchError((_) => const ConsultantDashboardStats());
+  final sessions = await sessionsFuture.catchError((_) => <Booking>[]);
+  final requests = await requestsFuture.catchError((_) => <Booking>[]);
+  final reviews = await reviewsFuture.catchError((_) => <Review>[]);
+  final earnings =
+      await earningsFuture.catchError((_) => const EarningsSummary());
+  final collabData =
+      await collabFuture.catchError((_) => const CollaborationsResponse());
+  final ReferralCodeInfo? referralCode =
+      await referralCodeFuture.catchError((_) => null);
   final referralCredits = await referralCreditsFuture
       .catchError((_) => const ReferralCreditsAvailable());
 

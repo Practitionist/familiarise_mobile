@@ -38,8 +38,8 @@ class WaitlistRemoteSourceImpl implements WaitlistRemoteSource {
           .toList();
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to load waitlist',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to load waitlist',
       );
     }
   }
@@ -62,8 +62,8 @@ class WaitlistRemoteSourceImpl implements WaitlistRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to join waitlist',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to join waitlist',
       );
     }
   }
@@ -77,8 +77,8 @@ class WaitlistRemoteSourceImpl implements WaitlistRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to load entry',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to load entry',
       );
     }
   }

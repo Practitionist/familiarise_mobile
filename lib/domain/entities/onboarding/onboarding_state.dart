@@ -59,8 +59,7 @@ class OnboardingState with _$OnboardingState {
   /// Total number of steps (varies by role).
   /// Consultee: 0=Role, 1=Personal, 2=Profile, 3=Preferences, 4=Agreement, 5=Review (6 steps)
   /// Consultant: 0=Role, 1=Personal, 2=Profile, 3=Background, 4=Availability, 5=Agreement, 6=Review (7 steps)
-  int get totalSteps =>
-      selectedRole == UserRole.consultant ? 7 : 6;
+  int get totalSteps => selectedRole == UserRole.consultant ? 7 : 6;
 
   /// Progress as a fraction (0.0 to 1.0)
   double get progress => (currentStep + 1) / totalSteps;

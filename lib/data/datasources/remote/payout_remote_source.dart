@@ -33,13 +33,12 @@ class PayoutRemoteSourceImpl implements PayoutRemoteSource {
       );
       final data = response.data['data'] as List<dynamic>;
       return data
-          .map((d) =>
-              PayoutAccount.fromJson(d as Map<String, dynamic>))
+          .map((d) => PayoutAccount.fromJson(d as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to load accounts',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to load accounts',
       );
     }
   }
@@ -105,8 +104,8 @@ class PayoutRemoteSourceImpl implements PayoutRemoteSource {
       );
     } on DioException catch (e) {
       throw ServerException(
-        message: e.response?.data?['error']?['message'] ??
-            'Failed to set default',
+        message:
+            e.response?.data?['error']?['message'] ?? 'Failed to set default',
       );
     }
   }

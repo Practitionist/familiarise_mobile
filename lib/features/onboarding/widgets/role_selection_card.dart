@@ -86,11 +86,10 @@ class RoleSelectionCard extends StatelessWidget {
                 ],
               ),
             ),
-            Radio<UserRole>(
-              value: role,
-              groupValue: isSelected ? role : null,
-              onChanged: (_) => onTap(),
-            ),
+            // Selection state comes from the RadioGroup<UserRole> ancestor in
+            // RoleSelector; the old `groupValue: isSelected ? role : null` hack
+            // is no longer needed (radio-api-redesign, Flutter 3.35).
+            Radio<UserRole>(value: role),
           ],
         ),
       ),
@@ -111,20 +110,26 @@ class RoleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        RoleSelectionCard(
-          role: UserRole.consultee,
-          isSelected: selectedRole == UserRole.consultee,
-          onTap: () => onRoleSelected(UserRole.consultee),
-        ),
-        const SizedBox(height: 16),
-        RoleSelectionCard(
-          role: UserRole.consultant,
-          isSelected: selectedRole == UserRole.consultant,
-          onTap: () => onRoleSelected(UserRole.consultant),
-        ),
-      ],
+    return RadioGroup<UserRole>(
+      groupValue: selectedRole,
+      onChanged: (value) {
+        if (value != null) onRoleSelected(value);
+      },
+      child: Column(
+        children: [
+          RoleSelectionCard(
+            role: UserRole.consultee,
+            isSelected: selectedRole == UserRole.consultee,
+            onTap: () => onRoleSelected(UserRole.consultee),
+          ),
+          const SizedBox(height: 16),
+          RoleSelectionCard(
+            role: UserRole.consultant,
+            isSelected: selectedRole == UserRole.consultant,
+            onTap: () => onRoleSelected(UserRole.consultant),
+          ),
+        ],
+      ),
     );
   }
 }

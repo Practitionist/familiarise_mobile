@@ -20,8 +20,7 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
       _ResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState
-    extends ConsumerState<ResetPasswordScreen> {
+class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -94,8 +93,7 @@ class _ResetPasswordScreenState
           Text(
             'Enter your new password below.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface
-                  .withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -112,9 +110,7 @@ class _ResetPasswordScreenState
             prefixIcon: const Icon(Icons.lock_outlined),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscurePassword
-                    ? Icons.visibility_off
-                    : Icons.visibility,
+                _obscurePassword ? Icons.visibility_off : Icons.visibility,
               ),
               onPressed: () => setState(
                 () => _obscurePassword = !_obscurePassword,
@@ -144,9 +140,7 @@ class _ResetPasswordScreenState
             prefixIcon: const Icon(Icons.lock_outlined),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureConfirm
-                    ? Icons.visibility_off
-                    : Icons.visibility,
+                _obscureConfirm ? Icons.visibility_off : Icons.visibility,
               ),
               onPressed: () => setState(
                 () => _obscureConfirm = !_obscureConfirm,
@@ -165,8 +159,7 @@ class _ResetPasswordScreenState
 
           // Submit button
           LoadingButton(
-            onPressed:
-                _isLoading ? null : _handleResetPassword,
+            onPressed: _isLoading ? null : _handleResetPassword,
             isLoading: _isLoading,
             child: const Text('Reset Password'),
           ),
@@ -207,8 +200,7 @@ class _ResetPasswordScreenState
         Text(
           'You can now sign in with your new password.',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface
-                .withValues(alpha: 0.7),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
           textAlign: TextAlign.center,
         ),
@@ -228,9 +220,7 @@ class _ResetPasswordScreenState
 
     setState(() => _isLoading = true);
 
-    final success = await ref
-        .read(authProvider.notifier)
-        .resetPassword(
+    final success = await ref.read(authProvider.notifier).resetPassword(
           token: widget.token,
           newPassword: _passwordController.text,
         );

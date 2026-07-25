@@ -57,9 +57,8 @@ class BookingActionButtons extends StatelessWidget {
     }
 
     // Chat button
-    final chatUserId = isConsultantView
-        ? booking.consulteeUserId
-        : booking.consultantUserId;
+    final chatUserId =
+        isConsultantView ? booking.consulteeUserId : booking.consultantUserId;
     if (chatUserId != null &&
         booking.status != RequestStatus.cancelled &&
         booking.status != RequestStatus.rejected &&
@@ -70,8 +69,7 @@ class BookingActionButtons extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: isActionLoading ? null : onTalkToExpert,
             icon: const Icon(Icons.chat_bubble_outline),
-            label: Text(
-                isConsultantView ? 'Message Client' : 'Talk to Expert'),
+            label: Text(isConsultantView ? 'Message Client' : 'Talk to Expert'),
             style: FilledButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),

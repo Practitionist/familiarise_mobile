@@ -43,10 +43,14 @@ class PayoutAccountsScreen extends ConsumerWidget {
               itemBuilder: (context, index) => _AccountCard(
                 account: accounts[index],
                 onSetDefault: () => _setDefault(
-                  ref, context, accounts[index].id,
+                  ref,
+                  context,
+                  accounts[index].id,
                 ),
                 onDelete: () => _delete(
-                  ref, context, accounts[index].id,
+                  ref,
+                  context,
+                  accounts[index].id,
                 ),
               ),
             ),
@@ -72,7 +76,9 @@ class PayoutAccountsScreen extends ConsumerWidget {
   }
 
   Future<void> _setDefault(
-    WidgetRef ref, BuildContext context, String id,
+    WidgetRef ref,
+    BuildContext context,
+    String id,
   ) async {
     try {
       await ref.read(payoutAccountsProvider.notifier).setDefault(id);
@@ -93,7 +99,9 @@ class PayoutAccountsScreen extends ConsumerWidget {
   }
 
   Future<void> _delete(
-    WidgetRef ref, BuildContext context, String id,
+    WidgetRef ref,
+    BuildContext context,
+    String id,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -171,10 +179,9 @@ class _AccountCard extends StatelessWidget {
                 const Spacer(),
                 if (account.isDefault)
                   Chip(
-                    label: const Text('Default',
-                        style: TextStyle(fontSize: 11)),
-                    backgroundColor:
-                        Colors.green.withValues(alpha: 0.1),
+                    label:
+                        const Text('Default', style: TextStyle(fontSize: 11)),
+                    backgroundColor: Colors.green.withValues(alpha: 0.1),
                     side: BorderSide.none,
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
@@ -186,8 +193,7 @@ class _AccountCard extends StatelessWidget {
               Text(account.accountHolderName!),
             if (account.accountNumberLast4 != null)
               Text('****${account.accountNumberLast4}'),
-            if (account.upiId != null)
-              Text(account.upiId!),
+            if (account.upiId != null) Text(account.upiId!),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

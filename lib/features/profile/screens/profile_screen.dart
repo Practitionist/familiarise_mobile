@@ -186,16 +186,13 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, false),
+                        onPressed: () => Navigator.pop(context, false),
                         child: const Text('Cancel'),
                       ),
                       TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, true),
+                        onPressed: () => Navigator.pop(context, true),
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              Theme.of(context).colorScheme.error,
+                          foregroundColor: Theme.of(context).colorScheme.error,
                         ),
                         child: const Text('Delete'),
                       ),
@@ -211,7 +208,8 @@ class ProfileScreen extends ConsumerWidget {
                     final errorState = ref.read(deleteAccountProvider);
                     final errorMessage = errorState.maybeWhen(
                       error: (error, _) => error.toString(),
-                      orElse: () => 'Failed to delete account. Please try again.',
+                      orElse: () =>
+                          'Failed to delete account. Please try again.',
                     );
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(errorMessage)),

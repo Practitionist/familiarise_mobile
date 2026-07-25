@@ -58,7 +58,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         setState(() => _loadingSocialProvider = null);
       }
       // Fire-and-forget referral code application on successful signup
-      if (next.isAuthenticated && _referralCodeController.text.trim().isNotEmpty) {
+      if (next.isAuthenticated &&
+          _referralCodeController.text.trim().isNotEmpty) {
         final code = _referralCodeController.text.trim();
         ref.read(referralRepositoryProvider).applyReferralCode(code);
       }

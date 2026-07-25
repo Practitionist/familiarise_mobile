@@ -20,7 +20,9 @@ import 'auth_remote_source_mixin.dart';
 ///
 /// Uses [AuthInterceptor] (FlutterSecureStorage) for token storage and
 /// platform-native OAuth flows (GoogleSignIn, FlutterWebAuth2).
-class AuthRemoteSourceImpl with AuthRemoteSourceMixin implements AuthRemoteSource {
+class AuthRemoteSourceImpl
+    with AuthRemoteSourceMixin
+    implements AuthRemoteSource {
   GoogleSignIn? _googleSignIn;
 
   @override

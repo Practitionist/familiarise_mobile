@@ -83,17 +83,13 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
         final data = response.data as Map<String, dynamic>;
         return ConsultantDashboardStats(
           totalClients: data['totalClients'] as int? ?? 0,
-          totalSessionsConducted:
-              data['totalSessionsConducted'] as int? ?? 0,
+          totalSessionsConducted: data['totalSessionsConducted'] as int? ?? 0,
           upcomingSessions: data['upcomingSessions'] as int? ?? 0,
           pendingRequests: data['pendingRequests'] as int? ?? 0,
-          averageRating:
-              (data['averageRating'] as num?)?.toDouble() ?? 0.0,
+          averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
           totalReviews: data['totalReviews'] as int? ?? 0,
-          totalEarnings:
-              (data['totalEarnings'] as num?)?.toDouble() ?? 0.0,
-          pendingEarnings:
-              (data['pendingEarnings'] as num?)?.toDouble() ?? 0.0,
+          totalEarnings: (data['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+          pendingEarnings: (data['pendingEarnings'] as num?)?.toDouble() ?? 0.0,
         );
       }
 
@@ -213,8 +209,7 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
         final reviews = data['reviews'] as List<dynamic>? ?? [];
         return reviews.map((r) {
           final review = r as Map<String, dynamic>;
-          final consultee =
-              review['consulteeProfile'] as Map<String, dynamic>?;
+          final consultee = review['consulteeProfile'] as Map<String, dynamic>?;
           final user = consultee?['user'] as Map<String, dynamic>?;
 
           return Review(
@@ -258,12 +253,9 @@ class DashboardRemoteSourceImpl implements DashboardRemoteSource {
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
         return EarningsSummary(
-          totalEarnings:
-              (data['totalEarnings'] as num?)?.toDouble() ?? 0.0,
-          pendingEarnings:
-              (data['pendingEarnings'] as num?)?.toDouble() ?? 0.0,
-          paidEarnings:
-              (data['paidEarnings'] as num?)?.toDouble() ?? 0.0,
+          totalEarnings: (data['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+          pendingEarnings: (data['pendingEarnings'] as num?)?.toDouble() ?? 0.0,
+          paidEarnings: (data['paidEarnings'] as num?)?.toDouble() ?? 0.0,
           currency: data['currency'] as String? ?? 'INR',
         );
       }

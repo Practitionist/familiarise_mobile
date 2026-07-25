@@ -101,8 +101,7 @@ class _TrialListScreenState extends ConsumerState<TrialListScreen> {
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color:
-                    theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: IconButton(
@@ -206,8 +205,7 @@ class _TrialListScreenState extends ConsumerState<TrialListScreen> {
                   color: isSelected
                       ? theme.colorScheme.onPrimary
                       : theme.colorScheme.onSurfaceVariant,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   fontSize: 12,
                 ),
               ),
@@ -226,12 +224,10 @@ class _TrialListScreenState extends ConsumerState<TrialListScreen> {
                 side: BorderSide(
                   color: isSelected
                       ? theme.colorScheme.primary
-                      : theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.5),
+                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
@@ -337,8 +333,8 @@ class _TrialListScreenState extends ConsumerState<TrialListScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer
-                        .withValues(alpha: 0.3),
+                    color:
+                        theme.colorScheme.errorContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(
