@@ -29,16 +29,31 @@ During development, the mobile app needs to communicate with the backend server.
 
 ## Local Development Setup
 
+> **Docker is now the fastest way to get a full stack running** — Postgres, the
+> API and Flutter web with one command, against a local database instead of the
+> shared Supabase one. See
+> [05-docker-local-dev.md](./05-docker-local-dev.md).
+>
+> ```bash
+> make up     # everything
+> make db     # just Postgres, if you prefer running the backend natively
+> ```
+
 ### Starting the Backend Server
 
-#### Development Mode (with hot reload)
+#### Development Mode — hot reload (recommended)
 ```bash
+source scripts/use-db.sh local   # or `supabase`
 cd backend
 dart_frog dev
 ```
-> Note: May have terminal stdin issues in some environments
+Edits to routes reload in place. Prefer this: the production-build path below
+re-analyses every route and all ~735k lines of generated code on each change.
 
-#### Production Build (recommended)
+> Note: may have terminal stdin issues in some non-interactive environments.
+
+#### Production Build
+Use when you need to reproduce the deployed binary exactly, not for iteration.
 ```bash
 cd backend
 dart_frog build

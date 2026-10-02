@@ -6,7 +6,13 @@
 # Files and directories created by pub
 .dart_tool/
 .packages
-pubspec.lock
+# NOTE: pubspec.lock is deliberately NOT ignored. This is an application
+# package (publish_to: none), so the lockfile belongs in version control —
+# without it Docker builds and CI resolve fresh every time, which makes them
+# non-reproducible and lets a caret-range bump (e.g. freezed 2.x -> 3.x, a
+# breaking generator change) break the build with no code change. It is also
+# an input to backend/scripts/ensure-generated.sh's codegen hash.
+# The root pubspec.lock has always been tracked; this makes the two consistent.
 
 # Files and directories created by dart_frog
 build/
@@ -16,7 +22,12 @@ build/
 coverage/
 
 # Environment files
+# .env.supabase holds real cloud credentials; .env.local is the per-developer
+# override layer. Only the *.example templates are tracked.
 .env
+.env.*
+!.env.example
+!.env.*.example
 
 # ============================================
 # Code Generation (regenerate with commands below)
