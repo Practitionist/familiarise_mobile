@@ -2,27 +2,34 @@ name: Flutter CI/CD
 
 on:
   push:
-    # `dev` is this repo's default/base branch — without it this workflow
-    # never ran on day-to-day pushes or PRs.
-    branches: [dev, main, develop]
+    branches: [dev, prod]
+    tags: ['v*.*.*']
   pull_request:
-    branches: [dev, main, develop]
+    branches: [dev, prod]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      deploy_track:
+        description: 'Release track for store deployment (internal, beta, production)'
+        required: false
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - beta
+          - production
 
 env:
-  # Must ship Dart >=3.7: bcrypt and skeletonizer both require it. The old
-  # 3.24.3 pin (Dart 3.5.3) failed resolution the moment this workflow
-  # actually ran again.
-  FLUTTER_VERSION: '3.44.1'
+  FLUTTER_VERSION: '3.47.6'
   JAVA_VERSION: '17'
 
 jobs:
   # ============================================
-  # Analyze & Test
+  # Analyze & Test Flutter App
   # ============================================
   analyze:
-    name: Analyze & Test
+    name: Analyze & Test (Flutter)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,13 +38,26 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
+
+      - name: Create .env file for Envied codegen
+        run: |
+          cat << EOF > .env
+          SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          STREAM_API_KEY=${{ secrets.STREAM_API_KEY || 'placeholder-stream-key' }}
+          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_placeholder' }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder' }}
+          API_BASE_URL=${{ secrets.API_BASE_URL || 'http://localhost:8080' }}
+          USE_PRISMA=false
+          EOF
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Analyze code
         run: flutter analyze --fatal-infos
@@ -53,11 +73,48 @@ jobs:
           fail_ci_if_error: false
 
   # ============================================
-  # Build Android
+  # Analyze & Test Dart Frog Backend
+  # ============================================
+  test-backend:
+    name: Analyze & Test (Backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: flutter pub get
+
+      - name: Generate Prisma client & schema registry
+        working-directory: backend
+        run: |
+          dart run prisma_flutter_connector:generate \
+            --schema prisma/schema.prisma \
+            --output lib/generated \
+            --server
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze backend code
+        working-directory: backend
+        run: dart analyze --fatal-infos
+
+      - name: Run backend unit tests
+        working-directory: backend
+        run: dart test
+
+  # ============================================
+  # Build Android (Debug on dev/PR, Shorebird Release on prod)
   # ============================================
   build-android:
     name: Build Android
-    needs: analyze
+    needs: [analyze, test-backend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +129,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
       - name: Create .env file
@@ -90,54 +148,25 @@ jobs:
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Decode Keystore
-        if: github.event_name == 'release'
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-
-      - name: Create key.properties
-        if: github.event_name == 'release'
-        run: |
-          cat << EOF > android/key.properties
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=keystore.jks
-          EOF
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build APK (Debug)
-        if: github.event_name != 'release'
+        if: github.ref != 'refs/heads/prod' && github.event_name != 'release'
         run: flutter build apk --debug
 
-      - name: Build APK (Release)
-        if: github.event_name == 'release'
-        run: flutter build apk --release
-
-      - name: Build App Bundle (Release)
-        if: github.event_name == 'release'
-        run: flutter build appbundle --release
-
-      - name: Upload APK
+      - name: Upload Debug APK
+        if: github.ref != 'refs/heads/prod' && github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: android-apk-debug
           path: build/app/outputs/flutter-apk/*.apk
 
-      - name: Upload AAB
-        if: github.event_name == 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-aab
-          path: build/app/outputs/bundle/release/app-release.aab
-
   # ============================================
-  # Build iOS
+  # Build iOS (No-Codesign verification on dev/PR)
   # ============================================
   build-ios:
     name: Build iOS
-    needs: analyze
+    needs: [analyze, test-backend]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -146,6 +175,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
       - name: Create .env file
@@ -164,7 +194,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Install CocoaPods
         run: |
@@ -174,104 +204,151 @@ jobs:
       - name: Build iOS (No Codesign)
         run: flutter build ios --release --no-codesign
 
-      - name: Setup signing (Release only)
-        if: github.event_name == 'release'
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          # Create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          # Import certificate and provisioning profile
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
-
-          # Create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # Import certificate
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-
-          # Apply provisioning profile
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
-
-      - name: Build IPA (Release)
-        if: github.event_name == 'release'
-        run: |
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
-
-      - name: Upload IPA
-        if: github.event_name == 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: build/ios/ipa/*.ipa
-
   # ============================================
-  # Deploy to Play Store (Internal Track)
+  # Release Android via Shorebird + Fastlane (prod / release)
   # ============================================
-  deploy-android:
-    name: Deploy to Play Store
-    needs: build-android
-    if: github.event_name == 'release'
+  release-android:
+    name: Release Android (Shorebird + Fastlane)
+    needs: [build-android]
+    if: github.ref == 'refs/heads/prod' || github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download AAB
-        uses: actions/download-artifact@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          name: android-aab
-          path: build/
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Upload to Play Store
-        uses: r0adkll/upload-google-play@v1
+      - name: Setup Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
-          packageName: com.familiarise.mobile
-          releaseFiles: build/app-release.aab
-          track: internal
-          status: completed
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: Install Fastlane
+        run: gem install fastlane --no-document
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Create .env file
+        run: |
+          cat << EOF > .env
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
+          USE_PRISMA=false
+          EOF
+
+      - name: Decode Android Keystore & Play Store Credentials
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+          cat << EOF > android/key.properties
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=keystore.jks
+          EOF
+          echo "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}" > fastlane/play-store-service-account.json
+
+      - name: Get dependencies & generate code
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Run Fastlane Android Release with Shorebird
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+          FLUTTER_VERSION: ${{ env.FLUTTER_VERSION }}
+          PLAY_STORE_SERVICE_ACCOUNT_PATH: fastlane/play-store-service-account.json
+        run: fastlane android ${{ inputs.deploy_track || 'internal' }}
+
+      - name: Upload Release AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
 
   # ============================================
-  # Deploy to App Store Connect
+  # Release iOS via Shorebird + Fastlane Match & TestFlight (prod / release)
   # ============================================
-  deploy-ios:
-    name: Deploy to App Store
-    needs: build-ios
-    if: github.event_name == 'release'
+  release-ios:
+    name: Release iOS (Shorebird + Fastlane)
+    needs: [build-ios]
+    if: github.ref == 'refs/heads/prod' || github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download IPA
-        uses: actions/download-artifact@v4
+      - name: Setup Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
         with:
-          name: ios-ipa
-          path: build/
+          ruby-version: '3.2'
+          bundler-cache: false
 
-      - name: Upload to App Store Connect
+      - name: Install Fastlane
+        run: gem install fastlane --no-document
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Create .env file
+        run: |
+          cat << EOF > .env
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
+          USE_PRISMA=false
+          EOF
+
+      - name: Get dependencies & generate code
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          cd ios && pod install --repo-update
+
+      - name: Run Fastlane iOS Release with Match + Shorebird + TestFlight
         env:
+          CI: 'true'
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+          FLUTTER_VERSION: ${{ env.FLUTTER_VERSION }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          # Create API key file
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8
+          if [ "${{ inputs.deploy_track }}" = "production" ]; then
+            fastlane ios release
+          else
+            fastlane ios beta
+          fi
 
-          # Upload using altool
-          xcrun altool --upload-app \
-            --type ios \
-            --file build/*.ipa \
-            --apiKey $APP_STORE_CONNECT_KEY_ID \
-            --apiIssuer $APP_STORE_CONNECT_ISSUER_ID
+      - name: Upload Release IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release-ipa
+          path: build/ios/ipa/*.ipa

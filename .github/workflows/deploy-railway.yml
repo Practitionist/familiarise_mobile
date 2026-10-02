@@ -1,0 +1,105 @@
+name: Deploy Backend to Railway
+
+on:
+  push:
+    branches: [dev, prod]
+    paths:
+      - 'backend/**'
+      - 'railway.json'
+      - '.github/workflows/deploy-railway.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Railway environment'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  FLUTTER_VERSION: '3.47.6'
+
+jobs:
+  # ============================================
+  # Test & Verify Backend before Deployment
+  # ============================================
+  test-backend:
+    name: Test & Analyze Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter (required by prisma_flutter_connector)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: flutter pub get
+
+      - name: Generate Prisma client & Freezed models
+        working-directory: backend
+        run: |
+          dart run prisma_flutter_connector:generate \
+            --schema prisma/schema.prisma \
+            --output lib/generated \
+            --server
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze backend code
+        working-directory: backend
+        run: dart analyze --fatal-infos
+
+      - name: Run backend tests
+        working-directory: backend
+        run: dart test
+
+  # ============================================
+  # Deploy Container to Railway & Verify /api/health
+  # ============================================
+  deploy-railway:
+    name: Deploy to Railway
+    needs: test-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend container to Railway
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          TARGET_ENV="production"
+          if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            TARGET_ENV="staging"
+          fi
+          if [ -n "${{ inputs.environment }}" ]; then
+            TARGET_ENV="${{ inputs.environment }}"
+          fi
+          echo "Deploying familiarise-mobile-api to Railway environment: ${TARGET_ENV}"
+          railway up --service familiarise-mobile-api --environment "${TARGET_ENV}" --detach
+
+      - name: Verify /api/health endpoint
+        env:
+          HEALTHCHECK_BASE_URL: ${{ github.ref == 'refs/heads/prod' && secrets.PRODUCTION_API_BASE_URL || secrets.STAGING_API_BASE_URL || secrets.PRODUCTION_API_BASE_URL }}
+        run: |
+          if [ -z "${HEALTHCHECK_BASE_URL}" ]; then
+            echo "::notice::HEALTHCHECK_BASE_URL secret not configured; skipping HTTP probe."
+            exit 0
+          fi
+          echo "Waiting 25s for Railway container rollout to stabilize..."
+          sleep 25
+          curl --fail --silent --show-error --retry 6 --retry-delay 10 \
+            "${HEALTHCHECK_BASE_URL}/api/health"
+          echo ""
+          echo "Health check succeeded at ${HEALTHCHECK_BASE_URL}/api/health"

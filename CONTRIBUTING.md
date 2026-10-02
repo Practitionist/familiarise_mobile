@@ -17,10 +17,10 @@ Thank you for your interest in contributing to Familiarise Mobile. This document
 
 Before contributing, ensure you have:
 
-- Flutter SDK 3.24.x or higher installed
-- Dart SDK 3.5.x (bundled with Flutter)
+- **Flutter SDK 3.47.6** installed
+- **Dart SDK 3.11+** (bundled with Flutter 3.47.6)
 - A working development environment (see [README.md](./README.md) for setup)
-- Familiarity with the project architecture (see [CLAUDE.md](./CLAUDE.md))
+- Familiarity with the Companion Starter architecture and `prisma_flutter_connector` v1.0.0 (`0` `JsonQueryBuilder`) (see [CLAUDE.md](./CLAUDE.md) and [AGENTS.md](./AGENTS.md))
 
 ## Development Setup
 
@@ -34,29 +34,31 @@ Before contributing, ensure you have:
 
 3. **Add upstream remote:**
    ```bash
-   git remote add upstream https://github.com/your-org/familiarise_mobile.git
+   git remote add upstream https://github.com/Practitionist/familiarise_mobile.git
    ```
 
-4. **Install dependencies and generate code:**
+4. **Sync schema, install dependencies, and generate code:**
    ```bash
-   flutter pub get
-   dart run build_runner build --delete-conflicting-outputs
+   ./scripts/sync-schema.sh
+   ./scripts/regenerate-build.sh
    ```
 
 5. **Create a feature branch:**
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/your-feature-name
    ```
 
 ## Branch Naming Conventions
 
-Use the following prefixes for branch names:
+Use the following branches and prefixes:
 
-| Prefix | Purpose | Example |
-|--------|---------|---------|
-| `feature/` | New features | `feature/add-dark-mode` |
-| `bugfix/` | Bug fixes | `bugfix/fix-login-crash` |
-| `hotfix/` | Urgent production fixes | `hotfix/critical-payment-error` |
+| Branch / Prefix | Purpose | Example |
+|-----------------|---------|---------|
+| `dev` | Primary integration branch (default PR target) | `dev` |
+| `prod` | Production release branch (triggers Railway prod deploy + Fastlane/Shorebird release) | `prod` |
+| `feat/` or `feature/` | New features | `feat/53-companion-schedule` |
+| `fix/` or `bugfix/` | Bug fixes | `fix/59-session-revocation` |
+| `patch/` or `hotfix/` | Urgent Dart OTA hotfixes (triggers `.github/workflows/shorebird-patch.yml`) | `patch/fix-booking-timezone` |
 | `refactor/` | Code refactoring | `refactor/simplify-auth-flow` |
 | `docs/` | Documentation updates | `docs/update-readme` |
 | `test/` | Test additions/updates | `test/add-booking-tests` |

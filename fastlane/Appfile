@@ -1,0 +1,11 @@
+# Fastlane Appfile for Familiarise Mobile (Android & iOS)
+
+# Android Play Console configuration
+json_key_file(ENV.fetch("PLAY_STORE_SERVICE_ACCOUNT_PATH", "fastlane/play-store-service-account.json"))
+package_name(ENV.fetch("ANDROID_PACKAGE_NAME", "com.familiarise.mobile"))
+
+# iOS App Store Connect & Apple Developer Portal configuration
+app_identifier(ENV.fetch("IOS_BUNDLE_ID", "com.familiarise.mobile"))
+apple_id(ENV.fetch("FASTLANE_APPLE_ID", "dev@familiarise.com"))
+itc_team_id(ENV.fetch("APP_STORE_CONNECT_TEAM_ID", ""))
+team_id(ENV.fetch("APPLE_DEVELOPER_TEAM_ID", ""))
