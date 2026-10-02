@@ -13,6 +13,7 @@ enum TicketStatusFilter {
   all('All', null),
   open('Open', 'OPEN'),
   inProgress('In Progress', 'IN_PROGRESS'),
+  onHold('On Hold', 'ON_HOLD'),
   resolved('Resolved', 'RESOLVED'),
   closed('Closed', 'CLOSED');
 

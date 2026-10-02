@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/support_repository_impl.dart';
 import '../../../domain/entities/support/support_entities.dart';
@@ -99,12 +100,28 @@ class CreateTicket extends _$CreateTicket {
   @override
   AsyncValue<SupportTicket?> build() => const AsyncData(null);
 
-  Future<SupportTicket?> submit(CreateTicketRequest request) async {
+  Future<SupportTicket?> submit(
+    CreateTicketRequest request, {
+    String? category,
+  }) async {
     state = const AsyncLoading();
 
     try {
-      final repository = ref.read(supportRepositoryProvider);
-      final ticket = await repository.createTicket(request);
+      SupportTicket ticket;
+      if (category != null && category.isNotEmpty) {
+        final dio = ref.read(dioProvider);
+        final response = await dio.post(
+          '/api/support',
+          data: {
+            ...request.toJson(),
+            'category': category,
+          },
+        );
+        ticket = SupportTicket.fromJson(response.data as Map<String, dynamic>);
+      } else {
+        final repository = ref.read(supportRepositoryProvider);
+        ticket = await repository.createTicket(request);
+      }
 
       // Invalidate the tickets list to show the new ticket
       ref.invalidate(supportTicketsProvider);

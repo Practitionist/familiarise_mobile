@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/organization/organization_entities.dart';
 import '../providers/organization_provider.dart';
 
-/// Read-only view of the user's organization memberships and entitlements.
-///
-/// Org administration (members, contracts, billing, invoices) lives on the
-/// web — mobile only surfaces what the member needs while booking.
+/// View of the user's organization memberships, program seat utilization,
+/// credit pool balance, and Enterprise Learner Seat Redemption CTA.
 class MyOrganizationScreen extends ConsumerWidget {
   const MyOrganizationScreen({super.key});
 
@@ -58,8 +57,11 @@ class MyOrganizationScreen extends ConsumerWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(
-                            'Your Programs',
-                            style: Theme.of(context).textTheme.titleMedium,
+                            'Your Programs & Assigned Seats',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
                         for (final assignment in assignments)
@@ -153,10 +155,20 @@ class _AssignmentCard extends StatelessWidget {
 
   final ProgramAssignmentInfo assignment;
 
+  bool _canBookSeat(ProgramEntitlement entitlement) {
+    if (entitlement.type == 'LICENSED_SEAT') {
+      final remaining = entitlement.engagementsRemaining;
+      return remaining == null || remaining > 0;
+    }
+    final creditRemaining = entitlement.creditRemainingPaise;
+    return creditRemaining == null || creditRemaining > 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entitlement = assignment.entitlement;
+    final canRedeemSeat = _canBookSeat(entitlement);
 
     return Card(
       elevation: 0,
@@ -167,30 +179,101 @@ class _AssignmentCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              assignment.program.name,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        assignment.program.name,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Sponsored by ${assignment.organization.name}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: canRedeemSeat
+                        ? theme.colorScheme.primaryContainer
+                        : theme.colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    entitlement.type == 'LICENSED_SEAT'
+                        ? 'Licensed Seat'
+                        : 'Credit Pool',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: canRedeemSeat
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              'Sponsored by ${assignment.organization.name}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _EntitlementMeter(entitlement: entitlement),
-            if (assignment.periodEnd != null) ...[
+            if (assignment.program.description != null &&
+                assignment.program.description!.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Cycle renews ${Formatters.date(assignment.periodEnd!)}',
+                assignment.program.description!,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
+            const SizedBox(height: 14),
+            _EntitlementMeter(entitlement: entitlement),
+            if (assignment.periodEnd != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.autorenew,
+                    size: 14,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Cycle renews ${Formatters.date(assignment.periodEnd!)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: canRedeemSeat
+                    ? () => context.go(
+                          '/explore?programAssignmentId=${Uri.encodeComponent(assignment.id)}',
+                        )
+                    : null,
+                icon: const Icon(Icons.event_seat_outlined, size: 18),
+                label: Text(
+                  canRedeemSeat
+                      ? 'Book Session with Org Seat'
+                      : 'All Cycle Seats Used',
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -208,56 +291,250 @@ class _EntitlementMeter extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (entitlement.type == 'LICENSED_SEAT') {
-      final covered = entitlement.coveredEngagementsPerCycle;
-      final used = entitlement.engagementsUsed ?? 0;
-      if (covered == null) {
-        return Text(
-          'Unlimited sessions this cycle · $used used',
-          style: theme.textTheme.bodyMedium,
+      final sessionsAllocated = entitlement.coveredEngagementsPerCycle;
+      final sessionsUsed = entitlement.engagementsUsed ?? 0;
+      final remainingSeats = entitlement.engagementsRemaining ??
+          (sessionsAllocated != null
+              ? (sessionsAllocated - sessionsUsed).clamp(0, sessionsAllocated)
+              : null);
+      final sessionsHeld = sessionsAllocated != null && remainingSeats != null
+          ? (sessionsAllocated - sessionsUsed - remainingSeats)
+              .clamp(0, sessionsAllocated)
+          : 0;
+
+      if (sessionsAllocated == null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Unlimited sessions this cycle · $sessionsUsed used',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _StatPill(
+                  label: 'Allocated',
+                  value: 'Unlimited',
+                  color: theme.colorScheme.primary,
+                ),
+                _StatPill(
+                  label: 'Used',
+                  value: '$sessionsUsed',
+                  color: theme.colorScheme.secondary,
+                ),
+              ],
+            ),
+          ],
         );
       }
-      return _meter(
-        theme,
-        label: '${entitlement.engagementsRemaining ?? 0} of $covered '
-            'sessions left this cycle',
-        fraction:
-            covered == 0 ? 0 : (covered - used).clamp(0, covered) / covered,
+
+      final utilizationFraction = sessionsAllocated == 0
+          ? 0.0
+          : ((sessionsUsed + sessionsHeld) / sessionsAllocated).clamp(0.0, 1.0);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${remainingSeats ?? 0} of $sessionsAllocated seats remaining',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '${(utilizationFraction * 100).round()}% used',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: utilizationFraction,
+              minHeight: 8,
+              backgroundColor: theme.colorScheme.surfaceContainer,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _StatPill(
+                label: 'Allocated',
+                value: '$sessionsAllocated',
+                color: theme.colorScheme.primary,
+              ),
+              _StatPill(
+                label: 'Used',
+                value: '$sessionsUsed',
+                color: theme.colorScheme.secondary,
+              ),
+              _StatPill(
+                label: 'Held',
+                value: '$sessionsHeld',
+                color: Colors.orange.shade700,
+              ),
+              _StatPill(
+                label: 'Remaining',
+                value: '${remainingSeats ?? 0}',
+                color: Colors.green.shade700,
+              ),
+            ],
+          ),
+        ],
       );
     }
 
+    // Credit Pool entitlement
     final budget = entitlement.creditBudgetPaise;
     final remaining = entitlement.creditRemainingPaise ?? 0;
+    final consumed = entitlement.creditConsumedPaise ??
+        (budget != null ? (budget - remaining).clamp(0, budget) : 0);
+
     if (budget == null) {
-      return Text(
-        'Credit-funded sessions',
-        style: theme.textTheme.bodyMedium,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Credit-funded sessions',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (remaining > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Credit Pool Balance: '
+              '${Formatters.currency(Formatters.fromMinorUnits(remaining), 'INR')}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
       );
     }
-    return _meter(
-      theme,
-      label:
-          '${Formatters.currency(Formatters.fromMinorUnits(remaining), 'INR')} '
-          'of ${Formatters.currency(Formatters.fromMinorUnits(budget), 'INR')} '
-          'credits left this cycle',
-      fraction: budget == 0 ? 0 : remaining / budget,
-    );
-  }
 
-  Widget _meter(ThemeData theme,
-      {required String label, required double fraction}) {
+    final remainingFraction =
+        budget == 0 ? 0.0 : (remaining / budget).clamp(0.0, 1.0);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: theme.textTheme.bodyMedium),
-        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'Credit Pool Balance: '
+                '${Formatters.currency(Formatters.fromMinorUnits(remaining), 'INR')} '
+                'of ${Formatters.currency(Formatters.fromMinorUnits(budget), 'INR')}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(
-            value: fraction.clamp(0.0, 1.0),
-            minHeight: 6,
+            value: remainingFraction,
+            minHeight: 8,
+            backgroundColor: theme.colorScheme.surfaceContainer,
           ),
         ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _StatPill(
+              label: 'Budget',
+              value: Formatters.currency(
+                Formatters.fromMinorUnits(budget),
+                'INR',
+              ),
+              color: theme.colorScheme.primary,
+            ),
+            _StatPill(
+              label: 'Used',
+              value: Formatters.currency(
+                Formatters.fromMinorUnits(consumed),
+                'INR',
+              ),
+              color: theme.colorScheme.secondary,
+            ),
+            _StatPill(
+              label: 'Balance',
+              value: Formatters.currency(
+                Formatters.fromMinorUnits(remaining),
+                'INR',
+              ),
+              color: Colors.green.shade700,
+            ),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  const _StatPill({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            value,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

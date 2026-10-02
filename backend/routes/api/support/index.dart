@@ -25,7 +25,7 @@ Future<Response> onRequest(RequestContext context) async {
 /// Returns the authenticated user's support tickets with pagination.
 ///
 /// Query Parameters:
-/// - status: Filter by status (OPEN, IN_PROGRESS, RESOLVED, CLOSED)
+/// - status: Filter by status (OPEN, IN_PROGRESS, ON_HOLD, RESOLVED, CLOSED)
 /// - page: Page number (0-indexed, default: 0)
 /// - pageSize: Items per page (default: 20, max: 50)
 Future<Response> _handleListTickets(RequestContext context) async {
@@ -35,7 +35,7 @@ Future<Response> _handleListTickets(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
         body: {
-          'error': {'message': 'Unauthorized'}
+          'error': {'message': 'Unauthorized'},
         },
       );
     }
@@ -68,7 +68,7 @@ Future<Response> _handleListTickets(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
-        'error': {'message': 'Failed to fetch tickets'}
+        'error': {'message': 'Failed to fetch tickets'},
       },
     );
   }
@@ -85,6 +85,7 @@ Future<Response> _handleListTickets(RequestContext context) async {
 ///   "description": "Detailed description",
 ///   "issueType": "PAYMENT_FAILED",
 ///   "priority": "MEDIUM",
+///   "category": "Payment Issues",
 ///   "consultationId": "optional-uuid",
 ///   "subscriptionId": "optional-uuid",
 ///   "paymentId": "optional-uuid"
@@ -97,7 +98,7 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
         body: {
-          'error': {'message': 'Unauthorized'}
+          'error': {'message': 'Unauthorized'},
         },
       );
     }
@@ -112,7 +113,7 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': 'Title is required'}
+          'error': {'message': 'Title is required'},
         },
       );
     }
@@ -121,20 +122,26 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': 'Description is required'}
+          'error': {'message': 'Description is required'},
         },
       );
     }
 
     final db = context.read<DatabaseClient>();
+    final issueType = data['issueType'] as String?;
+    final explicitCategory = data['category'] as String?;
+    final resolvedCategory = explicitCategory != null &&
+            explicitCategory.trim().isNotEmpty
+        ? explicitCategory.trim()
+        : _categoryForIssueType(issueType);
 
     final ticket = await db.supportTickets.createTicket(
       userId: userId,
       title: title,
       description: description,
-      issueType: data['issueType'] as String?,
+      issueType: issueType,
       priority: data['priority'] as String?,
-      category: data['category'] as String?,
+      category: resolvedCategory,
       consultationId: data['consultationId'] as String?,
       subscriptionId: data['subscriptionId'] as String?,
       paymentId: data['paymentId'] as String?,
@@ -162,8 +169,39 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
-        'error': {'message': 'Failed to create ticket'}
+        'error': {'message': 'Failed to create ticket'},
       },
     );
+  }
+}
+
+String? _categoryForIssueType(String? issueType) {
+  switch (issueType) {
+    case 'CONSULTANT_NO_SHOW':
+    case 'CONSULTANT_LATE':
+    case 'SESSION_ENDED_EARLY':
+    case 'SESSION_QUALITY_POOR':
+    case 'COMMUNICATION_ISSUE':
+    case 'TECHNICAL_ISSUES':
+    case 'WRONG_CONSULTANT':
+      return 'Session Issues';
+    case 'ACCESS_ISSUE':
+    case 'TIMEZONE_CONFUSION':
+    case 'RESCHEDULING_HELP':
+      return 'Scheduling & Access';
+    case 'PAYMENT_FAILED':
+    case 'CHARGED_TWICE':
+    case 'REFUND_REQUEST':
+    case 'BILLING_QUESTION':
+      return 'Payment Issues';
+    case 'WANT_TO_CANCEL':
+    case 'CANCELLATION_ISSUE':
+      return 'Cancellation';
+    case 'ACCOUNT_ISSUE':
+    case 'PROFILE_ISSUE':
+    case 'OTHER':
+      return 'General';
+    default:
+      return null;
   }
 }

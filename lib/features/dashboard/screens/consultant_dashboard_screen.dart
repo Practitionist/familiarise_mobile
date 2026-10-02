@@ -5,12 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/config/feature_flags.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../../domain/entities/referral/referral_entities.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/providers/notifications_provider.dart';
 import '../../referrals/providers/referral_provider.dart';
 import '../providers/consultant_dashboard_provider.dart';
 import '../widgets/collaborations_summary_card.dart';
@@ -34,6 +34,7 @@ class ConsultantDashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final user = ref.watch(currentUserProvider);
     final dashboardAsync = ref.watch(consultantDashboardProvider);
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -56,14 +57,20 @@ class ConsultantDashboardScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notifications',
+            onPressed: () => context.push('/notifications'),
+            icon: Badge(
+              isLabelVisible: unreadCount > 0,
+              label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(consultantDashboardProvider);
+          ref.invalidate(notificationsProvider);
         },
         child: dashboardAsync.when(
           data: (data) => _buildContent(context, ref, data),
@@ -141,10 +148,9 @@ class ConsultantDashboardScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
 
-        // Collaborations summary card (deferred feature)
-        if (FeatureFlags.collaborations &&
-            (data.collaborationCounts.pendingCount > 0 ||
-                data.collaborationCounts.acceptedCount > 0)) ...[
+        // Collaborations summary card (Companion Starter)
+        if (data.collaborationCounts.pendingCount > 0 ||
+            data.collaborationCounts.acceptedCount > 0) ...[
           CollaborationsSummaryCard(counts: data.collaborationCounts),
           const SizedBox(height: 16),
         ],
@@ -223,12 +229,11 @@ class ConsultantDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
         ],
 
-        // Referral card (deferred feature)
-        if (FeatureFlags.referrals)
-          _ReferralCardWrapper(
-            referralCode: data.referralCode,
-            credits: data.referralCredits,
-          ),
+        // Referral card (Companion Starter)
+        _ReferralCardWrapper(
+          referralCode: data.referralCode,
+          credits: data.referralCredits,
+        ),
       ],
     );
   }
@@ -482,6 +487,8 @@ class _ReferralCardWrapper extends ConsumerWidget {
         if (context.mounted) {
           if (success) {
             ref.invalidate(consultantDashboardProvider);
+            ref.invalidate(myReferralCodeProvider);
+            ref.invalidate(availableCreditsProvider);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -494,3 +501,101 @@ class _ReferralCardWrapper extends ConsumerWidget {
     );
   }
 }
+
+/// Companion Starter read-only Earnings & Payouts summary screen (`/payouts`).
+class CompanionPayoutsScreen extends ConsumerWidget {
+  const CompanionPayoutsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dashboardAsync = ref.watch(consultantDashboardProvider);
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Earnings & Payouts'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(consultantDashboardProvider),
+        child: dashboardAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Failed to load earnings summary: $error'),
+                  const SizedBox(height: 12),
+                  FilledButton.tonal(
+                    onPressed: () =>
+                        ref.invalidate(consultantDashboardProvider),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          data: (data) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            children: [
+              EarningsSummaryCard(earnings: data.earnings),
+              const SizedBox(height: 16),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerLow,
+                child: ListTile(
+                  leading: Icon(
+                    Icons.account_balance_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: const Text('Payout Accounts'),
+                  subtitle: const Text(
+                    'View your linked bank or UPI payout accounts',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/payout-accounts'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Companion Starter Referral Share Card screen (`/referrals`).
+class CompanionReferralsScreen extends ConsumerWidget {
+  const CompanionReferralsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final codeAsync = ref.watch(myReferralCodeProvider);
+    final creditsAsync = ref.watch(availableCreditsProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Referrals & Credits'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(myReferralCodeProvider);
+          ref.invalidate(availableCreditsProvider);
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            _ReferralCardWrapper(
+              referralCode: codeAsync.valueOrNull,
+              credits: creditsAsync.valueOrNull,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
