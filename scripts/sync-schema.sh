@@ -178,5 +178,5 @@ echo "[sync-schema] Synced $SOURCE_SCHEMA -> $TARGET_SCHEMA ($models models, $en
 
 if [ "$RUN_REGEN" = true ]; then
   echo "[sync-schema] Regenerating backend Prisma client and Freezed models..."
-  "$ROOT_DIR/scripts/regenerate-build.sh" --prisma
+  "$ROOT_DIR/backend/scripts/regenerate-build.sh" --prisma
 fi
