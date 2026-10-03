@@ -14,6 +14,9 @@ abstract final class FeatureFlags {
   /// Read-only consultant earnings & payouts wallet summary (mutations hand off to web).
   static const payouts = true;
 
+  /// Payout account onboarding and mutation routes (delegated to web in Companion Starter).
+  static const payoutMutations = false;
+
   /// Lightweight referral code & native share-sheet card.
   static const referrals = true;
 
@@ -39,8 +42,12 @@ abstract final class FeatureFlags {
         (location.startsWith('/checkout') || location.startsWith('/payment'))) {
       return 'Payments';
     }
+    if (!payoutMutations && location.startsWith('/payout-accounts/add')) {
+      return 'Payouts';
+    }
     if (!payouts &&
-        (location.startsWith('/payout-accounts') ||
+        (location.startsWith('/payouts') ||
+            location.startsWith('/payout-accounts') ||
             location.startsWith('/tax-info'))) {
       return 'Payouts';
     }

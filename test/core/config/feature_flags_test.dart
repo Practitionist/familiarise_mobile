@@ -19,13 +19,21 @@ void main() {
 
     group('gatedRouteFeature', () {
       test('allows Companion Starter routes when flags are enabled', () {
+        expect(FeatureFlags.gatedRouteFeature('/payouts'), isNull);
         expect(FeatureFlags.gatedRouteFeature('/payout-accounts'), isNull);
-        expect(FeatureFlags.gatedRouteFeature('/payout-accounts/add'), isNull);
         expect(FeatureFlags.gatedRouteFeature('/tax-info'), isNull);
         expect(FeatureFlags.gatedRouteFeature('/referrals'), isNull);
         expect(FeatureFlags.gatedRouteFeature('/collaborations'), isNull);
         expect(FeatureFlags.gatedRouteFeature('/dashboard'), isNull);
         expect(FeatureFlags.gatedRouteFeature('/explore'), isNull);
+      });
+
+      test('keeps payout mutation routes gated to web handoff', () {
+        expect(FeatureFlags.payoutMutations, isFalse);
+        expect(
+          FeatureFlags.gatedRouteFeature('/payout-accounts/add'),
+          'Payouts',
+        );
       });
 
       test('gates checkout and payment routes behind Payments', () {

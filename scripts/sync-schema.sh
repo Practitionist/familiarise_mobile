@@ -74,6 +74,55 @@ validate_schema_file() {
     echo "Error: $schema_file is missing 'provider = \"postgresql\"' datasource block." >&2
     return 1
   fi
+
+  # Verify balanced braces across all blocks (models, enums, datasource, generator)
+  if ! awk '
+    {
+      line = $0
+      sub(/\/\/.*$/, "", line)
+      open_count += gsub(/\{/, "{", line)
+      close_count += gsub(/\}/, "}", line)
+      if (close_count > open_count) exit 1
+    }
+    END {
+      if (open_count == 0 || open_count != close_count) exit 1
+    }
+  ' "$schema_file"; then
+    echo "Error: $schema_file has unbalanced block braces." >&2
+    return 1
+  fi
+
+  # BetterAuth schema guard (mirroring familiarise_web/scripts/ci/check-auth-schema.ts)
+  for required_auth_model in "model User" "model Session" "model Account" "model Verification"; do
+    if ! grep -q "^${required_auth_model} " "$schema_file"; then
+      echo "Error: $schema_file is missing required BetterAuth model '${required_auth_model}'." >&2
+      return 1
+    fi
+  done
+
+  # Money-column BigInt guard (mirroring familiarise_web/scripts/ci/check-money-columns.ts)
+  if ! grep -qE '[A-Za-z0-9_]+[[:space:]]+BigInt' "$schema_file"; then
+    echo "Error: $schema_file is missing BigInt money columns." >&2
+    return 1
+  fi
+
+  # Validate full AST parse & codegen with prisma_flutter_connector if dart is available
+  local dart_bin=""
+  if command -v dart >/dev/null 2>&1; then
+    dart_bin="$(command -v dart)"
+  elif [ -x "$HOME/.local/bin/dart" ]; then
+    dart_bin="$HOME/.local/bin/dart"
+  fi
+  if [ -n "$dart_bin" ] && [ -f "$ROOT_DIR/backend/.dart_tool/package_config.json" ]; then
+    local tmp_out
+    tmp_out="$(mktemp -d)"
+    if ! (cd "$ROOT_DIR/backend" && "$dart_bin" run prisma_flutter_connector:generate --schema "$schema_file" --output "$tmp_out" --server >/dev/null 2>&1); then
+      rm -rf "$tmp_out"
+      echo "Error: prisma_flutter_connector:generate failed to parse $schema_file." >&2
+      return 1
+    fi
+    rm -rf "$tmp_out"
+  fi
 }
 
 count_models() {
@@ -90,9 +139,9 @@ if [ "$CHECK_ONLY" = true ]; then
   target_enums="$(count_enums "$TARGET_SCHEMA")"
 
   if [ ! -f "$SOURCE_SCHEMA" ]; then
-    echo "[sync-schema] Canonical web schema not present at $SOURCE_SCHEMA (standalone checkout)."
-    echo "[sync-schema] Verified $TARGET_SCHEMA header and structure ($target_models models, $target_enums enums)."
-    exit 0
+    echo "Error: Canonical web schema not found at $SOURCE_SCHEMA; cannot complete --check drift verification." >&2
+    echo "Set WEB_SCHEMA_PATH or pass --source /path/to/familiarise_web/prisma/schema.prisma" >&2
+    exit 1
   fi
 
   validate_schema_file "$SOURCE_SCHEMA"
