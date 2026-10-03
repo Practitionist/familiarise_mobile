@@ -202,9 +202,14 @@ class AuthService {
   Future<Map<String, dynamic>?> getSession(String sessionId) async {
     final sessionData = await _db.findSessionById(sessionId);
 
-    if (sessionData == null) {
+    if (sessionData == null || sessionData['user_id'] == null) {
       return null;
     }
+
+    final emailVerifiedValue = sessionData['user_emailVerified'];
+    final isEmailVerified = emailVerifiedValue is bool
+        ? emailVerifiedValue
+        : emailVerifiedValue != null;
 
     // Session query already filters by expiresAt > NOW()
     // Extract user data from the joined result
@@ -214,7 +219,16 @@ class AuthService {
       'email': sessionData['user_email'],
       'image': sessionData['user_image'],
       'role': sessionData['user_role'],
+      'emailVerified': isEmailVerified,
       'onboardingCompleted': sessionData['user_onboardingCompleted'] ?? false,
+      if (sessionData['user_consulteeProfileId'] != null)
+        'consulteeProfileId': sessionData['user_consulteeProfileId'],
+      if (sessionData['user_consultantProfileId'] != null)
+        'consultantProfileId': sessionData['user_consultantProfileId'],
+      if (sessionData['user_staffProfileId'] != null)
+        'staffProfileId': sessionData['user_staffProfileId'],
+      if (sessionData['user_adminProfileId'] != null)
+        'adminProfileId': sessionData['user_adminProfileId'],
     };
 
     return {
@@ -236,6 +250,35 @@ class AuthService {
   /// Sign out - invalidate session
   Future<void> signOut(String sessionId) async {
     await _db.deleteSession(sessionId);
+  }
+
+  /// Revoke all active sessions for a user (used on password change/reset/logout)
+  Future<void> revokeAllUserSessions(String userId) async {
+    await _db.deleteUserSessions(userId);
+  }
+
+  /// Resolve user ID associated with a password reset verification token.
+  ///
+  /// Used prior to password reset completion so all active sessions for the
+  /// user can be revoked once the password update succeeds.
+  Future<String?> resolveUserIdFromPasswordResetToken(String token) async {
+    try {
+      final verification =
+          await _db.verifications.findByValueAndIdentifierPrefix(
+        value: token,
+        identifierPrefix: 'password-reset:',
+      );
+      if (verification == null) return null;
+      final identifier = verification['identifier'] as String?;
+      if (identifier == null || !identifier.startsWith('password-reset:')) {
+        return null;
+      }
+      final email = identifier.replaceFirst('password-reset:', '');
+      final user = await _db.users.findByEmail(email);
+      return user?['id'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Sign in with Google OAuth

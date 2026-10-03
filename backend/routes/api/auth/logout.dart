@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
 import 'package:backend/utils/auth_utils.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
-/// POST /api/auth/sign-out
-/// Sign-out endpoint — deletes caller's Session row and invalidates session cache.
+/// POST /api/auth/logout
+/// Deletes the caller's Session row(s) in Postgres and invalidates the
+/// in-memory verified-session cache.
 Future<Response> onRequest(RequestContext context) async {
   // Only allow POST
   if (context.request.method != HttpMethod.post) {
@@ -17,37 +19,48 @@ Future<Response> onRequest(RequestContext context) async {
     final token = extractBearerToken(context);
     if (token == null) {
       return Response.json(
-        body: {'success': true}, // Already signed out
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': 'Unauthorized'},
       );
     }
 
+    // Always evict this token from the in-memory session cache immediately
     invalidateSessionCache(token);
 
     final jwtService = context.read<JwtService>();
     final authService = context.read<AuthService>();
 
-    // Verify JWT token
     final payload = jwtService.tryVerify(token);
     if (payload == null) {
-      return Response.json(body: {'success': true});
+      return Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': 'Unauthorized'},
+      );
     }
 
     final sessionId = payload['sessionId'] as String?;
     final userId = payload['userId'] as String?;
-    if (sessionId != null) {
+
+    if (sessionId != null && sessionId.isNotEmpty) {
       invalidateSessionIdCache(sessionId);
       await authService.signOut(sessionId);
-    } else if (userId != null) {
+    } else if (userId != null && userId.isNotEmpty) {
       invalidateUserSessionsCache(userId);
       await authService.revokeAllUserSessions(userId);
     }
 
     return Response.json(body: {'success': true});
-  } catch (e) {
+  } catch (e, stackTrace) {
+    await SentryLogger.severe(
+      'Logout failed',
+      context: 'AuthLogout',
+      error: e,
+      stackTrace: stackTrace,
+    );
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
-        'error': {'message': 'Failed to sign out'},
+        'error': {'message': 'Failed to log out'},
       },
     );
   }

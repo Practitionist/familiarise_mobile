@@ -47,6 +47,7 @@ Future<Response> onRequest(RequestContext context) async {
       userId: userId,
       sessionId: sessionId,
     );
+    invalidateSessionIdCache(sessionId);
 
     return Response.json(
       body: {'message': 'Session revoked'},

@@ -28,8 +28,8 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     // Extract current session ID from the JWT payload
-    final authHeader = context.request.headers['authorization'];
-    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+    final token = extractBearerToken(context);
+    if (token == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
         body: {
@@ -38,7 +38,6 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
-    final token = authHeader.substring(7);
     final payload = context.read<JwtService>().tryVerify(token);
     final sessionId = payload?['sessionId'] as String?;
 
@@ -56,6 +55,7 @@ Future<Response> onRequest(RequestContext context) async {
       userId: userId,
       currentSessionId: sessionId,
     );
+    invalidateUserSessionsCache(userId);
 
     return Response.json(
       body: {'message': 'Other sessions revoked'},

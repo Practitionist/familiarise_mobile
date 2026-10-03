@@ -1,12 +1,14 @@
 import 'dart:io';
 
-import 'package:backend/services/auth/auth_service.dart';
-import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// GET /api/auth/session
-/// Better Auth compatible session endpoint
+/// Validates the caller's bearer token and active DB session.
+///
+/// Returns HTTP 401 (`{'error': 'Unauthorized'}`) whenever the bearer token
+/// is missing, invalid, expired, or has no active session/user.
 Future<Response> onRequest(RequestContext context) async {
   // Only allow GET
   if (context.request.method != HttpMethod.get) {
@@ -14,39 +16,11 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   try {
-    // Get token from Authorization header
-    final authHeader = context.request.headers['authorization'];
-    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+    final result = await verifyActiveUserSession(context);
+    if (result == null || result['user'] == null) {
       return Response.json(
-        body: {'session': null, 'user': null},
-      );
-    }
-
-    final token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    final jwtService = context.read<JwtService>();
-    final authService = context.read<AuthService>();
-
-    // Verify JWT token
-    final payload = jwtService.tryVerify(token);
-    if (payload == null) {
-      return Response.json(
-        body: {'session': null, 'user': null},
-      );
-    }
-
-    final sessionId = payload['sessionId'] as String?;
-    if (sessionId == null) {
-      return Response.json(
-        body: {'session': null, 'user': null},
-      );
-    }
-
-    // Get session and user
-    final result = await authService.getSession(sessionId);
-    if (result == null) {
-      return Response.json(
-        body: {'session': null, 'user': null},
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': 'Unauthorized'},
       );
     }
 
@@ -59,7 +33,8 @@ Future<Response> onRequest(RequestContext context) async {
       stackTrace: stackTrace,
     );
     return Response.json(
-      body: {'session': null, 'user': null},
+      statusCode: HttpStatus.unauthorized,
+      body: {'error': 'Unauthorized'},
     );
   }
 }

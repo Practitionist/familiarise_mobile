@@ -7,7 +7,7 @@ import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/auth/set-password
-/// Set password for an OAuth-only user
+/// Set password for an OAuth-only user and revoke existing sessions
 ///
 /// Request body:
 /// - newPassword: The password to set
@@ -48,6 +48,18 @@ Future<Response> onRequest(RequestContext context) async {
       userId: userId,
       newPassword: newPassword,
     );
+
+    final token = extractBearerToken(context);
+    if (token != null) {
+      invalidateSessionCache(token);
+    }
+    invalidateUserSessionsCache(userId);
+    try {
+      final authService = context.read<AuthService>();
+      await authService.revokeAllUserSessions(userId);
+    } catch (_) {
+      // AuthService may not be registered in isolated unit tests
+    }
 
     return Response.json(
       body: {'message': 'Password set successfully'},

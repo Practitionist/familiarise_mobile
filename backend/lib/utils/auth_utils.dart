@@ -1,5 +1,79 @@
+import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
 import 'package:dart_frog/dart_frog.dart';
+
+/// Default TTL for the in-memory verified-session cache (30 seconds).
+const Duration sessionCacheTtl = Duration(seconds: 30);
+
+/// Maximum number of cached session entries before automatic pruning.
+const int _maxSessionCacheEntries = 5000;
+
+class _CachedSessionEntry {
+  const _CachedSessionEntry({
+    required this.token,
+    required this.sessionId,
+    required this.userId,
+    required this.sessionData,
+    required this.expiresAt,
+  });
+
+  final String token;
+  final String sessionId;
+  final String userId;
+  final Map<String, dynamic> sessionData;
+  final DateTime expiresAt;
+
+  bool isExpired([DateTime? now]) =>
+      (now ?? DateTime.now().toUtc()).isAfter(expiresAt);
+}
+
+final Map<String, _CachedSessionEntry> _sessionCache =
+    <String, _CachedSessionEntry>{};
+
+/// Prune expired entries from the verified-session cache.
+void pruneSessionCache([DateTime? now]) {
+  final reference = now ?? DateTime.now().toUtc();
+  _sessionCache.removeWhere((_, entry) => entry.isExpired(reference));
+}
+
+/// Invalidate cached session verification for [token] (or clear all if null).
+///
+/// Also evicts any cache entry whose `sessionId` or `userId` matches [token].
+void invalidateSessionCache([String? token]) {
+  if (token == null || token.isEmpty) {
+    _sessionCache.clear();
+    return;
+  }
+  _sessionCache.remove(token);
+  _sessionCache.removeWhere(
+    (_, entry) => entry.sessionId == token || entry.userId == token,
+  );
+}
+
+/// Invalidate all cached sessions belonging to [userId].
+void invalidateUserSessionsCache(String userId) {
+  _sessionCache.removeWhere((_, entry) => entry.userId == userId);
+}
+
+/// Invalidate all cached sessions matching [sessionId].
+void invalidateSessionIdCache(String sessionId) {
+  _sessionCache.removeWhere((_, entry) => entry.sessionId == sessionId);
+}
+
+/// Clear all entries from the verified-session cache.
+void clearSessionCache() {
+  _sessionCache.clear();
+}
+
+/// Extract raw Bearer token from the request's `Authorization` header.
+String? extractBearerToken(RequestContext context) {
+  final authHeader = context.request.headers['authorization'];
+  if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  final token = authHeader.substring(7).trim();
+  return token.isEmpty ? null : token;
+}
 
 /// Extract user ID from JWT token in Authorization header
 ///
@@ -16,14 +90,99 @@ import 'package:dart_frog/dart_frog.dart';
 /// }
 /// ```
 String? getUserIdFromToken(RequestContext context) {
-  final authHeader = context.request.headers['authorization'];
-  if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+  final token = extractBearerToken(context);
+  if (token == null) {
     return null;
   }
 
-  final token = authHeader.substring(7);
   final jwtService = context.read<JwtService>();
   final payload = jwtService.tryVerify(token);
 
   return payload?['userId'] as String?;
+}
+
+/// Extract session ID from JWT token in Authorization header.
+String? getSessionIdFromToken(RequestContext context) {
+  final token = extractBearerToken(context);
+  if (token == null) {
+    return null;
+  }
+
+  final jwtService = context.read<JwtService>();
+  final payload = jwtService.tryVerify(token);
+
+  return payload?['sessionId'] as String?;
+}
+
+/// Verify both the JWT signature and active Postgres `Session` + `User` status,
+/// backed by a short-TTL (30s) in-memory cache so high-concurrency bursts do
+/// not hammer Postgres on repeated requests with the same token.
+///
+/// Returns the `{ 'session': ..., 'user': ... }` map when valid, or `null`
+/// if the token is missing, invalid, expired, or its session was revoked.
+Future<Map<String, dynamic>?> verifyActiveUserSession(
+  RequestContext context, {
+  DateTime? now,
+}) async {
+  final token = extractBearerToken(context);
+  if (token == null) {
+    return null;
+  }
+
+  final jwtService = context.read<JwtService>();
+  final payload = jwtService.tryVerify(token);
+  if (payload == null) {
+    invalidateSessionCache(token);
+    return null;
+  }
+
+  final sessionId = payload['sessionId'] as String?;
+  if (sessionId == null || sessionId.isEmpty) {
+    invalidateSessionCache(token);
+    return null;
+  }
+
+  final currentTime = now ?? DateTime.now().toUtc();
+  final cached = _sessionCache[token];
+  if (cached != null) {
+    if (!cached.isExpired(currentTime) && cached.sessionId == sessionId) {
+      return cached.sessionData;
+    }
+    _sessionCache.remove(token);
+  }
+
+  final authService = context.read<AuthService>();
+  final result = await authService.getSession(sessionId);
+  if (result == null || result['user'] == null) {
+    invalidateSessionCache(token);
+    return null;
+  }
+
+  final userMap = result['user'];
+  final sessionUserId = userMap is Map ? userMap['id'] as String? : null;
+  final payloadUserId = payload['userId'] as String?;
+  if (payloadUserId != null &&
+      sessionUserId != null &&
+      payloadUserId != sessionUserId) {
+    invalidateSessionCache(token);
+    return null;
+  }
+
+  if (_sessionCache.length >= _maxSessionCacheEntries) {
+    pruneSessionCache(currentTime);
+    if (_sessionCache.length >= _maxSessionCacheEntries) {
+      _sessionCache.remove(_sessionCache.keys.first);
+    }
+  }
+
+  final resolvedUserId = payloadUserId ?? sessionUserId ?? '';
+  _sessionCache[token] = _CachedSessionEntry(
+    token: token,
+    sessionId: sessionId,
+    userId: resolvedUserId,
+    sessionData: result,
+    expiresAt: currentTime.add(sessionCacheTtl),
+  );
+
+  return result;
 }

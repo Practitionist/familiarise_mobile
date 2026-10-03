@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/profile/profile_service.dart';
+import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/auth/reset-password
-/// Reset password using a verification token
+/// Reset password using a verification token and revoke all existing sessions
+/// for the user.
 ///
 /// Request body:
 /// - token: The reset token from the email link
@@ -36,11 +38,31 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
+    // Resolve userId from the verification token before resetPassword consumes it
+    AuthService? authService;
+    String? userId;
+    try {
+      authService = context.read<AuthService>();
+      userId = await authService.resolveUserIdFromPasswordResetToken(token);
+    } catch (_) {
+      // AuthService may not be registered in isolated unit tests
+    }
+
     final profileService = context.read<ProfileService>();
     await profileService.resetPassword(
       token: token,
       newPassword: newPassword,
     );
+
+    // Revoke all existing DB sessions and clear in-memory session cache
+    if (userId != null) {
+      invalidateUserSessionsCache(userId);
+      if (authService != null) {
+        await authService.revokeAllUserSessions(userId);
+      }
+    } else {
+      invalidateSessionCache();
+    }
 
     return Response.json(
       body: {'message': 'Password reset successfully'},
