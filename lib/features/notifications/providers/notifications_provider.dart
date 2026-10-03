@@ -340,16 +340,22 @@ class NotificationPreferencesNotifier
   }
 
   Future<void> updatePreferences(NotificationPreferencesModel updated) async {
+    final previous = state;
     state = AsyncData(updated);
-    final dio = ref.read(dioProvider);
-    final response = await dio.put(
-      '/api/notifications/preferences',
-      data: updated.toJson(),
-    );
-    final data = response.data as Map<String, dynamic>;
-    state = AsyncData(NotificationPreferencesModel.fromJson(data));
-    // Refresh notifications feed in case category/in-app toggles changed
-    ref.invalidate(notificationsProvider);
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.put(
+        '/api/notifications/preferences',
+        data: updated.toJson(),
+      );
+      final data = response.data as Map<String, dynamic>;
+      state = AsyncData(NotificationPreferencesModel.fromJson(data));
+      // Refresh notifications feed in case category/in-app toggles changed
+      ref.invalidate(notificationsProvider);
+    } catch (_) {
+      state = previous;
+      return;
+    }
   }
 }
 

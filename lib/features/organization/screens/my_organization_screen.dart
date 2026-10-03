@@ -157,10 +157,18 @@ class _AssignmentCard extends StatelessWidget {
 
   bool _canBookSeat(ProgramEntitlement entitlement) {
     if (entitlement.type == 'LICENSED_SEAT') {
-      final remaining = entitlement.engagementsRemaining;
+      final allocated =
+          entitlement.sessionsAllocated ?? entitlement.coveredEngagementsPerCycle;
+      final used = entitlement.sessionsUsed ?? entitlement.engagementsUsed ?? 0;
+      final remaining = entitlement.remainingSeats ??
+          entitlement.engagementsRemaining ??
+          (allocated != null
+              ? (allocated - used).clamp(0, allocated)
+              : null);
       return remaining == null || remaining > 0;
     }
-    final creditRemaining = entitlement.creditRemainingPaise;
+    final creditRemaining =
+        entitlement.creditPoolBalancePaise ?? entitlement.creditRemainingPaise;
     return creditRemaining == null || creditRemaining > 0;
   }
 
@@ -291,16 +299,20 @@ class _EntitlementMeter extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (entitlement.type == 'LICENSED_SEAT') {
-      final sessionsAllocated = entitlement.coveredEngagementsPerCycle;
-      final sessionsUsed = entitlement.engagementsUsed ?? 0;
-      final remainingSeats = entitlement.engagementsRemaining ??
+      final sessionsAllocated =
+          entitlement.sessionsAllocated ?? entitlement.coveredEngagementsPerCycle;
+      final sessionsUsed =
+          entitlement.sessionsUsed ?? entitlement.engagementsUsed ?? 0;
+      final remainingSeats = entitlement.remainingSeats ??
+          entitlement.engagementsRemaining ??
           (sessionsAllocated != null
               ? (sessionsAllocated - sessionsUsed).clamp(0, sessionsAllocated)
               : null);
-      final sessionsHeld = sessionsAllocated != null && remainingSeats != null
-          ? (sessionsAllocated - sessionsUsed - remainingSeats)
-              .clamp(0, sessionsAllocated)
-          : 0;
+      final sessionsHeld = entitlement.sessionsHeld ??
+          (sessionsAllocated != null && remainingSeats != null
+              ? (sessionsAllocated - sessionsUsed - remainingSeats)
+                  .clamp(0, sessionsAllocated)
+              : 0);
 
       if (sessionsAllocated == null) {
         return Column(
@@ -398,9 +410,12 @@ class _EntitlementMeter extends StatelessWidget {
     }
 
     // Credit Pool entitlement
-    final budget = entitlement.creditBudgetPaise;
-    final remaining = entitlement.creditRemainingPaise ?? 0;
-    final consumed = entitlement.creditConsumedPaise ??
+    final budget =
+        entitlement.creditPoolBudgetPaise ?? entitlement.creditBudgetPaise;
+    final remaining = entitlement.creditPoolBalancePaise ??
+        entitlement.creditRemainingPaise ??
+        0;
+    final consumed = entitlement.consumedPaise ??
         (budget != null ? (budget - remaining).clamp(0, budget) : 0);
 
     if (budget == null) {

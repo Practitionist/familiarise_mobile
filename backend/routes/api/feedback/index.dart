@@ -48,8 +48,26 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       );
     }
 
-    final data = await context.request.json() as Map<String, dynamic>;
-    final appointmentId = data['appointmentId'] as String?;
+    final rawBody = await context.request.json();
+    if (rawBody is! Map<String, dynamic>) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Invalid request body format'},
+        },
+      );
+    }
+    final data = rawBody;
+    final rawAppointmentId = data['appointmentId'];
+    if (rawAppointmentId != null && rawAppointmentId is! String) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'appointmentId must be a string'},
+        },
+      );
+    }
+    final appointmentId = rawAppointmentId as String?;
 
     if (appointmentId != null && appointmentId.trim().isNotEmpty) {
       return await _handleCreateAppointmentFeedback(
@@ -61,10 +79,12 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
     }
 
     // Validate required fields for general app feedback
-    final title = data['title'] as String?;
-    final description = data['description'] as String?;
+    final rawTitle = data['title'];
+    final rawDescription = data['description'];
+    final rawCategory = data['category'];
+    final rawRating = data['rating'];
 
-    if (title == null || title.isEmpty) {
+    if (rawTitle is! String || rawTitle.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
@@ -73,7 +93,7 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       );
     }
 
-    if (description == null || description.isEmpty) {
+    if (rawDescription is! String || rawDescription.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
@@ -82,8 +102,28 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       );
     }
 
-    // Validate rating if provided
-    final rating = (data['rating'] as num?)?.toInt();
+    if (rawCategory != null && rawCategory is! String) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Category must be a string'},
+        },
+      );
+    }
+
+    if (rawRating != null && rawRating is! int) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Rating must be an integer between 1 and 5'},
+        },
+      );
+    }
+
+    final title = rawTitle;
+    final description = rawDescription;
+    final rating = rawRating as int?;
+
     if (rating != null && (rating < 1 || rating > 5)) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -99,7 +139,7 @@ Future<Response> _handleCreateFeedback(RequestContext context) async {
       userId: userId,
       title: title,
       description: description,
-      category: data['category'] as String?,
+      category: rawCategory as String?,
       rating: rating,
     );
 
@@ -137,8 +177,8 @@ Future<Response> _handleCreateAppointmentFeedback(
   required String appointmentId,
   required Map<String, dynamic> data,
 }) async {
-  final rating = (data['rating'] as num?)?.toInt();
-  if (rating == null || rating < 1 || rating > 5) {
+  final rawRating = data['rating'];
+  if (rawRating is! int || rawRating < 1 || rawRating > 5) {
     return Response.json(
       statusCode: HttpStatus.badRequest,
       body: {
@@ -146,8 +186,18 @@ Future<Response> _handleCreateAppointmentFeedback(
       },
     );
   }
+  final rating = rawRating;
 
-  final rawCause = (data['ratingCause'] ?? data['cause']) as String?;
+  final rawCauseField = data['ratingCause'] ?? data['cause'];
+  if (rawCauseField != null && rawCauseField is! String) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'ratingCause must be a string'},
+      },
+    );
+  }
+  final rawCause = rawCauseField as String?;
   final ratingCause =
       rawCause != null && rawCause.isNotEmpty ? rawCause.toUpperCase() : null;
   if (ratingCause != null && !_validRatingCauses.contains(ratingCause)) {
@@ -162,9 +212,16 @@ Future<Response> _handleCreateAppointmentFeedback(
     );
   }
 
-  final rawComment = (data['comment'] as String?)?.trim();
-  final organizationId = data['organizationId'] as String?;
-  final consultantProfileId = data['consultantProfileId'] as String?;
+  final rawCommentField = data['comment'];
+  if (rawCommentField != null && rawCommentField is! String) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {
+        'error': {'message': 'comment must be a string'},
+      },
+    );
+  }
+  final rawComment = (rawCommentField as String?)?.trim();
   final publishPublicReview = data['publishPublicReview'] == true ||
       data['submitPublicReview'] == true;
 
@@ -176,6 +233,97 @@ Future<Response> _handleCreateAppointmentFeedback(
       : rawComment;
 
   final db = context.read<DatabaseClient>();
+
+  // Load appointment and verify existence + participant ownership
+  final appointment = await db.prisma.appointment.findUnique(
+    where: AppointmentWhereUniqueInput(id: appointmentId),
+    include: const AppointmentInclude(
+      consultation: ConsultationInclude(
+        consultationPlan: ConsultationPlanInclude(),
+      ),
+      subscription: SubscriptionInclude(
+        subscriptionPlan: SubscriptionPlanInclude(),
+      ),
+      webinar: WebinarInclude(
+        webinarPlan: WebinarPlanInclude(),
+      ),
+      classRef: ClassModelInclude(
+        classPlan: ClassPlanInclude(),
+      ),
+      trialSession: TrialSessionInclude(),
+      slotsOfAppointment: SlotOfAppointmentInclude(
+        user: UserInclude(),
+      ),
+    ),
+  );
+
+  if (appointment == null) {
+    return Response.json(
+      statusCode: HttpStatus.notFound,
+      body: {
+        'error': {'message': 'Appointment not found'},
+      },
+    );
+  }
+
+  final userRecord = await db.users.findById(userId);
+  var userConsulteeProfileId = userRecord?['consulteeProfileId'] as String?;
+  final userConsultantProfileId = userRecord?['consultantProfileId'] as String?;
+  if (userConsulteeProfileId == null) {
+    final consulteeProfile = await db.consulteeProfiles.findByUserId(userId);
+    userConsulteeProfileId = consulteeProfile?['id'] as String?;
+  }
+
+  final slotConsultantProfileIds = <String>[];
+  var isSlotParticipant = false;
+  for (final slot in appointment.slotsOfAppointment ?? const <dynamic>[]) {
+    final slotConsultantId = slot.consultantProfileId as String?;
+    if (slotConsultantId != null && slotConsultantId.isNotEmpty) {
+      slotConsultantProfileIds.add(slotConsultantId);
+    }
+    for (final slotUser in slot.user ?? const <dynamic>[]) {
+      if (slotUser.id == userId) {
+        isSlotParticipant = true;
+      }
+    }
+  }
+  final consultantProfileId =
+      appointment.consultation?.consultationPlan?.consultantProfileId ??
+          appointment.subscription?.subscriptionPlan?.consultantProfileId ??
+          appointment.webinar?.webinarPlan?.consultantProfileId ??
+          appointment.classRef?.classPlan?.consultantProfileId ??
+          appointment.trialSession?.consultantProfileId ??
+          (slotConsultantProfileIds.isNotEmpty
+              ? slotConsultantProfileIds.first
+              : null);
+
+  final appointmentConsulteeProfileId =
+      appointment.consultation?.requestedById ??
+          appointment.subscription?.requestedById ??
+          appointment.trialSession?.consulteeProfileId;
+
+  final isConsultee = isSlotParticipant ||
+      (userConsulteeProfileId != null &&
+          userConsulteeProfileId == appointmentConsulteeProfileId);
+  final isConsultant = userConsultantProfileId != null &&
+      userConsultantProfileId == consultantProfileId;
+
+  if (!isConsultee && !isConsultant) {
+    return Response.json(
+      statusCode: HttpStatus.forbidden,
+      body: {
+        'error': {'message': 'You are not a participant in this appointment'},
+      },
+    );
+  }
+
+  // Derive organizationId from the verified appointment or its linked plan
+  final organizationId = appointment.organizationId ??
+      appointment.consultation?.consultationPlan?.organizationId ??
+      appointment.subscription?.subscriptionPlan?.organizationId ??
+      appointment.webinar?.webinarPlan?.organizationId ??
+      appointment.classRef?.classPlan?.organizationId ??
+      appointment.trialSession?.organizationId;
 
   final saved = await db.prisma.appointmentFeedback.upsert(
     where: AppointmentFeedbackWhereUniqueInput(
@@ -201,23 +349,27 @@ Future<Response> _handleCreateAppointmentFeedback(
 
   var reviewCreated = false;
   if (publishPublicReview &&
+      isConsultee &&
+      userConsulteeProfileId != null &&
       consultantProfileId != null &&
       consultantProfileId.isNotEmpty) {
     try {
-      final consulteeProfile = await db.consulteeProfiles.findByUserId(userId);
-      final consulteeProfileId = consulteeProfile?['id'] as String?;
-      if (consulteeProfileId != null) {
-        await db.reviews.createReview(
-          consulteeProfileId: consulteeProfileId,
-          consultantProfileId: consultantProfileId,
-          rating: rating,
-          reviewDescription: rawComment,
-        );
-        reviewCreated = true;
-      }
+      await db.reviews.createReview(
+        consulteeProfileId: userConsulteeProfileId,
+        consultantProfileId: consultantProfileId,
+        rating: rating,
+        reviewDescription: rawComment,
+      );
+      reviewCreated = true;
     } on AlreadyExistsException {
       reviewCreated = false;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      await SentryLogger.error(
+        'Failed to create public review from CSAT',
+        context: 'FeedbackRoute',
+        error: e,
+        stackTrace: stackTrace,
+      );
       reviewCreated = false;
     }
   }
@@ -281,8 +433,9 @@ Future<Response> _handleGetFeedback(RequestContext context) async {
     return Response.json(
       body: serializeForJson({
         'data': feedbackList,
-        'appointmentFeedbacks':
-            appointmentFeedbacks.map((f) => f.toJson()).toList(),
+        'appointmentFeedbacks': appointmentFeedbacks
+            .map((AppointmentFeedback f) => f.toJson())
+            .toList(),
       }),
     );
   } catch (e, stackTrace) {

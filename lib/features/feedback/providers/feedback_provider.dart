@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/errors/exceptions.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/feedback_repository_impl.dart';
@@ -41,11 +43,18 @@ class AppointmentCsatResult {
   final String? ratingCause;
   final bool reviewCreated;
 
-  factory AppointmentCsatResult.fromJson(Map<String, dynamic> json) {
+  factory AppointmentCsatResult.fromJson(
+    Map<String, dynamic> json, {
+    int? fallbackRating,
+  }) {
+    final parsedRating = (json['rating'] as num?)?.toInt() ?? fallbackRating;
+    if (parsedRating == null) {
+      throw const FormatException('Missing rating in CSAT response');
+    }
     return AppointmentCsatResult(
       id: (json['id'] as String?) ?? '',
       appointmentId: (json['appointmentId'] as String?) ?? '',
-      rating: (json['rating'] as num?)?.toInt() ?? 5,
+      rating: parsedRating,
       comment: json['comment'] as String?,
       ratingCause: json['ratingCause'] as String?,
       reviewCreated: (json['reviewCreated'] as bool?) ?? false,
@@ -139,6 +148,7 @@ class PostCallCsatNotifier
       );
       final result = AppointmentCsatResult.fromJson(
         response.data as Map<String, dynamic>,
+        fallbackRating: rating,
       );
       state = AsyncData(result);
       return result;
@@ -148,7 +158,9 @@ class PostCallCsatNotifier
         stackTrace: stack,
         context: 'PostCallCsatNotifier.submitCsat',
       );
-      state = AsyncError(e, stack);
+      final unwrapped =
+          e is DioException && e.error is AppException ? e.error! : e;
+      state = AsyncError(unwrapped, stack);
       return null;
     }
   }

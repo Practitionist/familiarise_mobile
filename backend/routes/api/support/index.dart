@@ -103,7 +103,36 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
       );
     }
 
-    final data = await context.request.json() as Map<String, dynamic>;
+    final rawData = await context.request.json();
+    if (rawData is! Map<String, dynamic>) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Request body must be a JSON object'},
+        },
+      );
+    }
+    final data = rawData;
+
+    for (final field in const [
+      'title',
+      'description',
+      'issueType',
+      'priority',
+      'category',
+      'consultationId',
+      'subscriptionId',
+      'paymentId',
+    ]) {
+      if (data[field] != null && data[field] is! String) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {
+            'error': {'message': '$field must be a string'},
+          },
+        );
+      }
+    }
 
     // Validate required fields
     final title = data['title'] as String?;
@@ -129,11 +158,12 @@ Future<Response> _handleCreateTicket(RequestContext context) async {
 
     final db = context.read<DatabaseClient>();
     final issueType = data['issueType'] as String?;
-    final explicitCategory = data['category'] as String?;
-    final resolvedCategory = explicitCategory != null &&
-            explicitCategory.trim().isNotEmpty
-        ? explicitCategory.trim()
-        : _categoryForIssueType(issueType);
+    final rawCategory = data['category'];
+    final explicitCategory = rawCategory is String ? rawCategory.trim() : null;
+    final resolvedCategory =
+        explicitCategory != null && explicitCategory.isNotEmpty
+            ? explicitCategory
+            : _categoryForIssueType(issueType);
 
     final ticket = await db.supportTickets.createTicket(
       userId: userId,
@@ -194,11 +224,14 @@ String? _categoryForIssueType(String? issueType) {
     case 'REFUND_REQUEST':
     case 'BILLING_QUESTION':
       return 'Payment Issues';
+    case 'DOCUMENT_ISSUE':
+      return 'Documents';
     case 'WANT_TO_CANCEL':
     case 'CANCELLATION_ISSUE':
       return 'Cancellation';
     case 'ACCOUNT_ISSUE':
     case 'PROFILE_ISSUE':
+    case 'GENERAL_INQUIRY':
     case 'OTHER':
       return 'General';
     default:

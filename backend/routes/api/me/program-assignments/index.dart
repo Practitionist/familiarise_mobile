@@ -31,41 +31,55 @@ Future<Response> onRequest(RequestContext context) async {
     final rawAssignments =
         await db.organizations.getMyProgramAssignments(userId);
 
+    final assignmentIds = rawAssignments
+        .map((raw) => raw['id'] as String?)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toList();
+
+    final heldByAssignmentId = <String, int>{};
+    if (assignmentIds.isNotEmpty) {
+      final utilizations = await db.prisma.bookingUtilization.findManyProjected(
+        where: BookingUtilizationWhereInput(
+          programAssignmentId: StringFilter(in_: assignmentIds),
+          reversedAt: const DateTimeFilter(isNull: true),
+          payment: const PaymentRelationFilter(
+            is_: PaymentWhereInput(
+              paymentStatus: PaymentStatusFilter(
+                equals: PaymentStatus.pending,
+              ),
+            ),
+          ),
+        ),
+        select: const [
+          BookingUtilizationScalarField.programAssignmentId,
+          BookingUtilizationScalarField.engagementsConsumed,
+        ],
+      );
+      for (final u in utilizations) {
+        final aid = u['programAssignmentId'] as String?;
+        final consumed = (u['engagementsConsumed'] as num?)?.toInt() ?? 0;
+        if (aid != null && consumed > 0) {
+          heldByAssignmentId[aid] = (heldByAssignmentId[aid] ?? 0) + consumed;
+        }
+      }
+    }
+
     final enrichedAssignments = <Map<String, dynamic>>[];
     for (final raw in rawAssignments) {
       final assignmentId = raw['id'] as String?;
       final entitlement =
           Map<String, dynamic>.from(raw['entitlement'] as Map? ?? const {});
 
-      var sessionsHeld = 0;
-      if (assignmentId != null && assignmentId.isNotEmpty) {
-        try {
-          final utilizations = await db.prisma.bookingUtilization.findMany(
-            where: BookingUtilizationWhereInput(
-              programAssignmentId: StringFilter(equals: assignmentId),
-            ),
-            include: const BookingUtilizationInclude(
-              payment: PaymentInclude(),
-            ),
-          );
-          for (final u in utilizations) {
-            if (u.reversedAt == null &&
-                u.payment?.paymentStatus == PaymentStatus.pending) {
-              sessionsHeld += u.engagementsConsumed;
-            }
-          }
-        } catch (_) {
-          sessionsHeld = 0;
-        }
-      }
+      final sessionsHeld =
+          assignmentId != null ? (heldByAssignmentId[assignmentId] ?? 0) : 0;
 
       final sessionsAllocated =
           (entitlement['coveredEngagementsPerCycle'] as num?)?.toInt();
       final sessionsUsed =
           (entitlement['engagementsUsed'] as num?)?.toInt() ?? 0;
       final remainingSeats = sessionsAllocated != null
-          ? (sessionsAllocated - sessionsUsed - sessionsHeld)
-              .clamp(0, sessionsAllocated)
+          ? (sessionsAllocated - sessionsUsed).clamp(0, sessionsAllocated)
           : (entitlement['engagementsRemaining'] as num?)?.toInt();
       final creditPoolBalancePaise =
           (entitlement['creditRemainingPaise'] as num?)?.toInt();

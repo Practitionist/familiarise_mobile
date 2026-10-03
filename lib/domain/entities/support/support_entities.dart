@@ -87,6 +87,38 @@ enum SupportIssueType {
     );
   }
 
+  /// Category name for backend ticket creation
+  String get category {
+    switch (this) {
+      case consultantNoShow:
+      case consultantLate:
+      case sessionEndedEarly:
+      case sessionQualityPoor:
+      case communicationIssue:
+      case technicalIssues:
+      case wrongConsultant:
+        return 'Session Issues';
+      case accessIssue:
+      case timezoneConfusion:
+      case reschedulingHelp:
+        return 'Scheduling & Access';
+      case paymentFailed:
+      case chargedTwice:
+      case refundRequest:
+      case billingQuestion:
+        return 'Payment Issues';
+      case documentIssue:
+        return 'Documents';
+      case wantToCancel:
+      case cancellationIssue:
+        return 'Cancellation';
+      case accountIssue:
+      case generalInquiry:
+      case other:
+        return 'General';
+    }
+  }
+
   /// Group issue types by category for picker UI
   static Map<String, List<SupportIssueType>> get groupedByCategory => {
         'Session Issues': [

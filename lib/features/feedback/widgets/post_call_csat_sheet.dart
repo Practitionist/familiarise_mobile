@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/exceptions.dart';
 import '../../reviews/widgets/star_rating_input.dart';
 import '../providers/feedback_provider.dart';
 
@@ -59,7 +61,7 @@ class PostCallCsatSheet extends ConsumerStatefulWidget {
 class _PostCallCsatSheetState extends ConsumerState<PostCallCsatSheet> {
   late int _rating = widget.initialRating;
   SessionRatingCause? _selectedCause;
-  late bool _publishPublicReview = widget.consultantProfileId != null;
+  bool _publishPublicReview = false;
   final _commentController = TextEditingController();
   bool _isSubmitting = false;
 
@@ -86,10 +88,33 @@ class _PostCallCsatSheetState extends ConsumerState<PostCallCsatSheet> {
     }
   }
 
+  String _resolveErrorMessage(Object? error) {
+    if (error is AppException && error.message.trim().isNotEmpty) {
+      return error.message;
+    }
+    if (error is DioException) {
+      final inner = error.error;
+      if (inner is AppException && inner.message.trim().isNotEmpty) {
+        return inner.message;
+      }
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final err = data['error'];
+        if (err is Map<String, dynamic> && err['message'] is String) {
+          final msg = (err['message'] as String).trim();
+          if (msg.isNotEmpty) return msg;
+        }
+      }
+    }
+    return 'Could not submit rating. Please try again.';
+  }
+
   Future<void> _submit() async {
     if (_rating < 1 || _isSubmitting) return;
     setState(() => _isSubmitting = true);
 
+    final hasConsultantProfile =
+        widget.consultantProfileId?.isNotEmpty ?? false;
     final result = await ref.read(postCallCsatProvider.notifier).submitCsat(
           appointmentId: widget.appointmentId,
           rating: _rating,
@@ -97,8 +122,7 @@ class _PostCallCsatSheetState extends ConsumerState<PostCallCsatSheet> {
           comment: _commentController.text,
           consultantProfileId: widget.consultantProfileId,
           organizationId: widget.organizationId,
-          publishPublicReview:
-              widget.consultantProfileId != null && _publishPublicReview,
+          publishPublicReview: hasConsultantProfile && _publishPublicReview,
         );
 
     if (!mounted) return;
@@ -117,9 +141,11 @@ class _PostCallCsatSheetState extends ConsumerState<PostCallCsatSheet> {
       );
       Navigator.of(context).pop(result);
     } else {
+      final errorObj = ref.read(postCallCsatProvider).error;
+      final errorMessage = _resolveErrorMessage(errorObj);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Could not submit rating. Please try again.'),
+          content: Text(errorMessage),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),

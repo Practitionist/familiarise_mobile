@@ -40,6 +40,7 @@ class ProgramSummary with _$ProgramSummary {
     required String id,
     required String name,
     required String type,
+    String? description,
     @Default(<String>[]) List<String> coveredPlanTypes,
   }) = _ProgramSummary;
 
@@ -58,9 +59,15 @@ class ProgramEntitlement with _$ProgramEntitlement {
     int? engagementsUsed,
     int? coveredEngagementsPerCycle,
     int? engagementsRemaining,
+    int? sessionsAllocated,
+    int? sessionsUsed,
+    int? sessionsHeld,
+    int? remainingSeats,
     int? creditBudgetPaise,
     int? consumedPaise,
     int? creditRemainingPaise,
+    int? creditPoolBalancePaise,
+    int? creditPoolBudgetPaise,
   }) = _ProgramEntitlement;
 
   factory ProgramEntitlement.fromJson(Map<String, dynamic> json) =>
@@ -77,6 +84,12 @@ class ProgramAssignmentInfo with _$ProgramAssignmentInfo {
     required OrgSummary organization,
     required ProgramSummary program,
     required ProgramEntitlement entitlement,
+    int? sessionsAllocated,
+    int? sessionsUsed,
+    int? sessionsHeld,
+    int? remainingSeats,
+    int? creditPoolBalancePaise,
+    int? creditPoolBudgetPaise,
   }) = _ProgramAssignmentInfo;
 
   factory ProgramAssignmentInfo.fromJson(Map<String, dynamic> json) =>

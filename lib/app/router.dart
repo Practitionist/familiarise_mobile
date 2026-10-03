@@ -153,13 +153,11 @@ GoRouter router(Ref ref) {
         return '/onboarding';
       }
 
-      // Companion Starter routes (/payouts, /payout-accounts, /referrals,
-      // /collaborations) and /staff (routed directly to ComingSoonScreen)
-      // bypass generic feature-flag redirects.
+      // Companion Starter routes (/payouts, /referrals) and /staff
+      // (routed directly to ComingSoonScreen) bypass generic feature-flag
+      // redirects.
       final isCompanionOrStaffRoute = location.startsWith('/payouts') ||
-          location.startsWith('/payout-accounts') ||
           location.startsWith('/referrals') ||
-          location.startsWith('/collaborations') ||
           location.startsWith('/staff');
 
       if (!isCompanionOrStaffRoute) {

@@ -77,7 +77,16 @@ Future<Response> _handleUpdatePreferences(RequestContext context) async {
       );
     }
 
-    final body = await context.request.json() as Map<String, dynamic>;
+    final rawBody = await context.request.json();
+    if (rawBody is! Map<String, dynamic>) {
+      return Response.json(
+        statusCode: HttpStatus.badRequest,
+        body: {
+          'error': {'message': 'Request body must be a JSON object'},
+        },
+      );
+    }
+    final body = rawBody;
     final db = context.read<DatabaseClient>();
 
     bool? readBool(String key) {
