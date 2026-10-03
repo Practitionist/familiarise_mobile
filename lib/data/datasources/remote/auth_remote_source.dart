@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/network/dio_client.dart';
 import '../../models/user_model.dart';
 import 'auth_remote_source_mobile.dart';
 import 'auth_remote_source_web.dart';
@@ -11,7 +12,10 @@ part 'auth_remote_source.g.dart';
 /// Provider for AuthRemoteSource — selects platform implementation at runtime.
 @riverpod
 AuthRemoteSource authRemoteSource(Ref ref) {
-  final source = kIsWeb ? AuthRemoteSourceWebImpl() : AuthRemoteSourceImpl();
+  final dio = ref.watch(dioProvider);
+  final source = kIsWeb
+      ? AuthRemoteSourceWebImpl(dio: dio)
+      : AuthRemoteSourceImpl(dio: dio);
   ref.onDispose(source.dispose);
   return source;
 }
@@ -33,6 +37,9 @@ abstract class AuthRemoteSource {
 
   /// Sign out
   Future<void> signOut();
+
+  /// Get current active session user from backend
+  Future<UserModel?> getCurrentSession();
 
   /// Get current user from session
   Future<UserModel?> getCurrentUser();

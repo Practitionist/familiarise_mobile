@@ -27,12 +27,15 @@ extension StringX on String {
     return words[0][0].toUpperCase();
   }
 
+  /// Shared email validation pattern supporting modern multi-character TLDs
+  /// (e.g. `.online`, `.agency`, `.consulting`, `.local`).
+  static final RegExp emailRegex = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+  );
+
   /// Check if string is a valid email
   bool get isValidEmail {
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return emailRegex.hasMatch(this);
+    return emailRegex.hasMatch(trim());
   }
 
   /// Check if string is a valid phone number
@@ -45,7 +48,7 @@ extension StringX on String {
   /// Check if string is a valid URL
   bool get isValidUrl {
     final urlRegex = RegExp(
-      r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$',
+      r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{2,}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$',
     );
     return urlRegex.hasMatch(this);
   }

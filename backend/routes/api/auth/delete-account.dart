@@ -26,8 +26,14 @@ Future<Response> onRequest(RequestContext context) async {
       );
     }
 
+    final token = extractBearerToken(context);
     final profileService = context.read<ProfileService>();
     await profileService.deleteAccount(userId: userId);
+
+    if (token != null) {
+      invalidateSessionCache(token);
+    }
+    invalidateUserSessionsCache(userId);
 
     return Response.json(
       body: {'message': 'Account deleted successfully'},
