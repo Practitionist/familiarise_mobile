@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/prod' }}
 
 env:
-  FLUTTER_VERSION: '3.47.6'
+  FLUTTER_VERSION: '3.44.1'
   JAVA_VERSION: '17'
 
 jobs:
