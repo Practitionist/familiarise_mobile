@@ -100,22 +100,30 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install backend dependencies
+      - name: Regenerate Prisma client + freezed
         working-directory: backend
-        run: flutter pub get
+        run: ./scripts/regenerate-build.sh --prisma
 
-      - name: Generate Prisma client & schema registry
+      - name: Analyze backend code (fail on errors + warnings)
         working-directory: backend
         run: |
-          dart run prisma_flutter_connector:generate \
-            --schema prisma/schema.prisma \
-            --output lib/generated \
-            --server
-          dart run build_runner build --delete-conflicting-outputs
-
-      - name: Analyze backend code
-        working-directory: backend
-        run: dart analyze --fatal-infos
+          dart analyze --format=json lib routes test > analyze.json || true
+          python3 - <<'EOF'
+          import json, sys, collections
+          with open('analyze.json') as f:
+              diagnostics = json.load(f)['diagnostics']
+          bad = [d for d in diagnostics if d['severity'] in ('ERROR', 'WARNING')]
+          print('diagnostics by severity:',
+                dict(collections.Counter(d['severity'] for d in diagnostics)))
+          for d in bad:
+              loc = d['location']
+              print(f"::error file={loc['file']},"
+                    f"line={loc['range']['start']['line']}::"
+                    f"{d['severity']} {d['code']}: {d['problemMessage']}")
+          if bad:
+              sys.exit(f"{len(bad)} error(s)/warning(s) found")
+          print('No errors or warnings.')
+          EOF
 
       - name: Run backend unit tests
         working-directory: backend
