@@ -52,26 +52,24 @@ class CollaborationCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Role + Revenue share
+            // Role + Revenue share percentage
             Row(
               children: [
                 _RoleBadge(role: collaboration.role),
                 const Spacer(),
-                if (collaboration.revenueSharePercentage > 0) ...[
-                  Icon(
-                    Icons.pie_chart_outline,
-                    size: 14,
+                Icon(
+                  Icons.pie_chart_outline,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${collaboration.revenueSharePercentage.toStringAsFixed(0)}% revenue share',
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${collaboration.revenueSharePercentage.toStringAsFixed(0)}% share',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
             const SizedBox(height: 8),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:backend/database/database_client.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -8,9 +9,6 @@ import 'package:dart_frog/dart_frog.dart';
 /// Stream Chat set member role endpoint
 ///
 /// POST /api/stream/set-member-role - Update a member's role in a channel
-///
-/// This endpoint changes a member's role/capabilities in a channel.
-/// Used to demote cancelled participants to read-only.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
@@ -19,32 +17,8 @@ Future<Response> onRequest(RequestContext context) async {
   return _handleSetMemberRole(context);
 }
 
-/// POST /api/stream/set-member-role
-///
-/// Updates a member's role in a channel.
-///
-/// Request body:
-/// ```json
-/// {
-///   "channelType": "team",
-///   "channelId": "class_abc123",
-///   "userId": "user123",
-///   "role": "channel_member"
-/// }
-/// ```
-///
-/// Available roles:
-/// - "owner" - Full control, can manage channel
-/// - "channel_moderator" - Can moderate messages and members
-/// - "channel_member" - Standard read-only access (default)
-///
-/// Response:
-/// ```json
-/// { "success": true }
-/// ```
 Future<Response> _handleSetMemberRole(RequestContext context) async {
   try {
-    // Verify user is authenticated
     final currentUserId = getUserIdFromToken(context);
     if (currentUserId == null) {
       return Response.json(
@@ -55,14 +29,12 @@ Future<Response> _handleSetMemberRole(RequestContext context) async {
       );
     }
 
-    // Parse request body
     final body = await context.request.json() as Map<String, dynamic>;
     final channelType = body['channelType'] as String? ?? 'team';
     final channelId = body['channelId'] as String?;
     final userId = body['userId'] as String?;
     final role = body['role'] as String?;
 
-    // Validate required fields
     if (channelId == null || channelId.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -90,7 +62,6 @@ Future<Response> _handleSetMemberRole(RequestContext context) async {
       );
     }
 
-    // Validate role value
     final validRoles = ['owner', 'channel_moderator', 'channel_member'];
     if (!validRoles.contains(role)) {
       return Response.json(
@@ -103,8 +74,27 @@ Future<Response> _handleSetMemberRole(RequestContext context) async {
       );
     }
 
-    // Get Stream service from provider
+    final db = context.read<DatabaseClient>();
     final streamService = context.read<StreamService>();
+
+    final hasAccess = await streamService.verifyChannelAccess(
+      db,
+      channelId: channelId,
+      userId: currentUserId,
+      requireHostOrCollaborator: true,
+    );
+
+    if (!hasAccess) {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {
+          'error': {
+            'message': 'Forbidden: only the host consultant or an accepted '
+                'collaborator can update member roles',
+          },
+        },
+      );
+    }
 
     if (!streamService.isConfigured) {
       await SentryLogger.error(
@@ -119,7 +109,6 @@ Future<Response> _handleSetMemberRole(RequestContext context) async {
       );
     }
 
-    // Update member role
     await streamService.updateMemberRole(
       channelType: channelType,
       channelId: channelId,

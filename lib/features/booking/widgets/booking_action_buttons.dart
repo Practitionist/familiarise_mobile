@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/config/feature_flags.dart';
+import '../../../core/utils/web_dashboard_launcher.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 
-/// Action buttons for a booking (join, chat, pay, reschedule, cancel, review, report).
+/// Action buttons for a booking (join video call, chat, pay, manage on web, cancel, review, report).
 ///
 /// All user actions are delegated to callback parameters so the parent screen
 /// retains control over navigation, refs, and mounted checks.
@@ -14,10 +15,12 @@ class BookingActionButtons extends StatelessWidget {
   final VoidCallback onJoinMeeting;
   final VoidCallback onTalkToExpert;
   final VoidCallback onPayNow;
-  final VoidCallback onReschedule;
+  final VoidCallback? onReschedule;
   final VoidCallback onCancel;
   final VoidCallback onWriteReview;
   final VoidCallback onReportIssue;
+  final VoidCallback? onManageOnWeb;
+  final bool hideCountdownCardActions;
 
   const BookingActionButtons({
     super.key,
@@ -27,26 +30,37 @@ class BookingActionButtons extends StatelessWidget {
     required this.onJoinMeeting,
     required this.onTalkToExpert,
     required this.onPayNow,
-    required this.onReschedule,
+    this.onReschedule,
     required this.onCancel,
     required this.onWriteReview,
     required this.onReportIssue,
+    this.onManageOnWeb,
+    this.hideCountdownCardActions = false,
   });
+
+  bool get _hasUpcomingOrLiveSession {
+    if (booking.status != RequestStatus.scheduled) return false;
+    if (booking.appointmentId == null) return false;
+    if (booking.canJoinMeeting) return true;
+    if (booking.slots.isEmpty) return false;
+    final slot = booking.slots.first;
+    return !slot.isTentative && DateTime.now().isBefore(slot.endsAt);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final actions = <Widget>[];
 
-    // Join Meeting button (for SCHEDULED within time window)
-    if (booking.canJoinMeeting) {
+    // 1-tap Join Video Call button when session is upcoming/live
+    if (!hideCountdownCardActions && _hasUpcomingOrLiveSession) {
       actions.add(
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
             onPressed: isActionLoading ? null : onJoinMeeting,
             icon: const Icon(Icons.videocam),
-            label: const Text('Join Meeting'),
+            label: const Text('Join Video Call'),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.green,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -80,8 +94,6 @@ class BookingActionButtons extends StatelessWidget {
     }
 
     // Pay Now button (for APPROVED_PENDING_PAYMENT, consultee only).
-    // Hidden while payments are deferred — the status section explains
-    // that payment completes on the website.
     if (FeatureFlags.payments &&
         !isConsultantView &&
         booking.status == RequestStatus.approvedPendingPayment) {
@@ -101,15 +113,21 @@ class BookingActionButtons extends StatelessWidget {
       );
     }
 
-    // Reschedule button (consultee only)
-    if (!isConsultantView && booking.canReschedule) {
+    // Companion Starter Web Handoff: Manage Availability / Reschedule on Web
+    if (!hideCountdownCardActions &&
+        booking.status != RequestStatus.cancelled &&
+        booking.status != RequestStatus.rejected &&
+        booking.status != RequestStatus.expired &&
+        booking.status != RequestStatus.completed) {
       actions.add(
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: isActionLoading ? null : onReschedule,
-            icon: const Icon(Icons.calendar_month),
-            label: const Text('Reschedule'),
+            onPressed: isActionLoading
+                ? null
+                : (onManageOnWeb ?? () => launchFamiliariseWebDashboard(context)),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Manage Availability / Reschedule on Web'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
@@ -180,8 +198,8 @@ class BookingActionButtons extends StatelessWidget {
       );
     }
 
-    // Show info message if actions are disabled due to 24h restriction
-    if (!booking.canReschedule &&
+    // Show info message if cancellation is disabled due to 24h restriction
+    if (!booking.canCancelNow &&
         booking.status != RequestStatus.cancelled &&
         booking.status != RequestStatus.completed &&
         booking.status != RequestStatus.rejected &&
@@ -204,7 +222,7 @@ class BookingActionButtons extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Reschedule and cancel are disabled within 24 hours of your appointment',
+                  'Cancellation is disabled within 24 hours of your appointment',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

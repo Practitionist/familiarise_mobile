@@ -17,40 +17,18 @@ Future<Response> onRequest(RequestContext context) async {
   return Response(statusCode: HttpStatus.methodNotAllowed);
 }
 
-/// POST /api/stream/token
-///
-/// Get a Stream Video token for joining a meeting.
-///
-/// Request body:
-/// ```json
-/// {
-///   "appointmentId": "appointment-uuid"
-/// }
-/// ```
-///
-/// Response:
-/// ```json
-/// {
-///   "token": "jwt-token",
-///   "apiKey": "stream-api-key",
-///   "callId": "unique-call-id",
-///   "userId": "user-id"
-/// }
-/// ```
 Future<Response> _handleGetStreamToken(RequestContext context) async {
   try {
-    // Verify user is authenticated
     final userId = getUserIdFromToken(context);
     if (userId == null) {
       return Response.json(
         statusCode: HttpStatus.unauthorized,
         body: {
-          'error': {'message': 'Unauthorized'}
+          'error': {'message': 'Unauthorized'},
         },
       );
     }
 
-    // Parse request body
     final data = await context.request.json() as Map<String, dynamic>;
 
     final appointmentId = data['appointmentId'] as String?;
@@ -58,15 +36,17 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': 'appointmentId is required'}
+          'error': {'message': 'appointmentId is required'},
         },
       );
     }
 
     final db = context.read<DatabaseClient>();
+    final streamService = context.read<StreamService>();
 
-    // Verify user has access to this appointment
-    final hasAccess = await db.meetingSessions.userHasAccessToAppointment(
+    // Strict participant, host consultant, or accepted collaborator check
+    final hasAccess = await streamService.verifyAppointmentAccess(
+      db,
       appointmentId: appointmentId,
       userId: userId,
     );
@@ -75,20 +55,19 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
       return Response.json(
         statusCode: HttpStatus.forbidden,
         body: {
-          'error': {'message': 'You do not have access to this meeting'}
+          'error': {
+            'message': 'Forbidden: you do not have participant, consultant, '
+                'or collaborator access to this meeting',
+          },
         },
       );
     }
 
-    // Get or create meeting session
     final meeting = await db.meetingSessions.getOrCreateMeetingSession(
       appointmentId: appointmentId,
     );
 
     final streamCallId = meeting['streamCallId'] as String;
-
-    // Get Stream service from provider
-    final streamService = context.read<StreamService>();
 
     if (!streamService.isConfigured) {
       await SentryLogger.error(
@@ -103,7 +82,6 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
       );
     }
 
-    // Generate user token (valid for 24 hours)
     final token = streamService.generateUserToken(userId);
 
     return Response.json(
@@ -132,7 +110,7 @@ Future<Response> _handleGetStreamToken(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
-        'error': {'message': 'Failed to generate Stream token'}
+        'error': {'message': 'Failed to generate Stream token'},
       },
     );
   }
