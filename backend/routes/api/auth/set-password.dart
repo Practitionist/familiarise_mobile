@@ -54,11 +54,14 @@ Future<Response> onRequest(RequestContext context) async {
       invalidateSessionCache(token);
     }
     invalidateUserSessionsCache(userId);
+    AuthService? authService;
     try {
-      final authService = context.read<AuthService>();
-      await authService.revokeAllUserSessions(userId);
-    } catch (_) {
+      authService = context.read<AuthService>();
+    } on StateError catch (_) {
       // AuthService may not be registered in isolated unit tests
+    }
+    if (authService != null) {
+      await authService.revokeAllUserSessions(userId);
     }
 
     return Response.json(

@@ -40,13 +40,14 @@ Future<Response> onRequest(RequestContext context) async {
 
     // Resolve userId from the verification token before resetPassword consumes it
     AuthService? authService;
-    String? userId;
     try {
       authService = context.read<AuthService>();
-      userId = await authService.resolveUserIdFromPasswordResetToken(token);
-    } catch (_) {
+    } on StateError catch (_) {
       // AuthService may not be registered in isolated unit tests
     }
+    final userId = authService != null
+        ? await authService.resolveUserIdFromPasswordResetToken(token)
+        : null;
 
     final profileService = context.read<ProfileService>();
     await profileService.resetPassword(

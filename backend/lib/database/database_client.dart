@@ -143,6 +143,9 @@ class DatabaseClient {
   /// Default per-query execution timeout to prevent hung queries from exhausting pool slots.
   static const Duration defaultQueryTimeout = Duration(seconds: 30);
 
+  /// Default maximum lifetime of a pooled database connection before recycling.
+  static const Duration defaultMaxConnectionAge = Duration(minutes: 30);
+
   /// Build [pg.PoolSettings] with environment-tunable connection limits and timeouts.
   static pg.PoolSettings buildPoolSettings({
     required pg.SslMode sslMode,
@@ -174,7 +177,7 @@ class DatabaseClient {
         int.tryParse(env['DB_MAX_CONNECTION_AGE_MINUTES'] ?? '');
     final maxConnectionAge = (parsedMaxAgeMin != null && parsedMaxAgeMin > 0)
         ? Duration(minutes: parsedMaxAgeMin)
-        : const Duration(minutes: 30);
+        : defaultMaxConnectionAge;
 
     return pg.PoolSettings(
       sslMode: sslMode,

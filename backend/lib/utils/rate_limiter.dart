@@ -237,20 +237,19 @@ class RateLimiter {
             .map((ip) => ip.trim())
             .where((ip) => ip.isNotEmpty)
             .toList();
-        if (ips.isNotEmpty) {
-          final index = (ips.length - trustedHops).clamp(0, ips.length - 1);
-          return ips[index];
+        if (ips.length >= trustedHops) {
+          return ips[ips.length - trustedHops];
         }
-      }
+      } else if (trustedHops == 1) {
+        final cfConnectingIp = headers['cf-connecting-ip'];
+        if (cfConnectingIp != null && cfConnectingIp.trim().isNotEmpty) {
+          return cfConnectingIp.trim();
+        }
 
-      final cfConnectingIp = headers['cf-connecting-ip'];
-      if (cfConnectingIp != null && cfConnectingIp.trim().isNotEmpty) {
-        return cfConnectingIp.trim();
-      }
-
-      final realIp = headers['x-real-ip'];
-      if (realIp != null && realIp.trim().isNotEmpty) {
-        return realIp.trim();
+        final realIp = headers['x-real-ip'];
+        if (realIp != null && realIp.trim().isNotEmpty) {
+          return realIp.trim();
+        }
       }
     }
 

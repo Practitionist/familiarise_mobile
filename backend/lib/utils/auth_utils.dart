@@ -1,12 +1,96 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
 import 'package:dart_frog/dart_frog.dart';
+import 'package:http/http.dart' as http;
 
 /// Default TTL for the in-memory verified-session cache (30 seconds).
 const Duration sessionCacheTtl = Duration(seconds: 30);
 
 /// Maximum number of cached session entries before automatic pruning.
 const int _maxSessionCacheEntries = 5000;
+
+/// Optional environment override for testing Redis revocation in unit tests.
+Map<String, String>? authUtilsEnvironmentOverride;
+
+/// Optional HTTP client override for testing Redis revocation in unit tests.
+http.Client? authUtilsHttpClientOverride;
+
+Map<String, String> get _env =>
+    authUtilsEnvironmentOverride ?? Platform.environment;
+
+String get _upstashUrl => _env['UPSTASH_REDIS_REST_URL'] ?? '';
+String get _upstashToken => _env['UPSTASH_REDIS_REST_TOKEN'] ?? '';
+
+bool get _isRedisConfigured =>
+    _upstashUrl.isNotEmpty && _upstashToken.isNotEmpty;
+
+Future<void> _publishRevocationMarker(String key) async {
+  if (!_isRedisConfigured) return;
+  try {
+    final encodedKey = Uri.encodeComponent(key);
+    final ttlMs = sessionCacheTtl.inMilliseconds;
+    final url = Uri.parse('$_upstashUrl/set/$encodedKey/1/px/$ttlMs');
+    final client = authUtilsHttpClientOverride;
+    final future = client != null
+        ? client.post(
+            url,
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          )
+        : http.post(
+            url,
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          );
+    await future.timeout(const Duration(seconds: 2));
+  } catch (_) {
+    // Best-effort cross-replica revocation broadcast
+  }
+}
+
+Future<bool> _isRevokedInRedis({
+  required String token,
+  required String sessionId,
+  required String userId,
+}) async {
+  if (!_isRedisConfigured) return false;
+  try {
+    final keys = <String>[
+      Uri.encodeComponent('session:revoked:token:$token'),
+      Uri.encodeComponent('session:revoked:session:$sessionId'),
+      if (userId.isNotEmpty)
+        Uri.encodeComponent('session:revoked:user:$userId'),
+    ];
+    final url = Uri.parse('$_upstashUrl/mget/${keys.join('/')}');
+    final client = authUtilsHttpClientOverride;
+    final future = client != null
+        ? client.post(
+            url,
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          )
+        : http.post(
+            url,
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          );
+    final response = await future.timeout(const Duration(seconds: 2));
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final result = decoded['result'];
+        if (result is List) {
+          return result.any((entry) => entry != null);
+        }
+      }
+    }
+  } catch (_) {
+    // On transient Redis error during cache check, evict local cache entry
+    // so verification falls back to authoritative Postgres Session check.
+    return true;
+  }
+  return false;
+}
 
 class _CachedSessionEntry {
   const _CachedSessionEntry({
@@ -38,7 +122,8 @@ void pruneSessionCache([DateTime? now]) {
 
 /// Invalidate cached session verification for [token] (or clear all if null).
 ///
-/// Also evicts any cache entry whose `sessionId` or `userId` matches [token].
+/// Also evicts any cache entry whose `sessionId` or `userId` matches [token],
+/// and publishes a 30s Redis revocation marker when Upstash Redis is configured.
 void invalidateSessionCache([String? token]) {
   if (token == null || token.isEmpty) {
     _sessionCache.clear();
@@ -48,16 +133,24 @@ void invalidateSessionCache([String? token]) {
   _sessionCache.removeWhere(
     (_, entry) => entry.sessionId == token || entry.userId == token,
   );
+  unawaited(_publishRevocationMarker('session:revoked:token:$token'));
+  unawaited(_publishRevocationMarker('session:revoked:session:$token'));
 }
 
 /// Invalidate all cached sessions belonging to [userId].
 void invalidateUserSessionsCache(String userId) {
   _sessionCache.removeWhere((_, entry) => entry.userId == userId);
+  if (userId.isNotEmpty) {
+    unawaited(_publishRevocationMarker('session:revoked:user:$userId'));
+  }
 }
 
 /// Invalidate all cached sessions matching [sessionId].
 void invalidateSessionIdCache(String sessionId) {
   _sessionCache.removeWhere((_, entry) => entry.sessionId == sessionId);
+  if (sessionId.isNotEmpty) {
+    unawaited(_publishRevocationMarker('session:revoked:session:$sessionId'));
+  }
 }
 
 /// Clear all entries from the verified-session cache.
@@ -115,8 +208,9 @@ String? getSessionIdFromToken(RequestContext context) {
 }
 
 /// Verify both the JWT signature and active Postgres `Session` + `User` status,
-/// backed by a short-TTL (30s) in-memory cache so high-concurrency bursts do
-/// not hammer Postgres on repeated requests with the same token.
+/// backed by a short-TTL (30s) in-memory cache and cross-replica Upstash Redis
+/// revocation check so high-concurrency bursts do not hammer Postgres on
+/// repeated requests with the same token.
 ///
 /// Returns the `{ 'session': ..., 'user': ... }` map when valid, or `null`
 /// if the token is missing, invalid, expired, or its session was revoked.
@@ -146,7 +240,14 @@ Future<Map<String, dynamic>?> verifyActiveUserSession(
   final cached = _sessionCache[token];
   if (cached != null) {
     if (!cached.isExpired(currentTime) && cached.sessionId == sessionId) {
-      return cached.sessionData;
+      final revokedRemotely = await _isRevokedInRedis(
+        token: token,
+        sessionId: sessionId,
+        userId: cached.userId,
+      );
+      if (!revokedRemotely) {
+        return cached.sessionData;
+      }
     }
     _sessionCache.remove(token);
   }

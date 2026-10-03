@@ -312,7 +312,8 @@ void main() {
           newPassword: 'newPassword456',
         ),
       ).called(1);
-      verify(() => authService.revokeAllUserSessions('user-change-1')).called(1);
+      verify(() => authService.revokeAllUserSessions('user-change-1'))
+          .called(1);
     });
 
     test('AuthService.revokeAllUserSessions deletes all user sessions in DB',

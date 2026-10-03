@@ -6,17 +6,20 @@ import 'package:http/http.dart' as http;
 
 /// Distributed locking utility for slot booking using Upstash Redis.
 ///
-/// Uses the same Redis instance and key format as the web app
-/// (`familiarise_web`) to ensure consistent cross-platform locking under
-/// high concurrency.
+/// Uses the same Redis instance and 30-minute slot-atom key format as the web
+/// app (`familiarise_web/utils/appointmentlock.ts`) to ensure consistent
+/// cross-platform locking under high concurrency.
 ///
-/// Lock key format: `slot:lock:$consultantProfileId:$slotStartIso:$slotEndIso`
+/// Lock key format: `slot-booking:$consultantProfileId:$slotAtomStartIso`
 class SlotLock {
   /// Lock TTL in milliseconds (60 seconds - matches web app)
   static const int _lockTtlMs = 60000;
 
+  /// Canonical 30-minute slot atom duration matching `SCHEDULING_INTERVAL_MS` in web.
+  static const Duration slotAtomDuration = Duration(minutes: 30);
+
   /// Default slot duration when `slotEndTime` is not explicitly provided.
-  static const Duration defaultSlotDuration = Duration(hours: 1);
+  static const Duration defaultSlotDuration = Duration(minutes: 30);
 
   /// Optional environment map override for unit testing.
   static Map<String, String>? environmentOverride;
@@ -28,7 +31,13 @@ class SlotLock {
       environmentOverride ?? Platform.environment;
 
   /// Whether the backend is running in production mode.
-  static bool get isProduction => _env['DART_ENV'] == 'production';
+  ///
+  /// Defaults to `true` (fail-closed) unless `DART_ENV` is explicitly set to
+  /// `development`, `dev`, or `test`.
+  static bool get isProduction {
+    final env = (_env['DART_ENV'] ?? '').trim().toLowerCase();
+    return env != 'development' && env != 'dev' && env != 'test';
+  }
 
   /// Get Upstash Redis REST URL from environment
   static String get _upstashUrl => _env['UPSTASH_REDIS_REST_URL'] ?? '';
@@ -40,29 +49,101 @@ class SlotLock {
   static bool get isConfigured =>
       _upstashUrl.isNotEmpty && _upstashToken.isNotEmpty;
 
-  /// Generate a consistent cross-platform lock key for a slot.
+  /// Compute the 30-minute slot atom start timestamps covering
+  /// `[slotStartTime, slotEndTime)`.
   ///
-  /// Matches `familiarise_web` key format:
-  /// `slot:lock:$consultantProfileId:$slotStartIso:$slotEndIso`
-  static String generateLockKey(
-    String consultantProfileId,
+  /// Mirrors `slotAtomStarts` in `familiarise_web/utils/appointmentlock.ts`.
+  static List<DateTime> slotAtomStarts(
     DateTime slotStartTime, [
     DateTime? slotEndTime,
   ]) {
     final startUtc = slotStartTime.toUtc();
     final endUtc = (slotEndTime ?? startUtc.add(defaultSlotDuration)).toUtc();
-    final slotStartIso = startUtc.toIso8601String();
-    final slotEndIso = endUtc.toIso8601String();
-    return 'slot:lock:$consultantProfileId:$slotStartIso:$slotEndIso';
+    final atomMs = slotAtomDuration.inMilliseconds;
+    final flooredMs = (startUtc.millisecondsSinceEpoch ~/ atomMs) * atomMs;
+    final endMs = endUtc.millisecondsSinceEpoch;
+    if (endMs <= flooredMs) {
+      return <DateTime>[
+        DateTime.fromMillisecondsSinceEpoch(flooredMs, isUtc: true),
+      ];
+    }
+    final atoms = <DateTime>[];
+    for (var t = flooredMs; t < endMs; t += atomMs) {
+      atoms.add(DateTime.fromMillisecondsSinceEpoch(t, isUtc: true));
+    }
+    return atoms;
   }
 
-  /// Acquire a distributed lock for a slot booking.
+  /// Generate a consistent cross-platform lock key for a 30-minute slot atom.
   ///
-  /// Returns the lock token if acquired successfully, or `null` if the lock
-  /// is already held or if Redis is unavailable/unconfigured in production
+  /// Matches `familiarise_web/utils/appointmentlock.ts`:
+  /// `slot-booking:$consultantProfileId:$slotStartIso`
+  static String generateLockKey(
+    String consultantProfileId,
+    DateTime slotStartTime, [
+    DateTime? slotEndTime,
+  ]) {
+    final atoms = slotAtomStarts(slotStartTime, slotEndTime);
+    final slotStartIso = atoms.first.toIso8601String();
+    return 'slot-booking:$consultantProfileId:$slotStartIso';
+  }
+
+  static Future<bool> _acquireSingleAtomKey(
+    String lockKey,
+    String lockValue,
+  ) async {
+    final encodedKey = Uri.encodeComponent(lockKey);
+    final url = '$_upstashUrl/set/$encodedKey/$lockValue/nx/px/$_lockTtlMs';
+    final client = httpClientOverride;
+    final responseFuture = client != null
+        ? client.post(
+            Uri.parse(url),
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          )
+        : http.post(
+            Uri.parse(url),
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          );
+    final response = await responseFuture.timeout(const Duration(seconds: 5));
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body) as Map<String, dynamic>;
+      return result['result'] == 'OK';
+    }
+    return false;
+  }
+
+  static Future<void> _releaseSingleAtomKey(
+    String lockKey,
+    String lockValue,
+  ) async {
+    const luaScript = 'if redis.call("get", KEYS[1]) == ARGV[1] '
+        'then return redis.call("del", KEYS[1]) else return 0 end';
+    final encodedScript = Uri.encodeComponent(luaScript);
+    final encodedKey = Uri.encodeComponent(lockKey);
+    final url = '$_upstashUrl/eval/$encodedScript/1/$encodedKey/$lockValue';
+
+    final client = httpClientOverride;
+    final responseFuture = client != null
+        ? client.post(
+            Uri.parse(url),
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          )
+        : http.post(
+            Uri.parse(url),
+            headers: {'Authorization': 'Bearer $_upstashToken'},
+          );
+    await responseFuture.timeout(const Duration(seconds: 5));
+  }
+
+  /// Acquire distributed lock(s) for all 30-minute atoms in `[slotStartTime, slotEndTime)`.
+  ///
+  /// Returns the lock token if acquired successfully, or `null` if any atom is
+  /// already held or if Redis is unavailable/unconfigured in production
   /// (fail-closed).
   ///
-  /// Uses SET NX PX pattern for atomic lock acquisition.
+  /// Uses SET NX PX pattern for atomic lock acquisition and rolls back any
+  /// partially acquired atoms on contention.
   static Future<String?> acquireSlotLock(
     String consultantProfileId,
     DateTime slotStartTime, [
@@ -81,43 +162,30 @@ class SlotLock {
       return 'no-redis-${DateTime.now().millisecondsSinceEpoch}';
     }
 
-    final lockKey = generateLockKey(
-      consultantProfileId,
-      slotStartTime,
-      slotEndTime,
-    );
+    final atoms = slotAtomStarts(slotStartTime, slotEndTime);
     final lockValue = DateTime.now().millisecondsSinceEpoch.toString();
+    final acquiredKeys = <String>[];
 
     try {
-      // Use Upstash REST API: SET key value NX PX ttl
-      // NX = only set if not exists
-      // PX = expiry in milliseconds
-      final encodedKey = Uri.encodeComponent(lockKey);
-      final url = '$_upstashUrl/set/$encodedKey/$lockValue/nx/px/$_lockTtlMs';
-      final client = httpClientOverride;
-      final responseFuture = client != null
-          ? client.post(
-              Uri.parse(url),
-              headers: {'Authorization': 'Bearer $_upstashToken'},
-            )
-          : http.post(
-              Uri.parse(url),
-              headers: {'Authorization': 'Bearer $_upstashToken'},
-            );
-      final response =
-          await responseFuture.timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body) as Map<String, dynamic>;
-        // Upstash returns {"result": "OK"} on success,
-        // {"result": null} if key exists
-        if (result['result'] == 'OK') {
-          return lockValue;
+      for (final atom in atoms) {
+        final key =
+            'slot-booking:$consultantProfileId:${atom.toIso8601String()}';
+        final ok = await _acquireSingleAtomKey(key, lockValue);
+        if (!ok) {
+          for (final acquiredKey in acquiredKeys.reversed) {
+            await _releaseSingleAtomKey(acquiredKey, lockValue);
+          }
+          return null;
         }
+        acquiredKeys.add(key);
       }
-
-      return null;
+      return lockValue;
     } catch (e) {
+      for (final acquiredKey in acquiredKeys.reversed) {
+        try {
+          await _releaseSingleAtomKey(acquiredKey, lockValue);
+        } catch (_) {}
+      }
       // Fail closed when Redis errors or times out so concurrent requests
       // cannot bypass distributed slot locking.
       await SentryLogger.warning(
@@ -128,7 +196,7 @@ class SlotLock {
     }
   }
 
-  /// Release a slot lock.
+  /// Release a slot lock across all 30-minute atoms in `[slotStartTime, slotEndTime)`.
   ///
   /// Uses Lua script for atomic check-and-delete to ensure
   /// only the lock owner can release the lock.
@@ -141,39 +209,20 @@ class SlotLock {
     if (!isConfigured) return;
     if (lockValue.startsWith('no-redis-')) return;
 
-    final lockKey = generateLockKey(
-      consultantProfileId,
-      slotStartTime,
-      slotEndTime,
-    );
+    final atoms = slotAtomStarts(slotStartTime, slotEndTime);
 
-    try {
-      // Use Upstash EVAL to run Lua script for atomic check-and-delete
-      // Script: if redis.call("get", KEYS[1]) == ARGV[1]
-      //         then return redis.call("del", KEYS[1]) else return 0 end
-      const luaScript = 'if redis.call("get", KEYS[1]) == ARGV[1] '
-          'then return redis.call("del", KEYS[1]) else return 0 end';
-      final encodedScript = Uri.encodeComponent(luaScript);
-      final encodedKey = Uri.encodeComponent(lockKey);
-      final url = '$_upstashUrl/eval/$encodedScript/1/$encodedKey/$lockValue';
-
-      final client = httpClientOverride;
-      final responseFuture = client != null
-          ? client.post(
-              Uri.parse(url),
-              headers: {'Authorization': 'Bearer $_upstashToken'},
-            )
-          : http.post(
-              Uri.parse(url),
-              headers: {'Authorization': 'Bearer $_upstashToken'},
-            );
-      await responseFuture.timeout(const Duration(seconds: 5));
-    } catch (e) {
-      // Log but don't throw - lock will expire automatically
-      await SentryLogger.warning(
-        'Failed to release slot lock: $e',
-        context: 'SlotLock',
-      );
+    for (final atom in atoms.reversed) {
+      final lockKey =
+          'slot-booking:$consultantProfileId:${atom.toIso8601String()}';
+      try {
+        await _releaseSingleAtomKey(lockKey, lockValue);
+      } catch (e) {
+        // Log but don't throw - lock will expire automatically
+        await SentryLogger.warning(
+          'Failed to release slot lock: $e',
+          context: 'SlotLock',
+        );
+      }
     }
   }
 
@@ -201,7 +250,7 @@ class SlotLock {
       );
       if (lockValue == null) {
         // Failed to acquire lock - release all previously acquired locks
-        for (final entry in locks.entries) {
+        for (final entry in locks.entries.toList().reversed) {
           await releaseLock(
             consultantProfileId,
             entry.key,
@@ -223,7 +272,7 @@ class SlotLock {
     Map<DateTime, String> locks, {
     Duration slotDuration = defaultSlotDuration,
   }) async {
-    for (final entry in locks.entries) {
+    for (final entry in locks.entries.toList().reversed) {
       await releaseLock(
         consultantProfileId,
         entry.key,

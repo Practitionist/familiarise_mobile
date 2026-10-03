@@ -32,10 +32,10 @@ void main() {
 
   group('SlotLock', () {
     test(
-        'generateLockKey formats key as slot:lock:consultantProfileId:slotStartIso:slotEndIso',
+        'generateLockKey formats key as slot-booking:consultantProfileId:slotStartIso and slotAtomStarts splits intervals into 30m atoms',
         () {
       final start = DateTime.utc(2026, 10, 15, 14, 0);
-      final end = DateTime.utc(2026, 10, 15, 14, 30);
+      final end = DateTime.utc(2026, 10, 15, 15, 0);
 
       final keyWithExplicitEnd = SlotLock.generateLockKey(
         'consultant-42',
@@ -45,7 +45,7 @@ void main() {
       expect(
         keyWithExplicitEnd,
         equals(
-          'slot:lock:consultant-42:2026-10-15T14:00:00.000Z:2026-10-15T14:30:00.000Z',
+          'slot-booking:consultant-42:2026-10-15T14:00:00.000Z',
         ),
       );
 
@@ -56,12 +56,22 @@ void main() {
       expect(
         keyWithDefaultEnd,
         equals(
-          'slot:lock:consultant-42:2026-10-15T14:00:00.000Z:2026-10-15T15:00:00.000Z',
+          'slot-booking:consultant-42:2026-10-15T14:00:00.000Z',
         ),
+      );
+
+      final atoms = SlotLock.slotAtomStarts(start, end);
+      expect(
+        atoms,
+        equals([
+          DateTime.utc(2026, 10, 15, 14, 0),
+          DateTime.utc(2026, 10, 15, 14, 30),
+        ]),
       );
     });
 
-    test('fails closed (returns null) in production when Redis is unconfigured',
+    test(
+        'fails closed (returns null) in production or unset DART_ENV when Redis is unconfigured',
         () async {
       SlotLock.environmentOverride = {
         'DART_ENV': 'production',
@@ -73,9 +83,17 @@ void main() {
       );
 
       expect(lock, isNull);
+
+      SlotLock.environmentOverride = const {};
+      final lockUnsetEnv = await SlotLock.acquireSlotLock(
+        'consultant-1',
+        DateTime.utc(2026, 10, 15, 10, 0),
+      );
+      expect(lockUnsetEnv, isNull);
     });
 
-    test('returns dev fallback token in non-production when Redis is unconfigured',
+    test(
+        'returns dev fallback token in non-production when Redis is unconfigured',
         () async {
       SlotLock.environmentOverride = {
         'DART_ENV': 'development',
@@ -90,7 +108,8 @@ void main() {
       expect(lock, startsWith('no-redis-'));
     });
 
-    test('acquires lock when Upstash returns OK and returns null when already held',
+    test(
+        'acquires lock when Upstash returns OK and returns null when already held',
         () async {
       final mockClient = _MockHttpClient();
       SlotLock.environmentOverride = {
@@ -269,6 +288,15 @@ void main() {
         ),
         equals('198.51.100.99'),
       );
+
+      // When trustedHops exceeds XFF chain length, falls back to socket peer
+      expect(
+        RateLimiter.extractClientIp(
+          context,
+          environment: const {'TRUSTED_PROXY_HOPS': '3'},
+        ),
+        equals('unknown'),
+      );
     });
   });
 
@@ -285,7 +313,8 @@ void main() {
       when(() => context.request).thenReturn(request);
       when(() => request.method).thenReturn(method);
       when(() => request.headers).thenReturn(headers);
-      when(() => request.uri).thenReturn(Uri.parse('http://localhost:8080$path'));
+      when(() => request.uri)
+          .thenReturn(Uri.parse('http://localhost:8080$path'));
       if (limiter != null) {
         when(() => context.read<RateLimiter>()).thenReturn(limiter);
       } else {
@@ -327,7 +356,8 @@ void main() {
       expect(healthResp.statusCode, equals(HttpStatus.ok));
     });
 
-    test('returns 503 Service Unavailable during OFFLINE maintenance except /api/health',
+    test(
+        'returns 503 Service Unavailable during OFFLINE maintenance except /api/health',
         () async {
       root_middleware.middlewareEnvironmentOverride = {
         'MAINTENANCE_MODE': 'OFFLINE',
@@ -354,9 +384,11 @@ void main() {
       expect(settings.maxConnectionCount, equals(8));
       expect(settings.connectTimeout, equals(const Duration(seconds: 15)));
       expect(settings.queryTimeout, equals(const Duration(seconds: 30)));
+      expect(settings.maxConnectionAge, equals(const Duration(minutes: 30)));
     });
 
-    test('respects DB_POOL_MAX_CONNECTIONS and timeout environment variables',
+    test(
+        'respects DB_POOL_MAX_CONNECTIONS, DB_MAX_CONNECTION_AGE_MINUTES, and timeout environment variables',
         () {
       final settings = DatabaseClient.buildPoolSettings(
         sslMode: pg.SslMode.disable,
@@ -364,12 +396,33 @@ void main() {
           'DB_POOL_MAX_CONNECTIONS': '12',
           'DB_CONNECT_TIMEOUT_SECONDS': '10',
           'DB_QUERY_TIMEOUT_SECONDS': '20',
+          'DB_MAX_CONNECTION_AGE_MINUTES': '45',
         },
       );
 
       expect(settings.maxConnectionCount, equals(12));
       expect(settings.connectTimeout, equals(const Duration(seconds: 10)));
       expect(settings.queryTimeout, equals(const Duration(seconds: 20)));
+      expect(settings.maxConnectionAge, equals(const Duration(minutes: 45)));
+    });
+
+    test(
+        'falls back to defaults when pool/timeout environment variables are non-positive or invalid',
+        () {
+      final settings = DatabaseClient.buildPoolSettings(
+        sslMode: pg.SslMode.require,
+        environment: const {
+          'DB_POOL_MAX_CONNECTIONS': '0',
+          'DB_CONNECT_TIMEOUT_SECONDS': '-5',
+          'DB_QUERY_TIMEOUT_SECONDS': 'abc',
+          'DB_MAX_CONNECTION_AGE_MINUTES': '0',
+        },
+      );
+
+      expect(settings.maxConnectionCount, equals(8));
+      expect(settings.connectTimeout, equals(const Duration(seconds: 15)));
+      expect(settings.queryTimeout, equals(const Duration(seconds: 30)));
+      expect(settings.maxConnectionAge, equals(const Duration(minutes: 30)));
     });
   });
 }

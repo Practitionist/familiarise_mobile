@@ -76,6 +76,7 @@ Future<Map<String, dynamic>?> _resolveMaintenanceWindow(
     return _cachedMaintenanceWindow;
   } catch (_) {
     // DatabaseClient not provided in context or transient DB error.
+    _cachedMaintenanceWindow = null;
     _maintenanceCacheCheckedAt = now;
     return null;
   }

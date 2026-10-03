@@ -284,7 +284,7 @@ class AuthService {
         error: e,
         stackTrace: stackTrace,
       );
-      return null;
+      rethrow;
     }
   }
 
