@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/collaborator/collaborator_entities.dart';
 import '../providers/collaborations_provider.dart';
 import '../widgets/collaboration_card.dart';
-import '../widgets/invitation_action_sheet.dart';
 
-/// Screen showing all collaborations (pending invitations + active)
+/// Invitee Inbox screen showing webinar/class collaboration invites and active
+/// collaborations, allowing consultants to accept or decline in 1 tap.
 class CollaborationsScreen extends ConsumerWidget {
   const CollaborationsScreen({super.key});
 
@@ -16,7 +16,7 @@ class CollaborationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Collaborations'),
+        title: const Text('Collaboration Invites'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -55,20 +55,21 @@ class CollaborationsScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.group_outlined,
+                Icons.inbox_outlined,
                 size: 64,
                 color:
                     theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 16),
               Text(
-                'No collaborations yet',
+                'Your Invitee Inbox is empty',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
               Text(
                 'When other consultants invite you to collaborate on '
-                'webinars or classes, they will appear here.',
+                'webinars or classes, they will appear here with role '
+                'and revenue share details.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -83,12 +84,18 @@ class CollaborationsScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Pending invitations
+        // Pending invitations (Invitee Inbox)
         if (pending.isNotEmpty) ...[
           Row(
             children: [
+              Icon(
+                Icons.mail_outline,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
               Text(
-                'Pending Invitations',
+                'Invitee Inbox',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -166,7 +173,7 @@ class CollaborationsScreen extends ConsumerWidget {
   }
 }
 
-/// Wrapper for pending collaboration cards with accept/decline handling
+/// Wrapper for pending collaboration cards with 1-tap accept/decline handling
 class _PendingCollaborationCard extends ConsumerWidget {
   const _PendingCollaborationCard({required this.collaboration});
 
@@ -180,27 +187,16 @@ class _PendingCollaborationCard extends ConsumerWidget {
     return CollaborationCard(
       collaboration: collaboration,
       isResponding: isResponding,
-      onAccept: () => _handleResponse(context, ref, 'ACCEPTED'),
-      onDecline: () => _handleResponse(context, ref, 'DECLINED'),
+      onAccept: () => _handleOneTapResponse(context, ref, 'ACCEPTED'),
+      onDecline: () => _handleOneTapResponse(context, ref, 'DECLINED'),
     );
   }
 
-  Future<void> _handleResponse(
+  Future<void> _handleOneTapResponse(
     BuildContext context,
     WidgetRef ref,
     String action,
   ) async {
-    // Show confirmation sheet
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (_) => InvitationActionSheet(
-        collaboration: collaboration,
-        action: action,
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) return;
-
     final success =
         await ref.read(respondToCollaborationProvider.notifier).respond(
               id: collaboration.id,
@@ -214,8 +210,8 @@ class _PendingCollaborationCard extends ConsumerWidget {
           content: Text(
             success
                 ? (action == 'ACCEPTED'
-                    ? 'Collaboration accepted!'
-                    : 'Invitation declined')
+                    ? 'Collaboration invite accepted!'
+                    : 'Collaboration invite declined')
                 : 'Failed to respond. Please try again.',
           ),
         ),

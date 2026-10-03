@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' as io;
 
+import 'package:backend/database/database_client.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
@@ -12,15 +13,16 @@ const _streamApiBaseUrl = 'https://chat.stream-io-api.com';
 ///
 /// Handles JWT token generation for Stream Video SDK.
 class StreamService {
-  final String _apiKey;
-  final String _apiSecret;
-
+  /// Creates a [StreamService] using configured API credentials.
   StreamService({
     String? apiKey,
     String? apiSecret,
-  })  : _apiKey = apiKey ?? Platform.environment['STREAM_API_KEY'] ?? '',
+  })  : _apiKey = apiKey ?? io.Platform.environment['STREAM_API_KEY'] ?? '',
         _apiSecret =
-            apiSecret ?? Platform.environment['STREAM_API_SECRET'] ?? '';
+            apiSecret ?? io.Platform.environment['STREAM_API_SECRET'] ?? '';
+
+  final String _apiKey;
+  final String _apiSecret;
 
   /// Get the Stream API key (public, safe to share with clients)
   String get apiKey => _apiKey;
@@ -607,6 +609,287 @@ class StreamService {
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final recordings = data['recordings'] as List<dynamic>?;
     return recordings?.cast<Map<String, dynamic>>() ?? [];
+  }
+
+  // ===========================================================================
+  // Authorization & Ownership Helpers (Issue #53)
+  // ===========================================================================
+
+  /// Verifies whether [userId] is an authorized participant, host consultant,
+  /// or accepted collaborator for [appointmentId].
+  ///
+  /// When [requireHostOrCollaborator] is `true`, only the host consultant or an
+  /// accepted collaborator on the appointment's webinar/class plan is allowed.
+  Future<bool> verifyAppointmentAccess(
+    DatabaseClient db, {
+    required String appointmentId,
+    required String userId,
+    bool requireHostOrCollaborator = false,
+  }) async {
+    final appointment = await db.prisma.appointment.findUnique(
+      where: AppointmentWhereUniqueInput(id: appointmentId),
+      include: const AppointmentInclude(
+        slotsOfAppointment: SlotOfAppointmentInclude(
+          user: UserInclude(),
+        ),
+        consultation: ConsultationInclude(
+          consultationPlan: ConsultationPlanInclude(
+            consultantProfile: ConsultantProfileInclude(),
+          ),
+          requestedBy: ConsulteeProfileInclude(),
+        ),
+        subscription: SubscriptionInclude(
+          subscriptionPlan: SubscriptionPlanInclude(
+            consultantProfile: ConsultantProfileInclude(),
+          ),
+          requestedBy: ConsulteeProfileInclude(),
+        ),
+        webinar: WebinarInclude(
+          webinarPlan: WebinarPlanInclude(
+            consultantProfile: ConsultantProfileInclude(),
+          ),
+        ),
+        classRef: ClassModelInclude(
+          classPlan: ClassPlanInclude(
+            consultantProfile: ConsultantProfileInclude(),
+          ),
+        ),
+        trialSession: TrialSessionInclude(
+          consultantProfile: ConsultantProfileInclude(),
+          consulteeProfile: ConsulteeProfileInclude(),
+        ),
+      ),
+    );
+
+    if (appointment == null) return false;
+
+    // 1. Check host consultant ownership
+    final hostUserIds = <String?>[
+      appointment.consultation?.consultationPlan?.consultantProfile?.userId,
+      appointment.subscription?.subscriptionPlan?.consultantProfile?.userId,
+      appointment.webinar?.webinarPlan?.consultantProfile?.userId,
+      appointment.classRef?.classPlan?.consultantProfile?.userId,
+      appointment.trialSession?.consultantProfile?.userId,
+    ];
+    if (hostUserIds.contains(userId)) {
+      return true;
+    }
+
+    // 2. Check accepted collaborator ownership (for webinar / class plans)
+    final webinarPlanId = appointment.webinar?.webinarPlanId;
+    final classPlanId = appointment.classRef?.classPlanId;
+    if (webinarPlanId != null || classPlanId != null) {
+      final isCollaborator = await _isAcceptedCollaborator(
+        db,
+        userId: userId,
+        webinarPlanId: webinarPlanId,
+        classPlanId: classPlanId,
+      );
+      if (isCollaborator) return true;
+    }
+
+    if (requireHostOrCollaborator) {
+      return false;
+    }
+
+    // 3. Check consultee / slot participant membership
+    final consulteeUserIds = <String?>[
+      appointment.consultation?.requestedBy?.userId,
+      appointment.subscription?.requestedBy?.userId,
+      appointment.trialSession?.consulteeProfile?.userId,
+    ];
+    if (consulteeUserIds.contains(userId)) {
+      return true;
+    }
+
+    final slots = appointment.slotsOfAppointment ?? const [];
+    for (final slot in slots) {
+      final users = slot.user ?? const [];
+      if (users.any((u) => u.id == userId)) {
+        return true;
+      }
+    }
+
+    return db.meetingSessions.userHasAccessToAppointment(
+      appointmentId: appointmentId,
+      userId: userId,
+    );
+  }
+
+  /// Verifies whether [userId] has access to a Stream Video call [callId].
+  Future<bool> verifyCallAccess(
+    DatabaseClient db, {
+    required String callId,
+    required String userId,
+    bool requireHostOrCollaborator = false,
+  }) async {
+    final meeting = await db.meetingSessions.getMeetingByStreamCallId(callId);
+    if (meeting != null) {
+      final slot = meeting['slotOfAppointment'] as Map<String, dynamic>?;
+      final appointmentId = slot?['appointmentId'] as String?;
+      if (appointmentId != null && appointmentId.isNotEmpty) {
+        return verifyAppointmentAccess(
+          db,
+          appointmentId: appointmentId,
+          userId: userId,
+          requireHostOrCollaborator: requireHostOrCollaborator,
+        );
+      }
+    }
+
+    // Fallback if callId is an appointmentId directly
+    return verifyAppointmentAccess(
+      db,
+      appointmentId: callId,
+      userId: userId,
+      requireHostOrCollaborator: requireHostOrCollaborator,
+    );
+  }
+
+  /// Verifies whether [userId] is authorized to create/manage/access a Stream
+  /// Chat channel identified by [channelId].
+  Future<bool> verifyChannelAccess(
+    DatabaseClient db, {
+    required String channelId,
+    required String userId,
+    bool requireHostOrCollaborator = false,
+    List<String>? memberIds,
+  }) async {
+    if (channelId.startsWith('webinar_')) {
+      final webinarId = channelId.substring('webinar_'.length);
+      final webinar = await db.prisma.webinar.findUnique(
+        where: WebinarWhereUniqueInput(id: webinarId),
+        include: const WebinarInclude(
+          webinarPlan: WebinarPlanInclude(
+            consultantProfile: ConsultantProfileInclude(),
+          ),
+          appointment: AppointmentInclude(),
+        ),
+      );
+      if (webinar == null) return false;
+
+      if (webinar.webinarPlan?.consultantProfile?.userId == userId) {
+        return true;
+      }
+      if (await _isAcceptedCollaborator(
+        db,
+        userId: userId,
+        webinarPlanId: webinar.webinarPlanId,
+      )) {
+        return true;
+      }
+      if (requireHostOrCollaborator) return false;
+
+      final appointmentId = webinar.appointment?.id;
+      if (appointmentId != null) {
+        return verifyAppointmentAccess(
+          db,
+          appointmentId: appointmentId,
+          userId: userId,
+        );
+      }
+      return false;
+    }
+
+    if (channelId.startsWith('class_')) {
+      final classId = channelId.substring('class_'.length);
+      final classRecord = await db.prisma.classModel.findUnique(
+        where: ClassModelWhereUniqueInput(id: classId),
+        include: const ClassModelInclude(
+          classPlan: ClassPlanInclude(
+            consultantProfile: ConsultantProfileInclude(),
+          ),
+          appointments: AppointmentInclude(),
+        ),
+      );
+      if (classRecord == null) return false;
+
+      if (classRecord.classPlan?.consultantProfile?.userId == userId) {
+        return true;
+      }
+      if (await _isAcceptedCollaborator(
+        db,
+        userId: userId,
+        classPlanId: classRecord.classPlanId,
+      )) {
+        return true;
+      }
+      if (requireHostOrCollaborator) return false;
+
+      final appointments = classRecord.appointments ?? const [];
+      for (final appt in appointments) {
+        if (await verifyAppointmentAccess(
+          db,
+          appointmentId: appt.id,
+          userId: userId,
+        )) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (channelId.startsWith('appointment_')) {
+      final appointmentId = channelId.substring('appointment_'.length);
+      return verifyAppointmentAccess(
+        db,
+        appointmentId: appointmentId,
+        userId: userId,
+        requireHostOrCollaborator: requireHostOrCollaborator,
+      );
+    }
+
+    // For direct/custom channels: the authenticated user must be one of the
+    // channel members (or a consultant/collaborator sharing a slot with them).
+    if (memberIds != null && memberIds.isNotEmpty) {
+      if (!memberIds.contains(userId)) {
+        return false;
+      }
+    }
+
+    final sharedSlotCount = await db.prisma.slotOfAppointment.count(
+      where: SlotOfAppointmentWhereInput(
+        user: UserListRelationFilter(
+          some: UserWhereInput(id: StringFilter(equals: userId)),
+        ),
+      ),
+    );
+    if (sharedSlotCount > 0) return true;
+
+    final consultantProfile = await db.prisma.consultantProfile.findFirst(
+      where: ConsultantProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
+    return consultantProfile != null;
+  }
+
+  Future<bool> _isAcceptedCollaborator(
+    DatabaseClient db, {
+    required String userId,
+    String? webinarPlanId,
+    String? classPlanId,
+  }) async {
+    final consultantProfile = await db.prisma.consultantProfile.findFirst(
+      where: ConsultantProfileWhereInput(
+        userId: StringFilter(equals: userId),
+      ),
+    );
+    if (consultantProfile == null) return false;
+
+    final count = await db.prisma.collaborator.count(
+      where: CollaboratorWhereInput(
+        consultantProfileId: StringFilter(equals: consultantProfile.id),
+        status: const CollaboratorStatusFilter(
+          equals: CollaboratorStatus.accepted,
+        ),
+        webinarPlanId:
+            webinarPlanId != null ? StringFilter(equals: webinarPlanId) : null,
+        classPlanId:
+            classPlanId != null ? StringFilter(equals: classPlanId) : null,
+      ),
+    );
+    return count > 0;
   }
 }
 

@@ -6,18 +6,19 @@ import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
-/// Stream Chat toggle archive endpoint
+/// Stream Chat channels endpoint with strict participant/consultant/collaborator
+/// ownership & membership checks (Issue #53).
 ///
-/// POST /api/stream/toggle-archive - Archive or unarchive a channel
+/// POST /api/stream/channels - Create or update a Stream Chat channel
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
   }
 
-  return _handleToggleArchive(context);
+  return _handleChannelRequest(context);
 }
 
-Future<Response> _handleToggleArchive(RequestContext context) async {
+Future<Response> _handleChannelRequest(RequestContext context) async {
   try {
     final currentUserId = getUserIdFromToken(context);
     if (currentUserId == null) {
@@ -30,9 +31,11 @@ Future<Response> _handleToggleArchive(RequestContext context) async {
     }
 
     final body = await context.request.json() as Map<String, dynamic>;
-    final channelType = body['channelType'] as String? ?? 'team';
     final channelId = body['channelId'] as String?;
-    final archived = body['archived'] as bool?;
+    final channelName = body['channelName'] as String? ?? 'Session Chat';
+    final memberIds =
+        (body['memberIds'] as List<dynamic>?)?.map((e) => e as String).toList();
+    final extraData = body['extraData'] as Map<String, dynamic>?;
 
     if (channelId == null || channelId.isEmpty) {
       return Response.json(
@@ -43,11 +46,11 @@ Future<Response> _handleToggleArchive(RequestContext context) async {
       );
     }
 
-    if (archived == null) {
+    if (memberIds == null || memberIds.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
-          'error': {'message': 'archived is required (true or false)'},
+          'error': {'message': 'memberIds is required and cannot be empty'},
         },
       );
     }
@@ -59,7 +62,7 @@ Future<Response> _handleToggleArchive(RequestContext context) async {
       db,
       channelId: channelId,
       userId: currentUserId,
-      requireHostOrCollaborator: true,
+      memberIds: memberIds,
     );
 
     if (!hasAccess) {
@@ -67,18 +70,14 @@ Future<Response> _handleToggleArchive(RequestContext context) async {
         statusCode: HttpStatus.forbidden,
         body: {
           'error': {
-            'message': 'Forbidden: only the host consultant or an accepted '
-                'collaborator can archive/freeze this channel',
+            'message': 'Forbidden: you are not a participant, host '
+                'consultant, or accepted collaborator for this channel',
           },
         },
       );
     }
 
     if (!streamService.isConfigured) {
-      await SentryLogger.error(
-        'Stream API not configured',
-        context: 'ToggleArchiveRoute',
-      );
       return Response.json(
         statusCode: HttpStatus.serviceUnavailable,
         body: {
@@ -87,35 +86,26 @@ Future<Response> _handleToggleArchive(RequestContext context) async {
       );
     }
 
-    await streamService.setChannelFrozen(
-      channelType: channelType,
+    final result = await streamService.createGroupChannel(
       channelId: channelId,
-      frozen: archived,
-    );
-
-    final nowIso = DateTime.now().toUtc().toIso8601String();
-    await streamService.updateChannelData(
-      channelType: channelType,
-      channelId: channelId,
-      setData: {
-        'isArchived': archived,
-        if (archived) 'archivedAt': nowIso,
-        if (archived) 'chatFrozenAt': nowIso,
-      },
-      unsetData: archived ? null : ['archivedAt', 'chatFrozenAt'],
+      channelName: channelName,
+      memberIds: memberIds,
+      createdByUserId: currentUserId,
+      extraData: extraData,
     );
 
     return Response.json(
       body: {
         'success': true,
-        'archived': archived,
-        if (archived) 'chatFrozenAt': nowIso,
+        'channelId': channelId,
+        'channelType': 'team',
+        'channel': result['channel'],
       },
     );
   } catch (e, stackTrace) {
     await SentryLogger.error(
-      'Error in POST /api/stream/toggle-archive',
-      context: 'ToggleArchiveRoute',
+      'Error in POST /api/stream/channels',
+      context: 'StreamChannelsRoute',
       error: e,
       stackTrace: stackTrace,
     );
@@ -123,7 +113,7 @@ Future<Response> _handleToggleArchive(RequestContext context) async {
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {
-        'error': {'message': 'Failed to toggle archive status'},
+        'error': {'message': 'Failed to create or update channel'},
       },
     );
   }
