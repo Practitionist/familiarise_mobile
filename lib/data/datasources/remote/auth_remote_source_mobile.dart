@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/env_config.dart';
@@ -23,6 +23,21 @@ import 'auth_remote_source_mixin.dart';
 class AuthRemoteSourceImpl
     with AuthRemoteSourceMixin
     implements AuthRemoteSource {
+  AuthRemoteSourceImpl({Dio? dio})
+      : dio = dio ??
+            Dio(
+              BaseOptions(
+                baseUrl: EnvConfig.apiBaseUrl,
+                headers: const {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+              ),
+            );
+
+  @override
+  final Dio dio;
+
   GoogleSignIn? _googleSignIn;
 
   @override
@@ -39,6 +54,16 @@ class AuthRemoteSourceImpl
       );
     }
     return _googleSignIn!;
+  }
+
+  Map<String, dynamic> _asMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String && data.isNotEmpty) {
+      final decoded = jsonDecode(data);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    }
+    return <String, dynamic>{};
   }
 
   // ---------------------------------------------------------------------------
@@ -82,28 +107,37 @@ class AuthRemoteSourceImpl
         throw const AuthException(message: 'Failed to get Google credentials');
       }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/google/callback'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/google/callback',
+        options: Options(headers: {'Content-Type': 'application/json'}),
+        data: {
           'idToken': idToken,
           'accessToken': accessToken,
-        }),
+        },
       );
 
+      final data = _asMap(response.data);
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
-        final errorMsg = error['error']?['message'] ?? 'Google sign in failed';
+        final errorObj = data['error'];
+        final errorMsg = (errorObj is Map
+                ? errorObj['message']?.toString()
+                : errorObj?.toString()) ??
+            'Google sign in failed';
         throw AuthException(message: errorMsg);
       }
 
-      final data = jsonDecode(response.body);
-      final userModel = UserModel.fromJson(data['user']);
+      final userModel = UserModel.fromJson(_asMap(data['user']));
       final token = data['token'] as String;
 
       await saveAuthCredentials(token, userModel);
       authStateController.add(userModel);
       return userModel;
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Google sign in failed'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       final msg = e.toString().toLowerCase();
@@ -121,20 +155,21 @@ class AuthRemoteSourceImpl
   Future<UserModel> signInWithGitHub() async {
     try {
       // Step 1: Get the OAuth URL and state from our backend
-      final urlResponse = await http.get(
-        Uri.parse('$baseUrl/api/auth/github/url'),
-        headers: {'Content-Type': 'application/json'},
+      final urlResponse = await dio.get<dynamic>(
+        '$baseUrl/api/auth/github/url',
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
+      final urlData = _asMap(urlResponse.data);
       if (urlResponse.statusCode != 200) {
-        final error = jsonDecode(urlResponse.body);
-        throw AuthException(
-          message:
-              error['error']?['message'] ?? 'Failed to get GitHub auth URL',
-        );
+        final errorObj = urlData['error'];
+        final errorMsg = (errorObj is Map
+                ? errorObj['message']?.toString()
+                : errorObj?.toString()) ??
+            'Failed to get GitHub auth URL';
+        throw AuthException(message: errorMsg);
       }
 
-      final urlData = jsonDecode(urlResponse.body);
       final oauthUrl = urlData['url'] as String?;
       final state = urlData['state'] as String?;
 
@@ -157,29 +192,37 @@ class AuthRemoteSourceImpl
       }
 
       // Step 4: Exchange the code for user credentials via our backend
-      final callbackResponse = await http.post(
-        Uri.parse('$baseUrl/api/auth/github/callback'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final callbackResponse = await dio.post<dynamic>(
+        '$baseUrl/api/auth/github/callback',
+        options: Options(headers: {'Content-Type': 'application/json'}),
+        data: {
           'code': code,
           'state': state,
-        }),
+        },
       );
 
+      final data = _asMap(callbackResponse.data);
       if (callbackResponse.statusCode != 200) {
-        final error = jsonDecode(callbackResponse.body);
-        throw AuthException(
-          message: error['error']?['message'] ?? 'GitHub sign in failed',
-        );
+        final errorObj = data['error'];
+        final errorMsg = (errorObj is Map
+                ? errorObj['message']?.toString()
+                : errorObj?.toString()) ??
+            'GitHub sign in failed';
+        throw AuthException(message: errorMsg);
       }
 
-      final data = jsonDecode(callbackResponse.body);
-      final userModel = UserModel.fromJson(data['user']);
+      final userModel = UserModel.fromJson(_asMap(data['user']));
       final token = data['token'] as String;
 
       await saveAuthCredentials(token, userModel);
       authStateController.add(userModel);
       return userModel;
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'GitHub sign in failed'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,

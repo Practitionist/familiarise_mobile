@@ -8,29 +8,31 @@
 /// The backend mirrors these in backend/lib/config/feature_flags.dart —
 /// keep the two files in sync so gated UI never calls a 403 endpoint.
 abstract final class FeatureFlags {
-  /// Razorpay/Stripe checkout. 1:1 consultations may use external payments
-  /// on iOS (App Review 3.1.3(d)); webinars/classes need Apple IAP.
+  /// Razorpay/Stripe checkout (delegated to web in Companion Starter).
   static const payments = false;
 
-  /// Consultant payout accounts, TDS records, and tax info editing.
-  static const payouts = false;
+  /// Read-only consultant earnings & payouts wallet summary (mutations hand off to web).
+  static const payouts = true;
 
-  /// Referral codes and credits.
-  static const referrals = false;
+  /// Payout account onboarding and mutation routes (delegated to web in Companion Starter).
+  static const payoutMutations = false;
 
-  /// Webinar/class co-host collaborations.
-  static const collaborations = false;
+  /// Lightweight referral code & native share-sheet card.
+  static const referrals = true;
 
-  /// Event waitlists.
+  /// Collaborator invitee inbox to view & accept/decline webinar/class invites.
+  static const collaborations = true;
+
+  /// Event waitlists (delegated to web).
   static const waitlist = false;
 
-  /// Staff/admin moderation, ticket triage, and verification review.
+  /// Staff/admin backoffice moderation, ticket triage, and verification review (web-only).
   static const staffTools = false;
 
-  /// Enterprise wallet & billing writes (top-ups, invoices).
+  /// Enterprise wallet & billing writes (top-ups, invoices — web-only).
   static const wallet = false;
 
-  /// Webinar/class purchase (one-to-many ⇒ Apple IAP required on iOS).
+  /// Webinar/class purchase (delegated to web).
   static const programCheckout = false;
 
   /// Returns the human-readable feature name when [location] belongs to a
@@ -40,8 +42,12 @@ abstract final class FeatureFlags {
         (location.startsWith('/checkout') || location.startsWith('/payment'))) {
       return 'Payments';
     }
+    if (!payoutMutations && location.startsWith('/payout-accounts/add')) {
+      return 'Payouts';
+    }
     if (!payouts &&
-        (location.startsWith('/payout-accounts') ||
+        (location.startsWith('/payouts') ||
+            location.startsWith('/payout-accounts') ||
             location.startsWith('/tax-info'))) {
       return 'Payouts';
     }

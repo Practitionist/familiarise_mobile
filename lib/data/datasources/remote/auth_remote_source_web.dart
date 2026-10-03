@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/env_config.dart';
@@ -20,6 +20,21 @@ import 'auth_remote_source_mixin.dart';
 class AuthRemoteSourceWebImpl
     with AuthRemoteSourceMixin
     implements AuthRemoteSource {
+  AuthRemoteSourceWebImpl({Dio? dio})
+      : dio = dio ??
+            Dio(
+              BaseOptions(
+                baseUrl: EnvConfig.apiBaseUrl,
+                headers: const {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+              ),
+            );
+
+  @override
+  final Dio dio;
+
   GoogleSignIn? _googleSignIn;
 
   @override
@@ -32,6 +47,16 @@ class AuthRemoteSourceWebImpl
       scopes: ['email', 'profile', 'openid'],
     );
     return _googleSignIn!;
+  }
+
+  Map<String, dynamic> _asMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String && data.isNotEmpty) {
+      final decoded = jsonDecode(data);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    }
+    return <String, dynamic>{};
   }
 
   // ---------------------------------------------------------------------------
@@ -82,28 +107,37 @@ class AuthRemoteSourceWebImpl
         );
       }
 
-      final response = await http.post(
-        Uri.parse('${EnvConfig.apiBaseUrl}/api/auth/google/callback'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await dio.post<dynamic>(
+        '${EnvConfig.apiBaseUrl}/api/auth/google/callback',
+        options: Options(headers: {'Content-Type': 'application/json'}),
+        data: {
           'idToken': idToken, // May be null on web
           'accessToken': accessToken,
-        }),
+        },
       );
 
+      final data = _asMap(response.data);
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
-        final errorMsg = error['error']?['message'] ?? 'Google sign in failed';
+        final errorObj = data['error'];
+        final errorMsg = (errorObj is Map
+                ? errorObj['message']?.toString()
+                : errorObj?.toString()) ??
+            'Google sign in failed';
         throw AuthException(message: errorMsg);
       }
 
-      final data = jsonDecode(response.body);
-      final userModel = UserModel.fromJson(data['user']);
+      final userModel = UserModel.fromJson(_asMap(data['user']));
       final token = data['token'] as String;
 
       await saveAuthCredentials(token, userModel);
       authStateController.add(userModel);
       return userModel;
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Google sign in failed'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       final msg = e.toString().toLowerCase();

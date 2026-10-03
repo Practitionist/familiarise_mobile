@@ -225,6 +225,8 @@ class Auth extends _$Auth {
       (user) {
         if (user != null) {
           state = AuthState.authenticated(user: user);
+        } else {
+          state = const AuthState.unauthenticated();
         }
       },
     );

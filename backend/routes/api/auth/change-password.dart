@@ -7,7 +7,7 @@ import 'package:backend/utils/sentry_logger.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/auth/change-password
-/// Change password for an authenticated user
+/// Change password for an authenticated user and revoke existing sessions.
 ///
 /// Request body:
 /// - currentPassword: User's current password
@@ -53,6 +53,15 @@ Future<Response> onRequest(RequestContext context) async {
       currentPassword: currentPassword,
       newPassword: newPassword,
     );
+
+    // Revoke existing sessions for this user and evict in-memory session cache
+    final token = extractBearerToken(context);
+    final authService = context.read<AuthService>();
+    await authService.revokeAllUserSessions(userId);
+    invalidateUserSessionsCache(userId);
+    if (token != null) {
+      invalidateSessionCache(token);
+    }
 
     return Response.json(
       body: {'message': 'Password changed successfully'},

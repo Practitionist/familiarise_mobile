@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/env_config.dart';
@@ -19,6 +19,9 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   // ---------------------------------------------------------------------------
   // Bridge methods — implemented differently per platform
   // ---------------------------------------------------------------------------
+
+  /// Configured [Dio] client for API calls.
+  Dio get dio;
 
   /// Read the stored auth token (SecureStorage on mobile, SharedPrefs on web).
   Future<String?> getAuthToken();
@@ -43,17 +46,58 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
 
   String get baseUrl => EnvConfig.apiBaseUrl;
 
-  Map<String, String> get _jsonHeaders => {'Content-Type': 'application/json'};
+  Options get _jsonOptions => Options(
+        headers: {'Content-Type': 'application/json'},
+      );
 
-  Future<Map<String, String>> _authHeaders() async {
+  Future<Options> _authOptions() async {
     final token = await getAuthToken();
     if (token == null || token.isEmpty) {
       throw const AuthException(message: 'Not authenticated');
     }
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    return Options(
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
+
+  Map<String, dynamic> _asMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String && data.isNotEmpty) {
+      final decoded = jsonDecode(data);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    }
+    return <String, dynamic>{};
+  }
+
+  String extractAuthErrorMessage(DioException e, String fallback) {
+    final rawData = e.response?.data;
+    if (rawData != null) {
+      try {
+        final data = _asMap(rawData);
+        final errorObj = data['error'];
+        if (errorObj is Map) {
+          final msg = errorObj['message']?.toString();
+          if (msg != null && msg.isNotEmpty) return msg;
+        } else if (errorObj is String && errorObj.isNotEmpty) {
+          return errorObj;
+        }
+        final topMsg = data['message']?.toString();
+        if (topMsg != null && topMsg.isNotEmpty) return topMsg;
+      } catch (_) {}
+    }
+
+    final inner = e.error;
+    if (inner is AppException &&
+        inner.message.isNotEmpty &&
+        inner.message != 'An error occurred') {
+      return inner.message;
+    }
+
+    return fallback;
   }
 
   // ---------------------------------------------------------------------------
@@ -63,25 +107,33 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<UserModel> signInWithEmail(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/email/sign-in'),
-        headers: _jsonHeaders,
-        body: jsonEncode({'email': email, 'password': password}),
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/email/sign-in',
+        options: _jsonOptions,
+        data: {'email': email, 'password': password},
       );
 
+      final data = _asMap(response.data);
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
-        throw AuthException(
-            message: error['error']?['message'] ?? 'Sign in failed');
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
+        throw AuthException(message: message ?? 'Sign in failed');
       }
 
-      final data = jsonDecode(response.body);
-      final userModel = UserModel.fromJson(data['user']);
+      final userModel = UserModel.fromJson(_asMap(data['user']));
       final token = data['token'] as String;
 
       await saveAuthCredentials(token, userModel);
       authStateController.add(userModel);
       return userModel;
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Sign in failed'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -97,29 +149,37 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
     String? name,
   ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/email/sign-up'),
-        headers: _jsonHeaders,
-        body: jsonEncode({
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/email/sign-up',
+        options: _jsonOptions,
+        data: {
           'email': email,
           'password': password,
           'name': name ?? '',
-        }),
+        },
       );
 
+      final data = _asMap(response.data);
       if (response.statusCode != 200 && response.statusCode != 201) {
-        final error = jsonDecode(response.body);
-        throw AuthException(
-            message: error['error']?['message'] ?? 'Sign up failed');
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
+        throw AuthException(message: message ?? 'Sign up failed');
       }
 
-      final data = jsonDecode(response.body);
-      final userModel = UserModel.fromJson(data['user']);
+      final userModel = UserModel.fromJson(_asMap(data['user']));
       final token = data['token'] as String;
 
       await saveAuthCredentials(token, userModel);
       authStateController.add(userModel);
       return userModel;
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Sign up failed'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -129,23 +189,31 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   }
 
   @override
-  Future<UserModel?> getCurrentUser() async {
+  Future<UserModel?> getCurrentSession() async {
     try {
       final token = await getAuthToken();
 
       if (token != null && token.isNotEmpty) {
         try {
-          final response = await http.get(
-            Uri.parse('$baseUrl/api/auth/session'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
+          final response = await dio.get<dynamic>(
+            '$baseUrl/api/auth/session',
+            options: Options(
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            ),
           );
 
           if (response.statusCode == 200) {
-            final data = jsonDecode(response.body);
-            final userModel = UserModel.fromJson(data['user']);
+            final data = _asMap(response.data);
+            final userRaw = data['user'];
+            if (userRaw == null) {
+              await clearAuthCredentials();
+              authStateController.add(null);
+              return null;
+            }
+            final userModel = UserModel.fromJson(_asMap(userRaw));
             // Update cached user data
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(
@@ -159,7 +227,20 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
             authStateController.add(null);
             return null;
           }
-        } catch (_) {
+        } on DioException catch (e) {
+          if (e.response?.statusCode == 401 || e.error is AuthException) {
+            await clearAuthCredentials();
+            authStateController.add(null);
+            return null;
+          }
+          // Network / transient server error — try cached user
+          return await _getCachedUser();
+        } catch (e) {
+          if (e is AuthException && e.statusCode == 401) {
+            await clearAuthCredentials();
+            authStateController.add(null);
+            return null;
+          }
           // Network error — try cached user
           return await _getCachedUser();
         }
@@ -170,6 +251,9 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
       return await _getCachedUser();
     }
   }
+
+  @override
+  Future<UserModel?> getCurrentUser() => getCurrentSession();
 
   Future<UserModel?> _getCachedUser() async {
     try {
@@ -187,18 +271,28 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> forgotPassword(String email) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/forgot-password'),
-        headers: _jsonHeaders,
-        body: jsonEncode({'email': email}),
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/forgot-password',
+        options: _jsonOptions,
+        data: {'email': email},
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to send reset email',
+          message: message ?? 'Failed to send reset email',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to send reset email'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -212,21 +306,31 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> resetPassword(String token, String newPassword) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/reset-password'),
-        headers: _jsonHeaders,
-        body: jsonEncode({
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/reset-password',
+        options: _jsonOptions,
+        data: {
           'token': token,
           'newPassword': newPassword,
-        }),
+        },
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to reset password',
+          message: message ?? 'Failed to reset password',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to reset password'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -243,22 +347,32 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
     String newPassword,
   ) async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/change-password'),
-        headers: headers,
-        body: jsonEncode({
+      final options = await _authOptions();
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/change-password',
+        options: options,
+        data: {
           'currentPassword': currentPassword,
           'newPassword': newPassword,
-        }),
+        },
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to change password',
+          message: message ?? 'Failed to change password',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to change password'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -272,19 +386,29 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> setPassword(String newPassword) async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/set-password'),
-        headers: headers,
-        body: jsonEncode({'newPassword': newPassword}),
+      final options = await _authOptions();
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/set-password',
+        options: options,
+        data: {'newPassword': newPassword},
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to set password',
+          message: message ?? 'Failed to set password',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to set password'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -298,20 +422,30 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> requestEmailVerification() async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/verify-email'),
-        headers: headers,
-        body: jsonEncode({}),
+      final options = await _authOptions();
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/verify-email',
+        options: options,
+        data: <String, dynamic>{},
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message:
-              error['error']?['message'] ?? 'Failed to send verification email',
+          message: message ?? 'Failed to send verification email',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message:
+            extractAuthErrorMessage(e, 'Failed to send verification email'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -326,21 +460,31 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> deleteAccount() async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/delete-account'),
-        headers: headers,
+      final options = await _authOptions();
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/delete-account',
+        options: options,
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to delete account',
+          message: message ?? 'Failed to delete account',
         );
       }
 
       await clearAuthCredentials();
       authStateController.add(null);
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to delete account'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -354,22 +498,33 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<List<Map<String, dynamic>>> listSessions() async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/auth/sessions'),
-        headers: headers,
+      final options = await _authOptions();
+      final response = await dio.get<dynamic>(
+        '$baseUrl/api/auth/sessions',
+        options: options,
       );
 
+      final data = _asMap(response.data);
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to list sessions',
+          message: message ?? 'Failed to list sessions',
         );
       }
 
-      final data = jsonDecode(response.body);
       final sessions = data['sessions'] as List<dynamic>;
-      return sessions.cast<Map<String, dynamic>>();
+      return sessions
+          .map((item) => _asMap(item))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to list sessions'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -383,19 +538,29 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> revokeSession(String sessionId) async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/revoke-session'),
-        headers: headers,
-        body: jsonEncode({'sessionId': sessionId}),
+      final options = await _authOptions();
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/revoke-session',
+        options: options,
+        data: {'sessionId': sessionId},
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to revoke session',
+          message: message ?? 'Failed to revoke session',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to revoke session'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -409,19 +574,28 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> revokeOtherSessions() async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/revoke-other-sessions'),
-        headers: headers,
+      final options = await _authOptions();
+      final response = await dio.post<dynamic>(
+        '$baseUrl/api/auth/revoke-other-sessions',
+        options: options,
       );
 
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final data = _asMap(response.data);
+        final errorObj = data['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message:
-              error['error']?['message'] ?? 'Failed to revoke other sessions',
+          message: message ?? 'Failed to revoke other sessions',
         );
       }
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to revoke other sessions'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -439,22 +613,25 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
     Map<String, dynamic> data,
   ) async {
     try {
-      final headers = await _authHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/api/user/$userId'),
-        headers: headers,
-        body: jsonEncode(data),
+      final options = await _authOptions();
+      final response = await dio.put<dynamic>(
+        '$baseUrl/api/user/$userId',
+        options: options,
+        data: data,
       );
 
+      final responseData = _asMap(response.data);
       if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
+        final errorObj = responseData['error'];
+        final message = errorObj is Map
+            ? errorObj['message']?.toString()
+            : errorObj?.toString();
         throw AuthException(
-          message: error['error']?['message'] ?? 'Failed to update profile',
+          message: message ?? 'Failed to update profile',
         );
       }
 
-      final responseData = jsonDecode(response.body);
-      final userModel = UserModel.fromJson(responseData['data']);
+      final userModel = UserModel.fromJson(_asMap(responseData['data']));
 
       // Update cached user
       final prefs = await SharedPreferences.getInstance();
@@ -463,6 +640,12 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
 
       authStateController.add(userModel);
       return userModel;
+    } on DioException catch (e) {
+      throw AuthException(
+        message: extractAuthErrorMessage(e, 'Failed to update profile'),
+        statusCode: e.response?.statusCode,
+        originalError: e,
+      );
     } catch (e, stackTrace) {
       if (e is AuthException) rethrow;
       AppSentryLogger.captureException(e,
@@ -476,16 +659,18 @@ mixin AuthRemoteSourceMixin implements AuthRemoteSource {
   @override
   Future<void> signOut() async {
     try {
-      // Invalidate server-side session
+      // Revoke server-side session in Postgres & invalidate backend cache
       final token = await getAuthToken();
       if (token != null && token.isNotEmpty) {
         try {
-          await http.post(
-            Uri.parse('$baseUrl/api/auth/sign-out'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
+          await dio.post<dynamic>(
+            '$baseUrl/api/auth/logout',
+            options: Options(
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            ),
           );
         } catch (_) {
           // Server sign-out failure is non-critical — still clear local auth

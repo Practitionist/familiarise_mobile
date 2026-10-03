@@ -10,13 +10,6 @@ part 'env_config.g.dart';
 /// Run `dart run build_runner build` to generate env_config.g.dart
 @Envied(path: '.env', obfuscate: true)
 abstract class EnvConfig {
-  // Database
-  @EnviedField(varName: 'DATABASE_URL', defaultValue: '')
-  static String databaseUrl = _EnvConfig.databaseUrl;
-
-  @EnviedField(varName: 'DIRECT_URL', defaultValue: '')
-  static String directUrl = _EnvConfig.directUrl;
-
   // Supabase
   @EnviedField(
       varName: 'SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co')

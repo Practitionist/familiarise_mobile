@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -34,11 +34,13 @@ Dio dio(Ref ref) {
     // Add interceptor to convert _JsonMap on web
     JsonMapConversionInterceptor(),
     ErrorInterceptor(),
-    LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      error: true,
-    ),
+    if (kDebugMode)
+      LogInterceptor(
+        requestHeader: false,
+        requestBody: false,
+        responseBody: false,
+        error: true,
+      ),
   ]);
 
   return dio;
@@ -109,9 +111,19 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    // Handle 401 Unauthorized - clear token and redirect to login
+    // Handle 401 Unauthorized - clear token and redirect to login, except on
+    // credential-validation endpoints where 401 indicates an invalid password
+    // rather than an expired/revoked session token.
     if (err.response?.statusCode == 401) {
-      clearToken();
+      final path = err.requestOptions.path;
+      final isCredentialValidationEndpoint =
+          path.endsWith('/api/auth/change-password') ||
+              path.endsWith('/api/auth/login') ||
+              path.endsWith('/api/auth/register') ||
+              path.endsWith('/api/auth/reset-password');
+      if (!isCredentialValidationEndpoint) {
+        clearToken();
+      }
       // Auth state will be handled by auth provider
     }
     handler.next(err);

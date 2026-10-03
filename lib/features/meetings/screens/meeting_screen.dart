@@ -9,6 +9,7 @@ import '../../../domain/entities/meeting/meeting_entities.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../providers/meeting_provider.dart';
 import '../widgets/meeting_widgets.dart';
+import 'pre_call_screen.dart';
 
 /// Main screen for video meetings
 class MeetingScreen extends ConsumerStatefulWidget {
@@ -165,9 +166,9 @@ class _MeetingScreenState extends ConsumerState<MeetingScreen> {
       );
     }
 
-    // Pre-join state
+    // Pre-join state with DPDP Act 2023 Recording Consent
     if (meetingState.isInitialized && controller.activeCall != null) {
-      return _PreJoinView(
+      return PreCallScreen(
         call: controller.activeCall!,
         meetingState: meetingState,
         isJoining: meetingState.isJoining,
@@ -280,145 +281,6 @@ class _ErrorView extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Pre-join view with camera preview
-class _PreJoinView extends StatelessWidget {
-  const _PreJoinView({
-    required this.call,
-    required this.meetingState,
-    required this.isJoining,
-    required this.isEmulator,
-    required this.onMicrophoneToggle,
-    required this.onCameraToggle,
-    required this.onFlipCamera,
-    required this.onJoin,
-    required this.onBack,
-  });
-
-  final Call call;
-  final MeetingState meetingState;
-  final bool isJoining;
-  final bool isEmulator;
-  final VoidCallback onMicrophoneToggle;
-  final VoidCallback onCameraToggle;
-  final VoidCallback onFlipCamera;
-  final VoidCallback onJoin;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        children: [
-          // Top bar
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  icon: const Icon(Icons.close, color: Colors.white),
-                ),
-                const Spacer(),
-                Text(
-                  'Ready to join?',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                      ),
-                ),
-                const Spacer(),
-                const SizedBox(width: 48), // Balance the close button
-              ],
-            ),
-          ),
-
-          // Camera preview or emulator placeholder
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: isEmulator
-                  ? const _EmulatorPlaceholder()
-                  : CameraPreview(
-                      call: call,
-                      isCameraEnabled: meetingState.isCameraEnabled,
-                    ),
-            ),
-          ),
-
-          // Controls
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                MeetingControlButton(
-                  icon: meetingState.isMicrophoneEnabled
-                      ? Icons.mic
-                      : Icons.mic_off,
-                  isEnabled: meetingState.isMicrophoneEnabled,
-                  onPressed: onMicrophoneToggle,
-                  size: 48,
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                MeetingControlButton(
-                  icon: meetingState.isCameraEnabled
-                      ? Icons.videocam
-                      : Icons.videocam_off,
-                  isEnabled: meetingState.isCameraEnabled,
-                  onPressed: onCameraToggle,
-                  size: 48,
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                MeetingControlButton(
-                  icon: Icons.flip_camera_ios,
-                  onPressed: onFlipCamera,
-                  size: 48,
-                ),
-              ],
-            ),
-          ),
-
-          // Join button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.lg,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isJoining ? null : onJoin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.success,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(52),
-                ),
-                child: isJoining
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Join Meeting',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -566,62 +428,6 @@ class _SimulatorModeView extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Placeholder widget shown on emulator during pre-join
-class _EmulatorPlaceholder extends StatelessWidget {
-  const _EmulatorPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey[800],
-                border: Border.all(color: Colors.white24, width: 2),
-              ),
-              child: const Icon(
-                Icons.person,
-                size: 64,
-                color: Colors.white54,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Camera Preview',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: Text(
-                'Camera preview unavailable on emulator.\n'
-                'Video will work on physical devices.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

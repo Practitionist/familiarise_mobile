@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:backend/database/database_client.dart';
 import 'package:backend/services/stream_service.dart';
 import 'package:backend/utils/auth_utils.dart';
 import 'package:backend/utils/sentry_logger.dart';
@@ -8,9 +9,6 @@ import 'package:dart_frog/dart_frog.dart';
 /// Stream Chat group channel creation endpoint
 ///
 /// POST /api/stream/create-group-channel - Create a group channel
-///
-/// This endpoint creates a team-type channel for classes/webinars
-/// with all specified members.
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
@@ -19,35 +17,8 @@ Future<Response> onRequest(RequestContext context) async {
   return _handleCreateGroupChannel(context);
 }
 
-/// POST /api/stream/create-group-channel
-///
-/// Creates a group channel in Stream Chat for classes/webinars.
-///
-/// Request body:
-/// ```json
-/// {
-///   "channelId": "class_abc123",
-///   "channelName": "Class: Flutter Fundamentals",
-///   "memberIds": ["user1", "user2", "instructor1"],
-///   "extraData": {
-///     "programType": "CLASS",
-///     "programId": "abc123",
-///     "instructorId": "instructor1"
-///   }
-/// }
-/// ```
-///
-/// Response:
-/// ```json
-/// {
-///   "success": true,
-///   "channelId": "class_abc123",
-///   "channelType": "team"
-/// }
-/// ```
 Future<Response> _handleCreateGroupChannel(RequestContext context) async {
   try {
-    // Verify user is authenticated
     final currentUserId = getUserIdFromToken(context);
     if (currentUserId == null) {
       return Response.json(
@@ -58,7 +29,6 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
       );
     }
 
-    // Parse request body
     final body = await context.request.json() as Map<String, dynamic>;
     final channelId = body['channelId'] as String?;
     final channelName = body['channelName'] as String?;
@@ -66,7 +36,6 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
         (body['memberIds'] as List<dynamic>?)?.map((e) => e as String).toList();
     final extraData = body['extraData'] as Map<String, dynamic>?;
 
-    // Validate required fields
     if (channelId == null || channelId.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
@@ -94,8 +63,28 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
       );
     }
 
-    // Get Stream service from provider
+    final db = context.read<DatabaseClient>();
     final streamService = context.read<StreamService>();
+
+    final hasAccess = await streamService.verifyChannelAccess(
+      db,
+      channelId: channelId,
+      userId: currentUserId,
+      requireHostOrCollaborator: true,
+      memberIds: memberIds,
+    );
+
+    if (!hasAccess) {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {
+          'error': {
+            'message': 'Forbidden: only the host consultant or an accepted '
+                'collaborator can create or update a group channel',
+          },
+        },
+      );
+    }
 
     if (!streamService.isConfigured) {
       await SentryLogger.error(
@@ -110,7 +99,6 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
       );
     }
 
-    // Create group channel
     final result = await streamService.createGroupChannel(
       channelId: channelId,
       channelName: channelName,

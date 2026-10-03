@@ -65,6 +65,8 @@
 //   import 'dart:io' hide Platform;
 // =============================================================================
 
+import 'dart:io' as io show Platform;
+
 import 'package:backend/database/repositories/repositories.dart';
 import 'package:backend/generated/prisma_client.dart';
 import 'package:backend/generated/schema_registry.g.dart';
@@ -131,6 +133,61 @@ class DatabaseClient {
   static DatabaseClient? _instance;
   final QueryExecutor _executor;
   final PostgresAdapter _adapter;
+
+  /// Default pool size for Supavisor (:6543) compatibility alongside familiarise_web.
+  static const int defaultMaxPoolConnections = 8;
+
+  /// Default connection establishment timeout.
+  static const Duration defaultConnectTimeout = Duration(seconds: 15);
+
+  /// Default per-query execution timeout to prevent hung queries from exhausting pool slots.
+  static const Duration defaultQueryTimeout = Duration(seconds: 30);
+
+  /// Default maximum lifetime of a pooled database connection before recycling.
+  static const Duration defaultMaxConnectionAge = Duration(minutes: 30);
+
+  /// Build [pg.PoolSettings] with environment-tunable connection limits and timeouts.
+  static pg.PoolSettings buildPoolSettings({
+    required pg.SslMode sslMode,
+    Map<String, String>? environment,
+  }) {
+    final env = environment ?? io.Platform.environment;
+    final parsedMaxConnections =
+        int.tryParse(env['DB_POOL_MAX_CONNECTIONS'] ?? '');
+    final maxConnectionCount =
+        (parsedMaxConnections != null && parsedMaxConnections > 0)
+            ? parsedMaxConnections
+            : defaultMaxPoolConnections;
+
+    final parsedConnectTimeoutSec =
+        int.tryParse(env['DB_CONNECT_TIMEOUT_SECONDS'] ?? '');
+    final connectTimeout =
+        (parsedConnectTimeoutSec != null && parsedConnectTimeoutSec > 0)
+            ? Duration(seconds: parsedConnectTimeoutSec)
+            : defaultConnectTimeout;
+
+    final parsedQueryTimeoutSec =
+        int.tryParse(env['DB_QUERY_TIMEOUT_SECONDS'] ?? '');
+    final queryTimeout =
+        (parsedQueryTimeoutSec != null && parsedQueryTimeoutSec > 0)
+            ? Duration(seconds: parsedQueryTimeoutSec)
+            : defaultQueryTimeout;
+
+    final parsedMaxAgeMin =
+        int.tryParse(env['DB_MAX_CONNECTION_AGE_MINUTES'] ?? '');
+    final maxConnectionAge = (parsedMaxAgeMin != null && parsedMaxAgeMin > 0)
+        ? Duration(minutes: parsedMaxAgeMin)
+        : defaultMaxConnectionAge;
+
+    return pg.PoolSettings(
+      sslMode: sslMode,
+      maxConnectionCount: maxConnectionCount,
+      maxConnectionAge: maxConnectionAge,
+      connectTimeout: connectTimeout,
+      queryTimeout: queryTimeout,
+      applicationName: 'familiarise_mobile_backend',
+    );
+  }
 
   // Type-safe PrismaClient (use this for new code)
   late final PrismaClient _prisma;
@@ -208,12 +265,7 @@ class DatabaseClient {
           password: password,
         ),
       ],
-      settings: pg.PoolSettings(
-        sslMode: sslMode,
-        maxConnectionCount: 8,
-        // Recycle pooled connections before hosted poolers kill them silently.
-        maxConnectionAge: const Duration(minutes: 30),
-      ),
+      settings: buildPoolSettings(sslMode: sslMode),
     );
 
     final adapter = PostgresAdapter.pooled(pool);

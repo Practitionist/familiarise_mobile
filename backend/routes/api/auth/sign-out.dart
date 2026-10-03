@@ -2,10 +2,11 @@ import 'dart:io';
 
 import 'package:backend/services/auth/auth_service.dart';
 import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/utils/auth_utils.dart';
 import 'package:dart_frog/dart_frog.dart';
 
 /// POST /api/auth/sign-out
-/// Better Auth compatible sign-out endpoint
+/// Sign-out endpoint — deletes caller's Session row and invalidates session cache.
 Future<Response> onRequest(RequestContext context) async {
   // Only allow POST
   if (context.request.method != HttpMethod.post) {
@@ -13,15 +14,14 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   try {
-    // Get token from Authorization header
-    final authHeader = context.request.headers['authorization'];
-    if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+    final token = extractBearerToken(context);
+    if (token == null) {
       return Response.json(
         body: {'success': true}, // Already signed out
       );
     }
 
-    final token = authHeader.substring(7);
+    invalidateSessionCache(token);
 
     final jwtService = context.read<JwtService>();
     final authService = context.read<AuthService>();
@@ -33,8 +33,13 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     final sessionId = payload['sessionId'] as String?;
+    final userId = payload['userId'] as String?;
     if (sessionId != null) {
+      invalidateSessionIdCache(sessionId);
       await authService.signOut(sessionId);
+    } else if (userId != null) {
+      invalidateUserSessionsCache(userId);
+      await authService.revokeAllUserSessions(userId);
     }
 
     return Response.json(body: {'success': true});

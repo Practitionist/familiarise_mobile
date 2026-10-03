@@ -15,6 +15,8 @@ class ChatRoomScreen extends ConsumerStatefulWidget {
     super.key,
     required this.channelId,
     this.channel,
+    this.isFrozen = false,
+    this.chatFrozenAt,
   });
 
   /// The ID of the channel to display
@@ -22,6 +24,12 @@ class ChatRoomScreen extends ConsumerStatefulWidget {
 
   /// Pre-loaded channel instance (passed from list screen)
   final Channel? channel;
+
+  /// Explicit frozen flag for archived/ended sessions
+  final bool isFrozen;
+
+  /// Timestamp when the chat was frozen after session end
+  final DateTime? chatFrozenAt;
 
   @override
   ConsumerState<ChatRoomScreen> createState() => _ChatRoomScreenState();
@@ -41,6 +49,19 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     } else {
       _loadChannel();
     }
+  }
+
+  bool get _isChannelFrozen {
+    if (widget.isFrozen || widget.chatFrozenAt != null) {
+      return true;
+    }
+    final ch = _channel;
+    if (ch == null) return false;
+    final extra = ch.extraData;
+    return ch.frozen ||
+        extra['isFrozen'] == true ||
+        extra['chatFrozenAt'] != null ||
+        extra['isArchived'] == true;
   }
 
   Future<void> _loadChannel() async {
@@ -64,7 +85,9 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       // Detect channel type from ID pattern
       // Group channels (webinar/class) use 'team' type, DMs use 'messaging'
       final isGroupChannel = widget.channelId.startsWith('webinar_') ||
-          widget.channelId.startsWith('class_');
+          widget.channelId.startsWith('class_') ||
+          widget.channelId.startsWith('webinar-') ||
+          widget.channelId.startsWith('class-');
       final channelType = isGroupChannel ? 'team' : 'messaging';
 
       final channel = client.channel(channelType, id: widget.channelId);
@@ -262,7 +285,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final isGroupChannel = _channel!.type == 'team';
     final currentUserId = _channel!.client.state.currentUser?.id;
     final memberCount = _channel!.state?.members.length ?? 0;
-    final isArchived = _channel!.extraData['isArchived'] == true;
+    final isFrozen = _isChannelFrozen;
 
     // For DMs, get the other member for the app bar
     final otherMembers = _channel!.state?.members
@@ -315,7 +338,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                     children: [
                       Row(
                         children: [
-                          if (isArchived)
+                          if (isFrozen)
                             Padding(
                               padding: const EdgeInsets.only(right: 4),
                               child: Icon(
@@ -347,7 +370,6 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                                     : colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            // Show dropdown arrow for group channels
                             if (isGroupChannel) ...[
                               const SizedBox(width: 4),
                               Icon(
@@ -367,28 +389,32 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         ),
         body: Column(
           children: [
-            // Archived banner
-            if (isArchived)
+            // Frozen / archived banner when isFrozen or chatFrozenAt != null
+            if (isFrozen)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 8,
+                  vertical: 10,
                 ),
                 color: colorScheme.surfaceContainerHighest,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.archive_outlined,
+                      Icons.lock_clock_outlined,
                       size: 16,
                       color: colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'This chat is archived',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    Flexible(
+                      child: Text(
+                        'This conversation is archived because the session has ended',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -399,7 +425,6 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
             Expanded(
               child: StreamMessageListView(
                 messageBuilder: (context, details, messages, defaultWidget) {
-                  // Show avatars in group chats, hide in DMs
                   return defaultWidget.copyWith(
                     showUserAvatar: isGroupChannel
                         ? DisplayWidget.show
@@ -409,8 +434,44 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
               ),
             ),
 
-            // Message input (hidden if archived)
-            if (!isArchived)
+            // Message composition disabled when frozen (isFrozen / chatFrozenAt != null)
+            if (isFrozen)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerLow,
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.block_outlined,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Message composition is disabled for archived sessions',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
               Container(
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
