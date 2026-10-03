@@ -5,7 +5,7 @@
 >
 > **Legend:**
 > - ✅ **Implemented Natively** (Mobile UI + Dart Frog API)
-> - 🌐 **Companion Web Handoff** (Mobile Companion view + seamless deep-link handoff to `familiarise.com` for App Store `3.1.3(b)`/`3.1.3(d)` & Google Play compliance)
+> - 🌐 **Companion Web Handoff** (Mobile Companion view + seamless deep-link handoff to `familiarise.com`; external web handoff applies to physical/real-world 1:1 human consulting under App Store Guideline `3.1.3(d)` & Google Play policy, while billing requirements for multi-participant digital programs depend on the product, target storefront/country, and applicable store program terms)
 > - 🖥️ **Web-Only by Design** (Back-office Admin/Staff moderation, background cron jobs, marketing SEO pages)
 
 ---
@@ -31,7 +31,7 @@
 | Forgot / reset / change / set password | ✅ | ✅ |
 | Email verification | ✅ | ✅ |
 | Active device sessions list (`GET /api/auth/sessions`) | ✅ | ✅ |
-| Remote session revocation (`DELETE /api/auth/sessions/:id`) | ✅ | ✅ |
+| Remote session revocation (`POST /api/auth/revoke-session`) | ✅ | ✅ |
 | Server-side session invalidation on sign-out | ✅ | ✅ |
 | Concurrent session/token refresh race protection | ✅ | ✅ |
 | `CookiePreference` & `NotificationPreference` auto-creation on signup | ✅ | ✅ |
@@ -77,7 +77,8 @@
 | Weekly & custom availability slot management (with ownership guards) | ✅ | ✅ |
 | Concurrent slot double-booking prevention | ✅ | ✅ |
 | Event waitlist join / leave / position tracking (`Waitlist`) | ✅ | ✅ |
-| Paid plan checkout & 1:many program purchase (`FeatureFlags.payments = false`) | ✅ | 🌐 Companion Web Handoff (`WebHandoffDialog`) |
+| Paid 1:1 consultation / subscription checkout (`FeatureFlags.payments = false`) | ✅ | 🌐 Companion Web Handoff (`WebHandoffDialog`; real-world 1:1 human consulting under App Store `3.1.3(d)` & Google Play policy; external billing eligibility is storefront/country-specific) |
+| 1:many webinar/class program purchase (`FeatureFlags.programCheckout = false`) | ✅ | 🌐 Companion Web Handoff currently configured (multi-participant digital sessions require Apple IAP on iOS unless covered by a storefront-specific external billing entitlement) |
 | Stripe & Razorpay webhook processing & invoice generation | ✅ | ✅ (Backend) / 🌐 (Web Checkout) |
 
 ---

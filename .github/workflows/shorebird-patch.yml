@@ -16,10 +16,26 @@ on:
           - both
           - android
           - ios
+      flavor:
+        description: 'Target Shorebird environment flavor (dev, staging, prod)'
+        required: false
+        default: 'prod'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
       release_version:
         description: 'Optional release version (e.g. 1.0.0+1) to patch; defaults to latest release'
         required: false
         type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorebird-patch-${{ inputs.platforms || 'both' }}-${{ inputs.flavor || 'prod' }}-${{ inputs.release_version || 'latest' }}
+  cancel-in-progress: false
 
 env:
   FLUTTER_VERSION: '3.47.6'
@@ -43,16 +59,16 @@ jobs:
           cache: true
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies & generate code
         run: |
@@ -90,16 +106,16 @@ jobs:
         uses: shorebirdtech/setup-shorebird@v1
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies & generate code
         run: |
@@ -109,11 +125,13 @@ jobs:
       - name: Apply Shorebird OTA Patch (Android)
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          FLAVOR: ${{ inputs.flavor || 'prod' }}
         run: |
-          if [ -n "${{ inputs.release_version }}" ]; then
-            shorebird patch android --release-version="${{ inputs.release_version }}"
+          if [ -n "$RELEASE_VERSION" ]; then
+            shorebird patch android --flavor="$FLAVOR" --release-version="$RELEASE_VERSION"
           else
-            shorebird patch android
+            shorebird patch android --flavor="$FLAVOR" --release-version=latest
           fi
 
   # ============================================
@@ -138,16 +156,16 @@ jobs:
         uses: shorebirdtech/setup-shorebird@v1
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies & generate code
         run: |
@@ -158,9 +176,11 @@ jobs:
       - name: Apply Shorebird OTA Patch (iOS)
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          FLAVOR: ${{ inputs.flavor || 'prod' }}
         run: |
-          if [ -n "${{ inputs.release_version }}" ]; then
-            shorebird patch ios --release-version="${{ inputs.release_version }}"
+          if [ -n "$RELEASE_VERSION" ]; then
+            shorebird patch ios --flavor="$FLAVOR" --release-version="$RELEASE_VERSION" --no-codesign
           else
-            shorebird patch ios
+            shorebird patch ios --flavor="$FLAVOR" --release-version=latest --no-codesign
           fi

@@ -15,7 +15,7 @@ VALUES ('test_intg_staff_u1', 'Moderation Staff', 'test_intg_staff@test.com', tr
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_staff_a1', 'test_intg_staff_u1', 'test_intg_staff_u1', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "StaffProfile" (id, "userId", department, position, "createdAt", "updatedAt")
 VALUES ('test_intg_staff_sp', 'test_intg_staff_u1', 'Operations', 'Senior Moderator', NOW(), NOW());
@@ -27,7 +27,7 @@ VALUES ('test_intg_staff_u2', 'Pending Consultant', 'test_intg_staff_cnt@test.co
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_staff_a2', 'test_intg_staff_u2', 'test_intg_staff_u2', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_intg_staff_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -51,7 +51,7 @@ VALUES ('test_intg_staff_u3', 'Ticket Consultee', 'test_intg_staff_tkt@test.com'
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_staff_a3', 'test_intg_staff_u3', 'test_intg_staff_u3', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "createdAt", "updatedAt")
 VALUES ('test_intg_staff_cep', 'test_intg_staff_u3', NOW(), NOW());

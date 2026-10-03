@@ -22,7 +22,7 @@ VALUES ('test_intg_clife_cee', 'Lifecycle Consultee', 'test_intg_clife_cee@test.
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_clife_a_cee', 'test_intg_clife_cee', 'test_intg_clife_cee', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "createdAt", "updatedAt")
 VALUES ('test_intg_clife_cep', 'test_intg_clife_cee', NOW(), NOW());
@@ -277,7 +277,7 @@ take_screenshot
 
 ### 5.2 Check Trial Eligibility
 ```
-fetch('/api/trials/check-eligibility?consultantProfileId={consultantProfileId}&subscriptionPlanId={subscriptionPlanId}', {
+fetch(`/api/trials/check-eligibility?consultantProfileId=${consultantProfileId}&subscriptionPlanId=${subscriptionPlanId}`, {
   method: 'GET',
   credentials: 'include'
 }).then(r => r.json())
@@ -291,8 +291,8 @@ fetch('/api/trials', {
   headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
   body: JSON.stringify({
-    consultantProfileId: '{consultantProfileId}',
-    subscriptionPlanId: '{subscriptionPlanId}',
+    consultantProfileId,
+    subscriptionPlanId,
     notes: 'I want to explore Flutter mentoring'
   })
 }).then(r => r.json())

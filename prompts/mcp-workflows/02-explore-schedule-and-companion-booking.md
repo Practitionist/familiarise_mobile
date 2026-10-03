@@ -44,8 +44,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_mcp_bk_acc_con', 'test_mcp_bk_u_con', 'test_mcp_bk_u_con', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW()),
-  ('test_mcp_bk_acc_cee', 'test_mcp_bk_u_cee', 'test_mcp_bk_u_cee', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW());
+  ('test_mcp_bk_acc_con', 'test_mcp_bk_u_con', 'test_mcp_bk_u_con', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_mcp_bk_acc_cee', 'test_mcp_bk_u_cee', 'test_mcp_bk_u_cee', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 -- 3. Profiles
 INSERT INTO "ConsultantProfile" (
@@ -128,14 +128,23 @@ INSERT INTO "SlotOfWeeklyAvailability" (
 
 INSERT INTO "SlotOfCustomAvailability" (
   id, "consultantProfileId", "startsAt", "endsAt", "createdAt", "updatedAt"
-) VALUES (
-  'test_mcp_bk_cslot1',
-  'test_mcp_bk_cp1',
-  NOW() + INTERVAL '2 days',
-  NOW() + INTERVAL '2 days 1 hour',
-  NOW(),
-  NOW()
-);
+) VALUES
+  (
+    'test_mcp_bk_cslot1',
+    'test_mcp_bk_cp1',
+    NOW() + INTERVAL '2 days',
+    NOW() + INTERVAL '2 days 1 hour',
+    NOW(),
+    NOW()
+  ),
+  (
+    'test_mcp_bk_cslot_race',
+    'test_mcp_bk_cp1',
+    '2027-01-15T10:00:00.000Z'::timestamptz,
+    '2027-01-15T11:00:00.000Z'::timestamptz,
+    NOW(),
+    NOW()
+  );
 
 COMMIT;
 ```
@@ -190,16 +199,18 @@ Because `FeatureFlags.payments` and `FeatureFlags.programCheckout` are `false` i
 
 ## 5. Scenario D — Concurrent Slot Booking Race Guard (Double-Booking Prevention)
 
-Verify that two concurrent booking requests for the exact same time window on `test_mcp_bk_cp1` cannot both allocate overlapping `SlotOfAppointment` records:
+Verify that two concurrent booking requests for the dedicated seeded custom availability interval (`test_mcp_bk_cslot_race`: `2027-01-15T10:00:00.000Z` to `2027-01-15T11:00:00.000Z`) on `test_mcp_bk_cp1` result in **exactly one winner** (`200`/`201`) and **one conflict** (`409`), never double-allocating `SlotOfAppointment`:
 
 ```json
 // Tool: mcp:chrome-devtools:evaluate_script
 {
-  "function": "async () => {\n  const start = new Date(Date.now() + 72 * 3600 * 1000).toISOString();\n  const end = new Date(Date.now() + 73 * 3600 * 1000).toISOString();\n  const payload = {\n    consultantProfileId: 'test_mcp_bk_cp1',\n    consultationPlanId: 'test_mcp_bk_cplan1',\n    slotStartTimeInUTC: start,\n    slotEndTimeInUTC: end,\n    notes: 'Concurrent slot booking race test'\n  };\n  const [r1, r2] = await Promise.all([\n    fetch('http://localhost:8081/api/appointments/book', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      credentials: 'include',\n      body: JSON.stringify(payload)\n    }),\n    fetch('http://localhost:8081/api/appointments/book', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      credentials: 'include',\n      body: JSON.stringify(payload)\n    })\n  ]);\n  return { status1: r1.status, status2: r2.status };\n}"
+  "function": "async () => {\n  const start = '2027-01-15T10:00:00.000Z';\n  const end = '2027-01-15T11:00:00.000Z';\n  const payload = {\n    consultantProfileId: 'test_mcp_bk_cp1',\n    consultationPlanId: 'test_mcp_bk_cplan1',\n    slotStartTimeInUTC: start,\n    slotEndTimeInUTC: end,\n    notes: 'Concurrent slot booking race test'\n  };\n  const [r1, r2] = await Promise.all([\n    fetch('http://localhost:8081/api/appointments/book', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      credentials: 'include',\n      body: JSON.stringify(payload)\n    }),\n    fetch('http://localhost:8081/api/appointments/book', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      credentials: 'include',\n      body: JSON.stringify(payload)\n    })\n  ]);\n  const statuses = [r1.status, r2.status].sort((a, b) => a - b);\n  return { status1: r1.status, status2: r2.status, sortedStatuses: statuses };\n}"
 }
 ```
 
-Verify in Postgres via **Supabase MCP** that at most `1` non-tentative `SlotOfAppointment` exists for that consultant and interval:
+**Expected HTTP Outcome:** Exactly one request succeeds (`200` or `201`) and the other fails with `409 Conflict` (`sortedStatuses` is `[200, 409]` or `[201, 409]`).
+
+Verify in Postgres via **Supabase MCP** that **exactly `1`** `SlotOfAppointment` exists for that interval:
 
 ```sql
 -- Tool: mcp:supabase:execute_sql
@@ -207,10 +218,12 @@ SELECT COUNT(*)::int AS slot_count
 FROM "SlotOfAppointment" s
 JOIN "Appointment" a ON a.id = s."appointmentId"
 JOIN "Consultation" c ON c.id = a."consultationId"
-WHERE c."consultationPlanId" = 'test_mcp_bk_cplan1';
+WHERE c."consultationPlanId" = 'test_mcp_bk_cplan1'
+  AND s."startsAt" = '2027-01-15T10:00:00.000Z'::timestamptz
+  AND s."endsAt" = '2027-01-15T11:00:00.000Z'::timestamptz;
 ```
 
-**Expected:** At most `1` booked slot (the second concurrent request is rejected with `409 Conflict` or `400 Bad Request`).
+**Expected:** `slot_count = 1` (exactly one booking succeeded for the seeded interval and the concurrent duplicate was rejected with `409 Conflict`).
 
 ---
 

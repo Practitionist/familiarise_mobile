@@ -11,7 +11,7 @@ A Flutter-based **Companion Starter** mobile application for the Familiarise con
 | **Architecture** | Clean Architecture, Feature-First, Companion Starter (`FeatureFlags`) |
 | **Backend** | Dart Frog 1.2.x + `prisma_flutter_connector` **v1.0.0** (`0` `JsonQueryBuilder`) |
 | **Database** | PostgreSQL 15+ (Supabase) — **93 Prisma models** synced with `familiarise_web` |
-| **Backend Hosting** | Railway (`backend/Dockerfile`, `railway.json`, `/api/health`) |
+| **Backend Hosting** | Railway (`backend/Dockerfile`, `.railway/railway.ts`, `/api/health`) |
 | **State Management** | Riverpod 2.x + Freezed 2.x |
 | **Navigation** | GoRouter 14.x |
 | **Video/Chat** | Stream Video & Chat SDKs (with DPDP recording consent gates) |
@@ -52,10 +52,10 @@ flutter pub get
 
 ```bash
 cp .env.example .env
-# Edit .env with your API keys (see Environment Variables below)
+# Edit .env with your API keys (set API_BASE_URL=http://localhost:8081 so backend and web server do not share port 8080)
 
 cp backend/.env.example backend/.env
-# Edit backend/.env with DATABASE_URL, DIRECT_URL, JWT_SECRET
+# Edit backend/.env with DATABASE_URL, DIRECT_URL, JWT_SECRET, PORT=8081
 ```
 
 ### 3. Sync schema & generate code (REQUIRED after clone)
@@ -77,18 +77,19 @@ This generates:
 
 ```bash
 cd backend
-dart build/bin/server.dart
-# Server runs at http://localhost:8080 (health check: http://localhost:8080/api/health)
+PORT=8081 dart build/bin/server.dart
+# Or in dev mode: dart_frog dev --port 8081
+# Server runs at http://localhost:8081 (health check: http://localhost:8081/api/health)
 ```
 
 ### 5. Run the app
 
 ```bash
-# Headless Web Server (for Chrome DevTools MCP E2E testing — no emulator required!)
+# Headless Web Server on port 8080 (with API_BASE_URL=http://localhost:8081 in .env)
 flutter run -d web-server --web-port 8080 --print-dtd
 
 # Android (with port forwarding for emulator)
-adb reverse tcp:8080 tcp:8080
+adb reverse tcp:8081 tcp:8081
 flutter run -d emulator-5554
 
 # iOS
@@ -117,7 +118,7 @@ flutter run -d "iPhone 17 Pro"
 |-------------------|------|-------------------|
 | **Flutter CI/CD** | `.github/workflows/flutter-ci.yml` | Push/PR to `dev` and `prod` (Flutter `3.47.6`). Runs `analyze`, `test-backend`, `build-android`, `build-ios`, and on `prod` runs **Fastlane + Shorebird** store releases (`release-android`, `release-ios`). |
 | **Shorebird OTA Patch** | `.github/workflows/shorebird-patch.yml` | Push to `patch/**` or `hotfix/**` (or `workflow_dispatch`). Delivers ~3-minute Dart OTA patches via `shorebird patch android` and `shorebird patch ios`. |
-| **Deploy to Railway** | `.github/workflows/deploy-railway.yml` | Push to `dev` or `prod` touching `backend/**`. Builds `backend/Dockerfile`, deploys to Railway, and verifies `/api/health`. |
+| **Deploy to Railway** | `.github/workflows/deploy-railway.yml` | Push to `dev` or `prod` touching `backend/**`, `.railway/**`, or `.github/workflows/deploy-railway.yml` (or `workflow_dispatch`). Builds `backend/Dockerfile`, deploys to Railway, and verifies `/api/health`. |
 | **Fastlane Lanes** | `fastlane/Fastfile` | Android (`internal`, `beta`, `production`, `patch`) & iOS (`beta`, `release` via `match` + TestFlight/App Store, `patch`). |
 
 ## Multi-MCP E2E Testing (`prompts/mcp-workflows/`)

@@ -17,8 +17,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_unit_trials_a1', 'test_unit_trials_u1', 'test_unit_trials_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW()),
-  ('test_unit_trials_a2', 'test_unit_trials_u2', 'test_unit_trials_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  ('test_unit_trials_a1', 'test_unit_trials_u1', 'test_unit_trials_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_unit_trials_a2', 'test_unit_trials_u2', 'test_unit_trials_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_trials_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -70,7 +70,8 @@ take_screenshot
 **Verify:** `SELECT id, status, notes FROM "TrialSession" WHERE "consulteeProfileId" = 'test_unit_trials_cep1' AND "consultantProfileId" = 'test_unit_trials_cp1';`
 **Expected:** TrialSession created with status = 'PENDING'.
 
-### 3. Request Trial (via API fallback)
+### 3. Request Trial (via API — Alternative to Scenario 2)
+> **Note:** Only run this step if Scenario 2 (UI) was skipped; if Scenario 2 already created the trial session, delete it first (`DELETE FROM "TrialSession" WHERE "consulteeProfileId" = 'test_unit_trials_cep1' AND "consultantProfileId" = 'test_unit_trials_cp1';`) or skip directly to Scenario 4.
 ```
 fetch('/api/trials', {
   method: 'POST',

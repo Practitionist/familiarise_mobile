@@ -40,8 +40,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_mcp_stm_acc1', 'test_mcp_stm_u_con', 'test_mcp_stm_u_con', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW()),
-  ('test_mcp_stm_acc2', 'test_mcp_stm_u_cee', 'test_mcp_stm_u_cee', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW());
+  ('test_mcp_stm_acc1', 'test_mcp_stm_u_con', 'test_mcp_stm_u_con', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_mcp_stm_acc2', 'test_mcp_stm_u_cee', 'test_mcp_stm_u_cee', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsultantProfile" (
   id, "userId", "domainId", headline, description, experience, rating, "scheduleType", "isVerified", "verificationStatus", "createdAt", "updatedAt"
@@ -185,16 +185,24 @@ Under India's **DPDP Act**, video/audio recording and transcript processing requ
    ```
 2. Call `mcp:chrome-devtools:take_snapshot` and verify:
    - The pre-call lobby or meeting header displays the **DPDP Recording & Data Processing Consent** banner/checkbox.
-   - Recording controls are disabled/blocked until consent is granted.
-3. Accept the DPDP Recording Consent in the UI (or invoke the consent API endpoint) and verify the network call `POST /api/stream/meetings/test_mcp_stm_ms1/consent` (or `/api/user/consent`) returns `200 OK`.
-4. Verify in Postgres via **Supabase MCP** that the consent audit trail is persisted:
+   - Recording controls are disabled/blocked in the UI until consent is granted.
+3. **Attempt to start recording BEFORE consent is granted** and verify server-side denial (`403 Forbidden`):
+   ```json
+   // Tool: mcp:chrome-devtools:evaluate_script
+   {
+     "function": "async () => {\n  const res = await fetch('http://localhost:8081/api/stream/meetings/test_mcp_stm_ms1/recording/start', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    credentials: 'include'\n  });\n  return { status: res.status, body: await res.json().catch(() => null) };\n}"
+   }
+   ```
+   **Expected:** Server rejects the pre-consent recording attempt with `403 Forbidden` (or `400 Bad Request` indicating missing participant `ConsentRecord`).
+4. Accept the DPDP Recording Consent in the UI (or invoke the consent API endpoint) and verify the network call `POST /api/stream/meetings/test_mcp_stm_ms1/consent` (or `/api/user/consent`) returns `200 OK`.
+5. Verify in Postgres via **Supabase MCP** that the consent audit trail is persisted:
    ```sql
    -- Tool: mcp:supabase:execute_sql
    SELECT id, "userId", "consentType", granted, "grantedAt"
    FROM "ConsentRecord"
    WHERE "userId" = 'test_mcp_stm_u_cee';
    ```
-5. Verify the live Stream call state via **Stream.io MCP**:
+6. Verify the live Stream call state via **Stream.io MCP**:
    ```json
    // Tool: mcp:stream-io:video_get_call
    {

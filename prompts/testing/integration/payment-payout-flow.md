@@ -15,7 +15,7 @@ VALUES ('test_intg_pay_cnt', 'Payment Consultant', 'test_intg_pay_cnt@test.com',
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_pay_a_cnt', 'test_intg_pay_cnt', 'test_intg_pay_cnt', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_intg_pay_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -30,7 +30,7 @@ VALUES ('test_intg_pay_cee', 'Payment Consultee', 'test_intg_pay_cee@test.com', 
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_pay_a_cee', 'test_intg_pay_cee', 'test_intg_pay_cee', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "createdAt", "updatedAt")
 VALUES ('test_intg_pay_cep', 'test_intg_pay_cee', NOW(), NOW());
@@ -166,6 +166,9 @@ FROM "Payment" WHERE "appointmentId" = 'test_intg_pay_apt';
 Since the payment gateway cannot complete in test, seed the payment records directly:
 
 ```sql
+-- Remove any pending payment record created during the Phase 2.4 gateway redirect
+DELETE FROM "Payment" WHERE "appointmentId" = 'test_intg_pay_apt';
+
 -- Insert mock payment record
 INSERT INTO "Payment" (id, amount, "originalAmount", "taxAmount", currency, "paymentMethod", "paymentIntent", "paymentGateway", "paymentStatus", "isMockPayment", "userId", "appointmentId", "discountCodeId", "createdAt", "updatedAt")
 VALUES (

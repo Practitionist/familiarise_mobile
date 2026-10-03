@@ -1,6 +1,6 @@
 # 01 — Auth, Session Revocation & Concurrency Hardening (Multi-MCP E2E)
 
-> **What this tests:** BetterAuth-compatible email/password sign-in, automatic `CookiePreference` + `NotificationPreference` provisioning, active session listing (`GET /api/auth/sessions`), remote session revocation (`DELETE /api/auth/sessions/:id`), server-side session invalidation on sign-out, and concurrent token/session refresh race conditions (`#59`, `#60`, `#124`).
+> **What this tests:** BetterAuth-compatible email/password sign-in, automatic `CookiePreference` + `NotificationPreference` provisioning, active session listing (`GET /api/auth/sessions`), remote session revocation (`POST /api/auth/revoke-session`), server-side session invalidation on sign-out, and concurrent token/session refresh race conditions (`#59`, `#60`, `#124`).
 >
 > **MCP Servers Used:**
 > - **Supabase MCP** (`execute_sql` for deterministic seeding and session state verification)
@@ -47,7 +47,7 @@ INSERT INTO "accounts" (
   'test_mcp_auth_u1',
   'test_mcp_auth_u1',
   'credential',
-  '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S',
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O',
   NOW(),
   NOW()
 );
@@ -145,7 +145,7 @@ ORDER BY "createdAt" DESC;
    - Secondary session (`Pixel 9 Pro` / `203.0.113.42`)
 3. Click **Revoke** on the secondary session (`test_mcp_auth_sess_secondary`).
 4. Inspect the network call via `mcp:chrome-devtools:list_network_requests`:
-   - Confirm `DELETE /api/auth/sessions/test_mcp_auth_sess_secondary` returned `200 OK`.
+   - Confirm `POST /api/auth/revoke-session` with `{"sessionId":"test_mcp_auth_sess_secondary"}` returned `200 OK`.
 5. Verify deletion in Postgres via **Supabase MCP**:
    ```sql
    -- Tool: mcp:supabase:execute_sql

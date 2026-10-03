@@ -73,10 +73,13 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/build/bin/server /app/bin/server
 
-EXPOSE 8080
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:${PORT:-8081}/api/health || exit 1
 
 CMD ["/app/bin/server"]

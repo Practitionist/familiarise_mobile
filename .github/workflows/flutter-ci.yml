@@ -3,11 +3,8 @@ name: Flutter CI/CD
 on:
   push:
     branches: [dev, prod]
-    tags: ['v*.*.*']
   pull_request:
     branches: [dev, prod]
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       deploy_track:
@@ -19,6 +16,13 @@ on:
           - internal
           - beta
           - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/prod' }}
 
 env:
   FLUTTER_VERSION: '3.47.6'
@@ -42,16 +46,16 @@ jobs:
           cache: true
 
       - name: Create .env file for Envied codegen
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY || 'placeholder-stream-key' }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_placeholder' }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder' }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'http://localhost:8081' }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://placeholder.supabase.co' }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY || 'placeholder-stream-key' }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID || 'rzp_test_placeholder' }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder' }}
-          API_BASE_URL=${{ secrets.API_BASE_URL || 'http://localhost:8080' }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies
         run: flutter pub get
@@ -80,6 +84,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify 93-model Prisma schema integrity
+        run: |
+          MODEL_COUNT=$(grep -cE '^model [A-Za-z0-9_]+ \{' backend/prisma/schema.prisma)
+          if [ "$MODEL_COUNT" -lt 93 ]; then
+            echo "::error::Expected at least 93 Prisma models in backend/prisma/schema.prisma, found $MODEL_COUNT"
+            exit 1
+          fi
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -133,16 +145,16 @@ jobs:
           cache: true
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies
         run: flutter pub get
@@ -151,11 +163,11 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build APK (Debug)
-        if: github.ref != 'refs/heads/prod' && github.event_name != 'release'
+        if: github.ref != 'refs/heads/prod'
         run: flutter build apk --debug
 
       - name: Upload Debug APK
-        if: github.ref != 'refs/heads/prod' && github.event_name != 'release'
+        if: github.ref != 'refs/heads/prod'
         uses: actions/upload-artifact@v4
         with:
           name: android-apk-debug
@@ -179,16 +191,16 @@ jobs:
           cache: true
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies
         run: flutter pub get
@@ -205,12 +217,12 @@ jobs:
         run: flutter build ios --release --no-codesign
 
   # ============================================
-  # Release Android via Shorebird + Fastlane (prod / release)
+  # Release Android via Shorebird + Fastlane (prod / manual dispatch)
   # ============================================
   release-android:
     name: Release Android (Shorebird + Fastlane)
     needs: [build-android]
-    if: github.ref == 'refs/heads/prod' || github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/prod') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -241,27 +253,29 @@ jobs:
         uses: shorebirdtech/setup-shorebird@v1
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Decode Android Keystore & Play Store Credentials
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PLAY_STORE_SERVICE_ACCOUNT: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-          cat << EOF > android/key.properties
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=keystore.jks
-          EOF
-          echo "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}" > fastlane/play-store-service-account.json
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n' \
+            "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+          printf '%s' "$PLAY_STORE_SERVICE_ACCOUNT" > fastlane/play-store-service-account.json
 
       - name: Get dependencies & generate code
         run: |
@@ -273,7 +287,8 @@ jobs:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
           FLUTTER_VERSION: ${{ env.FLUTTER_VERSION }}
           PLAY_STORE_SERVICE_ACCOUNT_PATH: fastlane/play-store-service-account.json
-        run: fastlane android ${{ inputs.deploy_track || 'internal' }}
+          DEPLOY_TRACK: ${{ inputs.deploy_track || 'internal' }}
+        run: fastlane android "$DEPLOY_TRACK"
 
       - name: Upload Release AAB Artifact
         uses: actions/upload-artifact@v4
@@ -282,12 +297,12 @@ jobs:
           path: build/app/outputs/bundle/release/app-release.aab
 
   # ============================================
-  # Release iOS via Shorebird + Fastlane Match & TestFlight (prod / release)
+  # Release iOS via Shorebird + Fastlane Match & TestFlight (prod / manual dispatch)
   # ============================================
   release-ios:
     name: Release iOS (Shorebird + Fastlane)
     needs: [build-ios]
-    if: github.ref == 'refs/heads/prod' || github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/prod') || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -312,16 +327,16 @@ jobs:
         uses: shorebirdtech/setup-shorebird@v1
 
       - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
         run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          API_BASE_URL=${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
-          USE_PRISMA=false
-          EOF
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
 
       - name: Get dependencies & generate code
         run: |
@@ -340,8 +355,9 @@ jobs:
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DEPLOY_TRACK: ${{ inputs.deploy_track || 'internal' }}
         run: |
-          if [ "${{ inputs.deploy_track }}" = "production" ]; then
+          if [ "$DEPLOY_TRACK" = "production" ]; then
             fastlane ios release
           else
             fastlane ios beta

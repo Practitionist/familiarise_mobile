@@ -15,7 +15,7 @@ VALUES ('test_unit_plans_u1', 'Plans Test Consultant', 'test_unit_plans@test.com
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_unit_plans_a1', 'test_unit_plans_u1', 'test_unit_plans_u1', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_plans_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -38,7 +38,7 @@ Sign in as `test_unit_plans@test.com` / `TestPassword123` first to obtain a sess
 ### 1. Create Consultation Plan
 ```
 -- Via API (evaluate_script with fetch):
-fetch('/api/plans/consultations', {
+const { data: createdConsultationPlan } = await fetch('/api/plans/consultations', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
@@ -50,7 +50,8 @@ fetch('/api/plans/consultations', {
     language: 'English',
     level: 'Beginner'
   })
-}).then(r => r.json())
+}).then(r => r.json());
+const planId = createdConsultationPlan.id;
 ```
 **Verify:** `SELECT id, title, price FROM "ConsultationPlan" WHERE "consultantProfileId" = 'test_unit_plans_cp1';`
 **Expected:** Plan created with title = 'Unit Test Consultation', price = 50000.
@@ -66,7 +67,7 @@ fetch('/api/plans/consultations', {
 
 ### 3. Delete Consultation Plan
 ```
-fetch('/api/plans/consultations/{planId}', {
+fetch(`/api/plans/consultations/${planId}`, {
   method: 'DELETE',
   credentials: 'include'
 }).then(r => r.json())
@@ -76,7 +77,7 @@ fetch('/api/plans/consultations/{planId}', {
 
 ### 4. Create Subscription Plan with Free Trial
 ```
-fetch('/api/plans/subscriptions', {
+const { data: createdSubscriptionPlan } = await fetch('/api/plans/subscriptions', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
@@ -92,7 +93,8 @@ fetch('/api/plans/subscriptions', {
     language: 'English',
     level: 'Beginner'
   })
-}).then(r => r.json())
+}).then(r => r.json());
+const subscriptionPlanId = createdSubscriptionPlan.id;
 ```
 **Verify:** `SELECT id, title, "freeTrialEnabled", "freeTrialDurationMinutes" FROM "SubscriptionPlan" WHERE "consultantProfileId" = 'test_unit_plans_cp1';`
 **Expected:** freeTrialEnabled = true, freeTrialDurationMinutes = 30.
@@ -137,7 +139,7 @@ fetch('/api/plans/classes', {
 
 ### 7. Delete Subscription Plan
 ```
-fetch('/api/plans/subscriptions/{planId}', {
+fetch(`/api/plans/subscriptions/${subscriptionPlanId}`, {
   method: 'DELETE',
   credentials: 'include'
 }).then(r => r.json())

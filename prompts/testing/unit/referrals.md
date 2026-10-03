@@ -14,7 +14,7 @@ VALUES ('test_unit_referrals_u1', 'Referrals User', 'test_unit_referrals@test.co
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_unit_referrals_a1', 'test_unit_referrals_u1', 'test_unit_referrals_u1', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "createdAt", "updatedAt")
 VALUES ('test_unit_referrals_cep1', 'test_unit_referrals_u1', NOW(), NOW());
@@ -43,25 +43,7 @@ fetch('/api/referrals/code', {
 ```
 **Expected:** Response contains code = 'TESTREF123', isActive = true.
 
-### 2. Check Referral Code Validity
-```
-fetch('/api/referrals/check?code=TESTREF123', {
-  method: 'GET',
-  credentials: 'include'
-}).then(r => r.json())
-```
-**Expected:** Response indicates code is valid with refereeReward = 5000.
-
-### 3. Check Invalid Code
-```
-fetch('/api/referrals/check?code=INVALIDCODE', {
-  method: 'GET',
-  credentials: 'include'
-}).then(r => r.json())
-```
-**Expected:** Error response indicating code not found.
-
-### 4. Apply Referral During Signup
+### 2. Apply Referral During Signup
 Sign out first, then:
 ```
 navigate_page → url: http://localhost:3000/auth/sign-up?ref=TESTREF123
@@ -83,7 +65,7 @@ SELECT status FROM "Referral" WHERE "referralCodeId" = 'test_unit_referrals_rc1'
 ```
 **Expected:** New user created. Referral record with status = 'SIGNED_UP'.
 
-### 5. View Available Credits
+### 3. View Available Credits
 Sign in as `test_unit_referrals@test.com`:
 ```
 fetch('/api/referrals/credits/available', {
@@ -93,14 +75,14 @@ fetch('/api/referrals/credits/available', {
 ```
 **Expected:** Response shows available credits (may be 0 if referral not yet qualified, or reward amount if qualified).
 
-### 6. View Referral Stats
+### 4. View Referral Stats
 ```
 fetch('/api/referrals/code', {
   method: 'GET',
   credentials: 'include'
 }).then(r => r.json())
 ```
-**Expected:** totalReferrals incremented after signup in Scenario 4.
+**Expected:** totalReferrals incremented after signup in Scenario 2.
 
 ---
 

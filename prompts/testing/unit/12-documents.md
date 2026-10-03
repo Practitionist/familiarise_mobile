@@ -17,8 +17,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_unit_docs_a1', 'test_unit_docs_u1', 'test_unit_docs_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW()),
-  ('test_unit_docs_a2', 'test_unit_docs_u2', 'test_unit_docs_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  ('test_unit_docs_a1', 'test_unit_docs_u1', 'test_unit_docs_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_unit_docs_a2', 'test_unit_docs_u2', 'test_unit_docs_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_docs_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -78,15 +78,20 @@ fetch('/api/appointments/test_unit_docs_apt1/documents', {
 
 ### 3. Upload Document (via API)
 ```
--- Create FormData with file upload
-const formData = new FormData();
-formData.append('file', new Blob(['test content'], { type: 'application/pdf' }), 'test-doc.pdf');
-formData.append('description', 'Tax return document');
-
+-- Upload file to storage first, then register document metadata via JSON:
 fetch('/api/appointments/test_unit_docs_apt1/documents', {
   method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
-  body: formData
+  body: JSON.stringify({
+    fileName: 'test-doc.pdf',
+    originalName: 'test-doc.pdf',
+    fileSize: 102400,
+    mimeType: 'application/pdf',
+    fileUrl: 'https://example.com/test-doc.pdf',
+    storagePath: 'documents/test/test-doc.pdf',
+    description: 'Tax return document'
+  })
 }).then(r => r.json())
 ```
 **Verify:** `SELECT id, "fileName", description FROM "AppointmentDocument" WHERE "appointmentId" = 'test_unit_docs_apt1' ORDER BY "uploadedAt" DESC;`

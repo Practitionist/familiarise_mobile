@@ -16,8 +16,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_unit_collab_a1', 'test_unit_collab_u1', 'test_unit_collab_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW()),
-  ('test_unit_collab_a2', 'test_unit_collab_u2', 'test_unit_collab_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  ('test_unit_collab_a1', 'test_unit_collab_u1', 'test_unit_collab_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_unit_collab_a2', 'test_unit_collab_u2', 'test_unit_collab_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_collab_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -86,7 +86,7 @@ wait_for → text: "Collaborations" OR text: "Collab Webinar"
 take_snapshot
 take_screenshot
 ```
-**Expected:** "Collab Webinar" visible with collaboration status showing "Collab Invited" as accepted co-host.
+**Expected:** "Collab Webinar" is not returned for the host by GET /api/collaborations. The collaboration belongs to the invited consultant.
 
 ---
 

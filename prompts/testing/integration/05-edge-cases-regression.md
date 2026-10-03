@@ -15,7 +15,7 @@ VALUES ('test_intg_edge_cee', 'Edge Consultee', 'test_intg_edge_cee@test.com', t
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_edge_a_cee', 'test_intg_edge_cee', 'test_intg_edge_cee', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "createdAt", "updatedAt")
 VALUES ('test_intg_edge_cep', 'test_intg_edge_cee', NOW(), NOW());
@@ -27,7 +27,7 @@ VALUES ('test_intg_edge_staff', 'Edge Staff', 'test_intg_edge_staff@test.com', t
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_edge_a_staff', 'test_intg_edge_staff', 'test_intg_edge_staff', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "StaffProfile" (id, "userId", department, position, "createdAt", "updatedAt")
 VALUES ('test_intg_edge_sp', 'test_intg_edge_staff', 'Support', 'Agent', NOW(), NOW());
@@ -39,7 +39,7 @@ VALUES ('test_intg_edge_cnt', 'Edge Consultant', 'test_intg_edge_cnt@test.com', 
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_edge_a_cnt', 'test_intg_edge_cnt', 'test_intg_edge_cnt', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_intg_edge_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -47,6 +47,18 @@ VALUES ('test_intg_edge_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NO
 INSERT INTO "ConsultantProfile" (id, "userId", "domainId", "scheduleType", "isVerified", "verificationStatus", "createdAt", "updatedAt")
 VALUES ('test_intg_edge_cp', 'test_intg_edge_cnt', 'test_intg_edge_dom', 'WEEKLY', true, 'VERIFIED', NOW(), NOW());
 UPDATE "users" SET "consultantProfileId" = 'test_intg_edge_cp' WHERE id = 'test_intg_edge_cnt';
+
+-- Trial-free consultant (for empty /trials state test)
+INSERT INTO "users" (id, name, email, "emailVerified", role, "onboardingCompleted", "createdAt", "updatedAt")
+VALUES ('test_intg_edge_cnt_empty', 'Edge Empty Consultant', 'test_intg_edge_cnt_empty@test.com', true, 'CONSULTANT', true, NOW(), NOW());
+
+INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
+VALUES ('test_intg_edge_a_cnt_empty', 'test_intg_edge_cnt_empty', 'test_intg_edge_cnt_empty', 'credential',
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
+
+INSERT INTO "ConsultantProfile" (id, "userId", "domainId", "scheduleType", "isVerified", "verificationStatus", "createdAt", "updatedAt")
+VALUES ('test_intg_edge_cp_empty', 'test_intg_edge_cnt_empty', 'test_intg_edge_dom', 'WEEKLY', true, 'VERIFIED', NOW(), NOW());
+UPDATE "users" SET "consultantProfileId" = 'test_intg_edge_cp_empty' WHERE id = 'test_intg_edge_cnt_empty';
 
 -- Subscription plan with free trial
 INSERT INTO "SubscriptionPlan" (id, title, description, "durationInMonths", price, "callsPerWeek", "sessionDurationInHours", "freeTrialEnabled", "freeTrialDurationMinutes", "consultantProfileId", "createdAt", "updatedAt")
@@ -79,11 +91,13 @@ INSERT INTO "cookie_preferences" (id, "userId", essential, "consentGivenAt", "co
 VALUES
   ('test_intg_edge_ck_cee', 'test_intg_edge_cee', true, NOW(), NOW()),
   ('test_intg_edge_ck_cnt', 'test_intg_edge_cnt', true, NOW(), NOW()),
+  ('test_intg_edge_ck_cnt_empty', 'test_intg_edge_cnt_empty', true, NOW(), NOW()),
   ('test_intg_edge_ck_staff', 'test_intg_edge_staff', true, NOW(), NOW());
 INSERT INTO "notification_preferences" (id, "userId")
 VALUES
   ('test_intg_edge_np_cee', 'test_intg_edge_cee'),
   ('test_intg_edge_np_cnt', 'test_intg_edge_cnt'),
+  ('test_intg_edge_np_cnt_empty', 'test_intg_edge_cnt_empty'),
   ('test_intg_edge_np_staff', 'test_intg_edge_staff');
 ```
 
@@ -300,10 +314,10 @@ take_screenshot
 **Expected:** Empty state message (e.g., "No bookings yet", "You have no bookings"). No crash or blank screen.
 
 ### 8.2 /trials with No Trials (as Consultant)
-Sign in as consultant (who has no received trials as a consultee):
+Sign in as the trial-free consultant (`test_intg_edge_cnt_empty@test.com`):
 ```
 navigate_page -> url: http://localhost:3000/auth/sign-in
-fill -> uid: [Email], value: "test_intg_edge_cnt@test.com"
+fill -> uid: [Email], value: "test_intg_edge_cnt_empty@test.com"
 fill -> uid: [Password], value: "TestPassword123"
 click -> uid: [Sign In button]
 wait_for -> text: "Dashboard" OR url_contains: "/dashboard"
@@ -313,7 +327,7 @@ wait_for -> text: "Trials" OR text: "Trial"
 take_snapshot
 take_screenshot
 ```
-**Expected:** Trials page loads with the pending trial from the consultee (seeded data). If viewing as consultant, should show incoming trial requests.
+**Expected:** Empty state message (e.g., "No trials yet", "No incoming trial requests"). No crash or blank screen.
 
 ### 8.3 /waitlist with No Entries
 Sign in as consultee:
@@ -405,20 +419,20 @@ DELETE FROM "support_tickets" WHERE "userId" = 'test_intg_edge_cee';
 DELETE FROM "feedbacks" WHERE "userId" = 'test_intg_edge_cee';
 
 -- Sessions
-DELETE FROM "sessions" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_staff');
+DELETE FROM "sessions" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_cnt_empty', 'test_intg_edge_staff');
 
 -- Profiles
 DELETE FROM "ConsulteeProfile" WHERE id = 'test_intg_edge_cep';
-DELETE FROM "ConsultantProfile" WHERE id = 'test_intg_edge_cp';
+DELETE FROM "ConsultantProfile" WHERE id IN ('test_intg_edge_cp', 'test_intg_edge_cp_empty');
 DELETE FROM "StaffProfile" WHERE id = 'test_intg_edge_sp';
 
 -- Prefs
-DELETE FROM "notification_preferences" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_staff');
-DELETE FROM "cookie_preferences" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_staff');
+DELETE FROM "notification_preferences" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_cnt_empty', 'test_intg_edge_staff');
+DELETE FROM "cookie_preferences" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_cnt_empty', 'test_intg_edge_staff');
 
 -- Accounts + users
-DELETE FROM "accounts" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_staff');
-DELETE FROM "users" WHERE id IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_staff');
+DELETE FROM "accounts" WHERE "userId" IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_cnt_empty', 'test_intg_edge_staff');
+DELETE FROM "users" WHERE id IN ('test_intg_edge_cee', 'test_intg_edge_cnt', 'test_intg_edge_cnt_empty', 'test_intg_edge_staff');
 
 -- Cleanup user created by short-password test (just in case)
 DELETE FROM "sessions" WHERE "userId" IN (SELECT id FROM "users" WHERE email = 'test_intg_edge_short@test.com');

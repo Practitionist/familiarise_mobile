@@ -15,7 +15,7 @@ VALUES ('test_intg_cbj_cnt', 'Journey Consultant', 'test_intg_cbj_cnt@test.com',
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_intg_cbj_a_cnt', 'test_intg_cbj_cnt', 'test_intg_cbj_cnt', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_intg_cbj_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -251,20 +251,23 @@ WHERE "consultationPlanId" = 'test_intg_cbj_plan';
 
 ## Phase 6: Checkout with Discount Code
 
-First, simulate consultant approval of the booking:
+First, simulate consultant approval of the booking and retrieve the existing `appointmentId` created during Phase 5.3:
 ```sql
 UPDATE "Consultation" SET "requestStatus" = 'APPROVED_PENDING_PAYMENT'
 WHERE "consultationPlanId" = 'test_intg_cbj_plan';
 
--- Create appointment for the consultation
-INSERT INTO "Appointment" (id, "appointmentType", "consultationId", "createdAt", "updatedAt")
-SELECT 'test_intg_cbj_apt', 'CONSULTATION', id, NOW(), NOW()
-FROM "Consultation" WHERE "consultationPlanId" = 'test_intg_cbj_plan' LIMIT 1;
+-- Retrieve the existing appointmentId created during Phase 5.3 booking
+SELECT a.id AS "appointmentId"
+FROM "Appointment" a
+JOIN "Consultation" c ON c.id = a."consultationId"
+WHERE c."consultationPlanId" = 'test_intg_cbj_plan'
+LIMIT 1;
 ```
 
 ### 6.1 View Checkout Page
+Substitute `{appointmentId}` with the `appointmentId` returned above:
 ```
-navigate_page -> url: http://localhost:3000/checkout?appointmentId=test_intg_cbj_apt
+navigate_page -> url: http://localhost:3000/checkout?appointmentId={appointmentId}
 wait_for -> text: "Checkout" OR text: "Payment" OR text: "Pay"
 take_snapshot
 take_screenshot
@@ -310,21 +313,30 @@ take_screenshot
 ## Phase 8: Upload Document for Appointment
 
 ### 8.1 Upload via API
+Using the `appointmentId` retrieved in Phase 6:
 ```
-const formData = new FormData();
-formData.append('file', new Blob(['test document content'], { type: 'application/pdf' }), 'my-resume.pdf');
-formData.append('description', 'Resume for review');
-
-fetch('/api/appointments/test_intg_cbj_apt/documents', {
+fetch(`/api/appointments/${appointmentId}/documents`, {
   method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
-  body: formData
+  body: JSON.stringify({
+    fileName: 'my-resume.pdf',
+    originalName: 'my-resume.pdf',
+    fileSize: 102400,
+    mimeType: 'application/pdf',
+    fileUrl: 'https://example.com/my-resume.pdf',
+    storagePath: 'documents/test/my-resume.pdf',
+    description: 'Resume for review'
+  })
 }).then(r => r.json())
 ```
 **Verify:**
 ```sql
-SELECT id, "fileName", description, "reviewStatus"
-FROM "AppointmentDocument" WHERE "appointmentId" = 'test_intg_cbj_apt';
+SELECT d.id, d."fileName", d.description, d."reviewStatus"
+FROM "AppointmentDocument" d
+JOIN "Appointment" a ON a.id = d."appointmentId"
+JOIN "Consultation" c ON c.id = a."consultationId"
+WHERE c."consultationPlanId" = 'test_intg_cbj_plan';
 ```
 **Expected:** Document created with reviewStatus = 'PENDING'.
 
@@ -514,14 +526,22 @@ DELETE FROM "ReferralCode" WHERE "userId" IN (SELECT id FROM "users" WHERE email
 DELETE FROM "ConsultantReview" WHERE "consultantProfileId" = 'test_intg_cbj_cp';
 
 -- Documents
-DELETE FROM "AppointmentDocument" WHERE "appointmentId" = 'test_intg_cbj_apt';
+DELETE FROM "AppointmentDocument" WHERE "appointmentId" IN (
+  SELECT a.id FROM "Appointment" a JOIN "Consultation" c ON c.id = a."consultationId" WHERE c."consultationPlanId" = 'test_intg_cbj_plan'
+);
 
 -- Payment (if any checkout attempt created one)
-DELETE FROM "Payment" WHERE "appointmentId" = 'test_intg_cbj_apt';
+DELETE FROM "Payment" WHERE "appointmentId" IN (
+  SELECT a.id FROM "Appointment" a JOIN "Consultation" c ON c.id = a."consultationId" WHERE c."consultationPlanId" = 'test_intg_cbj_plan'
+);
 
 -- Booking chain
-DELETE FROM "SlotOfAppointment" WHERE "appointmentId" = 'test_intg_cbj_apt';
-DELETE FROM "Appointment" WHERE id = 'test_intg_cbj_apt';
+DELETE FROM "SlotOfAppointment" WHERE "appointmentId" IN (
+  SELECT a.id FROM "Appointment" a JOIN "Consultation" c ON c.id = a."consultationId" WHERE c."consultationPlanId" = 'test_intg_cbj_plan'
+);
+DELETE FROM "Appointment" WHERE "consultationId" IN (
+  SELECT id FROM "Consultation" WHERE "consultationPlanId" = 'test_intg_cbj_plan'
+);
 DELETE FROM "Consultation" WHERE "consultationPlanId" = 'test_intg_cbj_plan';
 
 -- Trial sessions

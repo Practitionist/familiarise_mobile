@@ -10,7 +10,7 @@ Dart Frog API server for the Familiarise consultation and mentorship SaaS platfo
 | **ORM** | [`prisma_flutter_connector`](https://pub.dev/packages/prisma_flutter_connector) | **v1.0.0** (`0` `JsonQueryBuilder` usages) |
 | **Database** | PostgreSQL via Supabase | 15+ (**93 Prisma models** synced with `familiarise_web`) |
 | **Runtime / SDK** | Flutter / Dart | **Flutter 3.47.6** (Dart 3.11+) |
-| **Hosting** | Railway (Docker AOT executable) | `backend/Dockerfile` + `railway.json` |
+| **Hosting** | Railway (Docker AOT executable) | `backend/Dockerfile` + `.railway/railway.ts` |
 | **Auth** | BetterAuth-compatible JWT & Sessions | Active session tracking & revocation |
 | **Error Tracking** | Sentry | 8.x |
 
@@ -81,25 +81,25 @@ await _prisma.$transaction((tx) async {
 ```bash
 cd backend
 dart pub global run dart_frog_cli:dart_frog build
-dart build/bin/server.dart
-# Listening on http://localhost:8080 (Healthcheck: GET /api/health)
+PORT=8081 dart build/bin/server.dart
+# Listening on http://localhost:8081 (Healthcheck: GET /api/health)
 ```
 
 ### Docker Build (Mirrors Railway Production)
 
 ```bash
 cd backend
-docker build -t familiarise-mobile-api .
-docker run -p 8080:8080 --env-file .env familiarise-mobile-api
-curl http://localhost:8080/api/health
+docker build -t familiarise-mobile-backend .
+docker run -p 8081:8081 --env-file .env familiarise-mobile-backend
+curl http://localhost:8081/api/health
 # {"status":"ok","timestamp":"..."}
 ```
 
-## Railway Deployment (`deploy-railway.yml` & `railway.json`)
+## Railway Deployment (`deploy-railway.yml` & `.railway/railway.ts`)
 
-- **Configuration:** Root `railway.json` points to `backend/Dockerfile` with `/api/health` healthcheck (`30s` timeout, `ON_FAILURE` restart policy).
-- **CI/CD:** `.github/workflows/deploy-railway.yml` runs on pushes to `dev` (staging) and `prod` (production) when `backend/**` changes, executing `dart analyze --fatal-infos` + `dart test` before deploying with `railway up` and probing `/api/health`.
-- **Environment Loading:** `backend/main.dart` uses `DotEnv(includePlatformEnvironment: true)` so the binary reads `.env` locally and platform environment variables inside Railway/Docker containers.
+- **Configuration:** `.railway/railway.ts` defines the Railway Infrastructure-as-Code config for `familiarise-mobile-backend` pointing to `backend/Dockerfile` with `/api/health` healthcheck (`60s` timeout, `ON_FAILURE` restart policy, `5` max retries, `2` replicas).
+- **CI/CD:** `.github/workflows/deploy-railway.yml` runs on pushes to `dev` (staging) and `prod` (production) when `backend/**`, `.railway/**`, or `.github/workflows/deploy-railway.yml` changes (or on `workflow_dispatch`), executing `dart analyze --fatal-infos` + `dart test` before deploying with `railway up` and probing `/api/health`.
+- **Environment Loading:** `backend/main.dart` loads `.env` and `.env.local` first and overlays `io.Platform.environment` last so platform environment variables inside Railway/Docker containers always take precedence.
 
 ## Environment Variables (`backend/.env`)
 

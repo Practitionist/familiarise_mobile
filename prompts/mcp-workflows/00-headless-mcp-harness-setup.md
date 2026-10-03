@@ -15,7 +15,11 @@
 Before starting the servers, ensure the 93-model Prisma schema and Freezed/Riverpod outputs are generated and clean:
 
 ```bash
-export PATH="/usr/local/google/home/kaustavg/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
+command -v flutter && command -v dart
+
+# Ensure root .env points API_BASE_URL at the backend port (8081) before Envied codegen runs
+grep -q '^API_BASE_URL=' .env && sed -i 's|^API_BASE_URL=.*|API_BASE_URL=http://localhost:8081|' .env || echo 'API_BASE_URL=http://localhost:8081' >> .env
 
 # Sync 93-model schema from familiarise_web (if needed) and regenerate backend + frontend
 ./scripts/regenerate-build.sh
@@ -36,31 +40,41 @@ Call **Dart MCP** `analyze_files`:
 
 ## 2. Verify 93-Model Database Schema via Supabase MCP
 
-Verify that the target Supabase PostgreSQL database has all 93 synced models from `familiarise_web`:
+Verify that the target Supabase PostgreSQL database has all 93 synced models from `familiarise_web` and that zero expected Companion Starter model tables are missing:
 
 ```sql
 -- Tool: mcp:supabase:execute_sql
-SELECT COUNT(*)::int AS table_count
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_type = 'BASE TABLE';
+WITH expected_tables(table_name) AS (
+  VALUES
+    ('users'), ('sessions'), ('accounts'), ('verification'),
+    ('ConsultantProfile'), ('ConsulteeProfile'), ('StaffProfile'),
+    ('ConsultationPlan'), ('SubscriptionPlan'), ('WebinarPlan'), ('ClassPlan'),
+    ('Consultation'), ('Subscription'), ('Webinar'), ('Class'),
+    ('Appointment'), ('SlotOfAppointment'), ('SlotOfWeeklyAvailability'), ('SlotOfCustomAvailability'),
+    ('TrialSession'), ('Waitlist'), ('AppointmentDocument'),
+    ('Payment'), ('Earning'), ('Payout'), ('PayoutAccount'), ('ConsultantTaxInfo'), ('Invoice'),
+    ('DiscountCode'), ('ReferralCode'), ('Referral'), ('ReferralCredit'),
+    ('Wallet'), ('CreditTransaction'), ('Collaborator'),
+    ('organizations'), ('members'), ('invitations'),
+    ('ConsentRecord'), ('MeetingSession'), ('Recording'),
+    ('support_tickets'), ('SupportTicketResponse'), ('feedbacks'),
+    ('ConsultantReview'), ('ConsultantProfileVerification'),
+    ('cookie_preferences'), ('notification_preferences'),
+    ('announcements'), ('maintenance_windows'), ('Domain'), ('SubDomain'), ('Tag')
+)
+SELECT
+  (SELECT COUNT(*)::int FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE') AS total_public_tables,
+  ARRAY(
+    SELECT e.table_name
+    FROM expected_tables e
+    LEFT JOIN information_schema.tables t
+      ON t.table_schema = 'public' AND t.table_type = 'BASE TABLE' AND t.table_name = e.table_name
+    WHERE t.table_name IS NULL
+    ORDER BY e.table_name
+  ) AS missing_expected_tables;
 ```
 
-Verify key Companion Starter tables exist (`users`, `sessions`, `accounts`, `ConsultantProfile`, `ConsulteeProfile`, `Appointment`, `SlotOfAppointment`, `Payment`, `Earning`, `PayoutAccount`, `ReferralCode`, `Collaborator`, `organizations`, `members`, `ConsentRecord`, `support_tickets`, `notification_preferences`):
-
-```sql
--- Tool: mcp:supabase:execute_sql
-SELECT table_name
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_name IN (
-    'users', 'sessions', 'accounts', 'ConsultantProfile', 'ConsulteeProfile',
-    'Appointment', 'SlotOfAppointment', 'Payment', 'Earning', 'PayoutAccount',
-    'ReferralCode', 'Collaborator', 'organizations', 'members', 'ConsentRecord',
-    'support_tickets', 'notification_preferences'
-  )
-ORDER BY table_name;
-```
+**Expected:** `total_public_tables >= 93` and `missing_expected_tables = {}` (empty array — all expected tables present).
 
 ---
 
@@ -79,10 +93,10 @@ Confirm Stream Video & Chat credentials are active before testing calls or chann
 
 ## 4. Start Dart Frog Backend & Headless Flutter Web Server
 
-Run the Dart Frog API server and Flutter `web-server` in background tasks:
+Run the Dart Frog API server on port `8081` and Flutter `web-server` on port `8080` (with `API_BASE_URL=http://localhost:8081` already generated into `EnvConfig` in Step 1):
 
 ```bash
-# 1. Start Dart Frog backend (default port 8080; or 8081 if Flutter web-server uses 8080)
+# 1. Start Dart Frog backend on port 8081
 cd backend && PORT=8081 dart build/bin/server.dart &
 
 # Verify backend healthcheck

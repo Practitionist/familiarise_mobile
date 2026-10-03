@@ -76,13 +76,13 @@ Instead of booting a resource-heavy Android Emulator or Xcode Simulator, run E2E
 ### 1. Launch the Dart Frog Backend & Flutter Web Server
 
 ```bash
-# Terminal 1: Start Dart Frog API server (port 8080 or 3001 if sharing port)
-cd backend && dart build/bin/server.dart
+# Terminal 1: Start Dart Frog API server on port 8081
+cd backend && PORT=8081 dart build/bin/server.dart
 
-# Terminal 2: Start headless Flutter Web Server
+# Terminal 2: Start headless Flutter Web Server on port 8080 (with API_BASE_URL=http://localhost:8081 in .env)
 flutter run -d web-server --web-port 8080 --web-hostname 127.0.0.1
 ```
-*(Note: If the Dart Frog backend is bound to port `8080`, pass `--web-port 3000` to Flutter or run the backend on port `8081` with `API_BASE_URL=http://localhost:8081` — see `prompts/mcp-workflows/00-headless-mcp-harness-setup.md` for full port configuration.)*
+*(Ensure `API_BASE_URL=http://localhost:8081` is set in `.env` before running `./scripts/regenerate-build.sh` — see `prompts/mcp-workflows/00-headless-mcp-harness-setup.md` for full setup details.)*
 
 ### 2. Fix DWDS Initial Blank Screen (`#125`) via Single Reload
 

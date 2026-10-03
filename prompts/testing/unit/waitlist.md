@@ -18,8 +18,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_unit_waitlist_a1', 'test_unit_waitlist_u1', 'test_unit_waitlist_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW()),
-  ('test_unit_waitlist_a2', 'test_unit_waitlist_u2', 'test_unit_waitlist_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  ('test_unit_waitlist_a1', 'test_unit_waitlist_u1', 'test_unit_waitlist_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_unit_waitlist_a2', 'test_unit_waitlist_u2', 'test_unit_waitlist_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_waitlist_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -56,14 +56,15 @@ Sign in as `test_unit_waitlist_cee@test.com` / `TestPassword123`.
 
 ### 1. Join Waitlist (via API)
 ```
-fetch('/api/waitlist', {
+const { data: createdWaitlist } = await fetch('/api/waitlist', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
   body: JSON.stringify({
     webinarId: 'test_unit_waitlist_w1'
   })
-}).then(r => r.json())
+}).then(r => r.json());
+const waitlistId = createdWaitlist.id;
 ```
 **Verify:** `SELECT id, status, "userId" FROM "Waitlist" WHERE "userId" = 'test_unit_waitlist_u2' AND "webinarId" = 'test_unit_waitlist_w1';`
 **Expected:** Waitlist entry created with status = 'WAITING'.
@@ -88,7 +89,7 @@ fetch('/api/waitlist', {
 
 ### 4. Leave Waitlist (via API)
 ```
-fetch('/api/waitlist/{waitlistId}', {
+fetch(`/api/waitlist/${waitlistId}`, {
   method: 'DELETE',
   credentials: 'include'
 }).then(r => r.json())

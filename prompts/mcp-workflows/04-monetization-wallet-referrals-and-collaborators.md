@@ -23,6 +23,8 @@ DELETE FROM "WebinarPlan" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "Referral" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "ReferralCode" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "Earning" WHERE id LIKE 'test_mcp_mon_%';
+DELETE FROM "Payout" WHERE id LIKE 'test_mcp_mon_%';
+DELETE FROM "Payment" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "PayoutAccount" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "ConsultantProfile" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "ConsulteeProfile" WHERE id LIKE 'test_mcp_mon_%';
@@ -42,8 +44,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_mcp_mon_acc1', 'test_mcp_mon_u1', 'test_mcp_mon_u1', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW()),
-  ('test_mcp_mon_acc2', 'test_mcp_mon_u2', 'test_mcp_mon_u2', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW());
+  ('test_mcp_mon_acc1', 'test_mcp_mon_u1', 'test_mcp_mon_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_mcp_mon_acc2', 'test_mcp_mon_u2', 'test_mcp_mon_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsultantProfile" (
   id, "userId", "domainId", headline, description, experience, rating, "scheduleType", "isVerified", "verificationStatus", "createdAt", "updatedAt"
@@ -51,7 +53,7 @@ INSERT INTO "ConsultantProfile" (
   ('test_mcp_mon_cp1', 'test_mcp_mon_u1', 'test_mcp_mon_dom1', 'VP of Product', 'Growth & PLG advisor.', 11, 4.9, 'WEEKLY', true, 'VERIFIED', NOW(), NOW()),
   ('test_mcp_mon_cp2', 'test_mcp_mon_u2', 'test_mcp_mon_dom1', 'Staff Product Designer', 'Design systems & UX strategy.', 9, 4.8, 'WEEKLY', true, 'VERIFIED', NOW(), NOW());
 
--- 2. PayoutAccount for Meera (Consultant 1)
+-- 2. PayoutAccount, Payout & Earning for Meera (Consultant 1)
 INSERT INTO "PayoutAccount" (
   id, "consultantProfileId", "accountType", "accountHolderName", "bankName", "accountNumberLast4", "ifscCode", "isDefault", "isVerified", "createdAt", "updatedAt"
 ) VALUES (
@@ -66,6 +68,58 @@ INSERT INTO "PayoutAccount" (
   true,
   NOW(),
   NOW()
+);
+
+INSERT INTO "Payout" (
+  id, "consultantProfileId", "payoutAccountId", amount, currency, status, method, "processedAt", "createdAt", "updatedAt"
+) VALUES (
+  'test_mcp_mon_payout1',
+  'test_mcp_mon_cp1',
+  'test_mcp_mon_pa1',
+  120000,
+  'INR',
+  'COMPLETED',
+  'BANK_TRANSFER',
+  NOW() - INTERVAL '1 day',
+  NOW() - INTERVAL '2 days',
+  NOW() - INTERVAL '1 day'
+);
+
+INSERT INTO "Payment" (
+  id, amount, "originalAmount", "taxAmount", currency, "paymentMethod", "paymentIntent", "paymentGateway", "paymentStatus", "isMockPayment", "userId", "createdAt", "updatedAt"
+) VALUES (
+  'test_mcp_mon_pmt1',
+  150000,
+  150000,
+  0,
+  'INR',
+  'card',
+  'pi_test_mcp_mon_1',
+  'RAZORPAY',
+  'SUCCEEDED',
+  true,
+  'test_mcp_mon_u2',
+  NOW() - INTERVAL '3 days',
+  NOW() - INTERVAL '3 days'
+);
+
+INSERT INTO "Earning" (
+  id, "consultantProfileId", "paymentId", "payoutId", "grossAmount", "platformFee", "consultantShare", role, "sharePercentage", status, "holdUntil", currency, "createdAt", "updatedAt"
+) VALUES (
+  'test_mcp_mon_earn1',
+  'test_mcp_mon_cp1',
+  'test_mcp_mon_pmt1',
+  'test_mcp_mon_payout1',
+  150000,
+  30000,
+  120000,
+  'OWNER',
+  100.0,
+  'PAID',
+  NOW() - INTERVAL '1 day',
+  'INR',
+  NOW() - INTERVAL '3 days',
+  NOW() - INTERVAL '1 day'
 );
 
 -- 3. ReferralCode for Meera
@@ -123,7 +177,7 @@ COMMIT;
 
 ---
 
-## 2. Scenario A — Payouts & Earnings Companion View (`/payout-accounts`)
+## 2. Scenario A — Payouts & Earnings Companion View (`/payout-accounts` & `/earnings`)
 
 1. Sign in as `test_mcp_mon_u1@familiarise.test` (`TestPassword123`).
 2. Navigate to `/payout-accounts`:
@@ -135,6 +189,12 @@ COMMIT;
    - The screen is **accessible** (`FeatureFlags.payouts == true` — NOT blocked by a gated-feature redirect).
    - Default payout account `"HDFC Bank •••• 4821"` (`Verified`, `Default`) is displayed.
    - Companion action to manage Stripe Connect / tax compliance links cleanly to Web handoff.
+4. Navigate to `/earnings` (or verify `GET /api/earnings` and `GET /api/payouts` via `evaluate_script` / `list_network_requests`):
+   ```json
+   // Tool: mcp:chrome-devtools:navigate_page
+   { "type": "url", "url": "http://localhost:8080/#/earnings" }
+   ```
+   - Call `mcp:chrome-devtools:take_snapshot` and verify the seeded `Earning` (`1,200 INR` / `120000` paise `consultantShare`, `PAID`) and `Payout` (`test_mcp_mon_payout1`, `COMPLETED`) are displayed.
 
 ---
 
@@ -187,6 +247,8 @@ DELETE FROM "WebinarPlan" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "Referral" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "ReferralCode" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "Earning" WHERE id LIKE 'test_mcp_mon_%';
+DELETE FROM "Payout" WHERE id LIKE 'test_mcp_mon_%';
+DELETE FROM "Payment" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "PayoutAccount" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "ConsultantProfile" WHERE id LIKE 'test_mcp_mon_%';
 DELETE FROM "Domain" WHERE id = 'test_mcp_mon_dom1';

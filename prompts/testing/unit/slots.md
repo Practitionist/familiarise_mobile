@@ -15,7 +15,7 @@ VALUES ('test_unit_slots_u1', 'Slots Test Consultant', 'test_unit_slots@test.com
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_unit_slots_a1', 'test_unit_slots_u1', 'test_unit_slots_u1', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_slots_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
@@ -82,13 +82,14 @@ take_screenshot
 ### 4. Update Weekly Slot (via API)
 ```
 -- First get slot ID from list
-fetch('/api/slots/availability/weekly', {
+const { data: weeklySlots } = await fetch('/api/slots/availability/weekly', {
   method: 'GET',
   credentials: 'include'
-}).then(r => r.json())
+}).then(r => r.json());
+const slotId = weeklySlots[0].id;
 
 -- Then update
-fetch('/api/slots/availability/weekly/{slotId}', {
+fetch(`/api/slots/availability/weekly/${slotId}`, {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
@@ -102,31 +103,34 @@ fetch('/api/slots/availability/weekly/{slotId}', {
 
 ### 5. Delete Weekly Slot (via API)
 ```
-fetch('/api/slots/availability/weekly/{slotId}', {
+fetch(`/api/slots/availability/weekly/${slotId}`, {
   method: 'DELETE',
   credentials: 'include'
 }).then(r => r.json())
 ```
 **Verify:** `SELECT count(*) FROM "SlotOfAvailabilityWeekly" WHERE "consultantProfileId" = 'test_unit_slots_cp1';`
-**Expected:** Count = 0.
+**Expected:** Count = 0 (or 1 if Scenario 3 also created a slot).
 
 ### 6. Create Custom Slot (via API)
 ```
-fetch('/api/slots/availability/custom', {
+const start = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+const end = new Date(start.getTime() + 3600 * 1000);
+const { data: createdCustomSlot } = await fetch('/api/slots/availability/custom', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   credentials: 'include',
   body: JSON.stringify({
-    startsAt: '2026-04-15T10:00:00.000Z',
-    endsAt: '2026-04-15T11:00:00.000Z'
+    startsAt: start.toISOString(),
+    endsAt: end.toISOString()
   })
-}).then(r => r.json())
+}).then(r => r.json());
+const customSlotId = createdCustomSlot.id;
 ```
 **Verify:** `SELECT id, "startsAt", "endsAt" FROM "SlotOfAvailabilityCustom" WHERE "consultantProfileId" = 'test_unit_slots_cp1';`
 
 ### 7. Delete Custom Slot (via API)
 ```
-fetch('/api/slots/availability/custom/{slotId}', {
+fetch(`/api/slots/availability/custom/${customSlotId}`, {
   method: 'DELETE',
   credentials: 'include'
 }).then(r => r.json())

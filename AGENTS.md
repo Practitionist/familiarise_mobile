@@ -7,9 +7,9 @@ This file defines the operational rules, module boundaries, verification gates, 
 ## 1. Golden Rules for All Agents
 
 1. **Toolbar & SDK Paths:**
-   - Flutter: `3.47.6` (`/usr/local/google/home/kaustavg/.local/bin/flutter`)
-   - Dart: `3.11+` (`/usr/local/google/home/kaustavg/.local/bin/dart`)
-   - Always prepend `export PATH="/usr/local/google/home/kaustavg/.local/bin:$PATH"` in non-interactive shells.
+   - Flutter: `3.47.6` (`command -v flutter`)
+   - Dart: `3.11+` (`command -v dart`)
+   - Ensure local SDK shims are on `PATH` in non-interactive shells (`export PATH="$HOME/.local/bin:$PATH"`), and verify availability with `command -v flutter && command -v dart`.
 2. **Zero `JsonQueryBuilder` Policy (`prisma_flutter_connector` v1.0.0):**
    - `JsonQueryBuilder` is completely retired (`0` occurrences in `backend/lib/`).
    - Every backend repository (`backend/lib/database/repositories/*.dart`) must use typed `PrismaClient` delegates (`_prisma.<model>.*`), `_prisma.$transaction(...)`, or `BaseRepository` helpers.
@@ -56,8 +56,8 @@ familiarise_mobile/
 │   ├── mcp-workflows/            # 6 multi-MCP end-to-end playbooks (00 through 05)
 │   └── testing/                  # 23 unit + 5 integration feature prompts
 ├── .github/workflows/            # flutter-ci.yml, shorebird-patch.yml, deploy-railway.yml
-├── shorebird.yaml                # Shorebird OTA configuration (auto_update: true)
-└── railway.json                  # Railway Dockerfile build & /api/health config
+├── .railway/railway.ts           # Railway IaC Dockerfile build & /api/health config
+└── shorebird.yaml                # Shorebird OTA configuration (auto_update: true)
 ```
 
 ---

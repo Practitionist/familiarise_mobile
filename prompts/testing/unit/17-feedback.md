@@ -14,7 +14,7 @@ VALUES ('test_unit_feedback_u1', 'Feedback User', 'test_unit_feedback@test.com',
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES ('test_unit_feedback_a1', 'test_unit_feedback_u1', 'test_unit_feedback_u1', 'credential',
-  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "createdAt", "updatedAt")
 VALUES ('test_unit_feedback_cep1', 'test_unit_feedback_u1', NOW(), NOW());

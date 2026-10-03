@@ -16,8 +16,8 @@ This file provides authoritative architecture, infrastructure, data-access, and 
 | **Backend ORM** | `prisma_flutter_connector` | **v1.0.0** (`0` `JsonQueryBuilder` usages — 100% typed `PrismaClient` delegates) |
 | **Database** | PostgreSQL (Supabase) | **93 Prisma models** synced 1:1 with `familiarise_web` |
 | **Video & Chat** | Stream SDK | `stream_video_flutter` + `stream_chat_flutter` (with DPDP consent gates) |
-| **Backend Hosting** | Railway | Dockerized AOT binary (`backend/Dockerfile`, `railway.json`, `/api/health`) |
-| **OTA Hotfixes** | Shorebird | `shorebird.yaml` (`app_id: f9b217a0-1007-48a5-bd41-d381568e23f1`, `auto_update: true`) |
+| **Backend Hosting** | Railway | Dockerized AOT binary (`backend/Dockerfile`, `.railway/railway.ts`, `/api/health`) |
+| **OTA Hotfixes** | Shorebird | `shorebird.yaml` (distinct `dev`/`staging`/`prod` `app_id`s, `auto_update: true`) |
 | **Store Releases** | Fastlane + GitHub Actions | `fastlane/Fastfile`, `.github/workflows/flutter-ci.yml` |
 
 ---
@@ -78,12 +78,12 @@ Whenever the web schema changes, sync and regenerate:
 
 | File | Purpose |
 |------|---------|
-| `.github/workflows/flutter-ci.yml` | Runs `analyze` (Flutter 3.47.6), `test-backend` (Prisma codegen + `dart analyze` + `dart test`), `build-android`, `build-ios`, and on `prod`/release runs `release-android` & `release-ios` via **Fastlane + Shorebird**. |
-| `.github/workflows/shorebird-patch.yml` | Triggers on `push` to `patch/**` or `hotfix/**` (or `workflow_dispatch`) to deliver OTA Dart patches (`shorebird patch android` & `shorebird patch ios`). |
-| `.github/workflows/deploy-railway.yml` | Triggers on `push` to `dev` or `prod` touching `backend/**` to deploy `backend/Dockerfile` to Railway and probe `/api/health`. |
+| `.github/workflows/flutter-ci.yml` | Runs `analyze` (Flutter 3.47.6), `test-backend` (Prisma codegen + `dart analyze` + `dart test`), `build-android`, `build-ios`, and on `prod`/workflow_dispatch runs `release-android` & `release-ios` via **Fastlane + Shorebird**. |
+| `.github/workflows/shorebird-patch.yml` | Triggers on `push` to `patch/**` or `hotfix/**` (or `workflow_dispatch`) to deliver OTA Dart patches (`shorebird patch android` & `shorebird patch ios --no-codesign`). |
+| `.github/workflows/deploy-railway.yml` | Triggers on `push` to `dev` or `prod` touching `backend/**`, `.railway/**`, or `.github/workflows/deploy-railway.yml` to deploy `backend/Dockerfile` to Railway and probe `/api/health`. |
 | `fastlane/Fastfile` & `fastlane/Appfile` | Defines `android` (`internal`, `beta`, `production`, `patch`) and `ios` (`beta`, `release`, `patch` with `match` + `upload_to_testflight` / `deliver`) lanes. |
-| `shorebird.yaml` | Configures Shorebird `app_id: f9b217a0-1007-48a5-bd41-d381568e23f1`, flavors (`dev`, `staging`, `prod`), and `auto_update: true`. |
-| `railway.json` | Configures Railway `DOCKERFILE` builder (`backend/Dockerfile`), `/api/health` healthcheck, `ON_FAILURE` restart policy, and replica settings. |
+| `shorebird.yaml` | Configures Shorebird per-flavor `app_id`s (`dev`, `staging`, `prod`) and `auto_update: true`. |
+| `.railway/railway.ts` | Configures Railway Infrastructure-as-Code (`DOCKERFILE` builder with `backend/Dockerfile`, `/api/health` healthcheck, `ON_FAILURE` restart policy, and replica settings). |
 
 ### 4.3 Update Decision Tree
 
@@ -98,7 +98,7 @@ Need to ship a change?
 │   └── Standard feature → PR to `dev` → promote to `prod`
 │
 └── Native iOS/Android change (Podfile, Gradle, entitlements, native plugin, assets)
-    └── Full store release → merge to `prod` or tag `v*.*.*` → `flutter-ci.yml` runs Fastlane + `shorebird release`
+    └── Full store release → merge to `prod` or run `flutter-ci.yml` workflow_dispatch → runs Fastlane + `shorebird release`
 ```
 
 ---
@@ -143,5 +143,7 @@ All end-to-end testing can be executed headlessly using **Flutter Web Server** +
 
 1. **Single Canonical `node_modules`:** Never leave standalone copies of `node_modules` across multiple git worktrees. If a tool requires `node_modules` in a worktree, symlink it to the canonical repo's `node_modules` and remove the worktree cleanly with `git worktree remove` when done.
 2. **Never Commit `backend/lib/generated/`:** Always regenerate locally and in CI via `./scripts/regenerate-build.sh --prisma`.
-3. **Run Analysis from Repo Root:** Always run `dart analyze` and `flutter test` from the repository root (`familiarise_mobile/`) so both `lib/` and `backend/` are checked together.
+3. **Verify Both Frontend and Backend Packages Separately:** Root-level `flutter analyze` and `flutter test` only check the Flutter app (`lib/` and `test/`), not `backend/`. Always run both:
+   - Root Flutter package: `flutter analyze --fatal-infos && flutter test`
+   - Backend package: `cd backend && dart analyze --fatal-infos && dart test`
 4. **`Platform` Enum Disambiguation:** `backend/lib/generated/` exports a `Platform` enum from Prisma (`STREAM`, `ZOOM`, etc.) that collides with `dart:io.Platform`. Always use `import 'dart:io' as io;` or `hide Platform`.

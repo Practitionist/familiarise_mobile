@@ -34,8 +34,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_mcp_ent_acc1', 'test_mcp_ent_u_admin', 'test_mcp_ent_u_admin', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW()),
-  ('test_mcp_ent_acc2', 'test_mcp_ent_u_mem', 'test_mcp_ent_u_mem', 'credential', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9h3l1x2z4B6n8M0p2Q4S', NOW(), NOW());
+  ('test_mcp_ent_acc1', 'test_mcp_ent_u_admin', 'test_mcp_ent_u_admin', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_mcp_ent_acc2', 'test_mcp_ent_u_mem', 'test_mcp_ent_u_mem', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "ConsulteeProfile" (id, "userId", "careerStage", "createdAt", "updatedAt")
 VALUES

@@ -4,6 +4,7 @@
 default_platform(:android)
 
 FLUTTER_VERSION = ENV.fetch("FLUTTER_VERSION", "3.47.6")
+SHOREBIRD_FLAVOR = ENV.fetch("SHOREBIRD_FLAVOR", "prod")
 
 # Shared helper to construct App Store Connect API Key when running in CI
 def configure_asc_api_key
@@ -21,23 +22,26 @@ end
 platform :android do
   desc "Build release AAB via Shorebird and upload to Google Play Internal Testing track"
   lane :internal do
-    sh("shorebird", "release", "android", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release")
+    Dir.chdir("..") do
+      sh("shorebird", "release", "android", "--flavor=#{SHOREBIRD_FLAVOR}", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release")
+    end
+    aab_path = File.expand_path("../build/app/outputs/bundle/release/app-release.aab", __dir__)
     upload_to_play_store(
       track: "internal",
       release_status: "completed",
-      aab: "build/app/outputs/bundle/release/app-release.aab",
+      aab: aab_path,
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true
     )
   end
 
-  desc "Promote or upload release AAB to Google Play Closed Beta track"
+  desc "Build release AAB via Shorebird and upload to Google Play Closed Beta track"
   lane :beta do
-    aab_path = "build/app/outputs/bundle/release/app-release.aab"
-    unless File.exist?(File.expand_path("../#{aab_path}", __dir__))
-      sh("shorebird", "release", "android", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release")
+    Dir.chdir("..") do
+      sh("shorebird", "release", "android", "--flavor=#{SHOREBIRD_FLAVOR}", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release")
     end
+    aab_path = File.expand_path("../build/app/outputs/bundle/release/app-release.aab", __dir__)
     upload_to_play_store(
       track: "beta",
       release_status: "completed",
@@ -48,12 +52,12 @@ platform :android do
     )
   end
 
-  desc "Upload release AAB to Google Play Production track"
+  desc "Build release AAB via Shorebird and upload to Google Play Production track"
   lane :production do
-    aab_path = "build/app/outputs/bundle/release/app-release.aab"
-    unless File.exist?(File.expand_path("../#{aab_path}", __dir__))
-      sh("shorebird", "release", "android", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release")
+    Dir.chdir("..") do
+      sh("shorebird", "release", "android", "--flavor=#{SHOREBIRD_FLAVOR}", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release")
     end
+    aab_path = File.expand_path("../build/app/outputs/bundle/release/app-release.aab", __dir__)
     upload_to_play_store(
       track: "production",
       release_status: "completed",
@@ -66,7 +70,9 @@ platform :android do
 
   desc "Deliver an instant 3-minute OTA Dart hotfix patch to Android via Shorebird"
   lane :patch do
-    sh("shorebird", "patch", "android")
+    Dir.chdir("..") do
+      sh("shorebird", "patch", "android", "--flavor=#{SHOREBIRD_FLAVOR}", "--release-version=latest")
+    end
   end
 end
 
@@ -83,11 +89,15 @@ platform :ios do
       api_key: api_key
     )
 
-    sh("shorebird", "release", "ios", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release", "--export-options-plist=ios/ExportOptions.plist")
+    Dir.chdir("..") do
+      sh("shorebird", "release", "ios", "--flavor=#{SHOREBIRD_FLAVOR}", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release", "--export-options-plist=ios/ExportOptions.plist")
+    end
+
+    ipa_path = File.expand_path(Dir.glob("../build/ios/ipa/*.ipa").first || UI.user_error!("No IPA found in build/ios/ipa/"), __dir__)
 
     upload_to_testflight(
       api_key: api_key,
-      ipa: Dir["../build/ios/ipa/*.ipa"].first || "build/ios/ipa/familiarise_mobile.ipa",
+      ipa: ipa_path,
       skip_waiting_for_build_processing: true
     )
   end
@@ -104,14 +114,15 @@ platform :ios do
       api_key: api_key
     )
 
-    ipa_glob = Dir["../build/ios/ipa/*.ipa"].first
-    unless ipa_glob
-      sh("shorebird", "release", "ios", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release", "--export-options-plist=ios/ExportOptions.plist")
+    Dir.chdir("..") do
+      sh("shorebird", "release", "ios", "--flavor=#{SHOREBIRD_FLAVOR}", "--flutter-version=#{FLUTTER_VERSION}", "--", "--release", "--export-options-plist=ios/ExportOptions.plist")
     end
+
+    ipa_path = File.expand_path(Dir.glob("../build/ios/ipa/*.ipa").first || UI.user_error!("No IPA found in build/ios/ipa/"), __dir__)
 
     deliver(
       api_key: api_key,
-      ipa: Dir["../build/ios/ipa/*.ipa"].first || "build/ios/ipa/familiarise_mobile.ipa",
+      ipa: ipa_path,
       submit_for_review: false,
       automatic_release: false,
       force: true,
@@ -122,6 +133,8 @@ platform :ios do
 
   desc "Deliver an instant 3-minute OTA Dart hotfix patch to iOS via Shorebird"
   lane :patch do
-    sh("shorebird", "patch", "ios")
+    Dir.chdir("..") do
+      sh("shorebird", "patch", "ios", "--flavor=#{SHOREBIRD_FLAVOR}", "--release-version=latest", "--no-codesign")
+    end
   end
 end

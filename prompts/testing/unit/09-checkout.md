@@ -17,8 +17,8 @@ VALUES
 
 INSERT INTO "accounts" (id, "userId", "accountId", "providerId", password, "createdAt", "updatedAt")
 VALUES
-  ('test_unit_checkout_a1', 'test_unit_checkout_u1', 'test_unit_checkout_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW()),
-  ('test_unit_checkout_a2', 'test_unit_checkout_u2', 'test_unit_checkout_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.q5Y6oN5K6YKD3lVz8mG0V5Z8Z8Z8Z', NOW(), NOW());
+  ('test_unit_checkout_a1', 'test_unit_checkout_u1', 'test_unit_checkout_u1', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW()),
+  ('test_unit_checkout_a2', 'test_unit_checkout_u2', 'test_unit_checkout_u2', 'credential', '$2a$12$LJ3m4ys3Lf.GEHPmwH8Xh.XzoCvKkqWyYZaFphvixFFncWVsC4W4O', NOW(), NOW());
 
 INSERT INTO "Domain" (id, name, "createdAt", "updatedAt")
 VALUES ('test_unit_checkout_dom', 'Technology', NOW(), NOW()) ON CONFLICT (id) DO NOTHING;
