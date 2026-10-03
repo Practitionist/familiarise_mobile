@@ -43,7 +43,11 @@ class _PreCallScreenState extends State<PreCallScreen> {
   Future<void> _handleJoinPressed() async {
     if (!_recordingConsentAccepted) {
       final consented = await _showRecordingConsentModal(context);
-      if (consented != true || !mounted) return;
+      if (!mounted) return;
+      if (consented != true) {
+        widget.onBack();
+        return;
+      }
       setState(() {
         _recordingConsentAccepted = true;
       });

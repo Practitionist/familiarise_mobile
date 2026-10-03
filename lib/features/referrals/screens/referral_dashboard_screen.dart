@@ -38,7 +38,16 @@ class ReferralDashboardScreen extends ConsumerWidget {
                 credits: creditsAsync.valueOrNull,
                 isCreating: isCreating,
                 onGenerateCode: () async {
-                  await ref.read(createReferralCodeProvider.notifier).create();
+                  final created = await ref
+                      .read(createReferralCodeProvider.notifier)
+                      .create();
+                  if (!created && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to generate referral code'),
+                      ),
+                    );
+                  }
                 },
               ),
               loading: () => const Padding(

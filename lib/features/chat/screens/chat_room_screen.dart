@@ -58,8 +58,8 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final ch = _channel;
     if (ch == null) return false;
     final extra = ch.extraData;
-    return extra['isFrozen'] == true ||
-        extra['frozen'] == true ||
+    return ch.frozen ||
+        extra['isFrozen'] == true ||
         extra['chatFrozenAt'] != null ||
         extra['isArchived'] == true;
   }

@@ -755,8 +755,8 @@ class StreamService {
     bool requireHostOrCollaborator = false,
     List<String>? memberIds,
   }) async {
-    if (channelId.startsWith('webinar_')) {
-      final webinarId = channelId.substring('webinar_'.length);
+    if (channelId.startsWith('webinar_') || channelId.startsWith('webinar-')) {
+      final webinarId = channelId.substring(8);
       final webinar = await db.prisma.webinar.findUnique(
         where: WebinarWhereUniqueInput(id: webinarId),
         include: const WebinarInclude(
@@ -791,15 +791,14 @@ class StreamService {
       return false;
     }
 
-    if (channelId.startsWith('class_')) {
-      final classId = channelId.substring('class_'.length);
+    if (channelId.startsWith('class_') || channelId.startsWith('class-')) {
+      final classId = channelId.substring(6);
       final classRecord = await db.prisma.classModel.findUnique(
         where: ClassModelWhereUniqueInput(id: classId),
         include: const ClassModelInclude(
           classPlan: ClassPlanInclude(
             consultantProfile: ConsultantProfileInclude(),
           ),
-          appointments: AppointmentInclude(),
         ),
       );
       if (classRecord == null) return false;
@@ -816,20 +815,23 @@ class StreamService {
       }
       if (requireHostOrCollaborator) return false;
 
-      final appointments = classRecord.appointments ?? const [];
-      for (final appt in appointments) {
-        if (await verifyAppointmentAccess(
-          db,
-          appointmentId: appt.id,
-          userId: userId,
-        )) {
-          return true;
-        }
-      }
-      return false;
+      final matchingSlots = await db.prisma.slotOfAppointment.count(
+        where: SlotOfAppointmentWhereInput(
+          appointment: AppointmentRelationFilter(
+            is_: AppointmentWhereInput(
+              classId: StringFilter(equals: classId),
+            ),
+          ),
+          user: UserListRelationFilter(
+            some: UserWhereInput(id: StringFilter(equals: userId)),
+          ),
+        ),
+      );
+      return matchingSlots > 0;
     }
 
-    if (channelId.startsWith('appointment_')) {
+    if (channelId.startsWith('appointment_') ||
+        channelId.startsWith('appointment-')) {
       final appointmentId = channelId.substring('appointment_'.length);
       return verifyAppointmentAccess(
         db,
@@ -839,29 +841,54 @@ class StreamService {
       );
     }
 
-    // For direct/custom channels: the authenticated user must be one of the
-    // channel members (or a consultant/collaborator sharing a slot with them).
-    if (memberIds != null && memberIds.isNotEmpty) {
-      if (!memberIds.contains(userId)) {
+    // Custom / DM channels have no host/collaborator owner record.
+    if (requireHostOrCollaborator) {
+      return false;
+    }
+
+    // Resolve DM participants from the canonical sorted user-ID pair encoded
+    // in the channel ID (`<sortedUserA>-<sortedUserB>`) and deny by default.
+    String? otherUserId;
+    if (channelId.startsWith('$userId-')) {
+      otherUserId = channelId.substring(userId.length + 1);
+    } else if (channelId.endsWith('-$userId')) {
+      otherUserId =
+          channelId.substring(0, channelId.length - userId.length - 1);
+    }
+    if (otherUserId == null || otherUserId.isEmpty || otherUserId == userId) {
+      return false;
+    }
+    final expectedDmId = ([userId, otherUserId]..sort()).join('-');
+    if (channelId != expectedDmId) {
+      return false;
+    }
+
+    final participants = <String>{userId, otherUserId};
+    if (memberIds != null) {
+      if (memberIds.isEmpty ||
+          !memberIds.contains(userId) ||
+          !memberIds.every(participants.contains)) {
         return false;
       }
     }
 
     final sharedSlotCount = await db.prisma.slotOfAppointment.count(
       where: SlotOfAppointmentWhereInput(
-        user: UserListRelationFilter(
-          some: UserWhereInput(id: StringFilter(equals: userId)),
-        ),
+        AND: [
+          SlotOfAppointmentWhereInput(
+            user: UserListRelationFilter(
+              some: UserWhereInput(id: StringFilter(equals: userId)),
+            ),
+          ),
+          SlotOfAppointmentWhereInput(
+            user: UserListRelationFilter(
+              some: UserWhereInput(id: StringFilter(equals: otherUserId)),
+            ),
+          ),
+        ],
       ),
     );
-    if (sharedSlotCount > 0) return true;
-
-    final consultantProfile = await db.prisma.consultantProfile.findFirst(
-      where: ConsultantProfileWhereInput(
-        userId: StringFilter(equals: userId),
-      ),
-    );
-    return consultantProfile != null;
+    return sharedSlotCount > 0;
   }
 
   Future<bool> _isAcceptedCollaborator(

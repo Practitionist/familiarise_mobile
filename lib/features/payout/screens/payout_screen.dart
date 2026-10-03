@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/web_dashboard_launcher.dart';
 import '../../../domain/entities/dashboard/earnings_summary.dart';
 import '../../../domain/entities/payout/payout_entities.dart';
 import '../../dashboard/providers/consultant_dashboard_provider.dart';
@@ -17,27 +17,13 @@ import '../providers/payout_provider.dart';
 class PayoutScreen extends ConsumerWidget {
   const PayoutScreen({super.key});
 
-  Future<void> _openWebPayoutSettings(BuildContext context) async {
-    final uri = Uri.parse('https://familiarise.io/dashboard');
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open https://familiarise.io/dashboard'),
-        ),
-      );
-    }
-  }
+  Future<void> _openWebPayoutSettings(BuildContext context) =>
+      launchFamiliariseWebDashboard(context);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(consultantDashboardProvider);
     final accountsAsync = ref.watch(payoutAccountsProvider);
-    final earnings =
-        dashboardAsync.valueOrNull?.earnings ?? const EarningsSummary();
 
     return Scaffold(
       appBar: AppBar(
@@ -51,7 +37,45 @@ class PayoutScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _WalletSummaryHeroCard(earnings: earnings),
+            dashboardAsync.when(
+              data: (dashboard) => _WalletSummaryHeroCard(
+                earnings: dashboard.earnings,
+              ),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => Card(
+                elevation: 0,
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Unable to load earnings summary: $e',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            ref.invalidate(consultantDashboardProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

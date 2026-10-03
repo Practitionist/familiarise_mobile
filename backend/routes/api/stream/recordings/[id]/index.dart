@@ -53,24 +53,40 @@ Future<Response> onRequest(RequestContext context, String id) async {
       );
     }
 
+    final meetingSession = await db.prisma.meetingSession.findUnique(
+      where: MeetingSessionWhereUniqueInput(id: recording.meetingSessionId),
+      include: const MeetingSessionInclude(
+        slotOfAppointment: SlotOfAppointmentInclude(),
+      ),
+    );
+    final appointmentId = meetingSession?.slotOfAppointment?.appointmentId;
     final callId = recording.streamCallId;
-    if (callId != null && callId.isNotEmpty) {
-      final hasAccess = await streamService.verifyCallAccess(
+
+    var hasAccess = false;
+    if (appointmentId != null && appointmentId.isNotEmpty) {
+      hasAccess = await streamService.verifyAppointmentAccess(
+        db,
+        appointmentId: appointmentId,
+        userId: userId,
+      );
+    } else if (callId != null && callId.isNotEmpty) {
+      hasAccess = await streamService.verifyCallAccess(
         db,
         callId: callId,
         userId: userId,
       );
-      if (!hasAccess) {
-        return Response.json(
-          statusCode: HttpStatus.forbidden,
-          body: {
-            'error': {
-              'message':
-                  'Forbidden: you do not have access to this session recording',
-            },
+    }
+
+    if (!hasAccess) {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {
+          'error': {
+            'message':
+                'Forbidden: you do not have access to this session recording',
           },
-        );
-      }
+        },
+      );
     }
 
     return Response.json(body: {'data': recording.toJson()});
@@ -249,15 +265,16 @@ Future<Response> _handleRecordingSync(RequestContext context) async {
     }
 
     final body = await context.request.json() as Map<String, dynamic>;
-    final callId = body['callId'] as String?;
-    final meetingSessionId = body['meetingSessionId'] as String?;
+    final callId = (body['callId'] as String?)?.trim();
+    final requestedMeetingSessionId =
+        (body['meetingSessionId'] as String?)?.trim();
 
-    if (callId == null || meetingSessionId == null) {
+    if (callId == null || callId.isEmpty) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {
           'error': {
-            'message': 'callId and meetingSessionId are required',
+            'message': 'callId is required and cannot be empty',
           },
         },
       );
@@ -284,6 +301,35 @@ Future<Response> _handleRecordingSync(RequestContext context) async {
         },
       );
     }
+
+    final meeting = await db.meetingSessions.getMeetingByStreamCallId(callId);
+    final resolvedMeetingSessionId = meeting?['id'] as String?;
+    if (resolvedMeetingSessionId == null || resolvedMeetingSessionId.isEmpty) {
+      return Response.json(
+        statusCode: HttpStatus.notFound,
+        body: {
+          'error': {
+            'message': 'Meeting session not found for callId',
+          },
+        },
+      );
+    }
+
+    if (requestedMeetingSessionId != null &&
+        requestedMeetingSessionId.isNotEmpty &&
+        requestedMeetingSessionId != resolvedMeetingSessionId) {
+      return Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {
+          'error': {
+            'message':
+                'Forbidden: meetingSessionId does not match the specified callId',
+          },
+        },
+      );
+    }
+
+    final meetingSessionId = resolvedMeetingSessionId;
 
     final streamRecordings = await streamService.listRecordings(callId);
     final now = DateTime.now().toUtc();

@@ -60,7 +60,7 @@ Future<Response> _handleAddMember(RequestContext context) async {
       db,
       channelId: channelId,
       userId: currentUserId,
-      memberIds: memberIds,
+      requireHostOrCollaborator: true,
     );
 
     if (!hasAccess) {
@@ -68,8 +68,8 @@ Future<Response> _handleAddMember(RequestContext context) async {
         statusCode: HttpStatus.forbidden,
         body: {
           'error': {
-            'message': 'Forbidden: you are not a participant, host '
-                'consultant, or accepted collaborator for this channel',
+            'message': 'Forbidden: only the host consultant or an accepted '
+                'collaborator can add members to this channel',
           },
         },
       );

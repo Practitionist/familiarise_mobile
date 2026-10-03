@@ -3,14 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/web_dashboard_launcher.dart';
 import '../../../domain/entities/booking/booking.dart';
 import '../../../shared/utils/fake_data.dart';
 import '../providers/consultant_schedule_provider.dart';
-
-/// Web dashboard URL for availability and calendar mutations.
-const _kWebDashboardUrl = 'https://familiarise.io/dashboard';
 
 /// Schedule screen for consultant - Companion Starter UX showing upcoming
 /// session countdowns, 1-tap "Join Video Call", and Web handoff for calendar
@@ -18,20 +15,8 @@ const _kWebDashboardUrl = 'https://familiarise.io/dashboard';
 class ScheduleScreen extends ConsumerWidget {
   const ScheduleScreen({super.key});
 
-  Future<void> _launchWebDashboard(BuildContext context) async {
-    final uri = Uri.parse(_kWebDashboardUrl);
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open https://familiarise.io/dashboard'),
-        ),
-      );
-    }
-  }
+  Future<void> _launchWebDashboard(BuildContext context) =>
+      launchFamiliariseWebDashboard(context);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -462,7 +447,8 @@ class _CompanionSessionCard extends StatelessWidget {
               ),
               if (booking.appointmentId != null &&
                   (isLiveOrUpcoming ||
-                      booking.status == RequestStatus.scheduled)) ...[
+                      (booking.status == RequestStatus.scheduled &&
+                          countdownState != _CountdownState.past))) ...[
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,

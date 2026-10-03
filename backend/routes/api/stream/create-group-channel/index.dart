@@ -70,6 +70,7 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
       db,
       channelId: channelId,
       userId: currentUserId,
+      requireHostOrCollaborator: true,
       memberIds: memberIds,
     );
 
@@ -78,8 +79,8 @@ Future<Response> _handleCreateGroupChannel(RequestContext context) async {
         statusCode: HttpStatus.forbidden,
         body: {
           'error': {
-            'message': 'Forbidden: you are not a participant, host '
-                'consultant, or accepted collaborator for this channel',
+            'message': 'Forbidden: only the host consultant or an accepted '
+                'collaborator can create or update a group channel',
           },
         },
       );

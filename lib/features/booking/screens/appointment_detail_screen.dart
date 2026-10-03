@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart' show UserRole;
 import '../../../core/utils/sentry_logger.dart';
+import '../../../core/utils/web_dashboard_launcher.dart';
 import '../../../domain/entities/booking/booking_entities.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../chat/providers/chat_service_provider.dart';
@@ -20,10 +20,6 @@ import '../widgets/booking_metrics_grid.dart';
 import '../widgets/booking_person_hero.dart';
 import '../widgets/booking_status_section.dart';
 import '../widgets/cancel_dialog.dart';
-import '../widgets/reschedule_dialog.dart';
-import '../widgets/session_selector_sheet.dart';
-
-const _kWebDashboardUrl = 'https://familiarise.io/dashboard';
 
 /// Companion Starter Appointment Detail Screen showing:
 /// - Clear upcoming session countdowns
@@ -94,20 +90,13 @@ class _AppointmentDetailScreenState
     }
   }
 
-  Future<void> _launchWebDashboard() async {
-    final uri = Uri.parse(_kWebDashboardUrl);
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open https://familiarise.io/dashboard'),
-        ),
-      );
-    }
-  }
+  Future<void> _launchWebDashboard() =>
+      launchFamiliariseWebDashboard(context);
+
+  bool get _showsCountdownCard =>
+      _fetchedBooking != null &&
+      _fetchedBooking!.status == RequestStatus.scheduled &&
+      _fetchedBooking!.slots.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -161,11 +150,12 @@ class _AppointmentDetailScreenState
           onPressed: () => context.pop(),
         ),
         actions: [
-          IconButton(
-            onPressed: _launchWebDashboard,
-            icon: const Icon(Icons.open_in_new),
-            tooltip: 'Manage Availability / Reschedule on Web',
-          ),
+          if (!_showsCountdownCard)
+            IconButton(
+              onPressed: _launchWebDashboard,
+              icon: const Icon(Icons.open_in_new),
+              tooltip: 'Manage Availability / Reschedule on Web',
+            ),
         ],
       ),
       body: _buildBody(),
@@ -222,6 +212,7 @@ class _AppointmentDetailScreenState
     }
 
     final booking = _fetchedBooking!;
+    final showCountdownCard = _showsCountdownCard;
 
     return Skeletonizer(
       enabled: _isLoading,
@@ -244,8 +235,7 @@ class _AppointmentDetailScreenState
               const SizedBox(height: 20),
 
               // Upcoming Session Countdown & 1-Tap Join Video Call Banner
-              if (booking.status == RequestStatus.scheduled &&
-                  booking.slots.isNotEmpty) ...[
+              if (showCountdownCard) ...[
                 _SessionCountdownCard(
                   booking: booking,
                   onJoinVideoCall: _handleJoinMeeting,
@@ -332,11 +322,11 @@ class _AppointmentDetailScreenState
                 onJoinMeeting: _handleJoinMeeting,
                 onTalkToExpert: _handleTalkToExpert,
                 onPayNow: _handlePayNow,
-                onReschedule: _handleReschedule,
                 onCancel: _handleCancel,
                 onWriteReview: _handleWriteReview,
                 onReportIssue: _handleReportIssue,
                 onManageOnWeb: _launchWebDashboard,
+                hideCountdownCardActions: showCountdownCard,
               ),
 
               const SizedBox(height: 40),
@@ -462,48 +452,6 @@ class _AppointmentDetailScreenState
       'checkout',
       extra: _fetchedBooking,
     );
-  }
-
-  Future<void> _handleReschedule() async {
-    if (_fetchedBooking!.bookingType == BookingType.subscription &&
-        _fetchedBooking!.slots.isNotEmpty) {
-      final choice = await showRescheduleOptionsSheet(
-        context: context,
-        booking: _fetchedBooking!,
-      );
-      if (choice == null) return;
-      if (!mounted) return;
-
-      if (choice is RescheduleSession) {
-        final selectedSlot = await showSessionSelectorSheet(
-          context: context,
-          booking: _fetchedBooking!,
-        );
-        if (selectedSlot == null) return;
-
-        ref.read(bookingActionsProvider.notifier).rescheduleBooking(
-              id: _fetchedBooking!.id,
-              type: _fetchedBooking!.bookingType,
-              slotId: selectedSlot.id,
-            );
-      } else {
-        ref.read(bookingActionsProvider.notifier).rescheduleBooking(
-              id: _fetchedBooking!.id,
-              type: _fetchedBooking!.bookingType,
-            );
-      }
-    } else {
-      final confirmed = await showRescheduleConfirmationDialog(
-        context: context,
-        booking: _fetchedBooking!,
-      );
-      if (!confirmed) return;
-
-      ref.read(bookingActionsProvider.notifier).rescheduleBooking(
-            id: _fetchedBooking!.id,
-            type: _fetchedBooking!.bookingType,
-          );
-    }
   }
 
   Future<void> _handleCancel() async {
