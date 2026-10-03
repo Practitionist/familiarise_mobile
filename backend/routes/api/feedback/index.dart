@@ -222,8 +222,8 @@ Future<Response> _handleCreateAppointmentFeedback(
     );
   }
   final rawComment = (rawCommentField as String?)?.trim();
-  final publishPublicReview = data['publishPublicReview'] == true ||
-      data['submitPublicReview'] == true;
+  final publishPublicReview =
+      data['publishPublicReview'] == true || data['submitPublicReview'] == true;
 
   // Persist ratingCause tag inside comment if provided
   final storedComment = ratingCause != null
@@ -276,12 +276,13 @@ Future<Response> _handleCreateAppointmentFeedback(
 
   final slotConsultantProfileIds = <String>[];
   var isSlotParticipant = false;
-  for (final slot in appointment.slotsOfAppointment ?? const <dynamic>[]) {
-    final slotConsultantId = slot.consultantProfileId as String?;
+  for (final slot
+      in appointment.slotsOfAppointment ?? const <SlotOfAppointment>[]) {
+    final slotConsultantId = slot.consultantProfileId;
     if (slotConsultantId != null && slotConsultantId.isNotEmpty) {
       slotConsultantProfileIds.add(slotConsultantId);
     }
-    for (final slotUser in slot.user ?? const <dynamic>[]) {
+    for (final slotUser in slot.user ?? const <User>[]) {
       if (slotUser.id == userId) {
         isSlotParticipant = true;
       }
