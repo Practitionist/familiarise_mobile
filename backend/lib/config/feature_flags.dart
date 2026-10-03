@@ -13,25 +13,25 @@ import 'package:dart_frog/dart_frog.dart';
 /// exist yet (webinar/class checkout requires Apple IAP — see the IAP
 /// issue), so there is nothing to gate server-side.
 abstract final class FeatureFlags {
-  /// Razorpay/Stripe checkout, payment webhooks, refunds, disputes.
+  /// Razorpay/Stripe checkout, payment webhooks, refunds, disputes (delegated to web).
   static const payments = false;
 
-  /// Consultant payout accounts, TDS records, and tax info editing.
-  static const payouts = false;
+  /// Read-only consultant earnings & payouts wallet summary (mutations hand off to web).
+  static const payouts = true;
 
-  /// Referral codes and credits.
-  static const referrals = false;
+  /// Lightweight referral code & native share-sheet card.
+  static const referrals = true;
 
-  /// Webinar/class co-host collaborations.
-  static const collaborations = false;
+  /// Collaborator invitee inbox to view & accept/decline webinar/class invites.
+  static const collaborations = true;
 
-  /// Event waitlists.
+  /// Event waitlists (delegated to web).
   static const waitlist = false;
 
-  /// Staff/admin moderation, ticket triage, and verification review.
+  /// Staff/admin backoffice moderation, ticket triage, and verification review (web-only).
   static const staffTools = false;
 
-  /// Enterprise wallet & billing writes (top-ups, invoices).
+  /// Enterprise wallet & billing writes (top-ups, invoices — web-only).
   static const wallet = false;
 
   // TODO(programCheckout): add this flag when the webinar/class checkout
