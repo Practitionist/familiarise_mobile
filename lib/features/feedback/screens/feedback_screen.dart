@@ -5,8 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/feedback/feedback_entities.dart';
 import '../../reviews/widgets/star_rating_input.dart';
 import '../providers/feedback_provider.dart';
+import '../widgets/post_call_csat_sheet.dart';
 
-/// Screen for submitting app feedback
+/// Screen for submitting app feedback and Post-Call 1-Tap CSAT
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
 
@@ -73,6 +74,12 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final appointmentId =
+        GoRouterState.of(context).uri.queryParameters['appointmentId'];
+    final consultantProfileId =
+        GoRouterState.of(context).uri.queryParameters['consultantProfileId'];
+    final consultantName =
+        GoRouterState.of(context).uri.queryParameters['consultantName'];
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -86,6 +93,33 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            // Post-Call 1-Tap CSAT Banner when appointmentId is present or for quick session rating
+            if (appointmentId != null && appointmentId.isNotEmpty) ...[
+              Card(
+                elevation: 0,
+                color: colorScheme.secondaryContainer,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.stars_rounded,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
+                  title: const Text('Rate Your Completed Session'),
+                  subtitle: const Text(
+                    '1-tap CSAT rating & verified consultant review',
+                  ),
+                  trailing: FilledButton.tonal(
+                    onPressed: () => PostCallCsatSheet.show(
+                      context,
+                      appointmentId: appointmentId,
+                      consultantProfileId: consultantProfileId,
+                      consultantName: consultantName,
+                    ),
+                    child: const Text('Rate Call'),
+                  ),
+                ),
+              ),
+            ],
             // Intro text
             Container(
               padding: const EdgeInsets.all(16),

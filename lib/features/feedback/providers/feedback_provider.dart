@@ -1,13 +1,68 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/errors/exceptions.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/sentry_logger.dart';
 import '../../../data/repositories/feedback_repository_impl.dart';
 import '../../../domain/entities/feedback/feedback_entities.dart';
 
 part 'feedback_provider.g.dart';
 
-/// Provider for submitting feedback
+/// Session rating cause taxonomy aligned with `familiarise_web` (`RatingCause`).
+enum SessionRatingCause {
+  consultant('CONSULTANT', 'Consultant / Delivery'),
+  platformTechnical('PLATFORM_TECHNICAL', 'Video / Audio / Tech'),
+  payment('PAYMENT', 'Billing / Payment'),
+  scheduling('SCHEDULING', 'Scheduling / Timing'),
+  content('CONTENT', 'Session Materials'),
+  other('OTHER', 'Other');
+
+  const SessionRatingCause(this.value, this.label);
+
+  final String value;
+  final String label;
+}
+
+/// Result returned after submitting a Post-Call 1-Tap CSAT (`AppointmentFeedback`).
+class AppointmentCsatResult {
+  const AppointmentCsatResult({
+    required this.id,
+    required this.appointmentId,
+    required this.rating,
+    this.comment,
+    this.ratingCause,
+    this.reviewCreated = false,
+  });
+
+  final String id;
+  final String appointmentId;
+  final int rating;
+  final String? comment;
+  final String? ratingCause;
+  final bool reviewCreated;
+
+  factory AppointmentCsatResult.fromJson(
+    Map<String, dynamic> json, {
+    int? fallbackRating,
+  }) {
+    final parsedRating = (json['rating'] as num?)?.toInt() ?? fallbackRating;
+    if (parsedRating == null) {
+      throw const FormatException('Missing rating in CSAT response');
+    }
+    return AppointmentCsatResult(
+      id: (json['id'] as String?) ?? '',
+      appointmentId: (json['appointmentId'] as String?) ?? '',
+      rating: parsedRating,
+      comment: json['comment'] as String?,
+      ratingCause: json['ratingCause'] as String?,
+      reviewCreated: (json['reviewCreated'] as bool?) ?? false,
+    );
+  }
+}
+
+/// Provider for submitting app feedback
 @riverpod
 class SubmitFeedback extends _$SubmitFeedback {
   @override
@@ -57,3 +112,61 @@ Future<List<AppFeedback>> userFeedback(Ref ref) async {
   final repository = ref.watch(feedbackRepositoryProvider);
   return repository.getUserFeedback();
 }
+
+/// Notifier for submitting Post-Call 1-Tap CSAT (`AppointmentFeedback` + optional `ConsultantReview`).
+class PostCallCsatNotifier
+    extends AutoDisposeNotifier<AsyncValue<AppointmentCsatResult?>> {
+  @override
+  AsyncValue<AppointmentCsatResult?> build() => const AsyncData(null);
+
+  Future<AppointmentCsatResult?> submitCsat({
+    required String appointmentId,
+    required int rating,
+    SessionRatingCause? ratingCause,
+    String? comment,
+    String? consultantProfileId,
+    String? organizationId,
+    bool publishPublicReview = false,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.post(
+        '/api/feedback',
+        data: {
+          'appointmentId': appointmentId,
+          'rating': rating,
+          if (ratingCause != null) 'ratingCause': ratingCause.value,
+          if (comment != null && comment.trim().isNotEmpty)
+            'comment': comment.trim(),
+          if (consultantProfileId != null && consultantProfileId.isNotEmpty)
+            'consultantProfileId': consultantProfileId,
+          if (organizationId != null && organizationId.isNotEmpty)
+            'organizationId': organizationId,
+          'publishPublicReview': publishPublicReview,
+        },
+      );
+      final result = AppointmentCsatResult.fromJson(
+        response.data as Map<String, dynamic>,
+        fallbackRating: rating,
+      );
+      state = AsyncData(result);
+      return result;
+    } catch (e, stack) {
+      AppSentryLogger.captureException(
+        e,
+        stackTrace: stack,
+        context: 'PostCallCsatNotifier.submitCsat',
+      );
+      final unwrapped =
+          e is DioException && e.error is AppException ? e.error! : e;
+      state = AsyncError(unwrapped, stack);
+      return null;
+    }
+  }
+}
+
+final postCallCsatProvider = AutoDisposeNotifierProvider<PostCallCsatNotifier,
+    AsyncValue<AppointmentCsatResult?>>(
+  PostCallCsatNotifier.new,
+);

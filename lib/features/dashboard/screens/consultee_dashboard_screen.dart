@@ -5,6 +5,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../shared/utils/fake_data.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/providers/notifications_provider.dart';
 import '../providers/consultee_dashboard_provider.dart';
 import '../widgets/dashboard_section_header.dart';
 import '../widgets/pending_payment_card.dart';
@@ -21,6 +22,7 @@ class ConsulteeDashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final user = ref.watch(currentUserProvider);
     final dashboardAsync = ref.watch(consulteeDashboardProvider);
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -43,14 +45,20 @@ class ConsulteeDashboardScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notifications',
+            onPressed: () => context.push('/notifications'),
+            icon: Badge(
+              isLabelVisible: unreadCount > 0,
+              label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(consulteeDashboardProvider);
+          ref.invalidate(notificationsProvider);
         },
         child: dashboardAsync.when(
           data: (data) => _buildContent(context, ref, data),

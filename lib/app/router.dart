@@ -25,7 +25,9 @@ import '../features/explore/screens/explore_screen.dart';
 import '../features/programs/screens/programs_screen.dart';
 import '../features/programs/screens/webinar_detail_screen.dart';
 import '../features/programs/screens/class_detail_screen.dart';
+import '../features/dashboard/screens/consultant_dashboard_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
+import '../features/notifications/screens/notifications_screen.dart';
 import '../features/onboarding/screens/onboarding_shell_screen.dart';
 import '../features/organization/screens/my_organization_screen.dart';
 import '../features/schedule/screens/schedule_screen.dart';
@@ -42,13 +44,6 @@ import '../features/trials/screens/trial_list_screen.dart';
 import '../features/trials/screens/trial_request_screen.dart';
 import '../features/booking/screens/appointment_documents_screen.dart';
 import '../features/maintenance/screens/maintenance_screen.dart';
-import '../features/staff/screens/staff_dashboard_screen.dart';
-import '../features/staff/screens/staff_feedback_detail_screen.dart';
-import '../features/staff/screens/staff_feedback_screen.dart';
-import '../features/staff/screens/staff_ticket_detail_screen.dart';
-import '../features/staff/screens/staff_tickets_screen.dart';
-import '../features/staff/screens/staff_verification_detail_screen.dart';
-import '../features/staff/screens/staff_verifications_screen.dart';
 import '../features/payout/screens/add_payout_account_screen.dart';
 import '../features/payout/screens/payout_accounts_screen.dart';
 import '../features/tax/screens/tax_info_screen.dart';
@@ -102,7 +97,8 @@ GoRouter router(Ref ref) {
       final isOnboardingRoute = location == '/onboarding';
       final isSplash = location == '/';
       final isStaffRoute = location.startsWith('/staff');
-      final isConsultantOnlyRoute = location.startsWith('/payout-accounts') ||
+      final isConsultantOnlyRoute = location.startsWith('/payouts') ||
+          location.startsWith('/payout-accounts') ||
           location.startsWith('/tax-info');
       final isStaffUser = role == UserRole.staff || role == UserRole.admin;
       final isConsultantUser = role == UserRole.consultant;
@@ -116,6 +112,7 @@ GoRouter router(Ref ref) {
 
       // Valid app routes that authenticated users can access
       final isValidAppRoute = location.startsWith('/coming-soon') ||
+          location.startsWith('/notifications') ||
           location.startsWith('/organization') ||
           location.startsWith('/dashboard') ||
           location.startsWith('/explore') ||
@@ -128,6 +125,9 @@ GoRouter router(Ref ref) {
           location.startsWith('/chat') ||
           location.startsWith('/profile') ||
           location.startsWith('/collaborations') ||
+          location.startsWith('/payouts') ||
+          location.startsWith('/payout-accounts') ||
+          location.startsWith('/referrals') ||
           location.startsWith('/checkout') ||
           location.startsWith('/payment') ||
           location.startsWith('/support') ||
@@ -153,10 +153,18 @@ GoRouter router(Ref ref) {
         return '/onboarding';
       }
 
-      // Feature-flagged routes show a ComingSoon placeholder
-      final gatedFeature = FeatureFlags.gatedRouteFeature(location);
-      if (gatedFeature != null) {
-        return '/coming-soon?feature=${Uri.encodeComponent(gatedFeature)}';
+      // Companion Starter routes (/payouts, /referrals) and /staff
+      // (routed directly to ComingSoonScreen) bypass generic feature-flag
+      // redirects.
+      final isCompanionOrStaffRoute = location.startsWith('/payouts') ||
+          location.startsWith('/referrals') ||
+          location.startsWith('/staff');
+
+      if (!isCompanionOrStaffRoute) {
+        final gatedFeature = FeatureFlags.gatedRouteFeature(location);
+        if (gatedFeature != null) {
+          return '/coming-soon?feature=${Uri.encodeComponent(gatedFeature)}';
+        }
       }
 
       if (isStaffRoute && !isStaffUser) {
@@ -472,7 +480,21 @@ GoRouter router(Ref ref) {
             ],
           ),
 
-          // Payout routes
+          // Notifications route
+          GoRoute(
+            path: '/notifications',
+            name: 'notifications',
+            builder: (context, state) => const NotificationsScreen(),
+          ),
+
+          // Companion Starter: Payouts & Earnings summary route
+          GoRoute(
+            path: '/payouts',
+            name: 'payouts',
+            builder: (context, state) => const CompanionPayoutsScreen(),
+          ),
+
+          // Payout accounts routes
           GoRoute(
             path: '/payout-accounts',
             name: 'payoutAccounts',
@@ -486,6 +508,13 @@ GoRouter router(Ref ref) {
             ],
           ),
 
+          // Companion Starter: Referrals & Credits share route
+          GoRoute(
+            path: '/referrals',
+            name: 'referrals',
+            builder: (context, state) => const CompanionReferralsScreen(),
+          ),
+
           // Tax info routes
           GoRoute(
             path: '/tax-info',
@@ -493,46 +522,54 @@ GoRouter router(Ref ref) {
             builder: (context, state) => const TaxInfoScreen(),
           ),
 
-          // Staff dashboard
+          // Staff tools (Web Only)
           GoRoute(
             path: '/staff',
             name: 'staffDashboard',
-            builder: (context, state) => const StaffDashboardScreen(),
+            builder: (context, state) => const ComingSoonScreen(
+              feature: 'Staff Tools (Web Only)',
+            ),
             routes: [
               GoRoute(
                 path: 'verifications',
                 name: 'staffVerifications',
-                builder: (context, state) => const StaffVerificationsScreen(),
+                builder: (context, state) => const ComingSoonScreen(
+                  feature: 'Staff Tools (Web Only)',
+                ),
               ),
               GoRoute(
                 path: 'verifications/:verificationId',
                 name: 'staffVerificationDetail',
-                builder: (context, state) => StaffVerificationDetailScreen(
-                  verificationId: state.pathParameters['verificationId']!,
+                builder: (context, state) => const ComingSoonScreen(
+                  feature: 'Staff Tools (Web Only)',
                 ),
               ),
               GoRoute(
                 path: 'tickets',
                 name: 'staffTickets',
-                builder: (context, state) => const StaffTicketsScreen(),
+                builder: (context, state) => const ComingSoonScreen(
+                  feature: 'Staff Tools (Web Only)',
+                ),
               ),
               GoRoute(
                 path: 'tickets/:ticketId',
                 name: 'staffTicketDetail',
-                builder: (context, state) => StaffTicketDetailScreen(
-                  ticketId: state.pathParameters['ticketId']!,
+                builder: (context, state) => const ComingSoonScreen(
+                  feature: 'Staff Tools (Web Only)',
                 ),
               ),
               GoRoute(
                 path: 'feedback',
                 name: 'staffFeedback',
-                builder: (context, state) => const StaffFeedbackScreen(),
+                builder: (context, state) => const ComingSoonScreen(
+                  feature: 'Staff Tools (Web Only)',
+                ),
               ),
               GoRoute(
                 path: 'feedback/:feedbackId',
                 name: 'staffFeedbackDetail',
-                builder: (context, state) => StaffFeedbackDetailScreen(
-                  feedbackId: state.pathParameters['feedbackId']!,
+                builder: (context, state) => const ComingSoonScreen(
+                  feature: 'Staff Tools (Web Only)',
                 ),
               ),
             ],
@@ -545,7 +582,7 @@ GoRouter router(Ref ref) {
             builder: (context, state) => const MaintenanceScreen(),
           ),
 
-          // Enterprise org context (read-only)
+          // Enterprise org context (read-only + seat redemption CTA)
           GoRoute(
             path: '/organization',
             name: 'organization',

@@ -57,8 +57,10 @@ class _CreateTicketScreenState extends ConsumerState<CreateTicketScreen> {
           widget.bookingType == 'SUBSCRIPTION' ? widget.bookingId : null,
     );
 
-    final ticket =
-        await ref.read(createTicketProvider.notifier).submit(request);
+    final ticket = await ref.read(createTicketProvider.notifier).submit(
+          request,
+          category: _selectedIssueType?.category,
+        );
 
     setState(() => _isSubmitting = false);
 
