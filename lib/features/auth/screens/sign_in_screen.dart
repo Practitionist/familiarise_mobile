@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/extensions/string_extensions.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/loading_button.dart';
 import '../../../shared/widgets/social_sign_in_button.dart';
@@ -131,9 +132,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!RegExp(
-                      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                    ).hasMatch(value.trim())) {
+                    if (!value.trim().isValidEmail) {
                       return 'Please enter a valid email';
                     }
                     return null;

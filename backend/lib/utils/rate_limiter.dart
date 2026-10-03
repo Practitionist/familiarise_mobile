@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:io' as io;
 
 import 'package:dart_frog/dart_frog.dart';
 
@@ -60,6 +61,9 @@ class RateLimiter {
   /// Shared default singleton instance used by the root middleware.
   static final RateLimiter instance = RateLimiter();
 
+  /// Optional environment override for testing proxy header behavior.
+  static Map<String, String>? environmentOverride;
+
   /// Default maximum requests per [window] per key.
   final int maxRequests;
 
@@ -90,7 +94,10 @@ class RateLimiter {
     int? maxRequestsOverride,
   }) {
     final currentTime = (now ?? DateTime.now()).toUtc();
-    final effectiveLimit = maxRequestsOverride ?? maxRequests;
+    final effectiveLimit =
+        (maxRequestsOverride != null && maxRequestsOverride > 0)
+            ? maxRequestsOverride
+            : maxRequests;
     final windowStart = currentTime.subtract(window);
 
     _maybePrune(currentTime);
@@ -192,24 +199,59 @@ class RateLimiter {
     _lastPrunedAt = null;
   }
 
-  /// Extract client IP address from reverse-proxy headers or socket info.
-  static String extractClientIp(RequestContext context) {
-    final headers = context.request.headers;
-
-    final forwardedFor = headers['x-forwarded-for'];
-    if (forwardedFor != null && forwardedFor.trim().isNotEmpty) {
-      final firstIp = forwardedFor.split(',').first.trim();
-      if (firstIp.isNotEmpty) return firstIp;
+  static int _resolveTrustedProxyHops(Map<String, String> env) {
+    final rawHops = (env['TRUSTED_PROXY_HOPS'] ?? '').trim();
+    if (rawHops.isNotEmpty) {
+      final parsed = int.tryParse(rawHops);
+      if (parsed != null && parsed >= 0) return parsed;
     }
 
-    final cfConnectingIp = headers['cf-connecting-ip'];
-    if (cfConnectingIp != null && cfConnectingIp.trim().isNotEmpty) {
-      return cfConnectingIp.trim();
+    final rawTrustProxy = (env['TRUST_PROXY'] ?? '').trim().toLowerCase();
+    if (rawTrustProxy == 'true' || rawTrustProxy == '1') {
+      return 1;
+    }
+    if (rawTrustProxy.isNotEmpty) {
+      final parsed = int.tryParse(rawTrustProxy);
+      if (parsed != null && parsed > 0) return parsed;
     }
 
-    final realIp = headers['x-real-ip'];
-    if (realIp != null && realIp.trim().isNotEmpty) {
-      return realIp.trim();
+    return 0;
+  }
+
+  /// Extract client IP address from socket info or trusted reverse-proxy
+  /// headers when `TRUST_PROXY` / `TRUSTED_PROXY_HOPS` is configured.
+  static String extractClientIp(
+    RequestContext context, {
+    Map<String, String>? environment,
+  }) {
+    final env = environment ?? environmentOverride ?? io.Platform.environment;
+    final trustedHops = _resolveTrustedProxyHops(env);
+
+    if (trustedHops > 0) {
+      final headers = context.request.headers;
+
+      final forwardedFor = headers['x-forwarded-for'];
+      if (forwardedFor != null && forwardedFor.trim().isNotEmpty) {
+        final ips = forwardedFor
+            .split(',')
+            .map((ip) => ip.trim())
+            .where((ip) => ip.isNotEmpty)
+            .toList();
+        if (ips.isNotEmpty) {
+          final index = (ips.length - trustedHops).clamp(0, ips.length - 1);
+          return ips[index];
+        }
+      }
+
+      final cfConnectingIp = headers['cf-connecting-ip'];
+      if (cfConnectingIp != null && cfConnectingIp.trim().isNotEmpty) {
+        return cfConnectingIp.trim();
+      }
+
+      final realIp = headers['x-real-ip'];
+      if (realIp != null && realIp.trim().isNotEmpty) {
+        return realIp.trim();
+      }
     }
 
     try {

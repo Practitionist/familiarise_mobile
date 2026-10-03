@@ -33,8 +33,10 @@ Future<Response> onRequest(RequestContext context) async {
       stackTrace: stackTrace,
     );
     return Response.json(
-      statusCode: HttpStatus.unauthorized,
-      body: {'error': 'Unauthorized'},
+      statusCode: HttpStatus.serviceUnavailable,
+      body: {
+        'error': {'message': 'Failed to verify session'},
+      },
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:backend/database/database_client.dart';
 import 'package:backend/services/auth/github_oauth_service.dart';
 import 'package:backend/services/auth/google_token_verifier.dart';
 import 'package:backend/services/auth/jwt_service.dart';
+import 'package:backend/utils/sentry_logger.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:uuid/uuid.dart';
 
@@ -276,7 +277,13 @@ class AuthService {
       final email = identifier.replaceFirst('password-reset:', '');
       final user = await _db.users.findByEmail(email);
       return user?['id'] as String?;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      await SentryLogger.error(
+        'Failed to resolve user ID from password reset token',
+        context: 'AuthService.resolveUserIdFromPasswordResetToken',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }

@@ -56,15 +56,11 @@ Future<Response> onRequest(RequestContext context) async {
 
     // Revoke existing sessions for this user and evict in-memory session cache
     final token = extractBearerToken(context);
+    final authService = context.read<AuthService>();
+    await authService.revokeAllUserSessions(userId);
+    invalidateUserSessionsCache(userId);
     if (token != null) {
       invalidateSessionCache(token);
-    }
-    invalidateUserSessionsCache(userId);
-    try {
-      final authService = context.read<AuthService>();
-      await authService.revokeAllUserSessions(userId);
-    } catch (_) {
-      // AuthService may not be registered in isolated unit tests
     }
 
     return Response.json(

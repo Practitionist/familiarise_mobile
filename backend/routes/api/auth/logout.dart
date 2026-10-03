@@ -42,11 +42,13 @@ Future<Response> onRequest(RequestContext context) async {
     final userId = payload['userId'] as String?;
 
     if (sessionId != null && sessionId.isNotEmpty) {
-      invalidateSessionIdCache(sessionId);
       await authService.signOut(sessionId);
+      invalidateSessionIdCache(sessionId);
+      invalidateSessionCache(token);
     } else if (userId != null && userId.isNotEmpty) {
-      invalidateUserSessionsCache(userId);
       await authService.revokeAllUserSessions(userId);
+      invalidateUserSessionsCache(userId);
+      invalidateSessionCache(token);
     }
 
     return Response.json(body: {'success': true});

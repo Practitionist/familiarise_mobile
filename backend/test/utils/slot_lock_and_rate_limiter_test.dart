@@ -213,6 +213,63 @@ void main() {
       limiter.prune(t0.add(const Duration(seconds: 31)));
       expect(limiter.trackedKeyCount, equals(0));
     });
+
+    test('falls back to maxRequests when maxRequestsOverride is non-positive',
+        () {
+      final limiter = RateLimiter(
+        maxRequests: 2,
+        window: const Duration(seconds: 60),
+      );
+      final t0 = DateTime.utc(2026, 10, 15, 12, 0, 0);
+
+      final r1 = limiter.check('ip-override', now: t0, maxRequestsOverride: 0);
+      expect(r1.allowed, isTrue);
+      expect(r1.limit, equals(2));
+
+      final r2 = limiter.check('ip-override', now: t0, maxRequestsOverride: -5);
+      expect(r2.allowed, isTrue);
+      expect(r2.limit, equals(2));
+
+      final r3 = limiter.check('ip-override', now: t0, maxRequestsOverride: 0);
+      expect(r3.allowed, isFalse);
+    });
+
+    test(
+        'extractClientIp ignores forwarding headers unless trusted proxy is configured and counts hops from right',
+        () {
+      final context = _MockRequestContext();
+      final request = _MockRequest();
+      when(() => context.request).thenReturn(request);
+      when(() => request.headers).thenReturn({
+        'x-forwarded-for': '198.51.100.99, 203.0.113.10',
+        'cf-connecting-ip': '198.51.100.88',
+      });
+
+      // Without TRUST_PROXY / TRUSTED_PROXY_HOPS, headers are not trusted
+      expect(
+        RateLimiter.extractClientIp(context, environment: const {}),
+        equals('unknown'),
+      );
+
+      // With 1 trusted proxy hop, selects rightmost XFF entry (203.0.113.10),
+      // ignoring client-prepended spoofed entry (198.51.100.99)
+      expect(
+        RateLimiter.extractClientIp(
+          context,
+          environment: const {'TRUST_PROXY': 'true'},
+        ),
+        equals('203.0.113.10'),
+      );
+
+      // With 2 trusted proxy hops, selects 2nd entry from right
+      expect(
+        RateLimiter.extractClientIp(
+          context,
+          environment: const {'TRUSTED_PROXY_HOPS': '2'},
+        ),
+        equals('198.51.100.99'),
+      );
+    });
   });
 
   group('Root middleware rate limiting, health bypass, and maintenance mode',
@@ -242,6 +299,9 @@ void main() {
 
     test('returns 429 Too Many Requests with Retry-After when limit exceeded',
         () async {
+      root_middleware.middlewareEnvironmentOverride = {
+        'TRUST_PROXY': 'true',
+      };
       final limiter = RateLimiter(
         maxRequests: 2,
         window: const Duration(seconds: 60),

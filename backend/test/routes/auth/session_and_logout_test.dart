@@ -155,6 +155,22 @@ void main() {
       verify(() => authService.getSession('session-123')).called(1);
     });
 
+    test('returns 503 when session verification throws an unexpected error',
+        () async {
+      when(() => request.headers)
+          .thenReturn({'authorization': 'Bearer valid-token'});
+      when(() => jwtService.tryVerify('valid-token')).thenReturn({
+        'userId': 'user-123',
+        'sessionId': 'session-123',
+      });
+      when(() => authService.getSession('session-123'))
+          .thenThrow(Exception('Database connection error'));
+
+      final response = await session_route.onRequest(context);
+
+      expect(response.statusCode, equals(HttpStatus.serviceUnavailable));
+    });
+
     test('returns 405 on non-GET method', () async {
       when(() => request.method).thenReturn(HttpMethod.post);
 

@@ -15,16 +15,16 @@ const Set<String> _strictAuthPaths = {
 };
 
 /// Default per-IP request limit per 60s window for general API routes.
-int get _defaultRateLimit =>
-    int.tryParse(io.Platform.environment['RATE_LIMIT_MAX_REQUESTS'] ?? '') ??
-    120;
+int get _defaultRateLimit {
+  final parsed = int.tryParse(_env['RATE_LIMIT_MAX_REQUESTS'] ?? '');
+  return (parsed != null && parsed > 0) ? parsed : 120;
+}
 
 /// Stricter per-IP request limit per 60s window for auth mutation routes.
-int get _authRateLimit =>
-    int.tryParse(
-      io.Platform.environment['AUTH_RATE_LIMIT_MAX_REQUESTS'] ?? '',
-    ) ??
-    30;
+int get _authRateLimit {
+  final parsed = int.tryParse(_env['AUTH_RATE_LIMIT_MAX_REQUESTS'] ?? '');
+  return (parsed != null && parsed > 0) ? parsed : 30;
+}
 
 /// Optional environment override for testing middleware behavior.
 Map<String, String>? middlewareEnvironmentOverride;
@@ -42,6 +42,7 @@ void clearMiddlewareState() {
   _cachedMaintenanceWindow = null;
   _maintenanceCacheCheckedAt = null;
   RateLimiter.instance.clear();
+  RateLimiter.environmentOverride = null;
 }
 
 bool _isHealthOrMaintenanceRoute(String path) {
@@ -119,7 +120,7 @@ Handler middleware(Handler handler) {
       limiter = RateLimiter.instance;
     }
 
-    final clientIp = RateLimiter.extractClientIp(context);
+    final clientIp = RateLimiter.extractClientIp(context, environment: _env);
     final isStrictAuthRoute = _strictAuthPaths.contains(path);
     final bucketKey = isStrictAuthRoute ? 'auth:$clientIp' : 'api:$clientIp';
     final limitOverride = isStrictAuthRoute
