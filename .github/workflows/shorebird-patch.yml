@@ -1,0 +1,186 @@
+name: Shorebird OTA Patch
+
+on:
+  push:
+    branches:
+      - 'patch/**'
+      - 'hotfix/**'
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Target platforms for OTA Dart patch'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - android
+          - ios
+      flavor:
+        description: 'Target Shorebird environment flavor (dev, staging, prod)'
+        required: false
+        default: 'prod'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      release_version:
+        description: 'Optional release version (e.g. 1.0.0+1) to patch; defaults to latest release'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorebird-patch-${{ inputs.platforms || 'both' }}-${{ inputs.flavor || 'prod' }}-${{ inputs.release_version || 'latest' }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.47.6'
+  JAVA_VERSION: '17'
+
+jobs:
+  # ============================================
+  # Fast Quality Gate before OTA Patch
+  # ============================================
+  verify-dart:
+    name: Verify Dart Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
+        run: |
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
+
+      - name: Get dependencies & generate code
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Run static analysis
+        run: flutter analyze --fatal-infos
+
+  # ============================================
+  # Shorebird OTA Patch — Android (~3 min)
+  # ============================================
+  patch-android:
+    name: Shorebird Patch (Android)
+    needs: verify-dart
+    if: ${{ inputs.platforms != 'ios' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Shorebird CLI
+        uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
+        run: |
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
+
+      - name: Get dependencies & generate code
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Apply Shorebird OTA Patch (Android)
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          FLAVOR: ${{ inputs.flavor || 'prod' }}
+        run: |
+          if [ -n "$RELEASE_VERSION" ]; then
+            shorebird patch android --flavor="$FLAVOR" --release-version="$RELEASE_VERSION"
+          else
+            shorebird patch android --flavor="$FLAVOR" --release-version=latest
+          fi
+
+  # ============================================
+  # Shorebird OTA Patch — iOS (~3 min)
+  # ============================================
+  patch-ios:
+    name: Shorebird Patch (iOS)
+    needs: verify-dart
+    if: ${{ inputs.platforms != 'android' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Shorebird CLI
+        uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Create .env file
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ secrets.PRODUCTION_API_BASE_URL || secrets.API_BASE_URL }}
+        run: |
+          printf 'SUPABASE_URL=%s\nSUPABASE_ANON_KEY=%s\nSTREAM_API_KEY=%s\nRAZORPAY_KEY_ID=%s\nSTRIPE_PUBLISHABLE_KEY=%s\nAPI_BASE_URL=%s\nUSE_PRISMA=false\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$STREAM_API_KEY" "$RAZORPAY_KEY_ID" "$STRIPE_PUBLISHABLE_KEY" "$API_BASE_URL" > .env
+
+      - name: Get dependencies & generate code
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          cd ios && pod install --repo-update
+
+      - name: Apply Shorebird OTA Patch (iOS)
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          FLAVOR: ${{ inputs.flavor || 'prod' }}
+        run: |
+          if [ -n "$RELEASE_VERSION" ]; then
+            shorebird patch ios --flavor="$FLAVOR" --release-version="$RELEASE_VERSION" --no-codesign
+          else
+            shorebird patch ios --flavor="$FLAVOR" --release-version=latest --no-codesign
+          fi

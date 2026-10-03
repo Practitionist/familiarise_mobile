@@ -1,0 +1,18 @@
+# This file is used to configure the Shorebird updater used by Familiarise Mobile.
+# Learn more at https://docs.shorebird.dev
+# This file does not contain any sensitive information and should be checked into version control.
+
+# Default / Production Shorebird app_id for familiarise_mobile (com.familiarise.mobile)
+app_id: f4a9c2e1-7b3d-4e8a-9c1f-2d5e6a8b9c0f
+
+# Flavors map environment-specific builds to their corresponding Shorebird app IDs
+# so OTA patches stay isolated per environment.
+flavors:
+  dev: f4a9c2e1-7b3d-4e8a-9c1f-2d5e6a8b9c0d
+  staging: f4a9c2e1-7b3d-4e8a-9c1f-2d5e6a8b9c0e
+  prod: f4a9c2e1-7b3d-4e8a-9c1f-2d5e6a8b9c0f
+
+# Automatically check for and download Dart OTA patches in the background on launch.
+# Patches are applied on the next cold start or triggered programmatically via
+# package:shorebird_code_push in lib/main.dart.
+auto_update: true

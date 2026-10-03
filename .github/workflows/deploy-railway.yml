@@ -1,0 +1,136 @@
+name: Deploy Backend to Railway
+
+on:
+  push:
+    branches: [dev, prod]
+    paths:
+      - 'backend/**'
+      - '.railway/**'
+      - '.github/workflows/deploy-railway.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Railway environment'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-railway-${{ inputs.environment || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.47.6'
+
+jobs:
+  # ============================================
+  # Test & Verify Backend before Deployment
+  # ============================================
+  test-backend:
+    name: Test & Analyze Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter (required by prisma_flutter_connector)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: flutter pub get
+
+      - name: Generate Prisma client & Freezed models
+        working-directory: backend
+        run: |
+          dart run prisma_flutter_connector:generate \
+            --schema prisma/schema.prisma \
+            --output lib/generated \
+            --server
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze backend code
+        working-directory: backend
+        run: dart analyze --fatal-infos
+
+      - name: Run backend tests
+        working-directory: backend
+        run: dart test
+
+  # ============================================
+  # Deploy Container to Railway & Verify /api/health
+  # ============================================
+  deploy-railway:
+    name: Deploy to Railway
+    needs: test-backend
+    runs-on: ubuntu-latest
+    environment: ${{ (github.event_name == 'workflow_dispatch' && inputs.environment == 'production') && 'production' || (github.ref == 'refs/heads/prod' && 'production' || 'staging') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend container to Railway
+        working-directory: backend
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          RAILWAY_PRODUCTION_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+          RAILWAY_STAGING_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+        run: |
+          TARGET_ENV="staging"
+          if [ "$GITHUB_REF" = "refs/heads/prod" ]; then
+            TARGET_ENV="production"
+          fi
+          if [ -n "$INPUT_ENVIRONMENT" ]; then
+            TARGET_ENV="$INPUT_ENVIRONMENT"
+          fi
+          if [ "$TARGET_ENV" = "production" ] && [ "$GITHUB_REF" != "refs/heads/prod" ]; then
+            echo "::error::Production deployments require refs/heads/prod (current ref: $GITHUB_REF)"
+            exit 1
+          fi
+          if [ "$TARGET_ENV" = "production" ]; then
+            export RAILWAY_TOKEN="$RAILWAY_PRODUCTION_TOKEN"
+          else
+            export RAILWAY_TOKEN="$RAILWAY_STAGING_TOKEN"
+          fi
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::Missing Railway token secret for target environment: $TARGET_ENV"
+            exit 1
+          fi
+          echo "TARGET_ENV=$TARGET_ENV" >> "$GITHUB_ENV"
+          echo "Deploying familiarise-mobile-backend to Railway environment: $TARGET_ENV"
+          railway up --service familiarise-mobile-backend --environment "$TARGET_ENV"
+
+      - name: Verify /api/health endpoint
+        env:
+          RAILWAY_PRODUCTION_PUBLIC_URL: ${{ secrets.RAILWAY_PRODUCTION_PUBLIC_URL || secrets.PRODUCTION_API_BASE_URL }}
+          RAILWAY_STAGING_PUBLIC_URL: ${{ secrets.RAILWAY_STAGING_PUBLIC_URL || secrets.STAGING_API_BASE_URL }}
+        run: |
+          if [ "$TARGET_ENV" = "production" ]; then
+            HEALTHCHECK_BASE_URL="$RAILWAY_PRODUCTION_PUBLIC_URL"
+          else
+            HEALTHCHECK_BASE_URL="$RAILWAY_STAGING_PUBLIC_URL"
+          fi
+          if [ -z "$HEALTHCHECK_BASE_URL" ]; then
+            echo "::error::Missing healthcheck URL"
+            exit 1
+          fi
+          echo "Waiting 25s for Railway container rollout to stabilize..."
+          sleep 25
+          curl --fail --silent --show-error --retry 6 --retry-delay 10 \
+            "${HEALTHCHECK_BASE_URL}/api/health"
+          echo ""
+          echo "Health check succeeded at ${HEALTHCHECK_BASE_URL}/api/health"
